@@ -10,6 +10,8 @@ METHOD_RE = re.compile(r"\b(method|approach|model|framework|algorithm|architectu
 RESULT_RE = re.compile(r"\b(result|evaluation|experiment|benchmark|baseline|dataset|metric|performance|outperform|accuracy|f1|auc|bleu|rouge)\b", re.I)
 TABLE_RE = re.compile(r"\b(table|tab\.?|figure|fig\.?)\b", re.I)
 ABLATION_RE = re.compile(r"\bablation\b|ablat", re.I)
+COMPARISON_RE = re.compile(r"\b(comparison|compare|compared|baseline|baselines|state-of-the-art|sota|outperform|surpass|better than|against)\b", re.I)
+ROBUSTNESS_RE = re.compile(r"\b(robustness|robust|sensitivity|generalization|generalisation|stress test|out-of-distribution|ood)\b", re.I)
 CONCLUSION_RE = re.compile(r"\b(conclusion|discussion)\b", re.I)
 FRAMEWORK_FIGURE_RE = re.compile(r"\b(framework|overview|architecture|pipeline|workflow|diagram|schematic)\b", re.I)
 THEORY_RE = re.compile(r"\b(theorem|lemma|proposition|corollary|proof|provably|convergence|generalization bound|sample complexity|regret bound)\b", re.I)
@@ -75,6 +77,10 @@ def evidence_section_bucket(evidence: Dict[str, Any]) -> str:
         if FRAMEWORK_FIGURE_RE.search(combined) and not RESULT_RE.search(combined) and not ABLATION_RE.search(combined):
             return "method"
         return "table_or_figure"
+    if COMPARISON_RE.search(combined) or ROBUSTNESS_RE.search(combined) or bucket == "comparison":
+        # Non-table comparison/robustness claims are empirical review evidence.
+        # Table/Figure comparison keeps the more concrete table_or_figure bucket.
+        return "result"
     if METHOD_RE.search(source) or bucket in {"method_or_approach", "method_or_design", "method"}:
         return "method"
     if THEORY_RE.search(source) or bucket in {"theory_or_proof", "proof", "theory"}:
@@ -98,8 +104,10 @@ def support_role(evidence: Dict[str, Any]) -> str:
     if section == "ablation":
         return "ablation_support"
     if section in {"result", "table_or_figure"}:
-        if re.search(r"\b(baseline|compare|comparison|outperform)\b", text, re.I):
+        if COMPARISON_RE.search(text):
             return "comparison_support"
+        if ROBUSTNESS_RE.search(text):
+            return "robustness_support"
         return "empirical_result"
     if section == "method":
         return "method_description"

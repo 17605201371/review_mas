@@ -4,8 +4,15 @@
 #
 # 使用火山引擎 DeepSeek V3 API 替换全部 Agent 推理
 # 启动前确保已安装 openai: pip install openai>=1.0.0
+# 启动前必须设置：
+#   export DEEPSEEK_API_KEY=...
 
 set -euo pipefail
+
+if [[ -z "${DEEPSEEK_API_KEY:-}" ]]; then
+  echo "ERROR: DEEPSEEK_API_KEY is required. Export it before running this script." >&2
+  exit 2
+fi
 
 RUN_TAG="smoke8_$(date +%Y%m%d)_deepseek_v3_sameids_t7"
 LOG_FILE="${RUN_TAG}.log"
@@ -24,7 +31,6 @@ conda activate DrMAS-qwen35
 python -u -m agent_system.inference.review_runner \
   --backend api \
   --api-model deepseek-v3-2-251201 \
-  --api-key "0caaa6e7-b6be-4364-b5cf-e10900d6326d" \
   --api-base-url "https://ark.cn-beijing.volces.com/api/v3" \
   --api-max-workers 4 \
   --api-timeout 180 \

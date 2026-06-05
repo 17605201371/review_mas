@@ -1,5 +1,12 @@
 ## DeepSeek V3 vs Qwen3.5-9B 对比实验报告（4/8 篇论文）
 
+> **2026-06-05 修正说明：这份报告只覆盖早期 4/8 篇 DeepSeek API 结果，不能作为最终跨模型结论。**
+> 后续完整 8 样本 `local_deepseek_v3_full8.jsonl` 的同 ID 漏斗审计显示，DeepSeek 在 raw evidence payload、direct final support、fallback dependency 和 evidence_support_score 上明显优于 Qwen 9B。请优先参考：
+>
+> - `MODEL_TRANSFER_DIAGNOSIS_20260605.md`
+> - `MODEL_TRANSFER_FUNNEL_QWEN8_DEEPSEEK_FULL8.md`
+> - `MODEL_TRANSFER_FUNNEL_DEEPSEEK_16.md`
+
 ### 实验背景
 
 本实验在多Agent论文评审系统（Dr.MAS Review）中，对比两个模型的表现：

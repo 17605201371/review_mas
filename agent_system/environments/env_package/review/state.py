@@ -862,6 +862,10 @@ def _apply_quote_bank_entry_metadata(item: Dict[str, Any], entry: Dict[str, Any]
     item["verified_source_bucket"] = bucket
     if bucket == "table_or_figure":
         item["support_source_bucket"] = "table_or_figure"
+    elif bucket == "ablation":
+        item["support_source_bucket"] = "ablation"
+    elif bucket == "comparison":
+        item["support_source_bucket"] = "result_or_experiment"
     elif bucket == "results":
         item["support_source_bucket"] = "result_or_experiment"
     elif bucket == "method":
@@ -876,6 +880,10 @@ def _apply_quote_bank_entry_metadata(item: Dict[str, Any], entry: Dict[str, Any]
         item["support_source_bucket"] = "conclusion_or_discussion"
     elif bucket == "claim_match" and not item.get("support_source_bucket"):
         item["support_source_bucket"] = _evidence_source_bucket(item)
+    if not item.get("support_role"):
+        role_hint = str(entry.get("support_role_hint") or "").strip()
+        if role_hint:
+            item["support_role"] = role_hint
 
 
 def _verified_claim_overlap_score(evidence: Dict[str, Any]) -> int:
@@ -996,7 +1004,7 @@ _NEGATIVE_SUPPORT_LOCATOR_RE = re.compile(
 # overlap).  The guard exempts these only when grounding is paper_grounded_exact
 # and the verified quote match type signals an exact reproduction.
 _TABLE_OR_RESULT_ANCHOR_BUCKETS = frozenset(
-    {"table_or_figure", "result_or_experiment", "theory_or_proof"}
+    {"table_or_figure", "result_or_experiment", "ablation", "comparison", "theory_or_proof"}
 )
 
 
@@ -1168,7 +1176,12 @@ def _classify_medium_support_promotion_tier(evidence: Dict[str, Any]) -> Dict[st
     none = {"tier": "none", "reason": ""}
     if str(evidence.get("strength") or "") != "medium":
         return none
-    if str(evidence.get("initial_strength") or "") not in {"", "medium"}:
+    initial_strength = str(evidence.get("initial_strength") or "")
+    restored_from_low_score_guard = (
+        initial_strength == "strong"
+        and str(evidence.get("final_strength_guard_downgrade_reason") or "") == "low_score_strong_support_downgrade"
+    )
+    if initial_strength not in {"", "medium"} and not restored_from_low_score_guard:
         return none
     # Bug C fix: align with `_is_real_bound_support` instead of requiring the
     # explicit `bound_real_claim` tag.  Manager/binding pipelines mark a
@@ -1210,6 +1223,8 @@ def _classify_medium_support_promotion_tier(evidence: Dict[str, Any]) -> Dict[st
     if depth not in {"deep", "moderate"}:
         return none
     source_bucket = str(evidence.get("support_source_bucket") or evidence.get("verified_source_bucket") or "")
+    declared_bucket = str(evidence.get("support_source_bucket") or "").strip()
+    decision_bucket = _decision_support_source_bucket(evidence)
     if source_bucket == "abstract":
         return none
     # Mainline-Final-Integrated P0-1: never promote a Limitation / Gap /
@@ -1230,6 +1245,24 @@ def _classify_medium_support_promotion_tier(evidence: Dict[str, Any]) -> Dict[st
                 "verified_claim_overlap_deep_support" if has_overlap else "direct_verified_deep_support"
             )
             return {"tier": "strong", "reason": reason}
+        match_type = str(evidence.get("verified_quote_match_type") or "").lower()
+        locator = str(evidence.get("source_locator") or "")
+        specific_anchor = bool(evidence.get("source_locator_specific")) or _is_specific_locator(locator)
+        anchor_verified = (
+            specific_anchor
+            and grounding_label == "paper_grounded_exact"
+            and match_type
+            in {
+                "exact",
+                "exact_match",
+                "exact_quote",
+                "quote_bank_id_canonical",
+                "quote_bank_raw_canonical",
+            }
+            and (declared_bucket in _TABLE_OR_RESULT_ANCHOR_BUCKETS or decision_bucket in _TABLE_OR_RESULT_ANCHOR_BUCKETS)
+        )
+        if anchor_verified:
+            return {"tier": "moderate", "reason": "specific_anchor_low_score_support_held_at_moderate"}
         if near_miss_path == "near_miss_verified_deep_support":
             return {"tier": "moderate", "reason": near_miss_path}
         return {
@@ -2687,6 +2720,32 @@ def _refresh_state_consistency(state: Dict[str, Any]) -> tuple[Dict[str, Any], L
                 claim["status"] = coerced_status
 
     support_counts = _real_strong_support_counts(refreshed)
+    for question in refreshed.get("unresolved_questions", []) or []:
+        if not isinstance(question, dict):
+            continue
+        if str(question.get("status") or "open") != "open":
+            continue
+        related_claim_ids = [str(item) for item in (question.get("related_claim_ids") or []) if str(item)]
+        if not any(support_counts.get(claim_id, 0) > 0 for claim_id in related_claim_ids):
+            continue
+        question_text = str(question.get("question") or "")
+        if not _GENERIC_LACK_SUPPORT_PATTERN.search(question_text):
+            continue
+        old_status = question.get("status", "open")
+        question["status"] = "resolved"
+        question["resolved_by"] = "verified_real_claim_support"
+        question["hygiene_status_reason"] = "state_consistency_resolved_by_real_claim_support"
+        question_id = str(question.get("question_id") or question.get("question") or "unresolved_question")
+        _append_revision_event(
+            derived_revisions,
+            "unresolved_question",
+            question_id,
+            "status",
+            old_status,
+            "resolved",
+            reason="state_consistency_resolved_by_real_claim_support",
+        )
+
     for flaw in flaws:
         flaw_id = flaw.get("flaw_id", "")
         if flaw.get("status") == "confirmed" and not flaw.get("evidence_ids"):
@@ -2854,6 +2913,48 @@ def _is_real_bound_support(item: Dict[str, Any], real_claim_ids: set[str]) -> bo
         and _is_usable_support_grounding(item)
     )
 
+
+def _context_verified_support_diagnostics(state: Dict[str, Any]) -> Dict[str, Any]:
+    """Count verified context-claim support without promoting it to real support.
+
+    Context-derived claims are useful diagnostics for zero-real coverage cases, but
+    they must not be converted into real paper claims in the final decision view.
+    """
+    claims = state.get("claims", []) or []
+    evidence_map = state.get("evidence_map", []) or []
+    context_ids = {
+        str(claim.get("claim_id") or "")
+        for claim in claims
+        if isinstance(claim, dict)
+        and _classify_claim_kind(claim.get("claim_id"), claim.get("claim_kind")) == "context_synthesized"
+    }
+    counts_by_claim: Dict[str, int] = {}
+    evidence_ids: List[str] = []
+    for evidence in evidence_map:
+        if not isinstance(evidence, dict):
+            continue
+        claim_id = str(evidence.get("claim_id") or "")
+        if claim_id not in context_ids:
+            continue
+        if str(evidence.get("stance") or "") not in {"supports", "partially_supports"}:
+            continue
+        if _evidence_has_negative_intent(evidence) or _evidence_negative_locator_or_bucket_signal(evidence):
+            continue
+        if str(evidence.get("verified_grounding_label") or "") not in VERIFIED_PAPER_GROUNDED_LABELS:
+            continue
+        if str(evidence.get("semantic_grounding_label") or "") != "semantic_support_verified":
+            continue
+        if not _has_final_support_strength(evidence):
+            continue
+        counts_by_claim[claim_id] = counts_by_claim.get(claim_id, 0) + 1
+        evidence_id = str(evidence.get("evidence_id") or "")
+        if evidence_id:
+            evidence_ids.append(evidence_id)
+    return {
+        "context_verified_support_total": sum(counts_by_claim.values()),
+        "context_verified_support_by_claim": counts_by_claim,
+        "context_verified_support_evidence_ids": evidence_ids[:20],
+    }
 
 def _decision_real_strong_support_counts(state: Dict[str, Any]) -> Dict[str, int]:
     real_claim_ids = _decision_real_claim_ids(state)
@@ -3126,6 +3227,31 @@ _REPORT_META_LEAKAGE_TERMS = (
     "system salvage",
     "system recovery",
     "evidence-recovery-missing",
+    "review diagnostic report",
+    "summary of reviews",
+    "key strengths",
+    "key weaknesses",
+)
+
+
+_REPORT_INTERNAL_ID_REPLACEMENTS = (
+    (re.compile(r"\bclaim-context-\d+\b", re.I), "context-synthesized claim"),
+    (re.compile(r"\bclaim-fallback-[A-Za-z0-9_.:-]+\b", re.I), "fallback claim"),
+    (re.compile(r"\bclaim-recovery-[A-Za-z0-9_.:-]+\b", re.I), "recovery marker claim"),
+    (re.compile(r"\bevidence-recovery-missing-[A-Za-z0-9_.:-]+\b", re.I), "recovery evidence marker"),
+    (re.compile(r"\bevidence-fallback-[A-Za-z0-9_.:-]+\b", re.I), "fallback evidence marker"),
+    (re.compile(r"\bclaim-\d+(?:-[A-Za-z0-9_.:-]+)?\b", re.I), "paper claim"),
+    (re.compile(r"\bevidence-\d+(?:-[A-Za-z0-9_.:-]+)?\b", re.I), "evidence anchor"),
+    (re.compile(r"\bevidence-(?:negative|critique|recovery|fallback|general|placeholder)-[A-Za-z0-9_.:-]+\b", re.I), "evidence anchor"),
+    (re.compile(r"\bflaw-fallback-[A-Za-z0-9_.:-]+\b", re.I), "fallback concern"),
+    (re.compile(r"\bflaw-\d+(?:-[A-Za-z0-9_.:-]+)?\b", re.I), "review concern"),
+    (re.compile(r"\bquote-\d+(?:-[A-Za-z0-9_.:-]+)?\b", re.I), "paper quote"),
+)
+
+
+_REPORT_PROCESS_SENTENCE_PATTERNS = (
+    re.compile(r"No concrete evidence found for target claims?[^.!?]*(?:[.!?]|$)", re.I),
+    re.compile(r"No concrete evidence found for target claim[^.!?]*(?:[.!?]|$)", re.I),
 )
 
 
@@ -3134,8 +3260,31 @@ def _is_report_meta_leakage_text(text: Any) -> bool:
     return any(term in lowered for term in _REPORT_META_LEAKAGE_TERMS)
 
 
+def _redact_report_internal_ids(text: str) -> str:
+    """Remove internal ReviewState ids from paper-facing report text.
+
+    Audit artifacts keep raw ids. The user-facing diagnostic report should
+    describe paper-side content without implementation identifiers such as
+    ``claim-context-1`` or ``evidence-7``.
+    """
+    value = text or ""
+    for pattern, replacement in _REPORT_INTERNAL_ID_REPLACEMENTS:
+        value = pattern.sub(replacement, value)
+    return re.sub(r"\s+", " ", value).strip()
+
+
+def _strip_report_process_sentences(text: str) -> str:
+    value = text or ""
+    for pattern in _REPORT_PROCESS_SENTENCE_PATTERNS:
+        value = pattern.sub(" ", value)
+    return re.sub(r"\s+", " ", value).strip()
+
+
 def _report_visible_text(text: Any, default: str = "", max_length: int = 800) -> str:
     value = _normalize_text(text, max_length=max_length)
+    if not value or _is_report_meta_leakage_text(value):
+        return default
+    value = _strip_report_process_sentences(_redact_report_internal_ids(value))
     if not value or _is_report_meta_leakage_text(value):
         return default
     return value
@@ -3596,6 +3745,7 @@ def _support_survival_summary(trace: Sequence[Dict[str, Any]]) -> Dict[str, Any]
     support_admission_blocker_counts: Dict[str, int] = {}
     verified_moderate_claim_ids: set[str] = set()
     included_claim_ids: set[str] = set()
+    diagnostic_independent_groups_by_claim: Dict[str, set[str]] = {}
     medium_nonabstract_shadow_keys: set[tuple[str, str]] = set()
     abstract_shadow_keys: set[tuple[str, str]] = set()
     medium_deep_nonabstract_promotion_candidate = 0
@@ -3615,6 +3765,16 @@ def _support_survival_summary(trace: Sequence[Dict[str, Any]]) -> Dict[str, Any]
         support_admission_tier_counts[tier] = support_admission_tier_counts.get(tier, 0) + 1
         if tier == "verified_moderate" and claim_id:
             verified_moderate_claim_ids.add(claim_id)
+        if claim_id and item.get("claim_kind") == "paper_extracted" and tier in {"verified_strong", "verified_moderate"}:
+            locator_key = re.sub(
+                r"\s+",
+                " ",
+                str(item.get("source_locator") or item.get("locator_type") or "").strip().lower(),
+            )[:120]
+            quote_key = str(item.get("quote_id") or item.get("raw_quote") or item.get("evidence_id") or "")[:240]
+            role_key = str(item.get("decision_support_source_bucket") or item.get("support_depth") or "unknown")
+            group_key = f"{claim_id}|{role_key}|{locator_key}|{quote_key}"
+            diagnostic_independent_groups_by_claim.setdefault(claim_id, set()).add(group_key)
         if item.get("semantic_grounding_label") == "semantic_support_verified":
             semantic_verified += 1
         if item.get("included_in_final_view") and item.get("final_support_depth") == "deep":
@@ -3714,6 +3874,10 @@ def _support_survival_summary(trace: Sequence[Dict[str, Any]]) -> Dict[str, Any]
             if blocker == "verified_abstract_support_not_final_strong":
                 abstract_shadow_keys.add(shadow_key)
     final_total = sum(1 for item in trace if item.get("included_in_final_view"))
+    diagnostic_independent_group_total = sum(len(groups) for groups in diagnostic_independent_groups_by_claim.values())
+    diagnostic_claims_with_2plus_independent = sum(
+        1 for groups in diagnostic_independent_groups_by_claim.values() if len(groups) >= 2
+    )
     medium_or_abstract_shadow_keys = medium_nonabstract_shadow_keys | abstract_shadow_keys
     medium_new_claim_ids = {
         claim_id
@@ -3783,6 +3947,8 @@ def _support_survival_summary(trace: Sequence[Dict[str, Any]]) -> Dict[str, Any]
         "support_admission_blocker_counts": support_admission_blocker_counts,
         "final_verified_moderate_support_total": moderate_diagnostic_support_total,
         "claims_with_verified_moderate_support": len(verified_moderate_claim_ids),
+        "diagnostic_independent_support_group_total": diagnostic_independent_group_total,
+        "claims_with_2plus_independent_or_diagnostic_support": diagnostic_claims_with_2plus_independent,
         "verified_medium_support_blocked_count": support_admission_blocker_counts.get("verified_medium_support_not_final_strong", 0),
         "verified_abstract_support_blocked_count": support_admission_blocker_counts.get("verified_abstract_support_not_final_strong", 0),
         "medium_deep_nonabstract_promotion_candidate_count": medium_deep_nonabstract_promotion_candidate,
@@ -4055,6 +4221,7 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
 
     view = copy.deepcopy(state or {})
     view["evidence_map"] = _verify_evidence_items_for_state(view, view.get("evidence_map", []) or [])
+    context_support_diagnostics = _context_verified_support_diagnostics(view)
     support_counts = _decision_real_strong_support_counts(view)
     _r6_negative_burden_claim_ids = _negative_burden_claim_ids(view)
     kept_gaps, stale_gaps = _filter_decision_gaps(view.get("evidence_gaps", []), support_counts, _r6_negative_burden_claim_ids)
@@ -4243,6 +4410,7 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
     view["decision_hygiene"] = {
         "real_strong_support_total": sum(support_counts.values()),
         "real_strong_support_by_claim": support_counts,
+        **context_support_diagnostics,
         **support_quality,
         "support_survival_trace": support_survival_trace,
         "support_survival_summary": support_survival_summary,
@@ -4263,6 +4431,8 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
         "support_admission_blocker_counts": support_survival_summary.get("support_admission_blocker_counts", {}),
         "final_verified_moderate_support_total": support_survival_summary.get("final_verified_moderate_support_total", 0),
         "claims_with_verified_moderate_support": support_survival_summary.get("claims_with_verified_moderate_support", 0),
+        "diagnostic_independent_support_group_total": support_survival_summary.get("diagnostic_independent_support_group_total", 0),
+        "claims_with_2plus_independent_or_diagnostic_support": support_survival_summary.get("claims_with_2plus_independent_or_diagnostic_support", 0),
         "verified_medium_support_blocked_count": support_survival_summary.get("verified_medium_support_blocked_count", 0),
         "verified_abstract_support_blocked_count": support_survival_summary.get("verified_abstract_support_blocked_count", 0),
         "medium_deep_nonabstract_promotion_candidate_count": support_survival_summary.get("medium_deep_nonabstract_promotion_candidate_count", 0),
@@ -6011,9 +6181,23 @@ _EVIDENCE_SECTION_HEADER_PATTERNS: List[Tuple[str, re.Pattern[str]]] = [
 ]
 _EVIDENCE_DETAIL_ANCHOR_PATTERNS: List[Tuple[str, re.Pattern[str]]] = [
     (
+        "ablation",
+        re.compile(
+            r"\b(ablation study|ablation results?|ablation analysis|without (?:the )?\w+ module|remove(?:d|s)? (?:the )?\w+ module)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "comparison",
+        re.compile(
+            r"\b(compare(?:d|s)? with|comparison with|baseline(?:s)?|state-of-the-art|sota|outperform(?:s|ed)?|surpass(?:es|ed)?|better than|robustness|sensitivity)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
         "table_or_figure",
         re.compile(
-            r"(?:^|\n)\s*(?:Table|Figure|Fig\.)\s*\d+\s*[:.\-]|\\begin\{(?:table|figure)\}|\\caption\{|\b(ablation study|ablation results)\b",
+            r"(?:^|\n)\s*(?:Table|Figure|Fig\.)\s*\d+\s*[:.\-]|\\begin\{(?:table|figure)\}|\\caption\{",
             re.IGNORECASE,
         ),
     ),
@@ -6047,7 +6231,16 @@ _EVIDENCE_NEGATIVE_ANCHOR_PATTERNS: List[Tuple[str, re.Pattern[str]]] = [
     (
         "negative_or_gap",
         re.compile(
-            r"\b(limitation|limitations|fail(?:s|ed|ure)?|cannot|can not|does not|do not|did not|lack(?:s|ed|ing)?|insufficient|without|no significant|not significant|worse|underperform(?:s|ed)?|future work|threats? to validity|not evaluated|not compare(?:d)?|no ablation|missing baseline)\b",
+            r"\b("
+            r"no\s+(?:ablation|baseline|comparison|evaluation)|"
+            r"missing\s+(?:ablation|baseline|comparison|evaluation)|"
+            r"not\s+(?:evaluated|compared|significant)|no\s+significant|"
+            r"(?:do|does|did)\s+not\s+(?:report|provide|include|evaluate|compare|validate|establish|show)\b|"
+            r"lack(?:s|ed|ing)?\s+(?:ablation|baseline|comparison|evaluation|implementation|detail)|"
+            r"insufficient\s+(?:evaluation|experiment|baseline|comparison|detail)|"
+            r"worse|underperform(?:s|ed)?|fail(?:s|ed)?\s+to\s+(?:show|evaluate|compare|generalize|generalise)|"
+            r"threats?\s+to\s+validity|future\s+work|limitation|limitations"
+            r")\b",
             re.IGNORECASE,
         ),
     ),
@@ -6078,7 +6271,9 @@ _NEG_TYPE_MISSING_ABLATION_RE = re.compile(
 _NEG_TYPE_MISSING_BASELINE_RE = re.compile(
     r"\b(not compare(?:d)?|missing baseline|no baseline|without comparison|"
     r"without (?:a |the )?(?:strong )?baseline|lacks? (?:a |the )?(?:strong )?baseline|"
-    r"do(?:es)? not (?:compare|report|provide|include).*\b(baseline|comparison))\b",
+    r"do(?:es)? not (?:compare|report|provide|include).*\b(baseline|comparison)|"
+    r"(?:baseline|comparison)[^.!?]{0,100}(?:is |are |was |were )?not (?:reported|included|provided)|"
+    r"not (?:reported|included|provided)[^.!?]{0,100}\b(baseline|comparison))\b",
     re.IGNORECASE,
 )
 _NEG_TYPE_INSUFFICIENT_EVALUATION_RE = re.compile(
@@ -6104,6 +6299,8 @@ _NEG_TYPE_NEUTRAL_CONTEXT_RE = re.compile(
     r"without the user's privacy|without user privacy|without guidance|"
     r"without intervention|without augmentations?|without dynamic tree attention|"
     r"trained without (?:a |the )?(?:definition|auxiliary) task|"
+    r"unlike [^.!?]{0,100}\bthey do not\b|in contrast[^.!?]{0,100}\bthey do not\b|"
+    r"(?:baseline|method|approach|system|framework|hugginggpt)[^.!?]{0,120}did not release (?:their |the )?(?:evaluation )?dataset|"
     r"without [^.!?]{0,80}\bwith(?:out)?\b)\b",
     re.IGNORECASE,
 )
@@ -6129,21 +6326,22 @@ _NEG_TYPE_NEUTRAL_INSTRUCTION_NOISE_RE = re.compile(
 
 
 def _classify_negative_evidence_type(quote: str) -> str:
-    """Diagnostic 5-way classifier for paper-grounded negative quotes.
+    """Diagnostic classifier for paper-grounded negative quotes.
 
-    The order is significant: the strictest cue wins. Quotes that fall through
-    to ``generic_gap`` may still match the broad negative anchor regex.
-
-    This is a label-only function: returning a type does NOT change whether
-    the quote enters the bank, anchors a flaw, or affects routing. Use the
-    field for offline analysis/audits, not for runtime gating.
+    Neutral contrast and external-baseline context is filtered before actionable
+    labels so related-work statements do not become hard-negative evidence.
+    Bibliographic noise is checked after paper-side cues to avoid treating an
+    otherwise meaningful sentence as a reference solely because it contains
+    ``et al.``.
     """
     if not quote:
         return "generic_gap"
-    if _NEG_TYPE_BIB_TITLE_NOISE_RE.search(quote):
-        return "bibliographic_or_title_noise"
     if _NEG_TYPE_NEUTRAL_INSTRUCTION_NOISE_RE.search(quote):
         return "neutral_instruction_noise"
+    if _NEG_TYPE_NEUTRAL_CONTEXT_RE.search(quote):
+        return "neutral_control_context"
+    if re.search(r"did not release (?:their |the )?(?:evaluation )?dataset", quote, re.IGNORECASE) and re.search(r"(benchmark|baseline|hugginggpt|et al\.|we developed)", quote, re.IGNORECASE):
+        return "neutral_control_context"
     if _NEG_TYPE_DIRECT_CONTRADICTION_RE.search(quote):
         return "direct_contradiction"
     if _NEG_TYPE_NEGATIVE_RESULT_RE.search(quote):
@@ -6158,8 +6356,8 @@ def _classify_negative_evidence_type(quote: str) -> str:
         return "reproducibility_gap"
     if _NEG_TYPE_SCOPE_LIMITATION_RE.search(quote):
         return "scope_limitation"
-    if _NEG_TYPE_NEUTRAL_CONTEXT_RE.search(quote):
-        return "neutral_control_context"
+    if _NEG_TYPE_BIB_TITLE_NOISE_RE.search(quote):
+        return "bibliographic_or_title_noise"
     return "generic_gap"
 
 
@@ -6190,21 +6388,25 @@ def _negative_evidence_type_for_record(record: Dict[str, Any]) -> str:
 
 _EVIDENCE_NONABSTRACT_FALLBACK_PATTERNS: List[Tuple[str, re.Pattern[str]]] = [
     ("method", re.compile(r"\b(method|methodology|approach|model|framework|algorithm|architecture|objective|training|decoding|routing|graph neural|diffusion)\b", re.IGNORECASE)),
+    ("ablation", re.compile(r"\b(ablation|ablations|ablation study|ablation results|without (?:the )?\w+ module|remove(?:d|s)? (?:the )?\w+ module)\b", re.IGNORECASE)),
+    ("comparison", re.compile(r"\b(compare|comparison|compared|baseline|baselines|state-of-the-art|sota|outperform|surpass|better than|against|robustness|sensitivity)\b", re.IGNORECASE)),
     ("results", re.compile(r"\b(experiment|evaluation|results|benchmark|baseline|dataset|metric|performance|outperform|mrr|hits@?|miou|fid|validity|docking)\b", re.IGNORECASE)),
-    ("table_or_figure", re.compile(r"\b(table|figure|fig\.?|ablation)\b", re.IGNORECASE)),
+    ("table_or_figure", re.compile(r"\b(table|figure|fig\.?)\b", re.IGNORECASE)),
     ("theory_or_proof", re.compile(r"\b(theorem|lemma|proposition|proof|convergence|generalization|provably)\b", re.IGNORECASE)),
     ("conclusion", re.compile(r"\b(conclusion|discussion)\b", re.IGNORECASE)),
 ]
 
 _EVIDENCE_EMPIRICAL_PATTERN = re.compile(
-    r"\b(experiment|experiments|evaluation|evaluations|result|results|baseline|baselines|dataset|datasets|metric|metrics|performance|outperform|benchmark|ablation|table|figure|fig\.?)\b",
+    r"\b(experiment|experiments|evaluation|evaluations|result|results|baseline|baselines|dataset|datasets|metric|metrics|performance|outperform|benchmark|ablation|comparison|robustness|sensitivity|table|figure|fig\.?)\b",
     re.IGNORECASE,
 )
-_EVIDENCE_TABLE_PATTERN = re.compile(r"\b(table|figure|fig\.?|ablation)\b", re.IGNORECASE)
+_EVIDENCE_TABLE_PATTERN = re.compile(r"\b(table|figure|fig\.?)\b", re.IGNORECASE)
 _EVIDENCE_METHOD_PATTERN = re.compile(r"\b(method|methods|methodology|approach|model|framework|algorithm|architecture)\b", re.IGNORECASE)
-_EVIDENCE_SNIPPET_SOURCE_ORDER = ["abstract", "results", "table_or_figure", "claim_match", "theory_or_proof", "negative_or_gap", "method", "conclusion", "body_start"]
+_EVIDENCE_SNIPPET_SOURCE_ORDER = ["abstract", "ablation", "comparison", "results", "table_or_figure", "claim_match", "theory_or_proof", "negative_or_gap", "method", "conclusion", "body_start"]
 _EVIDENCE_SNIPPET_BUDGETS = {
     "abstract": 320,
+    "ablation": 560,
+    "comparison": 560,
     "results": 650,
     "table_or_figure": 600,
     "method": 520,
@@ -6215,6 +6417,8 @@ _EVIDENCE_SNIPPET_BUDGETS = {
     "body_start": 1200,
 }
 _EVIDENCE_SNIPPET_MAX_PER_SOURCE = {
+    "ablation": 2,
+    "comparison": 2,
     "results": 2,
     "table_or_figure": 2,
     "claim_match": 2,
@@ -6326,13 +6530,59 @@ def _quote_fragment_around(text: str, pos: int, max_chars: int = 220) -> str:
     line = text[line_start:line_end].strip()
     if 55 <= len(line) <= max_chars:
         return line
+    if line and len(line) > max_chars and re.search(r"\b(?:Table|Figure|Fig\.|Section|Sec\.)\s*\d+|\\(?:section|subsection)\b", line, re.IGNORECASE):
+        return re.sub(r"\s+", " ", line[:max_chars].rsplit(" ", 1)[0].strip())
+
+    # Prefer sentence/line boundaries over fixed windows.  Mid-token fragments
+    # are exact-matchable but hard for the model and semantic verifier to use.
+    boundary_start = max(
+        text.rfind("\n", max(0, pos - max_chars), pos),
+        text.rfind(". ", max(0, pos - max_chars), pos),
+        text.rfind("? ", max(0, pos - max_chars), pos),
+        text.rfind("! ", max(0, pos - max_chars), pos),
+    )
+    if boundary_start >= 0:
+        start = boundary_start + (1 if text[boundary_start] == "\n" else 2)
+        end_limit = min(len(text), start + max_chars)
+        next_candidates = [
+            idx + 1
+            for idx in (
+                text.find(". ", max(pos + 20, start), end_limit),
+                text.find("? ", max(pos + 20, start), end_limit),
+                text.find("! ", max(pos + 20, start), end_limit),
+                text.find("\n", max(pos + 20, start), end_limit),
+            )
+            if idx != -1
+        ]
+        end = min(next_candidates) if next_candidates else end_limit
+        candidate = re.sub(r"\s+", " ", text[start:end].strip())
+        if 45 <= len(candidate) <= max_chars and not re.match(r"^[a-z]{1,3}\s", candidate):
+            return candidate
 
     segment_start = max(0, pos - max_chars // 3)
+    while segment_start > 0 and segment_start < len(text) and not text[segment_start - 1].isspace():
+        segment_start -= 1
     segment_end = min(len(text), segment_start + max_chars)
     segment = text[segment_start:segment_end].strip()
     if len(segment) > max_chars:
         segment = segment[:max_chars].rsplit(" ", 1)[0].strip()
     return re.sub(r"\s+", " ", segment).strip()
+
+
+def _refine_evidence_quote_source(source: str, quote: str) -> str:
+    """Prefer the most concrete empirical source visible in the quote itself."""
+    text = str(quote or "")
+    if re.search(r"\b(ablation study|ablation results?|ablation analysis|ablat(?:e|ed|ion|ions)|without (?:the )?\w+ module|remove(?:d|s)? (?:the )?\w+ module)\b", text, re.IGNORECASE):
+        return "ablation"
+    if re.search(r"(?:^|\n)\s*(?:Table|Figure|Fig\.)\s*\d+\s*[:.\-]|\b(?:Table|Figure|Fig\.)\s*\d+", text, re.IGNORECASE):
+        return "table_or_figure"
+    if source in {"claim_match", "results", "comparison"} and re.search(
+        r"\b(compare(?:d|s)? with|comparison with|baseline(?:s)?|state-of-the-art|sota|outperform(?:s|ed)?|surpass(?:es|ed)?|better than|robustness|sensitivity)\b",
+        text,
+        re.IGNORECASE,
+    ):
+        return "comparison"
+    return source
 
 
 def _quote_source_locator(source: str, quote: str, index: int) -> str:
@@ -6341,7 +6591,9 @@ def _quote_source_locator(source: str, quote: str, index: int) -> str:
         return table.group(0)
     labels = {
         "results": "Results / Evaluation excerpt",
-        "table_or_figure": "Table/Figure/Ablation excerpt",
+        "table_or_figure": "Table/Figure excerpt",
+        "ablation": "Ablation excerpt",
+        "comparison": "Comparison / Robustness excerpt",
         "negative_or_gap": "Limitation / Gap / Negative evidence excerpt",
         "method": "Method / Approach excerpt",
         "theory_or_proof": "Theory / Proof excerpt",
@@ -6398,7 +6650,7 @@ def _build_evidence_quote_bank(body: str, max_quotes: int = 6, claim_query_terms
             anchors.append(("claim_match", fallback_start + match.start()))
     anchors.append(("abstract", 0))
 
-    source_order = {"claim_match": 0, "table_or_figure": 1, "results": 2, "theory_or_proof": 3, "negative_or_gap": 4, "method": 5, "conclusion": 6, "abstract": 7, "body_start": 8}
+    source_order = {"claim_match": 0, "ablation": 1, "comparison": 2, "table_or_figure": 3, "results": 4, "theory_or_proof": 5, "negative_or_gap": 6, "method": 7, "conclusion": 8, "abstract": 9, "body_start": 10}
     anchors = sorted(
         anchors,
         key=lambda item: (
@@ -6415,9 +6667,10 @@ def _build_evidence_quote_bank(body: str, max_quotes: int = 6, claim_query_terms
     for source, pos in anchors:
         if len(quote_bank) >= max_quotes:
             break
-        if source_counts.get(source, 0) >= (2 if source in {"results", "table_or_figure", "negative_or_gap", "claim_match", "theory_or_proof"} else 1):
+        if source_counts.get(source, 0) >= (2 if source in {"ablation", "comparison", "results", "table_or_figure", "negative_or_gap", "claim_match", "theory_or_proof"} else 1):
             continue
         quote = _quote_fragment_around(body, pos)
+        source = _refine_evidence_quote_source(source, quote)
         if (
             source != "negative_or_gap"
             and any(pattern.search(quote) for _, pattern in _EVIDENCE_NEGATIVE_ANCHOR_PATTERNS)
@@ -6442,6 +6695,14 @@ def _build_evidence_quote_bank(body: str, max_quotes: int = 6, claim_query_terms
             "source_span_start": span_start,
             "source_span_end": span_end,
             "claim_overlap_score": overlap_score,
+            "support_role_hint": (
+                "ablation_support" if source == "ablation" else
+                "comparison_support" if source == "comparison" else
+                "empirical_result" if source in {"results", "table_or_figure"} else
+                "method_description" if source == "method" else
+                "theory_or_proof_support" if source == "theory_or_proof" else
+                "paper_evidence"
+            ),
             "copy_rule": "Copy raw_quote exactly; do not paraphrase.",
         }
         # P0-4 (diagnostic-only): attach a 5-class negative_evidence_type label
@@ -6474,8 +6735,24 @@ def _build_critique_negative_quote_bank(body: str, max_quotes: int = 6) -> List[
     for _, pattern in _EVIDENCE_NEGATIVE_ANCHOR_PATTERNS:
         for match in pattern.finditer(body, pos=first_nonabstract_pos):
             quote = _quote_fragment_around(body, match.start(), max_chars=260)
-            neg_type = _classify_negative_evidence_type(quote)
-            if neg_type == "neutral_control_context":
+            sentences = [part.strip() for part in re.split(r"(?<=[.!?])\s+", quote) if part.strip()]
+            actionable_sentences: List[str] = []
+            limitation_sentences: List[str] = []
+            for sentence in sentences or [quote]:
+                sentence_type = _classify_negative_evidence_type(sentence)
+                if sentence_type in ACTIONABLE_NEGATIVE_EVIDENCE_TYPES:
+                    actionable_sentences.append(sentence)
+                elif sentence_type in {"scope_limitation", "reproducibility_gap"}:
+                    limitation_sentences.append(sentence)
+            if actionable_sentences:
+                quote = " ".join(actionable_sentences[:2])
+                neg_type = _classify_negative_evidence_type(quote)
+            elif limitation_sentences:
+                quote = " ".join(limitation_sentences[:2])
+                neg_type = _classify_negative_evidence_type(quote)
+            else:
+                neg_type = _classify_negative_evidence_type(quote)
+            if neg_type in {"neutral_control_context", "generic_gap", "bibliographic_or_title_noise", "neutral_instruction_noise"}:
                 continue
             score = 0 if neg_type in ACTIONABLE_NEGATIVE_EVIDENCE_TYPES else 1
             candidates.append((score, match.start(), quote))
@@ -6491,7 +6768,7 @@ def _build_critique_negative_quote_bank(body: str, max_quotes: int = 6) -> List[
             continue
         seen.add(key)
         neg_type = _classify_negative_evidence_type(quote)
-        if neg_type == "neutral_control_context":
+        if neg_type in {"neutral_control_context", "generic_gap", "bibliographic_or_title_noise", "neutral_instruction_noise"}:
             continue
         verified_quote = _verify_quote_against_reference(quote, body, reference_start=0)
         span_start = int(verified_quote.get("verified_source_span_start", -1))
@@ -6653,6 +6930,8 @@ def _render_evidence_context_with_meta(
         "evidence_context_contains_results": "results" in source_set,
         "evidence_context_contains_conclusion": "conclusion" in source_set,
         "evidence_context_contains_table_or_figure": "table_or_figure" in source_set,
+        "evidence_context_contains_ablation": "ablation" in source_set,
+        "evidence_context_contains_comparison": "comparison" in source_set,
         "evidence_context_contains_claim_match": "claim_match" in source_set,
         "evidence_context_contains_empirical_terms": empirical_term_count > 0,
         "evidence_context_empirical_term_count": empirical_term_count,
@@ -6846,6 +7125,89 @@ def _render_evidence_state_slice(state: Dict[str, Any], target_claim_ids: Option
                 return True
         return False
 
+    def support_diversity_for_claims(claim_ids: Sequence[str]) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], Dict[str, List[str]], List[Dict[str, Any]]]:
+        from .support_quality import derive_support_quality, independence_group_id
+
+        claim_set = {str(item) for item in claim_ids if str(item)}
+        claim_by_id = {
+            str(item.get("claim_id") or ""): item
+            for item in state.get("claims", []) or []
+            if isinstance(item, dict) and str(item.get("claim_id") or "")
+        }
+        support_items_by_claim: Dict[str, List[Dict[str, Any]]] = {claim_id: [] for claim_id in claim_set}
+        for item in state.get("evidence_map", []) or []:
+            if not isinstance(item, dict):
+                continue
+            claim_id = str(item.get("claim_id") or "")
+            if claim_id not in claim_set:
+                continue
+            if str(item.get("stance") or "") not in {"supports", "partially_supports"}:
+                continue
+            if str(item.get("binding_status") or "") and str(item.get("binding_status") or "") != "bound_real_claim":
+                continue
+            if claim_id not in real_claim_ids:
+                continue
+            support_items_by_claim.setdefault(claim_id, []).append(item)
+
+        summaries: List[Dict[str, Any]] = []
+        needs: List[Dict[str, Any]] = []
+        first_support_needs: List[Dict[str, Any]] = []
+        avoid_by_claim: Dict[str, List[str]] = {}
+        for claim_id in claim_ids:
+            claim_id = str(claim_id or "")
+            if not claim_id or claim_id not in real_claim_ids:
+                continue
+            groups: set[str] = set()
+            quote_ids: set[str] = set()
+            locators: set[str] = set()
+            buckets: set[str] = set()
+            depths: set[str] = set()
+            for ev in support_items_by_claim.get(claim_id, []):
+                groups.add(independence_group_id(ev))
+                quote_id = str(ev.get("quote_id") or ev.get("source_quote_id") or "").strip()
+                if quote_id:
+                    quote_ids.add(quote_id)
+                locator = str(ev.get("source_locator") or ev.get("source") or "").strip()
+                if locator:
+                    locators.add(locator)
+                bucket = _decision_support_source_bucket(ev)
+                if bucket:
+                    buckets.add(bucket)
+                quality = derive_support_quality(ev, claim_by_id.get(claim_id))
+                depth = str(quality.get("support_depth") or "")
+                if depth:
+                    depths.add(depth)
+            summary = {
+                "claim_id": claim_id,
+                "support_item_count": len(support_items_by_claim.get(claim_id, [])),
+                "independent_support_group_count": len(groups),
+                "used_quote_ids": sorted(quote_ids)[:6],
+                "used_source_locators": sorted(locators)[:6],
+                "used_source_buckets": sorted(buckets)[:6],
+                "observed_support_depths": sorted(depths)[:4],
+            }
+            summaries.append(summary)
+            if not support_items_by_claim.get(claim_id):
+                claim = claim_by_id.get(claim_id) or {}
+                first_support_needs.append({
+                    "claim_id": claim_id,
+                    "claim": claim.get("claim", ""),
+                    "claim_type": claim.get("claim_type", ""),
+                    "evidence_need": claim.get("evidence_need", ""),
+                    "instruction": "Find the first quote-grounded evidence item for this real claim. If Evidence Quote Bank has a relevant copied quote, output an evidence_map item before adding unresolved_questions.",
+                })
+            elif len(groups) < 2:
+                avoid_by_claim[claim_id] = sorted(quote_ids)[:8]
+                needs.append({
+                    "claim_id": claim_id,
+                    "current_independent_support_group_count": len(groups),
+                    "used_quote_ids": sorted(quote_ids)[:6],
+                    "used_source_locators": sorted(locators)[:6],
+                    "used_source_buckets": sorted(buckets)[:6],
+                    "instruction": "Find a second independent source for this claim. Prefer a different quote_id and source_locator from a different section/source bucket; if no independent quote is visible, add an unresolved question instead of reusing the same quote.",
+                })
+        return summaries, needs[:4], avoid_by_claim, first_support_needs[:4]
+
     def claim_focus_score(item: Dict[str, Any], index: int) -> Tuple[int, int]:
         claim_id = str(item.get("claim_id") or "")
         text = " ".join(str(item.get(key) or "") for key in ("claim", "rationale", "evidence_need")).lower()
@@ -6895,6 +7257,7 @@ def _render_evidence_state_slice(state: Dict[str, Any], target_claim_ids: Option
         for item in original_claims[:4]
         if item.get("claim_id") in real_claim_ids
     ]
+    support_diversity_by_claim, independent_support_needs, quote_ids_to_avoid_by_claim, first_support_needs = support_diversity_for_claims(allowed_claim_ids)
     return {
         "active_focus": state.get("active_focus", state.get("last_focus", "")),
         "action_type": action_type,
@@ -6914,6 +7277,10 @@ def _render_evidence_state_slice(state: Dict[str, Any], target_claim_ids: Option
         "fallback_claim_targets_omitted": omitted_fallback_claim_ids[:4],
         "fallback_targets_replaced_with_real_candidates": fallback_targets_replaced_with_real_candidates,
         "target_evidence": evidence[:5],
+        "support_diversity_by_claim": support_diversity_by_claim,
+        "first_support_needs": first_support_needs,
+        "independent_support_needs": independent_support_needs,
+        "quote_ids_to_avoid_by_claim": quote_ids_to_avoid_by_claim,
         "evidence_gaps": _open_evidence_gaps(state)[:5],
         "unresolved_questions": unresolved,
         "conflict_summary": state.get("conflict_summary", [])[:3],
@@ -7071,6 +7438,7 @@ def _prompt_quote_bank_entries(quote_bank: Sequence[Dict[str, Any]], max_items: 
                 "source_locator": str(item.get("source_locator") or ""),
                 "raw_quote": str(item.get("raw_quote") or ""),
                 "claim_overlap_score": _normalize_int(item.get("claim_overlap_score"), default=0, min_value=0),
+                "support_role_hint": str(item.get("support_role_hint") or ""),
                 "copy_rule": str(item.get("copy_rule") or "Copy raw_quote exactly; do not paraphrase."),
             }
         )
@@ -7119,7 +7487,7 @@ def _prompt_negative_quote_bank_entries(quote_bank: Sequence[Dict[str, Any]], ma
     for _, _, item in sorted(scored, key=lambda pair: (pair[0], pair[1]))[:max_items]:
         neg_type = _negative_evidence_type_for_record(item)
         prompt_quote = _prompt_safe_negative_quote_text(item, neg_type)
-        if not prompt_quote:
+        if not prompt_quote or neg_type == "generic_gap":
             continue
         entries.append({
             "quote_id": str(item.get("quote_id") or ""),
@@ -7178,8 +7546,32 @@ def render_evidence_observation(task: Dict[str, Any], manager_payload: Optional[
     ):
         manager_payload[key] = evidence_slice.get(key)
     evidence_slice["evidence_context_meta"] = evidence_context_meta_for_log
+    first_support_needs = evidence_slice.get("first_support_needs", []) or []
+    independent_support_needs = evidence_slice.get("independent_support_needs", []) or []
+    quote_ids_to_avoid_by_claim = evidence_slice.get("quote_ids_to_avoid_by_claim", {}) or {}
+    used_quote_ids_for_needs = {
+        str(quote_id)
+        for quote_ids in quote_ids_to_avoid_by_claim.values()
+        for quote_id in (quote_ids or [])
+        if str(quote_id)
+    }
+    used_buckets_for_needs = {
+        str(bucket)
+        for need in independent_support_needs
+        for bucket in (need.get("used_source_buckets") or [])
+        if str(bucket)
+    }
+    if independent_support_needs and evidence_quote_bank:
+        def _independent_quote_priority(item: Dict[str, Any]) -> Tuple[int, int, int]:
+            quote_id = str(item.get("quote_id") or "")
+            bucket = str(item.get("source_bucket") or "")
+            locator = str(item.get("source_locator") or "")
+            avoid_penalty = 1 if quote_id in used_quote_ids_for_needs else 0
+            same_bucket_penalty = 1 if bucket in used_buckets_for_needs else 0
+            specificity_bonus = -1 if _is_specific_locator(locator) else 0
+            return (avoid_penalty, same_bucket_penalty, specificity_bonus)
+        evidence_quote_bank = sorted(evidence_quote_bank, key=_independent_quote_priority)
     prompt_quote_bank = _prompt_quote_bank_entries(evidence_quote_bank)
-    evidence_slice["evidence_quote_bank"] = prompt_quote_bank
     preferred_claim_ids = evidence_slice.get("evidence_focus_preferred_claim_ids", [])
     targeting_guidance = ""
     if evidence_slice.get("evidence_focus_applied") and preferred_claim_ids:
@@ -7194,6 +7586,33 @@ def render_evidence_observation(task: Dict[str, Any], manager_payload: Optional[
         quote_bank_block = (
             "# Evidence Quote Bank\n"
             f"{json.dumps({'evidence_quote_bank': prompt_quote_bank}, ensure_ascii=False, indent=2)}\n\n"
+        )
+    first_support_block = ""
+    if first_support_needs:
+        first_support_payload = {
+            "first_support_needs": first_support_needs[:4],
+            "rule": (
+                "First-support formation has priority over unresolved questions. "
+                "For claims listed here, do not apply duplicate/independent-source avoidance yet: "
+                "there is no existing support to duplicate. If Evidence Quote Bank or the visible paper excerpt "
+                "contains a quote that grounds one listed claim, output at least one evidence_map item. "
+                "Use unresolved_questions only when no copied quote can be bound to any listed claim."
+            ),
+        }
+        first_support_block = (
+            "# First Evidence Formation\n"
+            f"{json.dumps(first_support_payload, ensure_ascii=False, indent=2)}\n\n"
+        )
+    independent_support_block = ""
+    if independent_support_needs:
+        independent_payload = {
+            "independent_support_needs": independent_support_needs[:4],
+            "quote_ids_to_avoid_by_claim": quote_ids_to_avoid_by_claim,
+            "rule": "For listed claims, prefer a different quote_id/source_locator than the already used quote_ids. Reusing the same quote_id is duplicate support and should only be done when no independent source is visible; in that case emit an unresolved_question instead of another strong support item.",
+        }
+        independent_support_block = (
+            "# Independent Evidence Diversification\n"
+            f"{json.dumps(independent_payload, ensure_ascii=False, indent=2)}\n\n"
         )
     target_flaw_block = ""
     if evidence_slice.get("target_flaws"):
@@ -7224,13 +7643,15 @@ def render_evidence_observation(task: Dict[str, Any], manager_payload: Optional[
     return (
         f"{_render_review_header(task)}\n"
         f"# Evidence Action Context\n{json.dumps(action_payload, ensure_ascii=False, indent=2)}\n\n"
+        f"{first_support_block}"
         f"{target_flaw_block}"
-        f"{open_check_block}"
         f"{quote_bank_block}"
-        f"# Evidence Focus\n{_render_focus_context(state, fallback_focus=focus)}\n\n"
-        f"{targeting_guidance}"
+        f"{independent_support_block}"
+        f"{open_check_block}"
         f"# Evidence State Slice\n{json.dumps(evidence_slice, ensure_ascii=False, indent=2)}\n\n"
         f"# Recent Turn Log\n{_render_recent_turn_summary(task, max_items=1)}\n\n"
+        f"# Evidence Focus\n{_render_focus_context(state, fallback_focus=focus)}\n\n"
+        f"{targeting_guidance}"
         f"# Evidence-Relevant Paper Excerpt\n{evidence_context}\n"
     )
 
@@ -7263,11 +7684,25 @@ def render_critique_observation(task: Dict[str, Any], manager_payload: Optional[
             "# Critique Negative Quote Bank\n"
             f"{json.dumps({'negative_quote_bank': negative_quote_bank}, ensure_ascii=False, indent=2)}\n\n"
         )
+    negative_grounding_rules_block = ""
+    if negative_quote_bank:
+        negative_grounding_rules_block = (
+            "# Critique Negative Grounding Rules\n"
+            "Use a quote from negative_quote_bank only when it states a paper-side weakness. "
+            "If you create a flaw from such a quote, copy the quote_id into both evidence_ids "
+            "and negative_evidence_ids, preserve negative_evidence_type, and explain why the quote "
+            "grounds the weakness. Actionable types are missing_ablation, missing_baseline, "
+            "insufficient_evaluation, negative_result, and direct_contradiction. Scope/reproducibility "
+            "quotes are assessment limitations unless the paper itself frames them as a concrete failure. "
+            "Do not turn generic gaps, external-baseline unavailability, neutral with/without controls, "
+            "or system/context limitations into grounded weaknesses.\n\n"
+        )
     return (
         f"{_render_review_header(task)}\n"
         f"# Critique Focus\n{_render_focus_context(state, fallback_focus=focus)}\n\n"
         f"# Critique-Relevant Paper Evidence Context\n{critique_context}\n\n"
         f"{negative_quote_block}"
+        f"{negative_grounding_rules_block}"
         f"# Critique State Slice\n{json.dumps(critique_slice, ensure_ascii=False, indent=2)}\n\n"
         f"# Recent Turn Log\n{_render_recent_turn_summary(task, max_items=1)}\n"
     )
@@ -7382,7 +7817,8 @@ def _is_grounded_paper_negative_evidence_record(item: Dict[str, Any], state: Dic
     semantic_label = str(item.get("semantic_grounding_label") or "").strip()
     if semantic_label not in {"semantic_negative_verified", "semantic_support_verified"}:
         return False
-    if _negative_evidence_type_for_record(item) == "neutral_control_context":
+    neg_type = _negative_evidence_type_for_record(item)
+    if neg_type in {"neutral_control_context", "generic_gap", "bibliographic_or_title_noise", "neutral_instruction_noise"}:
         return False
     return True
 
@@ -7708,7 +8144,18 @@ def _classify_flaw_final_view_layer(flaw: Dict[str, Any], state: Dict[str, Any])
         return "assessment_limitation"
     if _is_system_assessment_limitation_flaw(flaw, state):
         return "assessment_limitation"
-    if flaw.get("evidence_ids") or _flaw_explicit_negative_evidence_ids(flaw):
+    explicit_negative_ids = _flaw_explicit_negative_evidence_ids(flaw)
+    if explicit_negative_ids:
+        by_id = _evidence_records_by_id(state)
+        for eid in explicit_negative_ids:
+            record = by_id.get(str(eid))
+            if not isinstance(record, dict):
+                continue
+            neg_type = _negative_evidence_type_for_record(record)
+            if neg_type not in {"neutral_control_context", "generic_gap", "bibliographic_or_title_noise", "neutral_instruction_noise"}:
+                return "potential_concern"
+        return "assessment_limitation"
+    if flaw.get("evidence_ids"):
         return "potential_concern"
     return "assessment_limitation"
 
@@ -8412,8 +8859,9 @@ def _build_review_diagnostic_parts(
     if model_report:
         import re as _re
         _stripped = _re.sub(r"^final\s*decision\s*[:：]\s*\S+\s*", "", model_report, flags=_re.IGNORECASE).strip()
-        if _stripped and not _is_report_meta_leakage_text(_stripped):
-            summary_text = _stripped
+        _visible_summary = _report_visible_text(_stripped, max_length=800)
+        if _visible_summary:
+            summary_text = _visible_summary
     strengths = _filter_report_visible_items(strengths)
     weaknesses = _filter_report_visible_items(weaknesses)
     potential_concerns = _filter_report_visible_items(_render_potential_concerns(decision_state), max_items=3)
@@ -8590,6 +9038,13 @@ def _classify_revision_events(revision_events: List[Dict[str, Any]], worker_payl
         ("uncertain", "unsupported"),
         ("partially_supported", "unsupported"),
         ("partially_supported", "superseded"),
+        # State-hygiene commits. Recovery patches can validly repair stale
+        # unresolved/gap burden without changing a claim/flaw status. These
+        # transitions should count as effective repairs when they occur in a
+        # committed recovery turn, otherwise recovery impact is undercounted.
+        ("open", "resolved"),
+        ("open", "converted"),
+        ("open", "superseded"),
     }
     RETRACT_VALUES = {"retracted", "superseded"}
 

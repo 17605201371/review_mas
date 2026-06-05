@@ -83,6 +83,7 @@ MAX_TEAM_CONTEXT_CHARS = 2400
 MAX_TEAM_RESPONSE_CHARS = 700
 MAX_MANAGER_OBSERVATION_CHARS = 5200
 MAX_WORKER_OBSERVATION_CHARS = 4200
+MAX_EVIDENCE_WORKER_OBSERVATION_CHARS = 3600
 
 RECOVERY_TURN_MODES = {"normal_evidence", "recovery_patch"}
 REVIEW_PHASES = {"normal_review", "recovery"}
@@ -1709,6 +1710,270 @@ def _enforce_negative_evidence_formation_payload(
         ]
     return normalize_review_update_payload(payload)
 
+
+def _support_quote_bank_from_state(state: Dict[str, Any]) -> List[Dict[str, Any]]:
+    meta = state.get("_latest_evidence_context_meta") if isinstance(state, dict) else {}
+    bank = []
+    if isinstance(meta, dict):
+        bank = meta.get("evidence_quote_bank") or []
+    if not bank and isinstance(state, dict):
+        bank = state.get("evidence_quote_bank") or []
+    return [item for item in bank if isinstance(item, dict)]
+
+
+def _real_claims_by_id(state: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    claims = {}
+    for item in (state or {}).get("claims", []) or []:
+        if not isinstance(item, dict):
+            continue
+        claim_id = str(item.get("claim_id") or "").strip()
+        if not claim_id or claim_id.startswith("claim-fallback"):
+            continue
+        claims[claim_id] = item
+    return claims
+
+
+def _claim_has_any_support(state: Dict[str, Any], claim_id: str) -> bool:
+    for item in (state or {}).get("evidence_map", []) or []:
+        if not isinstance(item, dict):
+            continue
+        if str(item.get("claim_id") or "") != claim_id:
+            continue
+        if str(item.get("stance") or "").strip().lower() in {"supports", "partially_supports"}:
+            return True
+    return False
+
+
+def _word_overlap_score(left: str, right: str) -> int:
+    left_terms = {
+        term
+        for term in re.findall(r"[A-Za-z][A-Za-z0-9_-]{2,}", str(left or "").lower())
+        if term not in {"the", "and", "for", "with", "from", "that", "this", "paper", "method"}
+    }
+    right_terms = {
+        term
+        for term in re.findall(r"[A-Za-z][A-Za-z0-9_-]{2,}", str(right or "").lower())
+        if term not in {"the", "and", "for", "with", "from", "that", "this", "paper", "method"}
+    }
+    return len(left_terms & right_terms)
+
+
+def _quote_bank_source_to_support_bucket(source: str) -> str:
+    source = str(source or "").strip().lower()
+    if source in {"results", "result", "table_or_figure", "ablation", "comparison", "claim_match_result"}:
+        return "result_or_experiment"
+    if source in {"method", "theory_or_proof", "claim_match_method"}:
+        return "method_or_approach"
+    if source == "abstract":
+        return "abstract"
+    if source in {"conclusion", "discussion"}:
+        return "conclusion_or_discussion"
+    return "other_or_unspecified"
+
+
+_FIRST_SUPPORT_TITLE_RE = re.compile(r"^\s*\\title\s*\{", re.IGNORECASE)
+_FIRST_SUPPORT_NEGATIVE_RE = re.compile(
+    r"\b(underperform|worse|fail(?:s|ed)?|failure|limitation|limitations|"
+    r"missing|lack(?:s|ing)?|insufficient|without|not evaluated|no ablation|"
+    r"no baseline|decrease(?:s|d)?|reduction|weakness|threats? to validity)\b",
+    re.IGNORECASE,
+)
+_FIRST_SUPPORT_METHOD_RE = re.compile(
+    r"\b(method|methodology|algorithm|framework|module|optimization|objective|loss|"
+    r"entropy|training|adaptation|approach|architecture)\b",
+    re.IGNORECASE,
+)
+_FIRST_SUPPORT_RESULT_RE = re.compile(
+    r"\b(table|figure|fig\.|experiment|evaluation|result|performance|benchmark|"
+    r"baseline|ablation|outperform|improv(?:e|es|ed|ement)|accuracy|f1|auc)\b",
+    re.IGNORECASE,
+)
+
+
+def _first_support_source_bucket(quote: Dict[str, Any]) -> str:
+    source = str(quote.get("source_bucket") or "").strip().lower()
+    if source != "claim_match":
+        return source
+    text = " ".join(
+        str(quote.get(key) or "")
+        for key in ("raw_quote", "source_locator", "support_role_hint")
+    )
+    if _FIRST_SUPPORT_RESULT_RE.search(text):
+        return "claim_match_result"
+    if _FIRST_SUPPORT_METHOD_RE.search(text):
+        return "claim_match_method"
+    return source
+
+
+def _first_support_quote_is_negative(quote: Dict[str, Any]) -> bool:
+    text = " ".join(
+        str(quote.get(key) or "")
+        for key in ("raw_quote", "source_locator", "support_role_hint")
+    )
+    source = str(quote.get("source_bucket") or "").strip().lower()
+    if source == "negative_or_gap":
+        return True
+    return bool(_FIRST_SUPPORT_NEGATIVE_RE.search(text))
+
+
+def _first_support_quote_is_title_or_abstract_stub(quote: Dict[str, Any]) -> bool:
+    raw_quote = str(quote.get("raw_quote") or "").strip()
+    locator = str(quote.get("source_locator") or "").strip().lower()
+    source = str(quote.get("source_bucket") or "").strip().lower()
+    if _FIRST_SUPPORT_TITLE_RE.search(raw_quote):
+        return True
+    if source == "abstract" and len(raw_quote) < 140:
+        return True
+    if locator.startswith("abstract") and _FIRST_SUPPORT_TITLE_RE.search(raw_quote):
+        return True
+    return False
+
+
+def _first_support_claim_priority(claim: Dict[str, Any]) -> int:
+    text = " ".join(
+        str(claim.get(key) or "")
+        for key in ("claim_type", "claim_kind", "claim", "evidence_need")
+    ).lower()
+    if any(term in text for term in ("empirical", "result", "ablation", "experiment", "metric", "performance")):
+        return 4
+    if any(term in text for term in ("method", "algorithm", "technical", "approach", "formula")):
+        return 3
+    if any(term in text for term in ("contribution", "novel", "significance")):
+        return 2
+    if any(term in text for term in ("limitation", "boundary", "uncertain")):
+        return 0
+    return 1
+
+
+def _first_support_evidence_text(quote_text: str) -> str:
+    snippet = re.sub(r"\s+", " ", str(quote_text or "")).strip()
+    if len(snippet) > 220:
+        snippet = snippet[:217].rstrip() + "..."
+    return f"Copied paper quote provides initial claim support: {snippet}"
+
+
+def _maybe_salvage_first_support_payload(
+    worker_id: str,
+    worker_payload: Dict[str, Any],
+    state: Dict[str, Any],
+    manager_payload: Dict[str, Any],
+    trace_worker: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Prevent Evidence Agent first-support dead loops without fabricating strong evidence."""
+    if worker_id != "Evidence Agent" or not isinstance(worker_payload, dict):
+        return worker_payload
+    if _is_negative_evidence_formation_turn(manager_payload):
+        return worker_payload
+    if worker_payload.get("evidence_map"):
+        return worker_payload
+    action_type = str(manager_payload.get("effective_action_type") or manager_payload.get("action_type") or "").strip()
+    if action_type not in {"verify_evidence", "request_evidence_recheck"}:
+        return worker_payload
+    quote_bank = [
+        item for item in _support_quote_bank_from_state(state)
+        if not _first_support_quote_is_negative(item)
+        and str(item.get("raw_quote") or "").strip()
+    ]
+    if not quote_bank:
+        return worker_payload
+    claims_by_id = _real_claims_by_id(state)
+    target_claim_ids = [
+        str(item).strip()
+        for item in (manager_payload.get("target_claim_ids") or [])
+        if str(item).strip() in claims_by_id
+    ] or list(claims_by_id.keys())[:4]
+    first_support_claim_ids = [
+        claim_id for claim_id in target_claim_ids
+        if claim_id and not _claim_has_any_support(state, claim_id)
+    ]
+    if not first_support_claim_ids:
+        return worker_payload
+
+    def rank_pair(pair: tuple[str, Dict[str, Any]]) -> tuple[int, int, int, int, int, int, int]:
+        claim_id, quote = pair
+        claim = claims_by_id.get(claim_id, {})
+        claim_text = " ".join(str(claim.get(key) or "") for key in ("claim", "evidence_need", "claim_type"))
+        quote_text = " ".join(str(quote.get(key) or "") for key in ("raw_quote", "source_locator", "source_bucket", "support_role_hint"))
+        overlap = int(quote.get("claim_overlap_score") or 0) + _word_overlap_score(claim_text, quote_text)
+        source = _first_support_source_bucket(quote)
+        source_priority = {
+            "table_or_figure": 7,
+            "results": 6,
+            "claim_match_result": 6,
+            "ablation": 5,
+            "comparison": 4,
+            "method": 3,
+            "claim_match_method": 3,
+            "theory_or_proof": 2,
+            "claim_match": 2,
+            "abstract": 1,
+        }.get(source, 0)
+        locator = str(quote.get("source_locator") or "")
+        locator_specific = 1 if re.search(r"\b(?:Table|Figure|Fig\.|Section|Sec\.)\s*\d+", locator, re.IGNORECASE) else 0
+        non_abstract = 0 if source == "abstract" else 1
+        non_title = 0 if _first_support_quote_is_title_or_abstract_stub(quote) else 1
+        quote_length = min(len(str(quote.get("raw_quote") or "")), 260)
+        claim_priority = _first_support_claim_priority(claim)
+        # Source/depth quality must dominate lexical overlap. Otherwise a title
+        # that repeats the claim's buzzwords beats a table/method quote and only
+        # creates shallow medium support that the final view correctly drops.
+        return (
+            non_title,
+            non_abstract,
+            source_priority,
+            claim_priority,
+            locator_specific,
+            overlap,
+            quote_length,
+        )
+
+    pairs = [(claim_id, quote) for claim_id in first_support_claim_ids for quote in quote_bank]
+    if not pairs:
+        return worker_payload
+    claim_id, quote = max(pairs, key=rank_pair)
+    quote_text = str(quote.get("raw_quote") or "").strip()
+    if not quote_text:
+        return worker_payload
+    source = _first_support_source_bucket(quote)
+    evidence_id = f"evidence-first-support-{len((state or {}).get('evidence_map', []) or []) + 1}"
+    evidence_item = {
+        "evidence_id": evidence_id,
+        "claim_id": claim_id,
+        "evidence": _first_support_evidence_text(quote_text),
+        "source": quote.get("source_locator") or quote.get("source_bucket") or "paper quote bank",
+        "source_locator": quote.get("source_locator") or "",
+        "raw_quote": quote_text,
+        "quote_id": quote.get("quote_id") or "",
+        "source_span_start": int(quote.get("source_span_start", -1) or -1),
+        "source_span_end": int(quote.get("source_span_end", -1) or -1),
+        "strength": "medium",
+        "stance": "partially_supports",
+        "binding_status": "bound_real_claim",
+        "binding_confidence": 0.35,
+        "binding_rationale": "Fallback first-support item uses a copied quote bank span; semantic strength remains conservative.",
+        "grounded_judge_label": "self_claimed_by_agent",
+        "grounded_judge_reason": "Quote was copied from Evidence Quote Bank; verifier assigns final grounding label.",
+        "support_source_bucket": _quote_bank_source_to_support_bucket(source),
+        "support_quality_reason": (
+            "Conservative medium support prevents an empty evidence dead loop; "
+            "quote selection prioritized non-abstract method/result/table anchors over title or abstract stubs."
+        ),
+        "first_support_fallback_from_quote_bank": True,
+    }
+    updated = dict(worker_payload)
+    updated["evidence_map"] = [evidence_item]
+    summary = str(updated.get("dialogue_summary") or "").strip()
+    suffix = "First-support fallback copied one quote-bank span because the Evidence Agent returned only unresolved questions."
+    updated["dialogue_summary"] = f"{summary} {suffix}".strip()
+    manager_payload["first_support_fallback_from_quote_bank"] = True
+    manager_payload["first_support_fallback_claim_id"] = claim_id
+    manager_payload["first_support_fallback_quote_id"] = quote.get("quote_id") or ""
+    if trace_worker is not None:
+        trace_worker["first_support_fallback_from_quote_bank"] = True
+        trace_worker["first_support_fallback_claim_id"] = claim_id
+        trace_worker["first_support_fallback_quote_id"] = quote.get("quote_id") or ""
+    return normalize_review_update_payload(updated, required_fields=["evidence_map"])
+
 # PR4 step 1: route runner policy calls through the shared policy module while keeping local compatibility names.
 AUTO_FINALIZE_MIN_TURNS = review_policy.AUTO_FINALIZE_MIN_TURNS
 MIN_STATE_REQUIREMENTS = review_policy.MIN_STATE_REQUIREMENTS
@@ -3114,6 +3379,13 @@ def run_review_episode(
                         trace_item["worker_calls"].append(trace_worker)
                         continue
                     if worker_id == "Evidence Agent":
+                        worker_payload = _maybe_salvage_first_support_payload(
+                            worker_id,
+                            worker_payload,
+                            obs["review_state"],
+                            manager_payload,
+                            trace_worker=trace_worker,
+                        )
                         worker_payload = _scope_evidence_ids_for_turn(worker_payload, step)
                         worker_payload = _enforce_negative_evidence_formation_payload(worker_id, worker_payload, manager_payload, obs["review_state"])
                     _record_evidence_empirical_observability(
@@ -3483,6 +3755,13 @@ def run_review_batch(
                             task["_trace_item"]["worker_calls"].append(trace_worker)
                             continue
                         if worker_id == "Evidence Agent":
+                            worker_payload = _maybe_salvage_first_support_payload(
+                                worker_id,
+                                worker_payload,
+                                task["obs"]["review_state"],
+                                manager_payload,
+                                trace_worker=trace_worker,
+                            )
                             worker_payload = _scope_evidence_ids_for_turn(worker_payload, task.get("_batch_step", 0))
                             worker_payload = _enforce_negative_evidence_formation_payload(
                                 worker_id,
@@ -3642,6 +3921,8 @@ class VllmReviewGenerator:
         from vllm import LLM, SamplingParams
 
         self.use_chat_template = bool(use_chat_template)
+        self.max_model_len = int(max_model_len)
+        self.max_tokens = int(max_tokens)
         self.tokenizer = None
         self.llm = LLM(
             model=model_path,
@@ -3671,9 +3952,30 @@ class VllmReviewGenerator:
             except Exception:
                 self.tokenizer = None
 
-    def _format_prompt(self, prompt: str) -> str:
-        if not self.use_chat_template or self.tokenizer is None:
+    def _prompt_token_ids(self, prompt: str) -> List[int]:
+        if self.tokenizer is None:
+            return []
+        try:
+            return list(self.tokenizer.encode(prompt, add_special_tokens=False))
+        except TypeError:
+            return list(self.tokenizer.encode(prompt))
+
+    def _decode_prompt_tokens(self, tokens: Sequence[int]) -> str:
+        if self.tokenizer is None:
+            return ""
+        return str(self.tokenizer.decode(list(tokens), skip_special_tokens=False))
+
+    def _truncate_prompt_for_context(self, prompt: str, budget: Optional[int] = None) -> str:
+        budget = int(budget or max(512, self.max_model_len - max(128, self.max_tokens) - 64))
+        if self.tokenizer is None:
+            return _clip_text(prompt, max(2400, budget * 2))
+        tokens = self._prompt_token_ids(prompt)
+        if len(tokens) <= budget:
             return prompt
+        truncated = self._decode_prompt_tokens(tokens[:budget])
+        return str(truncated).rstrip() + "\n...[prompt truncated to fit model context]"
+
+    def _apply_chat_template(self, prompt: str) -> str:
         messages = [{"role": "user", "content": prompt}]
         try:
             return self.tokenizer.apply_chat_template(
@@ -3688,6 +3990,29 @@ class VllmReviewGenerator:
                 tokenize=False,
                 add_generation_prompt=True,
             )
+
+    def _format_prompt(self, prompt: str) -> str:
+        prompt_budget = max(512, self.max_model_len - max(128, self.max_tokens) - 128)
+        if not self.use_chat_template or self.tokenizer is None:
+            return self._truncate_prompt_for_context(prompt, budget=prompt_budget)
+
+        raw_prompt = self._truncate_prompt_for_context(prompt, budget=prompt_budget)
+        formatted_budget = max(512, self.max_model_len - max(128, self.max_tokens) - 32)
+        for _ in range(3):
+            formatted = str(self._apply_chat_template(raw_prompt))
+            formatted_tokens = self._prompt_token_ids(formatted)
+            if len(formatted_tokens) <= formatted_budget:
+                return formatted
+            raw_tokens = self._prompt_token_ids(raw_prompt)
+            overflow = len(formatted_tokens) - formatted_budget
+            next_budget = max(256, len(raw_tokens) - overflow - 64)
+            raw_prompt = self._truncate_prompt_for_context(raw_prompt, budget=next_budget)
+
+        formatted = str(self._apply_chat_template(raw_prompt))
+        formatted_tokens = self._prompt_token_ids(formatted)
+        if len(formatted_tokens) <= formatted_budget:
+            return formatted
+        return self._decode_prompt_tokens(formatted_tokens[:formatted_budget])
 
     def __call__(self, agent_id: str, prompt: str) -> str:
         outputs = self.llm.generate([self._format_prompt(prompt)], sampling_params=self.sampling_params)

@@ -112,6 +112,10 @@ Output contract:
 - Include at least 1 and at most 2 evidence items.
 - Bind every evidence item to a real claim id from `Evidence State Slice.allowed_claim_ids`.
 - Do not invent claim ids. Do not use `claim-fallback-*`; if no allowed claim matches, emit an unresolved question instead of strong support.
+- First evidence formation is mandatory when possible: if `First Evidence Formation.first_support_needs` is non-empty and the Evidence Quote Bank or visible paper excerpt contains a quote that can be bound to any listed allowed claim, output at least one `evidence_map` item before adding unresolved questions.
+- In normal positive-evidence mode, an empty `evidence_map` is invalid when `Evidence Quote Bank` is non-empty and `allowed_claim_ids` is non-empty. If the quote only weakly supports the claim, output `strength="weak"` or `medium` with lower `binding_confidence`; do not return only unresolved questions.
+- Independent-source avoidance only applies after a claim already has support. Do not treat quote-bank entries as duplicates merely because they appear in the quote bank; a quote is a duplicate only when the same claim already has an existing evidence item using the same `quote_id` or normalized `raw_quote`.
+- `unresolved_questions` may supplement evidence, but must not replace evidence when a copied quote can ground an allowed claim.
 - Use `strength="strong"` for concrete result/experiment/table/figure/ablation/baseline-comparison evidence that directly supports the chosen allowed claim.
 - Detailed method/mechanism evidence may be `strength="strong"` only when it explains how the core claim is technically achieved; otherwise use `medium`.
 - Abstract/title/conclusion-only positive evidence should normally be `strength="medium"`, not `strong`.
