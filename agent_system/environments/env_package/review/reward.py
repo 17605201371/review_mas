@@ -14,11 +14,7 @@ SECTION_PATTERNS = {
     "decision": [r"final decision", r"decision recommendation", r"decision", r"recommendation", r"overall assessment"],
     "rating": [r"rating", r"confidence", r"score"],
 }
-AUDIT_ID_PATTERN = re.compile(
-    r"\b(?:claim|flaw)-(?:\d+(?:-[A-Za-z0-9_.:-]+)?|(?:context|fallback|recovery|general)-[A-Za-z0-9_.:-]+)\b"
-    r"|\bevidence-(?:\d+(?:-[A-Za-z0-9_.:-]+)?|(?:recovery|fallback|general|placeholder|negative|critique)-[A-Za-z0-9_.:-]+)\b",
-    re.I,
-)
+AUDIT_ID_PATTERN = re.compile(r"\b(?:claim|evidence|flaw)-[a-z0-9\-]+", re.I)
 DECISION_PATTERNS = [
     re.compile(r"final\s*decision\s*[:：]\s*(accept|reject|neutral)", re.I),
     re.compile(r"decision\s*recommendation\s*[:：]\s*(accept|reject|neutral)", re.I),
