@@ -1,0 +1,231 @@
+{
+  "case_id": "ye3NrNrYOY_turn4_SUCCESS",
+  "paper_id": "ye3NrNrYOY",
+  "turn_id": 4,
+  "review_state": {
+    "claims": [
+      {
+        "claim_id": "claim-1",
+        "claim": "The paper proposes Temporal Causal Mechanism Transfer (TCMT), a framework for few-shot action recognition that adapts base models to novel datasets.",
+        "importance": "high",
+        "status": "supported",
+        "claim_type": "contribution",
+        "claim_kind": "paper_extracted",
+        "evidence_need": "Abstract and Introduction context",
+        "coverage_tags": [
+          "contribution",
+          "method",
+          "empirical"
+        ],
+        "supporting_evidence_ids": [
+          "evidence-1-turn-2"
+        ]
+      },
+      {
+        "claim_id": "claim-2",
+        "claim": "TCMT employs a generative model where action representations and labels are generated from latent causal variables to facilitate mechanism transfer.",
+        "importance": "high",
+        "status": "uncertain",
+        "claim_type": "method",
+        "claim_kind": "paper_extracted",
+        "evidence_need": "Section 2.1 Generative Model",
+        "coverage_tags": [
+          "method"
+        ],
+        "supporting_evidence_ids": []
+      },
+      {
+        "claim_id": "claim-3",
+        "claim": "Experiments on 5-way-k-shot and all-way-k-shot settings demonstrate that TCMT outperforms benchmarks by margins ranging from 1.2 to 5.3.",
+        "importance": "high",
+        "status": "uncertain",
+        "claim_type": "empirical",
+        "claim_kind": "paper_extracted",
+        "evidence_need": "Section 3.1 Experimental Setup and Results tables",
+        "coverage_tags": [
+          "empirical",
+          "comparison"
+        ],
+        "supporting_evidence_ids": []
+      },
+      {
+        "claim_id": "claim-4",
+        "claim": "The method's performance relies on limited samples (e.g., J=5) and assumes disjoint base and novel class sets, which may limit generalizability.",
+        "importance": "medium",
+        "status": "uncertain",
+        "claim_type": "limitation_or_boundary",
+        "claim_kind": "paper_extracted",
+        "evidence_need": "Section 3.1 Experimental Setup",
+        "coverage_tags": [
+          "limitation",
+          "scope",
+          "method",
+          "empirical",
+          "contribution"
+        ],
+        "supporting_evidence_ids": []
+      }
+    ],
+    "evidence_map": [
+      {
+        "evidence_id": "evidence-1-turn-2",
+        "claim_id": "claim-1",
+        "evidence": "Generative model of temporal causal process with latent variables.",
+        "source": "figure",
+        "source_locator": "Fig. 2",
+        "raw_quote": "MODEL } The generative model of our temporal causal process, as shown in Fig. 2, is assumed the action representations and action labels are each generated from a set of latent causal variables $\\mathbf{z}$ . Let $\\mathb",
+        "quote_id": "quote-table-or-figure-1",
+        "source_span_start": 8932,
+        "source_span_end": 9151,
+        "strength": "strong",
+        "stance": "supports",
+        "binding_status": "bound_real_claim",
+        "binding_confidence": 0.8,
+        "binding_rationale": "Describes the generative model structure central to claim-1.",
+        "grounded_judge_label": "self_claimed_by_agent",
+        "grounded_judge_reason": "Quote matches Fig. 2 description in evidence bank.",
+        "verified_grounding_label": "paper_grounded_exact",
+        "verified_grounding_reason": "quote_id matched a program-extracted quote-bank item; raw_quote was canonicalized to that item",
+        "verified_source_span_start": 8932,
+        "verified_source_span_end": 9151,
+        "verified_quote_match_type": "quote_bank_id_canonical",
+        "verified_locator_quality": "",
+        "semantic_grounding_label": "semantic_support_verified",
+        "semantic_grounding_reasons": [],
+        "semantic_alignment_score": 0.85,
+        "semantic_grounding_checked": true,
+        "quote_evidence_semantic_mismatch": false,
+        "verified_claim_overlap_score": 7,
+        "quote_bank_claim_overlap_fallback_used": false,
+        "quote_bank_claim_overlap_fallback_quote_id": "",
+        "quote_bank_claim_overlap_fallback_source_bucket": "",
+        "quote_bank_claim_overlap_fallback_score": 0,
+        "semantic_weak_promotion_used": false,
+        "semantic_weak_promotion_reason": "",
+        "strength_promotion_from_medium_used": true,
+        "strength_promotion_reason": "verified_claim_overlap_method_support",
+        "support_source_bucket": "table_or_figure",
+        "support_quality": "method_grounded_support",
+        "support_quality_reason": "Defines model architecture but lacks empirical validation.",
+        "paper_id": "ye3NrNrYOY",
+        "support_id": "evidence-1-turn-2",
+        "turn_id": 2,
+        "initial_strength": "medium",
+        "initial_stance": "supports",
+        "source_locator_specific": true,
+        "support_depth": "moderate",
+        "final_strength": "strong",
+        "final_support_depth": "moderate",
+        "agent_raw_quote": "The generative model of our temporal causal process, as shown in Fig. 2, is assumed the action representations and action labels are each generated from a set of latent causal variables z.",
+        "quote_bank_canonicalized": true,
+        "verified_source_bucket": "table_or_figure",
+        "support_quality_adjustment": "promoted_verified_claim_matched_support",
+        "strength_promotion_held_at_moderate": false
+      },
+      {
+        "evidence_id": "evidence-negative-quote-bank-quote-negative-or-gap-1-1",
+        "claim_id": "claim-1",
+        "evidence": "Paper-grounded limitation/gap quote for hard-negative review: TCMT model to four simpler models; one non-causal, one non-temporal, one without auxiliary context variables $\\theta$ , and one with fixed ConvLSTM on both $\\mathcal{D}$ and $\\boldsymbol{S}$ , all with $N=12$ . In the no",
+        "source": "quote-bank-negative-grounding",
+        "source_locator": "Limitation / Gap / Negative evidence excerpt #1",
+        "raw_quote": "TCMT model to four simpler models; one non-causal, one non-temporal, one without auxiliary context variables $\\theta$ , and one with fixed ConvLSTM on both $\\mathcal{D}$ and $\\boldsymbol{S}$ , all with $N=12$ . In the no",
+        "quote_id": "quote-negative-or-gap-1",
+        "source_span_start": 26714,
+        "source_span_end": 26933,
+        "strength": "missing",
+        "stance": "missing",
+        "binding_status": "bound_real_claim",
+        "binding_confidence": 0.72,
+        "binding_rationale": "Deterministic hard-negative salvage from program-extracted negative_or_gap quote bank.",
+        "grounded_judge_label": "paper_grounded",
+        "grounded_judge_reason": "Quote was copied from the ReviewState evidence quote bank; semantic verification is applied during state merge.",
+        "verified_grounding_label": "paper_grounded_exact",
+        "verified_grounding_reason": "quote_id matched a program-extracted quote-bank item; raw_quote was canonicalized to that item",
+        "verified_source_span_start": 26714,
+        "verified_source_span_end": 26933,
+        "verified_quote_match_type": "quote_bank_id_canonical",
+        "verified_locator_quality": "",
+        "semantic_grounding_label": "semantic_negative_verified",
+        "semantic_grounding_reasons": [],
+        "semantic_alignment_score": 1.0,
+        "semantic_grounding_checked": true,
+        "quote_evidence_semantic_mismatch": false,
+        "verified_claim_overlap_score": 4,
+        "quote_bank_claim_overlap_fallback_used": false,
+        "quote_bank_claim_overlap_fallback_quote_id": "",
+        "quote_bank_claim_overlap_fallback_source_bucket": "",
+        "quote_bank_claim_overlap_fallback_score": 0,
+        "semantic_weak_promotion_used": false,
+        "semantic_weak_promotion_reason": "",
+        "strength_promotion_from_medium_used": false,
+        "strength_promotion_reason": "",
+        "support_source_bucket": "limitation_or_gap",
+        "support_quality": "unspecified_support",
+        "support_quality_reason": "",
+        "paper_id": "ye3NrNrYOY",
+        "support_id": "evidence-negative-quote-bank-quote-negative-or-gap-1-1",
+        "turn_id": 0,
+        "initial_strength": "missing",
+        "initial_stance": "missing",
+        "source_locator_specific": false,
+        "support_depth": "moderate",
+        "final_strength": "missing",
+        "final_support_depth": "moderate",
+        "verified_source_bucket": "negative_or_gap"
+      }
+    ],
+    "flaw_candidates": [
+      {
+        "flaw_id": "flaw-negative-quote-bank-quote-negative-or-gap-1",
+        "title": "Verified paper quote indicates a limitation, missing comparison, failed condition, or assessment gap requiring critique review.",
+        "description": "Verified paper quote indicates a limitation, missing comparison, failed condition, or assessment gap requiring critique review.",
+        "severity": "minor",
+        "status": "downgraded",
+        "related_claim_ids": [
+          "claim-1"
+        ],
+        "evidence_ids": [
+          "evidence-negative-quote-bank-quote-negative-or-gap-1-1"
+        ],
+        "confidence": 0.5,
+        "negative_evidence_ids": [
+          "evidence-negative-quote-bank-quote-negative-or-gap-1-1"
+        ],
+        "source": "quote-bank-negative-grounding",
+        "grounding_status": "grounded_candidate"
+      }
+    ],
+    "current_hypotheses": [],
+    "conflict_notes": []
+  },
+  "raw_payload": {
+    "action": "apply_recovery_patch",
+    "target_type": "flaw",
+    "target_id": "flaw-negative-quote-bank-quote-negative-or-gap-1",
+    "old_status": "candidate",
+    "new_status": "downgraded",
+    "supporting_evidence_ids": [
+      "evidence-negative-quote-bank-quote-negative-or-gap-1-1"
+    ],
+    "negative_evidence_ids": null,
+    "conflict_note_ids": [],
+    "reason_for_change": "The active flaw is grounded only by paper-quoted limitation or gap language; that evidence acknowledges a concern but is not strong enough to invalidate the claim. Closing the flaw lifecycle as downgraded keeps the limitation visible without overstating it.",
+    "resolution_expectation": "partially_resolved",
+    "confidence": 0.55,
+    "blocked_reason": "",
+    "missing_requirements": [],
+    "_recovery_patch_source": "system_salvaged"
+  },
+  "expected": {
+    "failure_code": "SUCCESS",
+    "validated": true,
+    "commit_allowed": true
+  },
+  "meta": {
+    "runner_failure_code": "SUCCESS",
+    "snapshot_timing": "post_recovery",
+    "recovery_target_id": "flaw-negative-quote-bank-quote-negative-or-gap-1",
+    "recovery_target_type": "flaw",
+    "recovery_patch_source": "system_salvaged"
+  }
+}

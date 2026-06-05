@@ -1,0 +1,43 @@
+# Accept Support Failure Case Table v1
+
+| paper_id | gold | pred | ev_turns | payload_real | payload_nonabs | payload_empirical | final_real | visible_results | broad_targets | unresolved | gaps | confirmed_major |
+|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| ye3NrNrYOY | reject | reject | 6 | 2 | 0 | 0 | 0 | 6 | 6 | 7 | 3 | 0 |
+| WNxlJJIEVj | reject | reject | 3 | 0 | 0 | 0 | 0 | 3 | 3 | 6 | 8 | 0 |
+| uOrfve3prk | reject | reject | 6 | 1 | 1 | 0 | 1 | 0 | 6 | 4 | 4 | 0 |
+| hj323oR3rw | accept | reject | 6 | 0 | 0 | 0 | 0 | 6 | 3 | 3 | 3 | 0 |
+| 7Dub7UXTXN | reject | reject | 5 | 3 | 0 | 0 | 0 | 5 | 0 | 5 | 4 | 0 |
+| 9zEBK3E9bX | reject | reject | 6 | 0 | 0 | 0 | 0 | 6 | 6 | 4 | 6 | 0 |
+| XyB4VvF01X | reject | reject | 6 | 0 | 0 | 0 | 0 | 6 | 4 | 3 | 3 | 0 |
+| GE6iywJtsV | reject | reject | 4 | 0 | 0 | 0 | 0 | 4 | 4 | 6 | 3 | 1 |
+| QAAsnSRwgu | accept | reject | 2 | 0 | 0 | 0 | 0 | 0 | 2 | 10 | 3 | 1 |
+| WpXq5n8yLb | reject | reject | 1 | 0 | 0 | 0 | 0 | 0 | 1 | 7 | 4 | 0 |
+| X41c4uB4k0 | accept | reject | 1 | 0 | 0 | 0 | 0 | 1 | 0 | 6 | 2 | 0 |
+| NnExMNiTHw | reject | reject | 6 | 1 | 1 | 1 | 1 | 6 | 6 | 2 | 3 | 0 |
+| gzqrANCF4g | accept | reject | 4 | 0 | 0 | 0 | 0 | 4 | 4 | 10 | 4 | 0 |
+| a6SntIisgg | reject | reject | 2 | 0 | 0 | 0 | 0 | 2 | 2 | 6 | 5 | 0 |
+| cklg91aPGk | reject | reject | 6 | 2 | 2 | 2 | 1 | 0 | 6 | 2 | 3 | 0 |
+| HPuLU6q7xq | reject | reject | 3 | 3 | 3 | 0 | 1 | 3 | 3 | 10 | 5 | 0 |
+| fGXyvmWpw6 | reject | reject | 6 | 0 | 0 | 0 | 0 | 6 | 3 | 2 | 3 | 0 |
+| QAgwFiIY4p | reject | reject | 6 | 1 | 1 | 0 | 1 | 6 | 3 | 2 | 3 | 0 |
+| KI9NqjLVDT | accept | reject | 5 | 0 | 0 | 0 | 0 | 0 | 3 | 6 | 3 | 0 |
+| 1HCN4pjTb4 | accept | reject | 6 | 0 | 0 | 0 | 0 | 6 | 0 | 5 | 2 | 0 |
+| LebzzClHYw | accept | reject | 4 | 1 | 1 | 0 | 0 | 4 | 4 | 7 | 3 | 0 |
+| BXY6fe7q31 | accept | reject | 3 | 0 | 0 | 0 | 0 | 0 | 3 | 10 | 4 | 0 |
+| TPAj63ax4Y | reject | reject | 3 | 2 | 1 | 1 | 1 | 3 | 3 | 7 | 5 | 0 |
+| mHv6wcBb0z | reject | reject | 6 | 2 | 2 | 2 | 1 | 0 | 3 | 5 | 3 | 0 |
+| xUe1YqEgd6 | reject | reject | 6 | 1 | 1 | 0 | 0 | 6 | 6 | 2 | 3 | 0 |
+| jVEoydFOl9 | accept | reject | 7 | 0 | 0 | 0 | 0 | 7 | 7 | 4 | 3 | 0 |
+| YXn76HMetm | reject | reject | 2 | 0 | 0 | 0 | 0 | 0 | 2 | 5 | 4 | 0 |
+| KOUAayk5Kx | reject | reject | 6 | 0 | 0 | 0 | 0 | 6 | 6 | 8 | 3 | 0 |
+| XH3OiIhtvf | reject | reject | 6 | 2 | 0 | 0 | 0 | 0 | 4 | 4 | 3 | 0 |
+| ZHr0JajZfH | reject | reject | 5 | 3 | 2 | 0 | 1 | 5 | 5 | 3 | 3 | 0 |
+| WLgbjzKJkk | reject | reject | 5 | 1 | 0 | 0 | 0 | 5 | 3 | 2 | 3 | 0 |
+| 9JRsAj3ymy | reject | reject | 6 | 1 | 1 | 0 | 0 | 6 | 6 | 5 | 4 | 0 |
+| rEqETC88RY | reject | reject | 2 | 0 | 0 | 0 | 0 | 2 | 2 | 4 | 3 | 0 |
+| aTBE70xiFw | reject | reject | 3 | 0 | 0 | 0 | 0 | 3 | 3 | 5 | 3 | 0 |
+| LieTse3fQB | reject | reject | 6 | 0 | 0 | 0 | 0 | 6 | 6 | 5 | 5 | 0 |
+| kam84eEmub | reject | reject | 3 | 0 | 0 | 0 | 0 | 3 | 3 | 10 | 5 | 0 |
+| N0isTh3rml | reject | reject | 7 | 4 | 0 | 0 | 0 | 7 | 1 | 3 | 3 | 0 |
+| 2L7KQ4qbHi | reject | reject | 6 | 0 | 0 | 0 | 0 | 6 | 6 | 5 | 5 | 1 |
+| aRxLDcxFcL | reject | reject | 3 | 3 | 3 | 3 | 1 | 3 | 3 | 10 | 4 | 0 |

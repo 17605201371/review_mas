@@ -1,0 +1,245 @@
+{
+  "case_id": "hj323oR3rw_turn5_SEMANTIC_MISMATCH",
+  "paper_id": "hj323oR3rw",
+  "turn_id": 5,
+  "review_state": {
+    "claims": [
+      {
+        "claim_id": "claim-context-1",
+        "claim": "We evaluate our proposed method across four benchmark datasets: EPIC-Kitchens and HumanAnimal-Cartoon (HAC) for multimodal action recognition with domain shifts, Kinetics-100-C for multimodal action recognition under corruptions, and the nuScenes dataset for multimodal 3D semanti",
+        "importance": "high",
+        "status": "uncertain",
+        "claim_type": "empirical",
+        "claim_kind": "context_synthesized",
+        "evidence_need": "result/table/benchmark evidence",
+        "coverage_tags": [
+          "empirical",
+          "method"
+        ],
+        "supporting_evidence_ids": [],
+        "claim_origin": "context_derived_paper_excerpt",
+        "claim_origin_kind": "context_synthesized",
+        "claim_source": "claim_relevant_paper_excerpt"
+      },
+      {
+        "claim_id": "claim-context-2",
+        "claim": "We use the Maximum Softmax Probability (MSP) (Hendrycks & Gimpel, 2017) as $S( )$ by default.",
+        "importance": "medium",
+        "status": "uncertain",
+        "claim_type": "other",
+        "claim_kind": "context_synthesized",
+        "evidence_need": "paper evidence",
+        "coverage_tags": [
+          "contribution"
+        ],
+        "supporting_evidence_ids": [],
+        "claim_origin": "context_derived_paper_excerpt",
+        "claim_origin_kind": "context_synthesized",
+        "claim_source": "claim_relevant_paper_excerpt"
+      },
+      {
+        "claim_id": "claim-1",
+        "claim": "The paper proposes Adaptive Entropy-aware Optimization (AEO) to address distribution shifts in open-set test-time adaptation.",
+        "importance": "high",
+        "status": "supported",
+        "claim_type": "contribution",
+        "claim_kind": "paper_extracted",
+        "evidence_need": "method",
+        "coverage_tags": [
+          "contribution",
+          "method"
+        ],
+        "supporting_evidence_ids": [
+          "evidence-1-turn-3"
+        ]
+      },
+      {
+        "claim_id": "claim-2",
+        "claim": "AEO significantly amplifies the entropy difference between known and unknown samples at test time, resulting in substantial performance improvements.",
+        "importance": "high",
+        "status": "uncertain",
+        "claim_type": "empirical",
+        "claim_kind": "paper_extracted",
+        "evidence_need": "result/figure",
+        "coverage_tags": [
+          "empirical",
+          "method"
+        ],
+        "supporting_evidence_ids": []
+      },
+      {
+        "claim_id": "claim-3",
+        "claim": "The method is evaluated across four benchmarks: EPIC-Kitchens, HumanAnimal-Cartoon, Kinetics-100-C, and nuScenes.",
+        "importance": "medium",
+        "status": "uncertain",
+        "claim_type": "empirical",
+        "claim_kind": "paper_extracted",
+        "evidence_need": "result/table",
+        "coverage_tags": [
+          "empirical",
+          "scope",
+          "method"
+        ],
+        "supporting_evidence_ids": []
+      }
+    ],
+    "evidence_map": [
+      {
+        "evidence_id": "evidence-1-turn-3",
+        "claim_id": "claim-1",
+        "evidence": "Fig. 2 shows AEO amplifies entropy difference between known and unknown samples.",
+        "source": "figure",
+        "source_locator": "Fig. 2",
+        "raw_quote": "As shown in Fig. 2, our $A E O$ significantly amplifies the entropy difference between known and unknown samples at test time, resulting in substantial performance improvements.",
+        "quote_id": "quote-claim-match-1",
+        "source_span_start": 18359,
+        "source_span_end": 18535,
+        "strength": "strong",
+        "stance": "supports",
+        "binding_status": "bound_real_claim",
+        "binding_confidence": 0.95,
+        "binding_rationale": "Quote explicitly links AEO mechanism to performance improvement on test samples.",
+        "grounded_judge_label": "self_claimed_by_agent",
+        "grounded_judge_reason": "Quote matches Fig. 2 description in evidence bank.",
+        "verified_grounding_label": "paper_grounded_exact",
+        "verified_grounding_reason": "quote_id matched a program-extracted quote-bank item; raw_quote was canonicalized to that item",
+        "verified_source_span_start": 18359,
+        "verified_source_span_end": 18535,
+        "verified_quote_match_type": "quote_bank_id_canonical",
+        "verified_locator_quality": "",
+        "semantic_grounding_label": "semantic_support_verified",
+        "semantic_grounding_reasons": [],
+        "semantic_alignment_score": 0.4706,
+        "semantic_grounding_checked": true,
+        "quote_evidence_semantic_mismatch": false,
+        "verified_claim_overlap_score": 11,
+        "quote_bank_claim_overlap_fallback_used": false,
+        "quote_bank_claim_overlap_fallback_quote_id": "",
+        "quote_bank_claim_overlap_fallback_source_bucket": "",
+        "quote_bank_claim_overlap_fallback_score": 0,
+        "semantic_weak_promotion_used": false,
+        "semantic_weak_promotion_reason": "",
+        "strength_promotion_from_medium_used": false,
+        "strength_promotion_reason": "",
+        "support_source_bucket": "result_or_experiment",
+        "support_quality": "empirical_or_ablation_support",
+        "support_quality_reason": "Direct empirical claim supported by figure reference.",
+        "paper_id": "hj323oR3rw",
+        "support_id": "evidence-1-turn-3",
+        "turn_id": 3,
+        "initial_strength": "strong",
+        "initial_stance": "supports",
+        "source_locator_specific": true,
+        "support_depth": "deep",
+        "final_strength": "strong",
+        "final_support_depth": "deep",
+        "verified_source_bucket": "claim_match"
+      },
+      {
+        "evidence_id": "evidence-negative-quote-bank-quote-negative-or-gap-1-1",
+        "claim_id": "claim-2",
+        "evidence": "Paper-grounded limitation/gap quote for hard-negative review: shed performance, as demonstrated in Fig. 2 and Fig. 6. To overcome this limitation and amplify the entropy difference between known and unknown samples during online adaptation, we propose the Adaptive Entropy-aware Opt",
+        "source": "quote-bank-negative-grounding",
+        "source_locator": "Fig. 2",
+        "raw_quote": "shed performance, as demonstrated in Fig. 2 and Fig. 6. To overcome this limitation and amplify the entropy difference between known and unknown samples during online adaptation, we propose the Adaptive Entropy-aware Opt",
+        "quote_id": "quote-negative-or-gap-1",
+        "source_span_start": 12415,
+        "source_span_end": 12634,
+        "strength": "missing",
+        "stance": "missing",
+        "binding_status": "bound_real_claim",
+        "binding_confidence": 0.72,
+        "binding_rationale": "Deterministic hard-negative salvage from program-extracted negative_or_gap quote bank.",
+        "grounded_judge_label": "paper_grounded",
+        "grounded_judge_reason": "Quote was copied from the ReviewState evidence quote bank; semantic verification is applied during state merge.",
+        "verified_grounding_label": "paper_grounded_exact",
+        "verified_grounding_reason": "quote_id matched a program-extracted quote-bank item; raw_quote was canonicalized to that item",
+        "verified_source_span_start": 12415,
+        "verified_source_span_end": 12634,
+        "verified_quote_match_type": "quote_bank_id_canonical",
+        "verified_locator_quality": "",
+        "semantic_grounding_label": "semantic_negative_verified",
+        "semantic_grounding_reasons": [],
+        "semantic_alignment_score": 1.0,
+        "semantic_grounding_checked": true,
+        "quote_evidence_semantic_mismatch": false,
+        "verified_claim_overlap_score": 10,
+        "quote_bank_claim_overlap_fallback_used": false,
+        "quote_bank_claim_overlap_fallback_quote_id": "",
+        "quote_bank_claim_overlap_fallback_source_bucket": "",
+        "quote_bank_claim_overlap_fallback_score": 0,
+        "semantic_weak_promotion_used": false,
+        "semantic_weak_promotion_reason": "",
+        "strength_promotion_from_medium_used": false,
+        "strength_promotion_reason": "",
+        "support_source_bucket": "limitation_or_gap",
+        "support_quality": "unspecified_support",
+        "support_quality_reason": "",
+        "paper_id": "hj323oR3rw",
+        "support_id": "evidence-negative-quote-bank-quote-negative-or-gap-1-1",
+        "turn_id": 0,
+        "initial_strength": "missing",
+        "initial_stance": "missing",
+        "source_locator_specific": true,
+        "support_depth": "deep",
+        "final_strength": "missing",
+        "final_support_depth": "deep",
+        "verified_source_bucket": "negative_or_gap"
+      }
+    ],
+    "flaw_candidates": [
+      {
+        "flaw_id": "flaw-negative-quote-bank-quote-negative-or-gap-1",
+        "title": "Verified paper quote indicates a limitation, missing comparison, failed condition, or assessment gap requiring critique review.",
+        "description": "Verified paper quote indicates a limitation, missing comparison, failed condition, or assessment gap requiring critique review.",
+        "severity": "minor",
+        "status": "candidate",
+        "related_claim_ids": [
+          "claim-2"
+        ],
+        "evidence_ids": [
+          "evidence-negative-quote-bank-quote-negative-or-gap-1-1"
+        ],
+        "confidence": 0.5,
+        "negative_evidence_ids": [
+          "evidence-negative-quote-bank-quote-negative-or-gap-1-1"
+        ],
+        "source": "quote-bank-negative-grounding",
+        "grounding_status": "grounded_candidate"
+      }
+    ],
+    "current_hypotheses": [],
+    "conflict_notes": []
+  },
+  "raw_payload": {
+    "action": "blocked",
+    "target_type": "claim",
+    "target_id": "claim-context-1",
+    "old_status": "uncertain",
+    "new_status": "uncertain",
+    "supporting_evidence_ids": [],
+    "negative_evidence_ids": null,
+    "conflict_note_ids": [],
+    "reason_for_change": "Insufficient evidence provided in the context to verify empirical performance claims.",
+    "resolution_expectation": "blocked",
+    "confidence": 0.95,
+    "blocked_reason": "Missing result tables or quantitative data for the four benchmark datasets.",
+    "missing_requirements": [
+      "Result tables showing performance metrics on EPIC-Kitchens, HAC, Kinetics-100-C, and nuScenes.",
+      "Quantitative comparison against baselines to substantiate performance improvements."
+    ],
+    "_recovery_patch_source": ""
+  },
+  "expected": {
+    "failure_code": "BLOCKED_BY_POLICY",
+    "validated": true,
+    "commit_allowed": false
+  },
+  "meta": {
+    "runner_failure_code": "SEMANTIC_MISMATCH",
+    "snapshot_timing": "post_recovery",
+    "recovery_target_id": "claim-2",
+    "recovery_target_type": "claim",
+    "recovery_patch_source": "model_generated"
+  }
+}

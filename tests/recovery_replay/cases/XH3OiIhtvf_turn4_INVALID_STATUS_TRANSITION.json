@@ -1,0 +1,227 @@
+{
+  "case_id": "XH3OiIhtvf_turn4_INVALID_STATUS_TRANSITION",
+  "paper_id": "XH3OiIhtvf",
+  "turn_id": 4,
+  "review_state": {
+    "claims": [
+      {
+        "claim_id": "claim-1",
+        "claim": "The paper proposes an unsupervised federated learning framework designed for privacy-preserving face recognition systems.",
+        "importance": "high",
+        "status": "supported",
+        "claim_type": "contribution",
+        "claim_kind": "paper_extracted",
+        "evidence_need": "abstract",
+        "coverage_tags": [
+          "contribution",
+          "method"
+        ],
+        "supporting_evidence_ids": [
+          "evidence-1-turn-2"
+        ]
+      },
+      {
+        "claim_id": "claim-2",
+        "claim": "The system utilizes a GAN model trained as a one-time task to assess effectiveness via the Equal Error Rate (EER) metric.",
+        "importance": "high",
+        "status": "uncertain",
+        "claim_type": "method",
+        "claim_kind": "paper_extracted",
+        "evidence_need": "method",
+        "coverage_tags": [
+          "method",
+          "empirical"
+        ],
+        "supporting_evidence_ids": []
+      },
+      {
+        "claim_id": "claim-3",
+        "claim": "Experimental results show that incorporating a secure aggregator in the federated model yields less favorable outcomes (higher EER) than the baseline system.",
+        "importance": "high",
+        "status": "uncertain",
+        "claim_type": "empirical",
+        "claim_kind": "paper_extracted",
+        "evidence_need": "result/table/figure",
+        "coverage_tags": [
+          "empirical",
+          "comparison",
+          "method"
+        ],
+        "supporting_evidence_ids": []
+      },
+      {
+        "claim_id": "claim-4",
+        "claim": "Frequent updates of local models do not improve EER performance, likely due to the similarity of training data across devices in each round.",
+        "importance": "medium",
+        "status": "uncertain",
+        "claim_type": "limitation_or_boundary",
+        "claim_kind": "paper_extracted",
+        "evidence_need": "result/discussion",
+        "coverage_tags": [
+          "limitation",
+          "scope",
+          "method",
+          "empirical"
+        ],
+        "supporting_evidence_ids": []
+      }
+    ],
+    "evidence_map": [
+      {
+        "evidence_id": "evidence-1-turn-2",
+        "claim_id": "claim-1",
+        "evidence": "Results from 1,000 individuals combined to train a single generic face recognition model on a standalone computer. The results showed an average EER of 2.8%, which is comparable to that of the federated model.",
+        "source": "experiment",
+        "source_locator": "Claim-matched evidence excerpt #1",
+        "raw_quote": "ples from 1,000 individuals were combined to train a single generic face recognition model on a standalone computer. The results showed an average EER of $2.8\\%$ , which is comparable to that of the federated model (see",
+        "quote_id": "quote-claim-match-1",
+        "source_span_start": 19371,
+        "source_span_end": 19589,
+        "strength": "strong",
+        "stance": "supports",
+        "binding_status": "bound_real_claim",
+        "binding_confidence": 0.95,
+        "binding_rationale": "Directly cites empirical EER results comparing standalone vs federated models.",
+        "grounded_judge_label": "self_claimed_by_agent",
+        "grounded_judge_reason": "Quote matches evidence bank and supports claim-1 with specific metrics.",
+        "verified_grounding_label": "paper_grounded_exact",
+        "verified_grounding_reason": "quote_id matched a program-extracted quote-bank item; raw_quote was canonicalized to that item",
+        "verified_source_span_start": 19371,
+        "verified_source_span_end": 19589,
+        "verified_quote_match_type": "quote_bank_id_canonical",
+        "verified_locator_quality": "",
+        "semantic_grounding_label": "semantic_support_verified",
+        "semantic_grounding_reasons": [],
+        "semantic_alignment_score": 0.8,
+        "semantic_grounding_checked": true,
+        "quote_evidence_semantic_mismatch": false,
+        "verified_claim_overlap_score": 5,
+        "quote_bank_claim_overlap_fallback_used": false,
+        "quote_bank_claim_overlap_fallback_quote_id": "",
+        "quote_bank_claim_overlap_fallback_source_bucket": "",
+        "quote_bank_claim_overlap_fallback_score": 0,
+        "semantic_weak_promotion_used": false,
+        "semantic_weak_promotion_reason": "",
+        "strength_promotion_from_medium_used": false,
+        "strength_promotion_reason": "",
+        "support_source_bucket": "result_or_experiment",
+        "support_quality": "empirical_or_ablation_support",
+        "support_quality_reason": "Contains specific EER metric and direct comparison to baseline.",
+        "paper_id": "XH3OiIhtvf",
+        "support_id": "evidence-1-turn-2",
+        "turn_id": 2,
+        "initial_strength": "strong",
+        "initial_stance": "supports",
+        "source_locator_specific": true,
+        "support_depth": "deep",
+        "final_strength": "strong",
+        "final_support_depth": "deep",
+        "verified_source_bucket": "claim_match"
+      },
+      {
+        "evidence_id": "evidence-negative-quote-bank-quote-negative-or-gap-1-1",
+        "claim_id": "claim-1",
+        "evidence": "Paper-grounded limitation/gap quote for hard-negative review: nificant improvement in EER when transitioning from individual models to federated models without a secure aggregator in the unsupervised system. The collaborative approach appears to enhance the performance of the face",
+        "source": "quote-bank-negative-grounding",
+        "source_locator": "Limitation / Gap / Negative evidence excerpt #1",
+        "raw_quote": "nificant improvement in EER when transitioning from individual models to federated models without a secure aggregator in the unsupervised system. The collaborative approach appears to enhance the performance of the face",
+        "quote_id": "quote-negative-or-gap-1",
+        "source_span_start": 17121,
+        "source_span_end": 17339,
+        "strength": "missing",
+        "stance": "missing",
+        "binding_status": "bound_real_claim",
+        "binding_confidence": 0.72,
+        "binding_rationale": "Deterministic hard-negative salvage from program-extracted negative_or_gap quote bank.",
+        "grounded_judge_label": "paper_grounded",
+        "grounded_judge_reason": "Quote was copied from the ReviewState evidence quote bank; semantic verification is applied during state merge.",
+        "verified_grounding_label": "paper_grounded_exact",
+        "verified_grounding_reason": "quote_id matched a program-extracted quote-bank item; raw_quote was canonicalized to that item",
+        "verified_source_span_start": 17121,
+        "verified_source_span_end": 17339,
+        "verified_quote_match_type": "quote_bank_id_canonical",
+        "verified_locator_quality": "",
+        "semantic_grounding_label": "semantic_negative_verified",
+        "semantic_grounding_reasons": [],
+        "semantic_alignment_score": 1.0,
+        "semantic_grounding_checked": true,
+        "quote_evidence_semantic_mismatch": false,
+        "verified_claim_overlap_score": 4,
+        "quote_bank_claim_overlap_fallback_used": false,
+        "quote_bank_claim_overlap_fallback_quote_id": "",
+        "quote_bank_claim_overlap_fallback_source_bucket": "",
+        "quote_bank_claim_overlap_fallback_score": 0,
+        "semantic_weak_promotion_used": false,
+        "semantic_weak_promotion_reason": "",
+        "strength_promotion_from_medium_used": false,
+        "strength_promotion_reason": "",
+        "support_source_bucket": "limitation_or_gap",
+        "support_quality": "unspecified_support",
+        "support_quality_reason": "",
+        "paper_id": "XH3OiIhtvf",
+        "support_id": "evidence-negative-quote-bank-quote-negative-or-gap-1-1",
+        "turn_id": 0,
+        "initial_strength": "missing",
+        "initial_stance": "missing",
+        "source_locator_specific": false,
+        "support_depth": "deep",
+        "final_strength": "missing",
+        "final_support_depth": "deep",
+        "verified_source_bucket": "negative_or_gap"
+      }
+    ],
+    "flaw_candidates": [
+      {
+        "flaw_id": "flaw-negative-quote-bank-quote-negative-or-gap-1",
+        "title": "Verified paper quote indicates a limitation, missing comparison, failed condition, or assessment gap requiring critique review.",
+        "description": "Verified paper quote indicates a limitation, missing comparison, failed condition, or assessment gap requiring critique review.",
+        "severity": "minor",
+        "status": "candidate",
+        "related_claim_ids": [
+          "claim-1"
+        ],
+        "evidence_ids": [
+          "evidence-negative-quote-bank-quote-negative-or-gap-1-1"
+        ],
+        "confidence": 0.5,
+        "negative_evidence_ids": [
+          "evidence-negative-quote-bank-quote-negative-or-gap-1-1"
+        ],
+        "source": "quote-bank-negative-grounding",
+        "grounding_status": "grounded_candidate"
+      }
+    ],
+    "current_hypotheses": [],
+    "conflict_notes": []
+  },
+  "raw_payload": {
+    "action": "apply_recovery_patch",
+    "target_type": "claim",
+    "target_id": "claim-1",
+    "old_status": "supported",
+    "new_status": "partially_supported",
+    "supporting_evidence_ids": [
+      "evidence-negative-quote-bank-quote-negative-or-gap-1-1"
+    ],
+    "negative_evidence_ids": null,
+    "conflict_note_ids": [],
+    "reason_for_change": "Evidence shows federated models outperform individual models without secure aggregator, limiting the claim's strength.",
+    "resolution_expectation": "partially_resolved",
+    "confidence": 0.8,
+    "blocked_reason": "",
+    "missing_requirements": [],
+    "_recovery_patch_source": "model_generated"
+  },
+  "expected": {
+    "failure_code": "SUCCESS",
+    "validated": true,
+    "commit_allowed": true
+  },
+  "meta": {
+    "runner_failure_code": "SUCCESS",
+    "snapshot_timing": "post_recovery",
+    "recovery_target_id": "claim-1",
+    "recovery_target_type": "claim",
+    "recovery_patch_source": "model_generated"
+  }
+}

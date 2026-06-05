@@ -1,0 +1,155 @@
+{
+  "case_id": "9zEBK3E9bX_turn4_INSUFFICIENT_EVIDENCE",
+  "paper_id": "9zEBK3E9bX",
+  "turn_id": 4,
+  "review_state": {
+    "claims": [
+      {
+        "claim_id": "claim-1",
+        "claim": "SPOT is a scalable 3D pre-training framework designed to alleviate the burden of annotating 3D LiDAR point clouds for perception tasks.",
+        "importance": "high",
+        "status": "supported",
+        "claim_type": "contribution",
+        "claim_kind": "paper_extracted",
+        "evidence_need": "abstract",
+        "coverage_tags": [
+          "contribution",
+          "method"
+        ],
+        "supporting_evidence_ids": [
+          "evidence-1-turn-2"
+        ]
+      },
+      {
+        "claim_id": "claim-2",
+        "claim": "The method utilizes occupancy prediction with weighted voxel classification, assigning specific weights to foreground objects, background, and empty voxels.",
+        "importance": "high",
+        "status": "uncertain",
+        "claim_type": "method",
+        "claim_kind": "paper_extracted",
+        "evidence_need": "method",
+        "coverage_tags": [
+          "method"
+        ],
+        "supporting_evidence_ids": []
+      },
+      {
+        "claim_id": "claim-3",
+        "claim": "SPOT employs equivalent LiDAR beam sampling to diversify pre-training data and address sensor sparsity variations.",
+        "importance": "medium",
+        "status": "uncertain",
+        "claim_type": "method",
+        "claim_kind": "paper_extracted",
+        "evidence_need": "method/figure",
+        "coverage_tags": [
+          "method",
+          "empirical"
+        ],
+        "supporting_evidence_ids": []
+      },
+      {
+        "claim_id": "claim-4",
+        "claim": "The framework aims to learn general representations for various downstream tasks and datasets in a label-efficient manner.",
+        "importance": "medium",
+        "status": "uncertain",
+        "claim_type": "empirical",
+        "claim_kind": "paper_extracted",
+        "evidence_need": "result/ablation",
+        "coverage_tags": [
+          "empirical",
+          "scope",
+          "method"
+        ],
+        "supporting_evidence_ids": []
+      }
+    ],
+    "evidence_map": [
+      {
+        "evidence_id": "evidence-1-turn-2",
+        "claim_id": "claim-1",
+        "evidence": "SPOT architecture details from Fig. 2",
+        "source": "figure",
+        "source_locator": "Fig. 2",
+        "raw_quote": "\\section{3 METHOD } We discuss the proposed SPOT in detail. As shown in Fig. 2, SPOT contains four parts: (a) Augmentations on LiDAR point clouds. (b) Encoder for LiDAR point clouds to generate BEV features, which are p",
+        "quote_id": "quote-table-or-figure-1",
+        "source_span_start": 10981,
+        "source_span_end": 11198,
+        "strength": "strong",
+        "stance": "supports",
+        "binding_status": "bound_real_claim",
+        "binding_confidence": 0.8,
+        "binding_rationale": "Describes the core components of the proposed SPOT model.",
+        "grounded_judge_label": "self_claimed_by_agent",
+        "grounded_judge_reason": "Quote matches Fig. 2 description in text.",
+        "verified_grounding_label": "paper_grounded_exact",
+        "verified_grounding_reason": "quote_id matched a program-extracted quote-bank item; raw_quote was canonicalized to that item",
+        "verified_source_span_start": 10981,
+        "verified_source_span_end": 11199,
+        "verified_quote_match_type": "quote_bank_id_canonical",
+        "verified_locator_quality": "",
+        "semantic_grounding_label": "semantic_support_verified",
+        "semantic_grounding_reasons": [],
+        "semantic_alignment_score": 0.7,
+        "semantic_grounding_checked": true,
+        "quote_evidence_semantic_mismatch": false,
+        "verified_claim_overlap_score": 5,
+        "quote_bank_claim_overlap_fallback_used": false,
+        "quote_bank_claim_overlap_fallback_quote_id": "",
+        "quote_bank_claim_overlap_fallback_source_bucket": "",
+        "quote_bank_claim_overlap_fallback_score": 0,
+        "semantic_weak_promotion_used": false,
+        "semantic_weak_promotion_reason": "",
+        "strength_promotion_from_medium_used": true,
+        "strength_promotion_reason": "verified_claim_overlap_method_support",
+        "support_source_bucket": "table_or_figure",
+        "support_quality": "method_grounded_support",
+        "support_quality_reason": "Describes method but lacks quantitative results.",
+        "paper_id": "9zEBK3E9bX",
+        "support_id": "evidence-1-turn-2",
+        "turn_id": 2,
+        "initial_strength": "medium",
+        "initial_stance": "supports",
+        "source_locator_specific": true,
+        "support_depth": "moderate",
+        "final_strength": "strong",
+        "final_support_depth": "moderate",
+        "agent_raw_quote": "As shown in Fig. 2, SPOT contains four parts: (a) Augmentations on LiDAR point clouds. (b) Encoder for LiDAR point clouds to generate BEV features",
+        "quote_bank_canonicalized": true,
+        "verified_source_bucket": "table_or_figure",
+        "support_quality_adjustment": "promoted_verified_claim_matched_support",
+        "strength_promotion_held_at_moderate": false
+      }
+    ],
+    "flaw_candidates": [],
+    "current_hypotheses": [],
+    "conflict_notes": []
+  },
+  "raw_payload": {
+    "action": "apply_recovery_patch",
+    "target_type": "claim",
+    "target_id": "claim-1",
+    "old_status": "supported",
+    "new_status": "unsupported",
+    "supporting_evidence_ids": [],
+    "negative_evidence_ids": null,
+    "conflict_note_ids": [],
+    "reason_for_change": "Missing quantitative results required to verify label efficiency claim.",
+    "resolution_expectation": "blocked",
+    "confidence": 0.9,
+    "blocked_reason": "",
+    "missing_requirements": [],
+    "_recovery_patch_source": "model_generated"
+  },
+  "expected": {
+    "failure_code": "INSUFFICIENT_EVIDENCE",
+    "validated": true,
+    "commit_allowed": false
+  },
+  "meta": {
+    "runner_failure_code": "INSUFFICIENT_EVIDENCE",
+    "snapshot_timing": "post_recovery",
+    "recovery_target_id": "claim-1",
+    "recovery_target_type": "claim",
+    "recovery_patch_source": "model_generated"
+  }
+}

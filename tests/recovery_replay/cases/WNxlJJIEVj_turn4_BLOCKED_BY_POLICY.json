@@ -1,0 +1,158 @@
+{
+  "case_id": "WNxlJJIEVj_turn4_BLOCKED_BY_POLICY",
+  "paper_id": "WNxlJJIEVj",
+  "turn_id": 4,
+  "review_state": {
+    "claims": [
+      {
+        "claim_id": "claim-1",
+        "claim": "The paper proposes Contrastive Diffuser (CDiffuser), a framework designed to enhance offline RL performance by utilizing low-return trajectories through a contrastive mechanism.",
+        "importance": "high",
+        "status": "supported",
+        "claim_type": "contribution",
+        "claim_kind": "paper_extracted",
+        "evidence_need": "Abstract and Methodology sections",
+        "coverage_tags": [
+          "contribution",
+          "method",
+          "empirical"
+        ],
+        "supporting_evidence_ids": [
+          "evidence-1-turn-2"
+        ]
+      },
+      {
+        "claim_id": "claim-2",
+        "claim": "CDiffuser employs a dual-module architecture consisting of a Planning Module for trajectory generation and a Contrastive Module to pull generated states toward high-return regions.",
+        "importance": "high",
+        "status": "uncertain",
+        "claim_type": "method",
+        "claim_kind": "paper_extracted",
+        "evidence_need": "Methodology section and Figure 1",
+        "coverage_tags": [
+          "method",
+          "empirical"
+        ],
+        "supporting_evidence_ids": []
+      },
+      {
+        "claim_id": "claim-3",
+        "claim": "CDiffuser demonstrates superior performance compared to baselines on 14 standard D4RL datasets and constructed high-variance datasets.",
+        "importance": "high",
+        "status": "uncertain",
+        "claim_type": "empirical",
+        "claim_kind": "paper_extracted",
+        "evidence_need": "Results section and tables",
+        "coverage_tags": [
+          "empirical",
+          "comparison"
+        ],
+        "supporting_evidence_ids": []
+      },
+      {
+        "claim_id": "claim-4",
+        "claim": "The optimization of the joint objective is mathematically equivalent to separately optimizing the value function and the contrastive policy.",
+        "importance": "medium",
+        "status": "uncertain",
+        "claim_type": "method",
+        "claim_kind": "paper_extracted",
+        "evidence_need": "Methodology section equations",
+        "coverage_tags": [
+          "method"
+        ],
+        "supporting_evidence_ids": []
+      }
+    ],
+    "evidence_map": [
+      {
+        "evidence_id": "evidence-1-turn-2",
+        "claim_id": "claim-1",
+        "evidence": "Method proposal for low-return trajectory utilization.",
+        "source": "method",
+        "source_locator": "Claim-matched evidence excerpt #1",
+        "raw_quote": "the challenge, we propose a method called \\textbf{Constrastive Diffuser (CDiffuser)}, which introduces a contrastive mechanism to make full use of low-return trajectories and enhance the performance by constraining the s",
+        "quote_id": "quote-claim-match-1",
+        "source_span_start": 12855,
+        "source_span_end": 13074,
+        "strength": "strong",
+        "stance": "supports",
+        "binding_status": "bound_real_claim",
+        "binding_confidence": 0.9,
+        "binding_rationale": "Directly describes the proposed method addressing the claim.",
+        "grounded_judge_label": "self_claimed_by_agent",
+        "grounded_judge_reason": "Quote matches provided evidence bank exactly.",
+        "verified_grounding_label": "paper_grounded_exact",
+        "verified_grounding_reason": "quote_id matched a program-extracted quote-bank item; raw_quote was canonicalized to that item",
+        "verified_source_span_start": 12855,
+        "verified_source_span_end": 13074,
+        "verified_quote_match_type": "quote_bank_id_canonical",
+        "verified_locator_quality": "",
+        "semantic_grounding_label": "semantic_support_verified",
+        "semantic_grounding_reasons": [],
+        "semantic_alignment_score": 0.9474,
+        "semantic_grounding_checked": true,
+        "quote_evidence_semantic_mismatch": false,
+        "verified_claim_overlap_score": 7,
+        "quote_bank_claim_overlap_fallback_used": false,
+        "quote_bank_claim_overlap_fallback_quote_id": "",
+        "quote_bank_claim_overlap_fallback_source_bucket": "",
+        "quote_bank_claim_overlap_fallback_score": 0,
+        "semantic_weak_promotion_used": false,
+        "semantic_weak_promotion_reason": "",
+        "strength_promotion_from_medium_used": true,
+        "strength_promotion_reason": "verified_claim_overlap_method_support",
+        "support_source_bucket": "method_or_approach",
+        "support_quality": "method_grounded_support",
+        "support_quality_reason": "Describes method mechanism but lacks empirical results.",
+        "paper_id": "WNxlJJIEVj",
+        "support_id": "evidence-1-turn-2",
+        "turn_id": 2,
+        "initial_strength": "medium",
+        "initial_stance": "supports",
+        "source_locator_specific": true,
+        "support_depth": "moderate",
+        "final_strength": "strong",
+        "final_support_depth": "moderate",
+        "agent_raw_quote": "the challenge, we propose a method called Constrastive Diffuser (CDiffuser), which introduces a contrastive mechanism to make full use of low-return trajectories and enhance the performance by constraining the states",
+        "quote_bank_canonicalized": true,
+        "verified_source_bucket": "claim_match",
+        "support_quality_adjustment": "promoted_verified_claim_matched_support",
+        "strength_promotion_held_at_moderate": false
+      }
+    ],
+    "flaw_candidates": [],
+    "current_hypotheses": [],
+    "conflict_notes": []
+  },
+  "raw_payload": {
+    "action": "blocked",
+    "target_type": "claim",
+    "target_id": "claim-1",
+    "old_status": "supported",
+    "new_status": "supported",
+    "supporting_evidence_ids": [],
+    "negative_evidence_ids": null,
+    "conflict_note_ids": [],
+    "reason_for_change": "Insufficient contradictory evidence found in current state slice to justify status transition.",
+    "resolution_expectation": "blocked",
+    "confidence": 0.95,
+    "blocked_reason": "No direct negative quotes or missing support evidence available to weaken claim-1.",
+    "missing_requirements": [
+      "Direct paper quotes contradicting the contrastive mechanism's effectiveness.",
+      "Evidence showing the method fails to utilize low-return trajectories."
+    ],
+    "_recovery_patch_source": ""
+  },
+  "expected": {
+    "failure_code": "BLOCKED_BY_POLICY",
+    "validated": true,
+    "commit_allowed": false
+  },
+  "meta": {
+    "runner_failure_code": "BLOCKED_BY_POLICY",
+    "snapshot_timing": "post_recovery",
+    "recovery_target_id": "claim-1",
+    "recovery_target_type": "claim",
+    "recovery_patch_source": "none"
+  }
+}

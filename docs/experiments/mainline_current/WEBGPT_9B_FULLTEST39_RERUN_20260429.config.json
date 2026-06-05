@@ -1,0 +1,21 @@
+{
+  "run_name": "WEBGPT_9B_FULLTEST39_RERUN_20260429",
+  "model_path": "/reviewF/datasets/Qwen3___5-9B",
+  "dataset_path": "/reviewF/datasets/drmas_review/test.parquet",
+  "split": "test",
+  "mode": "s4",
+  "limit": 39,
+  "max_turns": 8,
+  "max_workers_per_turn": 2,
+  "manager_batch_size": 4,
+  "gpu_memory_utilization": 0.9,
+  "max_model_len": 3072,
+  "temperature": 0.2,
+  "top_p": 0.95,
+  "max_tokens": 640,
+  "max_num_seqs": 64,
+  "trust_remote_code": true,
+  "output_path": "outputs/results_main/review_infer/webgpt_9b_fulltest39_rerun_20260429.jsonl",
+  "log_path": "outputs/results_main/review_infer/webgpt_9b_fulltest39_rerun_20260429.log",
+  "turn_log_dir": "outputs/results_main/review_infer/webgpt_9b_fulltest39_rerun_20260429_turn_logs"
+}

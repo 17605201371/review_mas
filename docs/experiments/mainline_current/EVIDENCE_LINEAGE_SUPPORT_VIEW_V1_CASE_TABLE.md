@@ -1,0 +1,43 @@
+# Evidence Lineage Support View v1 Case Table
+
+| paper_id | gold | current | lineage_real | nonabstract | empirical | method | indep_groups | final_real | confirmed_major_or_critical | unresolved | sim_conservative | sim_borderline |
+|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---|
+| ye3NrNrYOY | reject | reject | 2 | 0 | 0 | 0 | 2 | 0 | 0 | 7 | reject | reject |
+| WNxlJJIEVj | reject | reject | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 6 | reject | reject |
+| uOrfve3prk | reject | reject | 1 | 1 | 0 | 1 | 1 | 1 | 0 | 4 | reject | borderline |
+| hj323oR3rw | accept | reject | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 3 | reject | reject |
+| 7Dub7UXTXN | reject | reject | 3 | 0 | 0 | 0 | 2 | 0 | 0 | 5 | reject | borderline |
+| 9zEBK3E9bX | reject | reject | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 4 | reject | reject |
+| XyB4VvF01X | reject | reject | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 3 | reject | reject |
+| GE6iywJtsV | reject | reject | 0 | 0 | 0 | 0 | 0 | 0 | 1 | 6 | reject | reject |
+| QAAsnSRwgu | accept | reject | 0 | 0 | 0 | 0 | 0 | 0 | 1 | 10 | reject | reject |
+| WpXq5n8yLb | reject | reject | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 7 | reject | reject |
+| X41c4uB4k0 | accept | reject | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 6 | reject | reject |
+| NnExMNiTHw | reject | reject | 1 | 1 | 1 | 0 | 1 | 1 | 0 | 2 | reject | borderline |
+| gzqrANCF4g | accept | reject | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 10 | reject | reject |
+| a6SntIisgg | reject | reject | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 6 | reject | reject |
+| cklg91aPGk | reject | reject | 2 | 2 | 2 | 0 | 2 | 1 | 0 | 2 | accept | borderline |
+| HPuLU6q7xq | reject | reject | 2 | 2 | 0 | 2 | 1 | 1 | 0 | 10 | reject | reject |
+| fGXyvmWpw6 | reject | reject | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 2 | reject | reject |
+| QAgwFiIY4p | reject | reject | 1 | 1 | 0 | 1 | 1 | 1 | 0 | 2 | reject | borderline |
+| KI9NqjLVDT | accept | reject | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 6 | reject | reject |
+| 1HCN4pjTb4 | accept | reject | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 5 | reject | reject |
+| LebzzClHYw | accept | reject | 1 | 1 | 0 | 1 | 1 | 0 | 0 | 7 | reject | reject |
+| BXY6fe7q31 | accept | reject | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 10 | reject | reject |
+| TPAj63ax4Y | reject | reject | 2 | 1 | 1 | 0 | 2 | 1 | 0 | 7 | reject | reject |
+| mHv6wcBb0z | reject | reject | 1 | 1 | 1 | 0 | 1 | 1 | 0 | 5 | reject | borderline |
+| xUe1YqEgd6 | reject | reject | 1 | 1 | 0 | 1 | 1 | 0 | 0 | 2 | reject | borderline |
+| jVEoydFOl9 | accept | reject | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 4 | reject | reject |
+| YXn76HMetm | reject | reject | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 5 | reject | reject |
+| KOUAayk5Kx | reject | reject | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 8 | reject | reject |
+| XH3OiIhtvf | reject | reject | 2 | 0 | 0 | 0 | 2 | 0 | 0 | 4 | reject | borderline |
+| ZHr0JajZfH | reject | reject | 3 | 2 | 0 | 2 | 2 | 1 | 0 | 3 | reject | borderline |
+| WLgbjzKJkk | reject | reject | 1 | 0 | 0 | 0 | 1 | 0 | 0 | 2 | reject | reject |
+| 9JRsAj3ymy | reject | reject | 1 | 1 | 0 | 1 | 1 | 0 | 0 | 5 | reject | borderline |
+| rEqETC88RY | reject | reject | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 4 | reject | reject |
+| aTBE70xiFw | reject | reject | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 5 | reject | reject |
+| LieTse3fQB | reject | reject | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 5 | reject | reject |
+| kam84eEmub | reject | reject | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 10 | reject | reject |
+| N0isTh3rml | reject | reject | 2 | 0 | 0 | 0 | 2 | 0 | 0 | 3 | reject | borderline |
+| 2L7KQ4qbHi | reject | reject | 0 | 0 | 0 | 0 | 0 | 0 | 1 | 5 | reject | reject |
+| aRxLDcxFcL | reject | reject | 2 | 2 | 2 | 0 | 2 | 1 | 0 | 10 | reject | reject |

@@ -1,0 +1,19 @@
+{
+  "row_count": 39,
+  "run_seconds_from_log": 4545.0,
+  "run_minutes_from_log": 75.75,
+  "seconds_per_paper_from_log": 116.54,
+  "avg_turns_per_paper": 6.15,
+  "median_turns_per_paper": 7,
+  "max_turns_hit_rows": 14,
+  "manager_turns": 240,
+  "selected_worker_calls": 311,
+  "approx_model_calls_including_manager": 551,
+  "approx_model_calls_per_paper": 14.13,
+  "prompt_call_count_from_log": 0,
+  "avg_prompt_seconds": null,
+  "median_prompt_seconds": null,
+  "avg_input_toks_per_sec": null,
+  "avg_output_toks_per_sec": null,
+  "notes": "Prompt timings are parsed from tqdm log lines and are approximate. Wall-clock includes model load and shutdown."
+}

@@ -1,0 +1,26 @@
+{
+  "mode": "s4",
+  "subset_path": "outputs/results_main/review_infer/p25_1_target_observability_l2_subset.parquet",
+  "sample_ids": [
+    "2Cg4YrsCMA",
+    "NhLBhx5BVY",
+    "IqaQZ1Jdky",
+    "9EBSEkFSje",
+    "qgyF6JVmar"
+  ],
+  "model_path": "/reviewF/datasets/Qwen3___5-9B",
+  "max_turns": 8,
+  "max_workers_per_turn": 2,
+  "manager_batch_size": 1,
+  "max_model_len": 3072,
+  "max_tokens": 640,
+  "temperature": 0.2,
+  "top_p": 0.95,
+  "max_num_seqs": 128,
+  "gpu_memory_utilization": 0.94,
+  "seed": 20260423,
+  "run_name": "p25_1_target_observability_l2",
+  "output_path": "outputs/results_main/review_infer/p25_1_target_observability_l2.jsonl",
+  "log_path": "p25_1_target_observability_l2.log",
+  "change_type": "observability_only_target_evolution_fields"
+}

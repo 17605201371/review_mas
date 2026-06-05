@@ -1,0 +1,55 @@
+{
+  "negative_flaws": [
+    {
+      "paper_id": "QAAsnSRwgu",
+      "flaw_id": "flaw-negative-quote-bank-quote-negative-or-gap-1",
+      "flaw_text": "",
+      "flaw_type": "",
+      "status": "downgraded",
+      "negative_evidence_id": "",
+      "claim_id": "",
+      "severity": "major"
+    },
+    {
+      "paper_id": "WLgbjzKJkk",
+      "flaw_id": "flaw-lack-of-quantitative-metrics",
+      "flaw_text": "",
+      "flaw_type": "",
+      "status": "candidate",
+      "negative_evidence_id": "",
+      "claim_id": "",
+      "severity": "major"
+    },
+    {
+      "paper_id": "X41c4uB4k0",
+      "flaw_id": "flaw-negative-quote-bank-quote-negative-or-gap-1",
+      "flaw_text": "",
+      "flaw_type": "",
+      "status": "candidate",
+      "negative_evidence_id": "",
+      "claim_id": "",
+      "severity": "minor"
+    },
+    {
+      "paper_id": "hj323oR3rw",
+      "flaw_id": "flaw-negative-quote-bank-quote-negative-or-gap-2",
+      "flaw_text": "",
+      "flaw_type": "",
+      "status": "candidate",
+      "negative_evidence_id": "",
+      "claim_id": "",
+      "severity": "major"
+    },
+    {
+      "paper_id": "kam84eEmub",
+      "flaw_id": "flaw-unsubstantiated-pe-claims",
+      "flaw_text": "",
+      "flaw_type": "",
+      "status": "candidate",
+      "negative_evidence_id": "",
+      "claim_id": "",
+      "severity": "minor"
+    }
+  ],
+  "contested_support": []
+}

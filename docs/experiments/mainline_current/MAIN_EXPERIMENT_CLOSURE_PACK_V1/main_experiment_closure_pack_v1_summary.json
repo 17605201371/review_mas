@@ -1,0 +1,143 @@
+{
+  "generated_at_local": "2026-05-04T19:10:25.964919",
+  "source_run": "mainline_final_v1_closure_9b_fulltest39_20260504",
+  "root_artifacts_prefix": "LATEST_MAINLINE_FINAL_V1_CLOSURE_9B_FULLTEST39_20260504",
+  "decision_health": {
+    "row_count": 39,
+    "gold_accept": 8,
+    "gold_reject": 31,
+    "predicted_accept_count": 1,
+    "predicted_reject_count": 38,
+    "accuracy": 0.8205128205128205,
+    "macro_f1": 0.5603864734299516,
+    "accept_recall": 0.125,
+    "reject_recall": 1.0,
+    "false_accept_ids": [],
+    "false_reject_ids": [
+      "hj323oR3rw",
+      "QAAsnSRwgu",
+      "X41c4uB4k0",
+      "gzqrANCF4g",
+      "1HCN4pjTb4",
+      "LebzzClHYw",
+      "BXY6fe7q31"
+    ],
+    "recovered_accept_ids": [
+      "jVEoydFOl9"
+    ]
+  },
+  "final_recommendation_view_counts": {
+    "borderline_insufficient": 24,
+    "not_assessable_uncertain": 11,
+    "borderline_positive": 2,
+    "reject_like": 1,
+    "accept_like": 1
+  },
+  "support_quality": {
+    "real_strong_support_total": 49,
+    "nonabstract_strong_support_total": 49,
+    "empirical_strong_support_total": 36,
+    "fallback_strong_support_total": 0,
+    "rows_with_2plus_real_strong_support": 17
+  },
+  "recovery": {
+    "patch_emitted_count": 96,
+    "patch_committed_count": 1,
+    "rows_with_any_commit": 1
+  },
+  "negative_lifecycle_summary": {
+    "input": "LATEST_MAINLINE_FINAL_V1_CLOSURE_9B_FULLTEST39_20260504_gold.jsonl",
+    "rows": 39,
+    "raw_unresolved_total": 269,
+    "raw_gap_total": 110,
+    "raw_flaw_total": 48,
+    "raw_conflict_total": 73,
+    "hygiene_open_unresolved_total": 0,
+    "hygiene_gap_total": 52,
+    "hygiene_conflict_total": 35,
+    "unresolved_categories": {
+      "context_limitation": 69,
+      "targetless_open_question": 200
+    },
+    "gap_categories": {
+      "stale_gap_resolved_by_support": 42,
+      "open_gap": 68
+    },
+    "flaw_categories": {
+      "fallback_or_meta_flaw": 43,
+      "ungrounded_candidate": 4,
+      "grounded_major_or_critical": 1
+    },
+    "conflict_categories": {
+      "fallback_or_context_conflict": 53,
+      "open_conflict": 20
+    }
+  },
+  "criterion_grounding_latest": {
+    "covered_novelty_originality": 39,
+    "grounded_novelty_originality": 39,
+    "covered_significance_contribution": 39,
+    "grounded_significance_contribution": 38,
+    "covered_technical_soundness": 39,
+    "grounded_technical_soundness": 36,
+    "covered_empirical_adequacy": 39,
+    "grounded_empirical_adequacy": 33,
+    "covered_clarity_reproducibility": 39,
+    "grounded_clarity_reproducibility": 39,
+    "total_covered": 195,
+    "total_unsupported": 0,
+    "total_meta_leakage": 0
+  },
+  "hard_negative_case_summary": {
+    "row_count": 39,
+    "gold_counts": {
+      "reject": 31,
+      "accept": 8
+    },
+    "recommendation_view_counts": {
+      "borderline_insufficient": 24,
+      "not_assessable_uncertain": 11,
+      "borderline_positive": 2,
+      "reject_like": 1,
+      "accept_like": 1
+    },
+    "hard_negative_status_counts": {
+      "unverified_blocker_candidate": 37,
+      "grounded_blocker_found": 1,
+      "context_limited_no_grounded_blocker": 1
+    },
+    "bucket_counts": {
+      "false_accept_risk_reject_cases": 20,
+      "background_cases": 15,
+      "accept_protect_cases": 4
+    },
+    "false_accept_risk_reject_ids": [
+      "ye3NrNrYOY",
+      "uOrfve3prk",
+      "7Dub7UXTXN",
+      "9zEBK3E9bX",
+      "XyB4VvF01X",
+      "WpXq5n8yLb",
+      "NnExMNiTHw",
+      "a6SntIisgg",
+      "cklg91aPGk",
+      "QAgwFiIY4p",
+      "KI9NqjLVDT",
+      "TPAj63ax4Y",
+      "mHv6wcBb0z",
+      "xUe1YqEgd6",
+      "YXn76HMetm",
+      "KOUAayk5Kx",
+      "WLgbjzKJkk",
+      "aTBE70xiFw",
+      "LieTse3fQB",
+      "N0isTh3rml"
+    ],
+    "accept_protect_ids": [
+      "QAAsnSRwgu",
+      "X41c4uB4k0",
+      "BXY6fe7q31",
+      "jVEoydFOl9"
+    ]
+  }
+}

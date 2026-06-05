@@ -1,0 +1,33 @@
+# Final-View Unresolved / Candidate-Flaw Classifier v1 Case Table
+
+| paper_id | gold | runtime | view | real | nonabs | empirical | method | emp_open | method_open | open_question | context_limit | candidate_hard |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| ye3NrNrYOY | reject | reject | not_assessable | 1 | 1 | 1 | 0 | 1 | 3 | 0 | 1 | 0 |
+| WNxlJJIEVj | reject | reject | not_assessable | 0 | 0 | 0 | 0 | 1 | 0 | 0 | 1 | 0 |
+| hj323oR3rw | accept | reject | not_assessable | 0 | 0 | 0 | 0 | 2 | 1 | 0 | 0 | 0 |
+| 9zEBK3E9bX | reject | reject | borderline_positive | 2 | 2 | 2 | 0 | 0 | 0 | 0 | 0 | 0 |
+| XyB4VvF01X | reject | reject | not_assessable | 0 | 0 | 0 | 0 | 1 | 1 | 0 | 0 | 0 |
+| GE6iywJtsV | reject | reject | not_assessable | 1 | 1 | 1 | 0 | 1 | 1 | 0 | 0 | 0 |
+| QAAsnSRwgu | accept | reject | not_assessable | 0 | 0 | 0 | 0 | 0 | 1 | 0 | 0 | 0 |
+| WpXq5n8yLb | reject | reject | not_assessable | 1 | 1 | 1 | 0 | 1 | 3 | 0 | 0 | 0 |
+| X41c4uB4k0 | accept | reject | borderline_insufficient | 1 | 1 | 1 | 0 | 0 | 0 | 0 | 0 | 0 |
+| NnExMNiTHw | reject | reject | not_assessable | 1 | 1 | 1 | 0 | 2 | 4 | 0 | 0 | 1 |
+| gzqrANCF4g | accept | reject | not_assessable | 0 | 0 | 0 | 0 | 3 | 2 | 0 | 2 | 0 |
+| cklg91aPGk | reject | reject | not_assessable | 1 | 1 | 1 | 0 | 0 | 0 | 0 | 0 | 0 |
+| HPuLU6q7xq | reject | reject | not_assessable | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| fGXyvmWpw6 | reject | reject | not_assessable | 1 | 1 | 1 | 0 | 0 | 0 | 0 | 0 | 0 |
+| KI9NqjLVDT | accept | reject | not_assessable | 0 | 0 | 0 | 0 | 1 | 0 | 0 | 1 | 0 |
+| 1HCN4pjTb4 | accept | reject | not_assessable | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| LebzzClHYw | accept | reject | accept_like | 2 | 2 | 1 | 1 | 0 | 0 | 0 | 0 | 0 |
+| BXY6fe7q31 | accept | reject | not_assessable | 3 | 3 | 3 | 0 | 2 | 0 | 0 | 7 | 0 |
+| mHv6wcBb0z | reject | reject | not_assessable | 0 | 0 | 0 | 0 | 4 | 0 | 0 | 1 | 0 |
+| xUe1YqEgd6 | reject | reject | not_assessable | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| jVEoydFOl9 | accept | reject | not_assessable | 1 | 1 | 1 | 0 | 1 | 0 | 0 | 1 | 1 |
+| XH3OiIhtvf | reject | reject | not_assessable | 0 | 0 | 0 | 0 | 2 | 0 | 0 | 0 | 0 |
+| ZHr0JajZfH | reject | reject | not_assessable | 4 | 4 | 2 | 2 | 1 | 0 | 0 | 3 | 0 |
+| WLgbjzKJkk | reject | reject | not_assessable | 0 | 0 | 0 | 0 | 5 | 0 | 0 | 2 | 0 |
+| 9JRsAj3ymy | reject | reject | not_assessable | 0 | 0 | 0 | 0 | 2 | 0 | 0 | 2 | 0 |
+| LieTse3fQB | reject | reject | not_assessable | 1 | 1 | 0 | 1 | 1 | 0 | 0 | 3 | 0 |
+| kam84eEmub | reject | reject | not_assessable | 0 | 0 | 0 | 0 | 1 | 2 | 0 | 4 | 0 |
+| N0isTh3rml | reject | reject | not_assessable | 0 | 0 | 0 | 0 | 2 | 1 | 0 | 3 | 0 |
+| 2L7KQ4qbHi | reject | reject | not_assessable | 0 | 0 | 0 | 0 | 1 | 2 | 0 | 3 | 0 |

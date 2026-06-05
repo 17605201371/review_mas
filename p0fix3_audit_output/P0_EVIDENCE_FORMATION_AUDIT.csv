@@ -1,0 +1,9 @@
+paper_id,first_verify_evidence_turn,first_nonempty_payload_turn,first_evidence_in_state_turn,first_final_support_turn,generated_by_evidence_agent,generated_by_first_support_fallback,ev_worker_turns,qb_nonzero_turns,payload_items,nonempty_payload_turns,question_only_turns,dead_loop,first_fallback_turns
+9zEBK3E9bX,2,2,2,,True,True,5,5,2,2,3,False,0
+QAAsnSRwgu,2,2,2,,True,True,4,4,3,3,1,False,0
+WLgbjzKJkk,2,2,2,,True,True,6,5,2,2,3,False,0
+WNxlJJIEVj,2,2,2,,True,True,6,6,3,3,3,False,0
+X41c4uB4k0,3,3,3,,True,True,5,4,3,3,2,False,0
+ZHr0JajZfH,2,2,2,,True,True,5,5,2,2,3,False,0
+hj323oR3rw,2,2,2,,True,True,4,4,3,3,1,False,0
+kam84eEmub,2,2,2,,True,False,6,5,2,1,4,False,0

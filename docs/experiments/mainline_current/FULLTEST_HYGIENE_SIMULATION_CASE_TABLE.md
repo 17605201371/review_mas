@@ -1,0 +1,43 @@
+# Full-test Hygiene Simulation Case Table
+
+| paper_id | gold | original | baseline_infer | unsup_2plus | stale_gap | candidate_major | confirmed_major | meta_flaw | A_reconcile_partial | A_reconcile_supported | B_stale_gap_cleanup | C_meta_excerpt_filter | D_candidate_half_weight | D_grounded_candidate_only | E_combo_partial_half | E_combo_supported_half | E_combo_strict_grounded | F_liberal_unresolved_cleanup | F_liberal_all_hygiene | G_oracle_no_candidates_no_unresolved |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| ye3NrNrYOY | Reject | reject | reject | 0 | 0 | 0 | 0 | 0 | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject |
+| WNxlJJIEVj | Reject | reject | reject | 0 | 1 | 1 | 0 | 0 | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject |
+| uOrfve3prk | Reject | reject | reject | 0 | 2 | 0 | 1 | 0 | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject |
+| hj323oR3rw | Accept | reject | reject | 1 | 1 | 2 | 0 | 1 | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | accept |
+| 7Dub7UXTXN | Reject | reject | reject | 0 | 0 | 1 | 0 | 0 | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject |
+| 9zEBK3E9bX | Reject | reject | reject | 0 | 1 | 1 | 0 | 0 | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject |
+| XyB4VvF01X | Reject | reject | reject | 0 | 0 | 0 | 0 | 0 | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject |
+| GE6iywJtsV | Reject | reject | reject | 0 | 0 | 2 | 0 | 0 | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject |
+| QAAsnSRwgu | Accept | reject | reject | 0 | 2 | 0 | 0 | 0 | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject |
+| WpXq5n8yLb | Reject | reject | reject | 0 | 0 | 1 | 0 | 0 | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject |
+| X41c4uB4k0 | Accept | reject | reject | 1 | 2 | 1 | 0 | 0 | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | accept |
+| NnExMNiTHw | Reject | reject | reject | 0 | 2 | 1 | 0 | 0 | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | accept |
+| gzqrANCF4g | Accept | reject | reject | 0 | 0 | 0 | 0 | 0 | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject |
+| a6SntIisgg | Reject | reject | reject | 0 | 0 | 1 | 0 | 0 | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject |
+| cklg91aPGk | Reject | reject | reject | 0 | 0 | 0 | 0 | 0 | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject |
+| HPuLU6q7xq | Reject | reject | reject | 0 | 0 | 1 | 0 | 0 | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject |
+| fGXyvmWpw6 | Reject | reject | reject | 0 | 2 | 1 | 0 | 0 | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | accept |
+| QAgwFiIY4p | Reject | reject | reject | 0 | 0 | 1 | 0 | 0 | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject |
+| KI9NqjLVDT | Accept | reject | reject | 0 | 0 | 1 | 0 | 0 | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject |
+| 1HCN4pjTb4 | Accept | reject | reject | 0 | 0 | 1 | 0 | 0 | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject |
+| LebzzClHYw | Accept | reject | reject | 0 | 0 | 1 | 0 | 0 | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject |
+| BXY6fe7q31 | Accept | reject | reject | 0 | 1 | 1 | 0 | 1 | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject |
+| TPAj63ax4Y | Reject | reject | reject | 1 | 1 | 1 | 0 | 0 | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | accept |
+| mHv6wcBb0z | Reject | reject | reject | 0 | 1 | 1 | 0 | 0 | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject |
+| xUe1YqEgd6 | Reject | reject | reject | 1 | 1 | 1 | 0 | 0 | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject |
+| jVEoydFOl9 | Accept | reject | reject | 0 | 1 | 0 | 0 | 0 | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject |
+| YXn76HMetm | Reject | reject | reject | 0 | 1 | 1 | 0 | 0 | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject |
+| KOUAayk5Kx | Reject | reject | reject | 0 | 1 | 2 | 0 | 1 | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject |
+| XH3OiIhtvf | Reject | reject | reject | 0 | 0 | 2 | 0 | 0 | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject |
+| ZHr0JajZfH | Reject | reject | reject | 0 | 1 | 1 | 0 | 1 | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject |
+| WLgbjzKJkk | Reject | reject | reject | 0 | 0 | 0 | 0 | 0 | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject |
+| 9JRsAj3ymy | Reject | reject | reject | 0 | 0 | 1 | 0 | 0 | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject |
+| rEqETC88RY | Reject | reject | reject | 0 | 1 | 2 | 0 | 0 | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject |
+| aTBE70xiFw | Reject | reject | reject | 0 | 2 | 1 | 0 | 0 | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | accept |
+| LieTse3fQB | Reject | reject | reject | 0 | 0 | 0 | 0 | 0 | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject |
+| kam84eEmub | Reject | reject | reject | 0 | 3 | 1 | 0 | 0 | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | accept |
+| N0isTh3rml | Reject | reject | reject | 0 | 0 | 0 | 0 | 0 | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject |
+| 2L7KQ4qbHi | Reject | reject | reject | 0 | 1 | 1 | 0 | 0 | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject |
+| aRxLDcxFcL | Reject | reject | reject | 0 | 3 | 2 | 0 | 0 | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject | reject |

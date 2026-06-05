@@ -1,0 +1,50 @@
+{
+  "count": 2,
+  "papers": [
+    {
+      "paper_id": "WLgbjzKJkk",
+      "primary_claim_count": 3,
+      "primary_claim_texts": [
+        "",
+        "",
+        ""
+      ],
+      "evidence_agent_turns": 5,
+      "quote_bank_size": 10,
+      "evidence_map_size": 2,
+      "evidence_map_strengths": [
+        "medium",
+        "medium"
+      ],
+      "strong_count": 0,
+      "flaw_candidates_size": 1,
+      "unresolved_questions_size": 7,
+      "evidence_gaps_size": 4,
+      "dialogue_summary": "First-support fallback copied one quote-bank span because the Evidence Agent returned only unresolved questions.",
+      "human_label": ""
+    },
+    {
+      "paper_id": "X41c4uB4k0",
+      "primary_claim_count": 3,
+      "primary_claim_texts": [
+        "",
+        "",
+        ""
+      ],
+      "evidence_agent_turns": 4,
+      "quote_bank_size": 11,
+      "evidence_map_size": 3,
+      "evidence_map_strengths": [
+        "medium",
+        "missing",
+        "medium"
+      ],
+      "strong_count": 0,
+      "flaw_candidates_size": 1,
+      "unresolved_questions_size": 10,
+      "evidence_gaps_size": 5,
+      "dialogue_summary": "First-support fallback copied one quote-bank span because the Evidence Agent returned only unresolved questions.",
+      "human_label": ""
+    }
+  ]
+}

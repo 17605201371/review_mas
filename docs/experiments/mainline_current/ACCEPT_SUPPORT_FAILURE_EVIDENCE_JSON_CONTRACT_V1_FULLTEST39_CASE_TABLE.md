@@ -1,0 +1,43 @@
+# Accept Support Failure Case Table: Evidence JSON Contract v1 Fulltest39
+
+| paper_id | gold | pred | ev_turns | json_valid | parse_errors | payload_real | payload_nonabs | payload_empirical | final_real | final_nonabs | final_empirical | unresolved | gaps |
+|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| ye3NrNrYOY | reject | reject | 6 | 6 | 0 | 3 | 3 | 2 | 0 | 0 | 0 | 5 | 3 |
+| WNxlJJIEVj | reject | reject | 6 | 6 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 6 | 6 |
+| uOrfve3prk | reject | reject | 6 | 6 | 0 | 2 | 2 | 0 | 1 | 1 | 0 | 2 | 3 |
+| hj323oR3rw | accept | reject | 5 | 4 | 1 | 2 | 2 | 0 | 1 | 1 | 0 | 6 | 3 |
+| 7Dub7UXTXN | reject | reject | 6 | 4 | 2 | 0 | 0 | 0 | 0 | 0 | 0 | 5 | 2 |
+| 9zEBK3E9bX | reject | reject | 6 | 4 | 2 | 0 | 0 | 0 | 0 | 0 | 0 | 7 | 3 |
+| XyB4VvF01X | reject | reject | 1 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 4 | 3 |
+| GE6iywJtsV | reject | reject | 6 | 6 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 10 | 4 |
+| QAAsnSRwgu | accept | reject | 5 | 4 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 6 | 5 |
+| WpXq5n8yLb | reject | reject | 6 | 4 | 2 | 0 | 0 | 0 | 0 | 0 | 0 | 8 | 4 |
+| X41c4uB4k0 | accept | reject | 6 | 3 | 3 | 3 | 0 | 0 | 0 | 0 | 0 | 7 | 3 |
+| NnExMNiTHw | reject | reject | 5 | 5 | 0 | 1 | 1 | 1 | 1 | 1 | 1 | 9 | 4 |
+| gzqrANCF4g | accept | reject | 6 | 6 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 7 | 4 |
+| a6SntIisgg | reject | reject | 3 | 3 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 9 | 2 |
+| cklg91aPGk | reject | reject | 1 | 1 | 0 | 2 | 2 | 2 | 2 | 2 | 2 | 4 | 4 |
+| HPuLU6q7xq | reject | reject | 3 | 3 | 0 | 3 | 3 | 0 | 1 | 1 | 0 | 10 | 5 |
+| fGXyvmWpw6 | reject | reject | 6 | 5 | 1 | 2 | 2 | 2 | 1 | 1 | 1 | 3 | 4 |
+| QAgwFiIY4p | reject | reject | 6 | 2 | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 5 | 7 |
+| KI9NqjLVDT | accept | reject | 6 | 5 | 1 | 1 | 0 | 0 | 0 | 0 | 0 | 2 | 3 |
+| 1HCN4pjTb4 | accept | reject | 6 | 4 | 2 | 0 | 0 | 0 | 0 | 0 | 0 | 4 | 4 |
+| LebzzClHYw | accept | reject | 6 | 6 | 0 | 4 | 0 | 0 | 0 | 0 | 0 | 4 | 3 |
+| BXY6fe7q31 | accept | reject | 3 | 3 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 10 | 3 |
+| TPAj63ax4Y | reject | reject | 6 | 4 | 2 | 2 | 2 | 2 | 1 | 1 | 1 | 2 | 3 |
+| mHv6wcBb0z | reject | reject | 6 | 6 | 0 | 2 | 2 | 2 | 1 | 1 | 1 | 4 | 3 |
+| xUe1YqEgd6 | reject | reject | 6 | 6 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 10 | 3 |
+| jVEoydFOl9 | accept | reject | 4 | 3 | 1 | 2 | 2 | 2 | 1 | 1 | 1 | 9 | 3 |
+| YXn76HMetm | reject | reject | 1 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 4 | 4 |
+| KOUAayk5Kx | reject | reject | 6 | 4 | 2 | 1 | 1 | 1 | 1 | 1 | 1 | 3 | 3 |
+| XH3OiIhtvf | reject | reject | 1 | 0 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 6 | 3 |
+| ZHr0JajZfH | reject | reject | 1 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 5 | 4 |
+| WLgbjzKJkk | reject | reject | 6 | 4 | 2 | 0 | 0 | 0 | 0 | 0 | 0 | 3 | 3 |
+| 9JRsAj3ymy | reject | reject | 3 | 3 | 0 | 3 | 1 | 1 | 1 | 1 | 1 | 2 | 4 |
+| rEqETC88RY | reject | reject | 6 | 6 | 0 | 3 | 0 | 0 | 0 | 0 | 0 | 4 | 3 |
+| aTBE70xiFw | reject | reject | 6 | 5 | 1 | 1 | 1 | 1 | 0 | 0 | 0 | 8 | 6 |
+| LieTse3fQB | reject | reject | 4 | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 10 | 5 |
+| kam84eEmub | reject | reject | 5 | 3 | 2 | 2 | 0 | 0 | 0 | 0 | 0 | 7 | 3 |
+| N0isTh3rml | reject | reject | 5 | 2 | 3 | 0 | 0 | 0 | 0 | 0 | 0 | 7 | 1 |
+| 2L7KQ4qbHi | reject | reject | 6 | 5 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 10 | 2 |
+| aRxLDcxFcL | reject | reject | 6 | 6 | 0 | 2 | 2 | 2 | 1 | 1 | 1 | 7 | 2 |

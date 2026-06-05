@@ -1,0 +1,35 @@
+{
+  "baseline": {
+    "rows": 16,
+    "avg_reward": 0.3892,
+    "pred_accept": 0,
+    "real_strong": 0,
+    "fallback_strong": 0,
+    "two_plus_rows": 0,
+    "support_triggers": 0,
+    "normal_verify": 25,
+    "unresolved": 127,
+    "flaws": 19,
+    "turns": 117
+  },
+  "support_formation_v1_mt8": {
+    "rows": 16,
+    "avg_reward": 0.4427,
+    "pred_accept": 0,
+    "real_strong": 9,
+    "fallback_strong": 0,
+    "two_plus_rows": 1,
+    "support_triggers": 16,
+    "support_trigger_rows": 15,
+    "normal_verify": 33,
+    "unresolved": 107,
+    "flaws": 23,
+    "turns": 73
+  },
+  "invalid_mt5_auxiliary": {
+    "reason": "max_turns=5，与 baseline max_turns=8 不同，不能作为正式 compare 结论。",
+    "real_strong": 6,
+    "two_plus_rows": 0,
+    "avg_reward": 0.4417
+  }
+}

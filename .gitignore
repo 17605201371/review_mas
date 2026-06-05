@@ -1,0 +1,12 @@
+# Experiment outputs
+*.jsonl
+*.log
+*.parquet
+local_deepseek_v3_logs/
+local_deepseek_v3_logs_*/
+smoke8_20260605_deepseek_v3_sameids_t7.log
+*.png
+__pycache__/
+*.pyc
+.pytest_cache/
+outputs/

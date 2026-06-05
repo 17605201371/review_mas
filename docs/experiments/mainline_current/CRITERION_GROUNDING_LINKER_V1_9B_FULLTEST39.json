@@ -1,0 +1,3093 @@
+{
+  "input": "WEBGPT_9B_FULLTEST39_RERUN_20260429.jsonl",
+  "rows": [
+    {
+      "paper_id": "ye3NrNrYOY",
+      "gold_decision": "reject",
+      "pred_decision": "reject",
+      "criterion_links": {},
+      "covered_criteria": [
+        "significance_contribution",
+        "technical_soundness",
+        "empirical_adequacy"
+      ],
+      "state_grounded_criteria": [],
+      "positive_grounded_criteria": [],
+      "negative_grounded_criteria": [],
+      "not_assessable_criteria": [],
+      "report_only_criteria": [
+        "significance_contribution",
+        "technical_soundness",
+        "empirical_adequacy"
+      ],
+      "meta_leakage_criteria": [
+        "technical_soundness"
+      ],
+      "criterion_covered_novelty": false,
+      "criterion_state_grounded_novelty": false,
+      "criterion_positive_grounded_novelty": false,
+      "criterion_negative_grounded_novelty": false,
+      "criterion_not_assessable_novelty": false,
+      "criterion_report_only_novelty": false,
+      "criterion_meta_leakage_novelty": false,
+      "criterion_covered_significance": true,
+      "criterion_state_grounded_significance": false,
+      "criterion_positive_grounded_significance": false,
+      "criterion_negative_grounded_significance": false,
+      "criterion_not_assessable_significance": false,
+      "criterion_report_only_significance": true,
+      "criterion_meta_leakage_significance": false,
+      "criterion_covered_soundness": true,
+      "criterion_state_grounded_soundness": false,
+      "criterion_positive_grounded_soundness": false,
+      "criterion_negative_grounded_soundness": false,
+      "criterion_not_assessable_soundness": false,
+      "criterion_report_only_soundness": true,
+      "criterion_meta_leakage_soundness": true,
+      "criterion_covered_empirical": true,
+      "criterion_state_grounded_empirical": false,
+      "criterion_positive_grounded_empirical": false,
+      "criterion_negative_grounded_empirical": false,
+      "criterion_not_assessable_empirical": false,
+      "criterion_report_only_empirical": true,
+      "criterion_meta_leakage_empirical": false,
+      "criterion_covered_clarity": false,
+      "criterion_state_grounded_clarity": false,
+      "criterion_positive_grounded_clarity": false,
+      "criterion_negative_grounded_clarity": false,
+      "criterion_not_assessable_clarity": false,
+      "criterion_report_only_clarity": false,
+      "criterion_meta_leakage_clarity": false,
+      "real_strong_support_total": 0,
+      "non_abstract_strong_support_total": 0,
+      "criterion_state_grounded_count": 0,
+      "criterion_positive_grounded_count": 0,
+      "criterion_negative_grounded_count": 0,
+      "criterion_report_only_count": 3,
+      "criterion_not_assessable_count": 0
+    },
+    {
+      "paper_id": "WNxlJJIEVj",
+      "gold_decision": "reject",
+      "pred_decision": "reject",
+      "criterion_links": {
+        "clarity": {
+          "positive_evidence_ids": [],
+          "negative_evidence_ids": [],
+          "flaw_ids": [
+            "flaw-fallback-1"
+          ],
+          "sections": []
+        },
+        "soundness": {
+          "positive_evidence_ids": [],
+          "negative_evidence_ids": [],
+          "flaw_ids": [
+            "flaw-fallback-1"
+          ],
+          "sections": []
+        }
+      },
+      "covered_criteria": [
+        "significance_contribution",
+        "technical_soundness",
+        "empirical_adequacy",
+        "clarity_reproducibility"
+      ],
+      "state_grounded_criteria": [
+        "technical_soundness",
+        "clarity_reproducibility"
+      ],
+      "positive_grounded_criteria": [],
+      "negative_grounded_criteria": [
+        "technical_soundness",
+        "clarity_reproducibility"
+      ],
+      "not_assessable_criteria": [
+        "technical_soundness",
+        "clarity_reproducibility"
+      ],
+      "report_only_criteria": [
+        "significance_contribution",
+        "empirical_adequacy"
+      ],
+      "meta_leakage_criteria": [
+        "technical_soundness",
+        "clarity_reproducibility"
+      ],
+      "criterion_covered_novelty": false,
+      "criterion_state_grounded_novelty": false,
+      "criterion_positive_grounded_novelty": false,
+      "criterion_negative_grounded_novelty": false,
+      "criterion_not_assessable_novelty": false,
+      "criterion_report_only_novelty": false,
+      "criterion_meta_leakage_novelty": false,
+      "criterion_covered_significance": true,
+      "criterion_state_grounded_significance": false,
+      "criterion_positive_grounded_significance": false,
+      "criterion_negative_grounded_significance": false,
+      "criterion_not_assessable_significance": false,
+      "criterion_report_only_significance": true,
+      "criterion_meta_leakage_significance": false,
+      "criterion_covered_soundness": true,
+      "criterion_state_grounded_soundness": true,
+      "criterion_positive_grounded_soundness": false,
+      "criterion_negative_grounded_soundness": true,
+      "criterion_not_assessable_soundness": true,
+      "criterion_report_only_soundness": false,
+      "criterion_meta_leakage_soundness": true,
+      "criterion_covered_empirical": true,
+      "criterion_state_grounded_empirical": false,
+      "criterion_positive_grounded_empirical": false,
+      "criterion_negative_grounded_empirical": false,
+      "criterion_not_assessable_empirical": false,
+      "criterion_report_only_empirical": true,
+      "criterion_meta_leakage_empirical": false,
+      "criterion_covered_clarity": true,
+      "criterion_state_grounded_clarity": true,
+      "criterion_positive_grounded_clarity": false,
+      "criterion_negative_grounded_clarity": true,
+      "criterion_not_assessable_clarity": true,
+      "criterion_report_only_clarity": false,
+      "criterion_meta_leakage_clarity": true,
+      "real_strong_support_total": 0,
+      "non_abstract_strong_support_total": 0,
+      "criterion_state_grounded_count": 2,
+      "criterion_positive_grounded_count": 0,
+      "criterion_negative_grounded_count": 2,
+      "criterion_report_only_count": 2,
+      "criterion_not_assessable_count": 2
+    },
+    {
+      "paper_id": "uOrfve3prk",
+      "gold_decision": "reject",
+      "pred_decision": "reject",
+      "criterion_links": {
+        "novelty": {
+          "positive_evidence_ids": [
+            "evidence-1",
+            "evidence-2"
+          ],
+          "negative_evidence_ids": [],
+          "flaw_ids": [],
+          "sections": [
+            "abstract",
+            "abstract"
+          ]
+        },
+        "significance": {
+          "positive_evidence_ids": [
+            "evidence-1",
+            "evidence-2"
+          ],
+          "negative_evidence_ids": [],
+          "flaw_ids": [],
+          "sections": [
+            "abstract",
+            "abstract"
+          ]
+        },
+        "clarity": {
+          "positive_evidence_ids": [
+            "evidence-1",
+            "evidence-2"
+          ],
+          "negative_evidence_ids": [],
+          "flaw_ids": [],
+          "sections": [
+            "abstract",
+            "abstract"
+          ]
+        }
+      },
+      "covered_criteria": [
+        "significance_contribution",
+        "technical_soundness",
+        "empirical_adequacy"
+      ],
+      "state_grounded_criteria": [
+        "novelty_originality",
+        "significance_contribution",
+        "clarity_reproducibility"
+      ],
+      "positive_grounded_criteria": [
+        "novelty_originality",
+        "significance_contribution",
+        "clarity_reproducibility"
+      ],
+      "negative_grounded_criteria": [],
+      "not_assessable_criteria": [],
+      "report_only_criteria": [
+        "technical_soundness",
+        "empirical_adequacy"
+      ],
+      "meta_leakage_criteria": [],
+      "criterion_covered_novelty": false,
+      "criterion_state_grounded_novelty": true,
+      "criterion_positive_grounded_novelty": true,
+      "criterion_negative_grounded_novelty": false,
+      "criterion_not_assessable_novelty": false,
+      "criterion_report_only_novelty": false,
+      "criterion_meta_leakage_novelty": false,
+      "criterion_covered_significance": true,
+      "criterion_state_grounded_significance": true,
+      "criterion_positive_grounded_significance": true,
+      "criterion_negative_grounded_significance": false,
+      "criterion_not_assessable_significance": false,
+      "criterion_report_only_significance": false,
+      "criterion_meta_leakage_significance": false,
+      "criterion_covered_soundness": true,
+      "criterion_state_grounded_soundness": false,
+      "criterion_positive_grounded_soundness": false,
+      "criterion_negative_grounded_soundness": false,
+      "criterion_not_assessable_soundness": false,
+      "criterion_report_only_soundness": true,
+      "criterion_meta_leakage_soundness": false,
+      "criterion_covered_empirical": true,
+      "criterion_state_grounded_empirical": false,
+      "criterion_positive_grounded_empirical": false,
+      "criterion_negative_grounded_empirical": false,
+      "criterion_not_assessable_empirical": false,
+      "criterion_report_only_empirical": true,
+      "criterion_meta_leakage_empirical": false,
+      "criterion_covered_clarity": false,
+      "criterion_state_grounded_clarity": true,
+      "criterion_positive_grounded_clarity": true,
+      "criterion_negative_grounded_clarity": false,
+      "criterion_not_assessable_clarity": false,
+      "criterion_report_only_clarity": false,
+      "criterion_meta_leakage_clarity": false,
+      "real_strong_support_total": 2,
+      "non_abstract_strong_support_total": 0,
+      "criterion_state_grounded_count": 3,
+      "criterion_positive_grounded_count": 3,
+      "criterion_negative_grounded_count": 0,
+      "criterion_report_only_count": 2,
+      "criterion_not_assessable_count": 0
+    },
+    {
+      "paper_id": "hj323oR3rw",
+      "gold_decision": "accept",
+      "pred_decision": "reject",
+      "criterion_links": {
+        "clarity": {
+          "positive_evidence_ids": [],
+          "negative_evidence_ids": [],
+          "flaw_ids": [
+            "flaw-fallback-1"
+          ],
+          "sections": []
+        },
+        "novelty": {
+          "positive_evidence_ids": [],
+          "negative_evidence_ids": [],
+          "flaw_ids": [
+            "flaw-fallback-1"
+          ],
+          "sections": []
+        },
+        "soundness": {
+          "positive_evidence_ids": [],
+          "negative_evidence_ids": [],
+          "flaw_ids": [
+            "flaw-fallback-1"
+          ],
+          "sections": []
+        }
+      },
+      "covered_criteria": [
+        "novelty_originality",
+        "significance_contribution",
+        "technical_soundness",
+        "empirical_adequacy",
+        "clarity_reproducibility"
+      ],
+      "state_grounded_criteria": [
+        "novelty_originality",
+        "technical_soundness",
+        "clarity_reproducibility"
+      ],
+      "positive_grounded_criteria": [],
+      "negative_grounded_criteria": [
+        "novelty_originality",
+        "technical_soundness",
+        "clarity_reproducibility"
+      ],
+      "not_assessable_criteria": [
+        "novelty_originality",
+        "technical_soundness",
+        "clarity_reproducibility"
+      ],
+      "report_only_criteria": [
+        "significance_contribution",
+        "empirical_adequacy"
+      ],
+      "meta_leakage_criteria": [
+        "novelty_originality",
+        "technical_soundness",
+        "clarity_reproducibility"
+      ],
+      "criterion_covered_novelty": true,
+      "criterion_state_grounded_novelty": true,
+      "criterion_positive_grounded_novelty": false,
+      "criterion_negative_grounded_novelty": true,
+      "criterion_not_assessable_novelty": true,
+      "criterion_report_only_novelty": false,
+      "criterion_meta_leakage_novelty": true,
+      "criterion_covered_significance": true,
+      "criterion_state_grounded_significance": false,
+      "criterion_positive_grounded_significance": false,
+      "criterion_negative_grounded_significance": false,
+      "criterion_not_assessable_significance": false,
+      "criterion_report_only_significance": true,
+      "criterion_meta_leakage_significance": false,
+      "criterion_covered_soundness": true,
+      "criterion_state_grounded_soundness": true,
+      "criterion_positive_grounded_soundness": false,
+      "criterion_negative_grounded_soundness": true,
+      "criterion_not_assessable_soundness": true,
+      "criterion_report_only_soundness": false,
+      "criterion_meta_leakage_soundness": true,
+      "criterion_covered_empirical": true,
+      "criterion_state_grounded_empirical": false,
+      "criterion_positive_grounded_empirical": false,
+      "criterion_negative_grounded_empirical": false,
+      "criterion_not_assessable_empirical": false,
+      "criterion_report_only_empirical": true,
+      "criterion_meta_leakage_empirical": false,
+      "criterion_covered_clarity": true,
+      "criterion_state_grounded_clarity": true,
+      "criterion_positive_grounded_clarity": false,
+      "criterion_negative_grounded_clarity": true,
+      "criterion_not_assessable_clarity": true,
+      "criterion_report_only_clarity": false,
+      "criterion_meta_leakage_clarity": true,
+      "real_strong_support_total": 0,
+      "non_abstract_strong_support_total": 0,
+      "criterion_state_grounded_count": 3,
+      "criterion_positive_grounded_count": 0,
+      "criterion_negative_grounded_count": 3,
+      "criterion_report_only_count": 2,
+      "criterion_not_assessable_count": 3
+    },
+    {
+      "paper_id": "7Dub7UXTXN",
+      "gold_decision": "reject",
+      "pred_decision": "reject",
+      "criterion_links": {},
+      "covered_criteria": [
+        "significance_contribution"
+      ],
+      "state_grounded_criteria": [],
+      "positive_grounded_criteria": [],
+      "negative_grounded_criteria": [],
+      "not_assessable_criteria": [],
+      "report_only_criteria": [
+        "significance_contribution"
+      ],
+      "meta_leakage_criteria": [],
+      "criterion_covered_novelty": false,
+      "criterion_state_grounded_novelty": false,
+      "criterion_positive_grounded_novelty": false,
+      "criterion_negative_grounded_novelty": false,
+      "criterion_not_assessable_novelty": false,
+      "criterion_report_only_novelty": false,
+      "criterion_meta_leakage_novelty": false,
+      "criterion_covered_significance": true,
+      "criterion_state_grounded_significance": false,
+      "criterion_positive_grounded_significance": false,
+      "criterion_negative_grounded_significance": false,
+      "criterion_not_assessable_significance": false,
+      "criterion_report_only_significance": true,
+      "criterion_meta_leakage_significance": false,
+      "criterion_covered_soundness": false,
+      "criterion_state_grounded_soundness": false,
+      "criterion_positive_grounded_soundness": false,
+      "criterion_negative_grounded_soundness": false,
+      "criterion_not_assessable_soundness": false,
+      "criterion_report_only_soundness": false,
+      "criterion_meta_leakage_soundness": false,
+      "criterion_covered_empirical": false,
+      "criterion_state_grounded_empirical": false,
+      "criterion_positive_grounded_empirical": false,
+      "criterion_negative_grounded_empirical": false,
+      "criterion_not_assessable_empirical": false,
+      "criterion_report_only_empirical": false,
+      "criterion_meta_leakage_empirical": false,
+      "criterion_covered_clarity": false,
+      "criterion_state_grounded_clarity": false,
+      "criterion_positive_grounded_clarity": false,
+      "criterion_negative_grounded_clarity": false,
+      "criterion_not_assessable_clarity": false,
+      "criterion_report_only_clarity": false,
+      "criterion_meta_leakage_clarity": false,
+      "real_strong_support_total": 0,
+      "non_abstract_strong_support_total": 0,
+      "criterion_state_grounded_count": 0,
+      "criterion_positive_grounded_count": 0,
+      "criterion_negative_grounded_count": 0,
+      "criterion_report_only_count": 1,
+      "criterion_not_assessable_count": 0
+    },
+    {
+      "paper_id": "9zEBK3E9bX",
+      "gold_decision": "reject",
+      "pred_decision": "reject",
+      "criterion_links": {
+        "novelty": {
+          "positive_evidence_ids": [
+            "evidence-1"
+          ],
+          "negative_evidence_ids": [],
+          "flaw_ids": [],
+          "sections": [
+            "abstract"
+          ]
+        },
+        "significance": {
+          "positive_evidence_ids": [
+            "evidence-1"
+          ],
+          "negative_evidence_ids": [],
+          "flaw_ids": [],
+          "sections": [
+            "abstract"
+          ]
+        },
+        "clarity": {
+          "positive_evidence_ids": [
+            "evidence-1"
+          ],
+          "negative_evidence_ids": [],
+          "flaw_ids": [],
+          "sections": [
+            "abstract"
+          ]
+        }
+      },
+      "covered_criteria": [
+        "significance_contribution",
+        "technical_soundness",
+        "empirical_adequacy"
+      ],
+      "state_grounded_criteria": [
+        "novelty_originality",
+        "significance_contribution",
+        "clarity_reproducibility"
+      ],
+      "positive_grounded_criteria": [
+        "novelty_originality",
+        "significance_contribution",
+        "clarity_reproducibility"
+      ],
+      "negative_grounded_criteria": [],
+      "not_assessable_criteria": [],
+      "report_only_criteria": [
+        "technical_soundness",
+        "empirical_adequacy"
+      ],
+      "meta_leakage_criteria": [
+        "technical_soundness"
+      ],
+      "criterion_covered_novelty": false,
+      "criterion_state_grounded_novelty": true,
+      "criterion_positive_grounded_novelty": true,
+      "criterion_negative_grounded_novelty": false,
+      "criterion_not_assessable_novelty": false,
+      "criterion_report_only_novelty": false,
+      "criterion_meta_leakage_novelty": false,
+      "criterion_covered_significance": true,
+      "criterion_state_grounded_significance": true,
+      "criterion_positive_grounded_significance": true,
+      "criterion_negative_grounded_significance": false,
+      "criterion_not_assessable_significance": false,
+      "criterion_report_only_significance": false,
+      "criterion_meta_leakage_significance": false,
+      "criterion_covered_soundness": true,
+      "criterion_state_grounded_soundness": false,
+      "criterion_positive_grounded_soundness": false,
+      "criterion_negative_grounded_soundness": false,
+      "criterion_not_assessable_soundness": false,
+      "criterion_report_only_soundness": true,
+      "criterion_meta_leakage_soundness": true,
+      "criterion_covered_empirical": true,
+      "criterion_state_grounded_empirical": false,
+      "criterion_positive_grounded_empirical": false,
+      "criterion_negative_grounded_empirical": false,
+      "criterion_not_assessable_empirical": false,
+      "criterion_report_only_empirical": true,
+      "criterion_meta_leakage_empirical": false,
+      "criterion_covered_clarity": false,
+      "criterion_state_grounded_clarity": true,
+      "criterion_positive_grounded_clarity": true,
+      "criterion_negative_grounded_clarity": false,
+      "criterion_not_assessable_clarity": false,
+      "criterion_report_only_clarity": false,
+      "criterion_meta_leakage_clarity": false,
+      "real_strong_support_total": 1,
+      "non_abstract_strong_support_total": 0,
+      "criterion_state_grounded_count": 3,
+      "criterion_positive_grounded_count": 3,
+      "criterion_negative_grounded_count": 0,
+      "criterion_report_only_count": 2,
+      "criterion_not_assessable_count": 0
+    },
+    {
+      "paper_id": "XyB4VvF01X",
+      "gold_decision": "reject",
+      "pred_decision": "reject",
+      "criterion_links": {},
+      "covered_criteria": [
+        "significance_contribution",
+        "technical_soundness",
+        "empirical_adequacy"
+      ],
+      "state_grounded_criteria": [],
+      "positive_grounded_criteria": [],
+      "negative_grounded_criteria": [],
+      "not_assessable_criteria": [
+        "technical_soundness"
+      ],
+      "report_only_criteria": [
+        "significance_contribution",
+        "empirical_adequacy"
+      ],
+      "meta_leakage_criteria": [
+        "technical_soundness"
+      ],
+      "criterion_covered_novelty": false,
+      "criterion_state_grounded_novelty": false,
+      "criterion_positive_grounded_novelty": false,
+      "criterion_negative_grounded_novelty": false,
+      "criterion_not_assessable_novelty": false,
+      "criterion_report_only_novelty": false,
+      "criterion_meta_leakage_novelty": false,
+      "criterion_covered_significance": true,
+      "criterion_state_grounded_significance": false,
+      "criterion_positive_grounded_significance": false,
+      "criterion_negative_grounded_significance": false,
+      "criterion_not_assessable_significance": false,
+      "criterion_report_only_significance": true,
+      "criterion_meta_leakage_significance": false,
+      "criterion_covered_soundness": true,
+      "criterion_state_grounded_soundness": false,
+      "criterion_positive_grounded_soundness": false,
+      "criterion_negative_grounded_soundness": false,
+      "criterion_not_assessable_soundness": true,
+      "criterion_report_only_soundness": false,
+      "criterion_meta_leakage_soundness": true,
+      "criterion_covered_empirical": true,
+      "criterion_state_grounded_empirical": false,
+      "criterion_positive_grounded_empirical": false,
+      "criterion_negative_grounded_empirical": false,
+      "criterion_not_assessable_empirical": false,
+      "criterion_report_only_empirical": true,
+      "criterion_meta_leakage_empirical": false,
+      "criterion_covered_clarity": false,
+      "criterion_state_grounded_clarity": false,
+      "criterion_positive_grounded_clarity": false,
+      "criterion_negative_grounded_clarity": false,
+      "criterion_not_assessable_clarity": false,
+      "criterion_report_only_clarity": false,
+      "criterion_meta_leakage_clarity": false,
+      "real_strong_support_total": 0,
+      "non_abstract_strong_support_total": 0,
+      "criterion_state_grounded_count": 0,
+      "criterion_positive_grounded_count": 0,
+      "criterion_negative_grounded_count": 0,
+      "criterion_report_only_count": 2,
+      "criterion_not_assessable_count": 1
+    },
+    {
+      "paper_id": "GE6iywJtsV",
+      "gold_decision": "reject",
+      "pred_decision": "reject",
+      "criterion_links": {},
+      "covered_criteria": [
+        "significance_contribution"
+      ],
+      "state_grounded_criteria": [],
+      "positive_grounded_criteria": [],
+      "negative_grounded_criteria": [],
+      "not_assessable_criteria": [],
+      "report_only_criteria": [
+        "significance_contribution"
+      ],
+      "meta_leakage_criteria": [],
+      "criterion_covered_novelty": false,
+      "criterion_state_grounded_novelty": false,
+      "criterion_positive_grounded_novelty": false,
+      "criterion_negative_grounded_novelty": false,
+      "criterion_not_assessable_novelty": false,
+      "criterion_report_only_novelty": false,
+      "criterion_meta_leakage_novelty": false,
+      "criterion_covered_significance": true,
+      "criterion_state_grounded_significance": false,
+      "criterion_positive_grounded_significance": false,
+      "criterion_negative_grounded_significance": false,
+      "criterion_not_assessable_significance": false,
+      "criterion_report_only_significance": true,
+      "criterion_meta_leakage_significance": false,
+      "criterion_covered_soundness": false,
+      "criterion_state_grounded_soundness": false,
+      "criterion_positive_grounded_soundness": false,
+      "criterion_negative_grounded_soundness": false,
+      "criterion_not_assessable_soundness": false,
+      "criterion_report_only_soundness": false,
+      "criterion_meta_leakage_soundness": false,
+      "criterion_covered_empirical": false,
+      "criterion_state_grounded_empirical": false,
+      "criterion_positive_grounded_empirical": false,
+      "criterion_negative_grounded_empirical": false,
+      "criterion_not_assessable_empirical": false,
+      "criterion_report_only_empirical": false,
+      "criterion_meta_leakage_empirical": false,
+      "criterion_covered_clarity": false,
+      "criterion_state_grounded_clarity": false,
+      "criterion_positive_grounded_clarity": false,
+      "criterion_negative_grounded_clarity": false,
+      "criterion_not_assessable_clarity": false,
+      "criterion_report_only_clarity": false,
+      "criterion_meta_leakage_clarity": false,
+      "real_strong_support_total": 0,
+      "non_abstract_strong_support_total": 0,
+      "criterion_state_grounded_count": 0,
+      "criterion_positive_grounded_count": 0,
+      "criterion_negative_grounded_count": 0,
+      "criterion_report_only_count": 1,
+      "criterion_not_assessable_count": 0
+    },
+    {
+      "paper_id": "QAAsnSRwgu",
+      "gold_decision": "accept",
+      "pred_decision": "reject",
+      "criterion_links": {},
+      "covered_criteria": [
+        "novelty_originality",
+        "significance_contribution",
+        "empirical_adequacy"
+      ],
+      "state_grounded_criteria": [],
+      "positive_grounded_criteria": [],
+      "negative_grounded_criteria": [],
+      "not_assessable_criteria": [],
+      "report_only_criteria": [
+        "novelty_originality",
+        "significance_contribution",
+        "empirical_adequacy"
+      ],
+      "meta_leakage_criteria": [
+        "novelty_originality",
+        "empirical_adequacy"
+      ],
+      "criterion_covered_novelty": true,
+      "criterion_state_grounded_novelty": false,
+      "criterion_positive_grounded_novelty": false,
+      "criterion_negative_grounded_novelty": false,
+      "criterion_not_assessable_novelty": false,
+      "criterion_report_only_novelty": true,
+      "criterion_meta_leakage_novelty": true,
+      "criterion_covered_significance": true,
+      "criterion_state_grounded_significance": false,
+      "criterion_positive_grounded_significance": false,
+      "criterion_negative_grounded_significance": false,
+      "criterion_not_assessable_significance": false,
+      "criterion_report_only_significance": true,
+      "criterion_meta_leakage_significance": false,
+      "criterion_covered_soundness": false,
+      "criterion_state_grounded_soundness": false,
+      "criterion_positive_grounded_soundness": false,
+      "criterion_negative_grounded_soundness": false,
+      "criterion_not_assessable_soundness": false,
+      "criterion_report_only_soundness": false,
+      "criterion_meta_leakage_soundness": false,
+      "criterion_covered_empirical": true,
+      "criterion_state_grounded_empirical": false,
+      "criterion_positive_grounded_empirical": false,
+      "criterion_negative_grounded_empirical": false,
+      "criterion_not_assessable_empirical": false,
+      "criterion_report_only_empirical": true,
+      "criterion_meta_leakage_empirical": true,
+      "criterion_covered_clarity": false,
+      "criterion_state_grounded_clarity": false,
+      "criterion_positive_grounded_clarity": false,
+      "criterion_negative_grounded_clarity": false,
+      "criterion_not_assessable_clarity": false,
+      "criterion_report_only_clarity": false,
+      "criterion_meta_leakage_clarity": false,
+      "real_strong_support_total": 0,
+      "non_abstract_strong_support_total": 0,
+      "criterion_state_grounded_count": 0,
+      "criterion_positive_grounded_count": 0,
+      "criterion_negative_grounded_count": 0,
+      "criterion_report_only_count": 3,
+      "criterion_not_assessable_count": 0
+    },
+    {
+      "paper_id": "WpXq5n8yLb",
+      "gold_decision": "reject",
+      "pred_decision": "reject",
+      "criterion_links": {
+        "clarity": {
+          "positive_evidence_ids": [],
+          "negative_evidence_ids": [],
+          "flaw_ids": [
+            "flaw-fallback-1"
+          ],
+          "sections": []
+        },
+        "empirical": {
+          "positive_evidence_ids": [],
+          "negative_evidence_ids": [],
+          "flaw_ids": [
+            "flaw-fallback-1"
+          ],
+          "sections": []
+        }
+      },
+      "covered_criteria": [
+        "significance_contribution",
+        "technical_soundness",
+        "empirical_adequacy",
+        "clarity_reproducibility"
+      ],
+      "state_grounded_criteria": [
+        "empirical_adequacy",
+        "clarity_reproducibility"
+      ],
+      "positive_grounded_criteria": [],
+      "negative_grounded_criteria": [
+        "empirical_adequacy",
+        "clarity_reproducibility"
+      ],
+      "not_assessable_criteria": [
+        "empirical_adequacy",
+        "clarity_reproducibility"
+      ],
+      "report_only_criteria": [
+        "significance_contribution",
+        "technical_soundness"
+      ],
+      "meta_leakage_criteria": [
+        "technical_soundness",
+        "empirical_adequacy",
+        "clarity_reproducibility"
+      ],
+      "criterion_covered_novelty": false,
+      "criterion_state_grounded_novelty": false,
+      "criterion_positive_grounded_novelty": false,
+      "criterion_negative_grounded_novelty": false,
+      "criterion_not_assessable_novelty": false,
+      "criterion_report_only_novelty": false,
+      "criterion_meta_leakage_novelty": false,
+      "criterion_covered_significance": true,
+      "criterion_state_grounded_significance": false,
+      "criterion_positive_grounded_significance": false,
+      "criterion_negative_grounded_significance": false,
+      "criterion_not_assessable_significance": false,
+      "criterion_report_only_significance": true,
+      "criterion_meta_leakage_significance": false,
+      "criterion_covered_soundness": true,
+      "criterion_state_grounded_soundness": false,
+      "criterion_positive_grounded_soundness": false,
+      "criterion_negative_grounded_soundness": false,
+      "criterion_not_assessable_soundness": false,
+      "criterion_report_only_soundness": true,
+      "criterion_meta_leakage_soundness": true,
+      "criterion_covered_empirical": true,
+      "criterion_state_grounded_empirical": true,
+      "criterion_positive_grounded_empirical": false,
+      "criterion_negative_grounded_empirical": true,
+      "criterion_not_assessable_empirical": true,
+      "criterion_report_only_empirical": false,
+      "criterion_meta_leakage_empirical": true,
+      "criterion_covered_clarity": true,
+      "criterion_state_grounded_clarity": true,
+      "criterion_positive_grounded_clarity": false,
+      "criterion_negative_grounded_clarity": true,
+      "criterion_not_assessable_clarity": true,
+      "criterion_report_only_clarity": false,
+      "criterion_meta_leakage_clarity": true,
+      "real_strong_support_total": 0,
+      "non_abstract_strong_support_total": 0,
+      "criterion_state_grounded_count": 2,
+      "criterion_positive_grounded_count": 0,
+      "criterion_negative_grounded_count": 2,
+      "criterion_report_only_count": 2,
+      "criterion_not_assessable_count": 2
+    },
+    {
+      "paper_id": "X41c4uB4k0",
+      "gold_decision": "accept",
+      "pred_decision": "reject",
+      "criterion_links": {},
+      "covered_criteria": [
+        "significance_contribution",
+        "technical_soundness",
+        "empirical_adequacy"
+      ],
+      "state_grounded_criteria": [],
+      "positive_grounded_criteria": [],
+      "negative_grounded_criteria": [],
+      "not_assessable_criteria": [],
+      "report_only_criteria": [
+        "significance_contribution",
+        "technical_soundness",
+        "empirical_adequacy"
+      ],
+      "meta_leakage_criteria": [
+        "technical_soundness"
+      ],
+      "criterion_covered_novelty": false,
+      "criterion_state_grounded_novelty": false,
+      "criterion_positive_grounded_novelty": false,
+      "criterion_negative_grounded_novelty": false,
+      "criterion_not_assessable_novelty": false,
+      "criterion_report_only_novelty": false,
+      "criterion_meta_leakage_novelty": false,
+      "criterion_covered_significance": true,
+      "criterion_state_grounded_significance": false,
+      "criterion_positive_grounded_significance": false,
+      "criterion_negative_grounded_significance": false,
+      "criterion_not_assessable_significance": false,
+      "criterion_report_only_significance": true,
+      "criterion_meta_leakage_significance": false,
+      "criterion_covered_soundness": true,
+      "criterion_state_grounded_soundness": false,
+      "criterion_positive_grounded_soundness": false,
+      "criterion_negative_grounded_soundness": false,
+      "criterion_not_assessable_soundness": false,
+      "criterion_report_only_soundness": true,
+      "criterion_meta_leakage_soundness": true,
+      "criterion_covered_empirical": true,
+      "criterion_state_grounded_empirical": false,
+      "criterion_positive_grounded_empirical": false,
+      "criterion_negative_grounded_empirical": false,
+      "criterion_not_assessable_empirical": false,
+      "criterion_report_only_empirical": true,
+      "criterion_meta_leakage_empirical": false,
+      "criterion_covered_clarity": false,
+      "criterion_state_grounded_clarity": false,
+      "criterion_positive_grounded_clarity": false,
+      "criterion_negative_grounded_clarity": false,
+      "criterion_not_assessable_clarity": false,
+      "criterion_report_only_clarity": false,
+      "criterion_meta_leakage_clarity": false,
+      "real_strong_support_total": 0,
+      "non_abstract_strong_support_total": 0,
+      "criterion_state_grounded_count": 0,
+      "criterion_positive_grounded_count": 0,
+      "criterion_negative_grounded_count": 0,
+      "criterion_report_only_count": 3,
+      "criterion_not_assessable_count": 0
+    },
+    {
+      "paper_id": "NnExMNiTHw",
+      "gold_decision": "reject",
+      "pred_decision": "reject",
+      "criterion_links": {},
+      "covered_criteria": [
+        "significance_contribution",
+        "empirical_adequacy"
+      ],
+      "state_grounded_criteria": [],
+      "positive_grounded_criteria": [],
+      "negative_grounded_criteria": [],
+      "not_assessable_criteria": [],
+      "report_only_criteria": [
+        "significance_contribution",
+        "empirical_adequacy"
+      ],
+      "meta_leakage_criteria": [],
+      "criterion_covered_novelty": false,
+      "criterion_state_grounded_novelty": false,
+      "criterion_positive_grounded_novelty": false,
+      "criterion_negative_grounded_novelty": false,
+      "criterion_not_assessable_novelty": false,
+      "criterion_report_only_novelty": false,
+      "criterion_meta_leakage_novelty": false,
+      "criterion_covered_significance": true,
+      "criterion_state_grounded_significance": false,
+      "criterion_positive_grounded_significance": false,
+      "criterion_negative_grounded_significance": false,
+      "criterion_not_assessable_significance": false,
+      "criterion_report_only_significance": true,
+      "criterion_meta_leakage_significance": false,
+      "criterion_covered_soundness": false,
+      "criterion_state_grounded_soundness": false,
+      "criterion_positive_grounded_soundness": false,
+      "criterion_negative_grounded_soundness": false,
+      "criterion_not_assessable_soundness": false,
+      "criterion_report_only_soundness": false,
+      "criterion_meta_leakage_soundness": false,
+      "criterion_covered_empirical": true,
+      "criterion_state_grounded_empirical": false,
+      "criterion_positive_grounded_empirical": false,
+      "criterion_negative_grounded_empirical": false,
+      "criterion_not_assessable_empirical": false,
+      "criterion_report_only_empirical": true,
+      "criterion_meta_leakage_empirical": false,
+      "criterion_covered_clarity": false,
+      "criterion_state_grounded_clarity": false,
+      "criterion_positive_grounded_clarity": false,
+      "criterion_negative_grounded_clarity": false,
+      "criterion_not_assessable_clarity": false,
+      "criterion_report_only_clarity": false,
+      "criterion_meta_leakage_clarity": false,
+      "real_strong_support_total": 0,
+      "non_abstract_strong_support_total": 0,
+      "criterion_state_grounded_count": 0,
+      "criterion_positive_grounded_count": 0,
+      "criterion_negative_grounded_count": 0,
+      "criterion_report_only_count": 2,
+      "criterion_not_assessable_count": 0
+    },
+    {
+      "paper_id": "gzqrANCF4g",
+      "gold_decision": "accept",
+      "pred_decision": "reject",
+      "criterion_links": {},
+      "covered_criteria": [
+        "significance_contribution",
+        "empirical_adequacy"
+      ],
+      "state_grounded_criteria": [],
+      "positive_grounded_criteria": [],
+      "negative_grounded_criteria": [],
+      "not_assessable_criteria": [],
+      "report_only_criteria": [
+        "significance_contribution",
+        "empirical_adequacy"
+      ],
+      "meta_leakage_criteria": [],
+      "criterion_covered_novelty": false,
+      "criterion_state_grounded_novelty": false,
+      "criterion_positive_grounded_novelty": false,
+      "criterion_negative_grounded_novelty": false,
+      "criterion_not_assessable_novelty": false,
+      "criterion_report_only_novelty": false,
+      "criterion_meta_leakage_novelty": false,
+      "criterion_covered_significance": true,
+      "criterion_state_grounded_significance": false,
+      "criterion_positive_grounded_significance": false,
+      "criterion_negative_grounded_significance": false,
+      "criterion_not_assessable_significance": false,
+      "criterion_report_only_significance": true,
+      "criterion_meta_leakage_significance": false,
+      "criterion_covered_soundness": false,
+      "criterion_state_grounded_soundness": false,
+      "criterion_positive_grounded_soundness": false,
+      "criterion_negative_grounded_soundness": false,
+      "criterion_not_assessable_soundness": false,
+      "criterion_report_only_soundness": false,
+      "criterion_meta_leakage_soundness": false,
+      "criterion_covered_empirical": true,
+      "criterion_state_grounded_empirical": false,
+      "criterion_positive_grounded_empirical": false,
+      "criterion_negative_grounded_empirical": false,
+      "criterion_not_assessable_empirical": false,
+      "criterion_report_only_empirical": true,
+      "criterion_meta_leakage_empirical": false,
+      "criterion_covered_clarity": false,
+      "criterion_state_grounded_clarity": false,
+      "criterion_positive_grounded_clarity": false,
+      "criterion_negative_grounded_clarity": false,
+      "criterion_not_assessable_clarity": false,
+      "criterion_report_only_clarity": false,
+      "criterion_meta_leakage_clarity": false,
+      "real_strong_support_total": 0,
+      "non_abstract_strong_support_total": 0,
+      "criterion_state_grounded_count": 0,
+      "criterion_positive_grounded_count": 0,
+      "criterion_negative_grounded_count": 0,
+      "criterion_report_only_count": 2,
+      "criterion_not_assessable_count": 0
+    },
+    {
+      "paper_id": "a6SntIisgg",
+      "gold_decision": "reject",
+      "pred_decision": "reject",
+      "criterion_links": {
+        "novelty": {
+          "positive_evidence_ids": [
+            "evidence-2"
+          ],
+          "negative_evidence_ids": [],
+          "flaw_ids": [],
+          "sections": [
+            "abstract"
+          ]
+        },
+        "significance": {
+          "positive_evidence_ids": [
+            "evidence-2"
+          ],
+          "negative_evidence_ids": [],
+          "flaw_ids": [],
+          "sections": [
+            "abstract"
+          ]
+        },
+        "clarity": {
+          "positive_evidence_ids": [
+            "evidence-2"
+          ],
+          "negative_evidence_ids": [],
+          "flaw_ids": [],
+          "sections": [
+            "abstract"
+          ]
+        }
+      },
+      "covered_criteria": [
+        "novelty_originality",
+        "significance_contribution",
+        "empirical_adequacy"
+      ],
+      "state_grounded_criteria": [
+        "novelty_originality",
+        "significance_contribution",
+        "clarity_reproducibility"
+      ],
+      "positive_grounded_criteria": [
+        "novelty_originality",
+        "significance_contribution",
+        "clarity_reproducibility"
+      ],
+      "negative_grounded_criteria": [],
+      "not_assessable_criteria": [],
+      "report_only_criteria": [
+        "empirical_adequacy"
+      ],
+      "meta_leakage_criteria": [],
+      "criterion_covered_novelty": true,
+      "criterion_state_grounded_novelty": true,
+      "criterion_positive_grounded_novelty": true,
+      "criterion_negative_grounded_novelty": false,
+      "criterion_not_assessable_novelty": false,
+      "criterion_report_only_novelty": false,
+      "criterion_meta_leakage_novelty": false,
+      "criterion_covered_significance": true,
+      "criterion_state_grounded_significance": true,
+      "criterion_positive_grounded_significance": true,
+      "criterion_negative_grounded_significance": false,
+      "criterion_not_assessable_significance": false,
+      "criterion_report_only_significance": false,
+      "criterion_meta_leakage_significance": false,
+      "criterion_covered_soundness": false,
+      "criterion_state_grounded_soundness": false,
+      "criterion_positive_grounded_soundness": false,
+      "criterion_negative_grounded_soundness": false,
+      "criterion_not_assessable_soundness": false,
+      "criterion_report_only_soundness": false,
+      "criterion_meta_leakage_soundness": false,
+      "criterion_covered_empirical": true,
+      "criterion_state_grounded_empirical": false,
+      "criterion_positive_grounded_empirical": false,
+      "criterion_negative_grounded_empirical": false,
+      "criterion_not_assessable_empirical": false,
+      "criterion_report_only_empirical": true,
+      "criterion_meta_leakage_empirical": false,
+      "criterion_covered_clarity": false,
+      "criterion_state_grounded_clarity": true,
+      "criterion_positive_grounded_clarity": true,
+      "criterion_negative_grounded_clarity": false,
+      "criterion_not_assessable_clarity": false,
+      "criterion_report_only_clarity": false,
+      "criterion_meta_leakage_clarity": false,
+      "real_strong_support_total": 1,
+      "non_abstract_strong_support_total": 0,
+      "criterion_state_grounded_count": 3,
+      "criterion_positive_grounded_count": 3,
+      "criterion_negative_grounded_count": 0,
+      "criterion_report_only_count": 1,
+      "criterion_not_assessable_count": 0
+    },
+    {
+      "paper_id": "cklg91aPGk",
+      "gold_decision": "reject",
+      "pred_decision": "reject",
+      "criterion_links": {},
+      "covered_criteria": [
+        "significance_contribution",
+        "technical_soundness",
+        "empirical_adequacy"
+      ],
+      "state_grounded_criteria": [],
+      "positive_grounded_criteria": [],
+      "negative_grounded_criteria": [],
+      "not_assessable_criteria": [],
+      "report_only_criteria": [
+        "significance_contribution",
+        "technical_soundness",
+        "empirical_adequacy"
+      ],
+      "meta_leakage_criteria": [
+        "technical_soundness"
+      ],
+      "criterion_covered_novelty": false,
+      "criterion_state_grounded_novelty": false,
+      "criterion_positive_grounded_novelty": false,
+      "criterion_negative_grounded_novelty": false,
+      "criterion_not_assessable_novelty": false,
+      "criterion_report_only_novelty": false,
+      "criterion_meta_leakage_novelty": false,
+      "criterion_covered_significance": true,
+      "criterion_state_grounded_significance": false,
+      "criterion_positive_grounded_significance": false,
+      "criterion_negative_grounded_significance": false,
+      "criterion_not_assessable_significance": false,
+      "criterion_report_only_significance": true,
+      "criterion_meta_leakage_significance": false,
+      "criterion_covered_soundness": true,
+      "criterion_state_grounded_soundness": false,
+      "criterion_positive_grounded_soundness": false,
+      "criterion_negative_grounded_soundness": false,
+      "criterion_not_assessable_soundness": false,
+      "criterion_report_only_soundness": true,
+      "criterion_meta_leakage_soundness": true,
+      "criterion_covered_empirical": true,
+      "criterion_state_grounded_empirical": false,
+      "criterion_positive_grounded_empirical": false,
+      "criterion_negative_grounded_empirical": false,
+      "criterion_not_assessable_empirical": false,
+      "criterion_report_only_empirical": true,
+      "criterion_meta_leakage_empirical": false,
+      "criterion_covered_clarity": false,
+      "criterion_state_grounded_clarity": false,
+      "criterion_positive_grounded_clarity": false,
+      "criterion_negative_grounded_clarity": false,
+      "criterion_not_assessable_clarity": false,
+      "criterion_report_only_clarity": false,
+      "criterion_meta_leakage_clarity": false,
+      "real_strong_support_total": 0,
+      "non_abstract_strong_support_total": 0,
+      "criterion_state_grounded_count": 0,
+      "criterion_positive_grounded_count": 0,
+      "criterion_negative_grounded_count": 0,
+      "criterion_report_only_count": 3,
+      "criterion_not_assessable_count": 0
+    },
+    {
+      "paper_id": "HPuLU6q7xq",
+      "gold_decision": "reject",
+      "pred_decision": "reject",
+      "criterion_links": {},
+      "covered_criteria": [
+        "significance_contribution",
+        "technical_soundness",
+        "empirical_adequacy"
+      ],
+      "state_grounded_criteria": [],
+      "positive_grounded_criteria": [],
+      "negative_grounded_criteria": [],
+      "not_assessable_criteria": [],
+      "report_only_criteria": [
+        "significance_contribution",
+        "technical_soundness",
+        "empirical_adequacy"
+      ],
+      "meta_leakage_criteria": [],
+      "criterion_covered_novelty": false,
+      "criterion_state_grounded_novelty": false,
+      "criterion_positive_grounded_novelty": false,
+      "criterion_negative_grounded_novelty": false,
+      "criterion_not_assessable_novelty": false,
+      "criterion_report_only_novelty": false,
+      "criterion_meta_leakage_novelty": false,
+      "criterion_covered_significance": true,
+      "criterion_state_grounded_significance": false,
+      "criterion_positive_grounded_significance": false,
+      "criterion_negative_grounded_significance": false,
+      "criterion_not_assessable_significance": false,
+      "criterion_report_only_significance": true,
+      "criterion_meta_leakage_significance": false,
+      "criterion_covered_soundness": true,
+      "criterion_state_grounded_soundness": false,
+      "criterion_positive_grounded_soundness": false,
+      "criterion_negative_grounded_soundness": false,
+      "criterion_not_assessable_soundness": false,
+      "criterion_report_only_soundness": true,
+      "criterion_meta_leakage_soundness": false,
+      "criterion_covered_empirical": true,
+      "criterion_state_grounded_empirical": false,
+      "criterion_positive_grounded_empirical": false,
+      "criterion_negative_grounded_empirical": false,
+      "criterion_not_assessable_empirical": false,
+      "criterion_report_only_empirical": true,
+      "criterion_meta_leakage_empirical": false,
+      "criterion_covered_clarity": false,
+      "criterion_state_grounded_clarity": false,
+      "criterion_positive_grounded_clarity": false,
+      "criterion_negative_grounded_clarity": false,
+      "criterion_not_assessable_clarity": false,
+      "criterion_report_only_clarity": false,
+      "criterion_meta_leakage_clarity": false,
+      "real_strong_support_total": 0,
+      "non_abstract_strong_support_total": 0,
+      "criterion_state_grounded_count": 0,
+      "criterion_positive_grounded_count": 0,
+      "criterion_negative_grounded_count": 0,
+      "criterion_report_only_count": 3,
+      "criterion_not_assessable_count": 0
+    },
+    {
+      "paper_id": "fGXyvmWpw6",
+      "gold_decision": "reject",
+      "pred_decision": "reject",
+      "criterion_links": {},
+      "covered_criteria": [
+        "significance_contribution",
+        "technical_soundness",
+        "empirical_adequacy"
+      ],
+      "state_grounded_criteria": [],
+      "positive_grounded_criteria": [],
+      "negative_grounded_criteria": [],
+      "not_assessable_criteria": [
+        "significance_contribution",
+        "empirical_adequacy"
+      ],
+      "report_only_criteria": [
+        "technical_soundness"
+      ],
+      "meta_leakage_criteria": [
+        "significance_contribution",
+        "technical_soundness",
+        "empirical_adequacy"
+      ],
+      "criterion_covered_novelty": false,
+      "criterion_state_grounded_novelty": false,
+      "criterion_positive_grounded_novelty": false,
+      "criterion_negative_grounded_novelty": false,
+      "criterion_not_assessable_novelty": false,
+      "criterion_report_only_novelty": false,
+      "criterion_meta_leakage_novelty": false,
+      "criterion_covered_significance": true,
+      "criterion_state_grounded_significance": false,
+      "criterion_positive_grounded_significance": false,
+      "criterion_negative_grounded_significance": false,
+      "criterion_not_assessable_significance": true,
+      "criterion_report_only_significance": false,
+      "criterion_meta_leakage_significance": true,
+      "criterion_covered_soundness": true,
+      "criterion_state_grounded_soundness": false,
+      "criterion_positive_grounded_soundness": false,
+      "criterion_negative_grounded_soundness": false,
+      "criterion_not_assessable_soundness": false,
+      "criterion_report_only_soundness": true,
+      "criterion_meta_leakage_soundness": true,
+      "criterion_covered_empirical": true,
+      "criterion_state_grounded_empirical": false,
+      "criterion_positive_grounded_empirical": false,
+      "criterion_negative_grounded_empirical": false,
+      "criterion_not_assessable_empirical": true,
+      "criterion_report_only_empirical": false,
+      "criterion_meta_leakage_empirical": true,
+      "criterion_covered_clarity": false,
+      "criterion_state_grounded_clarity": false,
+      "criterion_positive_grounded_clarity": false,
+      "criterion_negative_grounded_clarity": false,
+      "criterion_not_assessable_clarity": false,
+      "criterion_report_only_clarity": false,
+      "criterion_meta_leakage_clarity": false,
+      "real_strong_support_total": 0,
+      "non_abstract_strong_support_total": 0,
+      "criterion_state_grounded_count": 0,
+      "criterion_positive_grounded_count": 0,
+      "criterion_negative_grounded_count": 0,
+      "criterion_report_only_count": 1,
+      "criterion_not_assessable_count": 2
+    },
+    {
+      "paper_id": "QAgwFiIY4p",
+      "gold_decision": "reject",
+      "pred_decision": "reject",
+      "criterion_links": {},
+      "covered_criteria": [
+        "novelty_originality",
+        "significance_contribution",
+        "technical_soundness",
+        "empirical_adequacy"
+      ],
+      "state_grounded_criteria": [],
+      "positive_grounded_criteria": [],
+      "negative_grounded_criteria": [],
+      "not_assessable_criteria": [],
+      "report_only_criteria": [
+        "novelty_originality",
+        "significance_contribution",
+        "technical_soundness",
+        "empirical_adequacy"
+      ],
+      "meta_leakage_criteria": [],
+      "criterion_covered_novelty": true,
+      "criterion_state_grounded_novelty": false,
+      "criterion_positive_grounded_novelty": false,
+      "criterion_negative_grounded_novelty": false,
+      "criterion_not_assessable_novelty": false,
+      "criterion_report_only_novelty": true,
+      "criterion_meta_leakage_novelty": false,
+      "criterion_covered_significance": true,
+      "criterion_state_grounded_significance": false,
+      "criterion_positive_grounded_significance": false,
+      "criterion_negative_grounded_significance": false,
+      "criterion_not_assessable_significance": false,
+      "criterion_report_only_significance": true,
+      "criterion_meta_leakage_significance": false,
+      "criterion_covered_soundness": true,
+      "criterion_state_grounded_soundness": false,
+      "criterion_positive_grounded_soundness": false,
+      "criterion_negative_grounded_soundness": false,
+      "criterion_not_assessable_soundness": false,
+      "criterion_report_only_soundness": true,
+      "criterion_meta_leakage_soundness": false,
+      "criterion_covered_empirical": true,
+      "criterion_state_grounded_empirical": false,
+      "criterion_positive_grounded_empirical": false,
+      "criterion_negative_grounded_empirical": false,
+      "criterion_not_assessable_empirical": false,
+      "criterion_report_only_empirical": true,
+      "criterion_meta_leakage_empirical": false,
+      "criterion_covered_clarity": false,
+      "criterion_state_grounded_clarity": false,
+      "criterion_positive_grounded_clarity": false,
+      "criterion_negative_grounded_clarity": false,
+      "criterion_not_assessable_clarity": false,
+      "criterion_report_only_clarity": false,
+      "criterion_meta_leakage_clarity": false,
+      "real_strong_support_total": 0,
+      "non_abstract_strong_support_total": 0,
+      "criterion_state_grounded_count": 0,
+      "criterion_positive_grounded_count": 0,
+      "criterion_negative_grounded_count": 0,
+      "criterion_report_only_count": 4,
+      "criterion_not_assessable_count": 0
+    },
+    {
+      "paper_id": "KI9NqjLVDT",
+      "gold_decision": "accept",
+      "pred_decision": "reject",
+      "criterion_links": {
+        "clarity": {
+          "positive_evidence_ids": [],
+          "negative_evidence_ids": [],
+          "flaw_ids": [
+            "flaw-fallback-1"
+          ],
+          "sections": []
+        }
+      },
+      "covered_criteria": [
+        "significance_contribution",
+        "technical_soundness",
+        "empirical_adequacy",
+        "clarity_reproducibility"
+      ],
+      "state_grounded_criteria": [
+        "clarity_reproducibility"
+      ],
+      "positive_grounded_criteria": [],
+      "negative_grounded_criteria": [
+        "clarity_reproducibility"
+      ],
+      "not_assessable_criteria": [],
+      "report_only_criteria": [
+        "significance_contribution",
+        "technical_soundness",
+        "empirical_adequacy"
+      ],
+      "meta_leakage_criteria": [
+        "technical_soundness",
+        "clarity_reproducibility"
+      ],
+      "criterion_covered_novelty": false,
+      "criterion_state_grounded_novelty": false,
+      "criterion_positive_grounded_novelty": false,
+      "criterion_negative_grounded_novelty": false,
+      "criterion_not_assessable_novelty": false,
+      "criterion_report_only_novelty": false,
+      "criterion_meta_leakage_novelty": false,
+      "criterion_covered_significance": true,
+      "criterion_state_grounded_significance": false,
+      "criterion_positive_grounded_significance": false,
+      "criterion_negative_grounded_significance": false,
+      "criterion_not_assessable_significance": false,
+      "criterion_report_only_significance": true,
+      "criterion_meta_leakage_significance": false,
+      "criterion_covered_soundness": true,
+      "criterion_state_grounded_soundness": false,
+      "criterion_positive_grounded_soundness": false,
+      "criterion_negative_grounded_soundness": false,
+      "criterion_not_assessable_soundness": false,
+      "criterion_report_only_soundness": true,
+      "criterion_meta_leakage_soundness": true,
+      "criterion_covered_empirical": true,
+      "criterion_state_grounded_empirical": false,
+      "criterion_positive_grounded_empirical": false,
+      "criterion_negative_grounded_empirical": false,
+      "criterion_not_assessable_empirical": false,
+      "criterion_report_only_empirical": true,
+      "criterion_meta_leakage_empirical": false,
+      "criterion_covered_clarity": true,
+      "criterion_state_grounded_clarity": true,
+      "criterion_positive_grounded_clarity": false,
+      "criterion_negative_grounded_clarity": true,
+      "criterion_not_assessable_clarity": false,
+      "criterion_report_only_clarity": false,
+      "criterion_meta_leakage_clarity": true,
+      "real_strong_support_total": 0,
+      "non_abstract_strong_support_total": 0,
+      "criterion_state_grounded_count": 1,
+      "criterion_positive_grounded_count": 0,
+      "criterion_negative_grounded_count": 1,
+      "criterion_report_only_count": 3,
+      "criterion_not_assessable_count": 0
+    },
+    {
+      "paper_id": "1HCN4pjTb4",
+      "gold_decision": "accept",
+      "pred_decision": "reject",
+      "criterion_links": {},
+      "covered_criteria": [
+        "significance_contribution"
+      ],
+      "state_grounded_criteria": [],
+      "positive_grounded_criteria": [],
+      "negative_grounded_criteria": [],
+      "not_assessable_criteria": [],
+      "report_only_criteria": [
+        "significance_contribution"
+      ],
+      "meta_leakage_criteria": [],
+      "criterion_covered_novelty": false,
+      "criterion_state_grounded_novelty": false,
+      "criterion_positive_grounded_novelty": false,
+      "criterion_negative_grounded_novelty": false,
+      "criterion_not_assessable_novelty": false,
+      "criterion_report_only_novelty": false,
+      "criterion_meta_leakage_novelty": false,
+      "criterion_covered_significance": true,
+      "criterion_state_grounded_significance": false,
+      "criterion_positive_grounded_significance": false,
+      "criterion_negative_grounded_significance": false,
+      "criterion_not_assessable_significance": false,
+      "criterion_report_only_significance": true,
+      "criterion_meta_leakage_significance": false,
+      "criterion_covered_soundness": false,
+      "criterion_state_grounded_soundness": false,
+      "criterion_positive_grounded_soundness": false,
+      "criterion_negative_grounded_soundness": false,
+      "criterion_not_assessable_soundness": false,
+      "criterion_report_only_soundness": false,
+      "criterion_meta_leakage_soundness": false,
+      "criterion_covered_empirical": false,
+      "criterion_state_grounded_empirical": false,
+      "criterion_positive_grounded_empirical": false,
+      "criterion_negative_grounded_empirical": false,
+      "criterion_not_assessable_empirical": false,
+      "criterion_report_only_empirical": false,
+      "criterion_meta_leakage_empirical": false,
+      "criterion_covered_clarity": false,
+      "criterion_state_grounded_clarity": false,
+      "criterion_positive_grounded_clarity": false,
+      "criterion_negative_grounded_clarity": false,
+      "criterion_not_assessable_clarity": false,
+      "criterion_report_only_clarity": false,
+      "criterion_meta_leakage_clarity": false,
+      "real_strong_support_total": 0,
+      "non_abstract_strong_support_total": 0,
+      "criterion_state_grounded_count": 0,
+      "criterion_positive_grounded_count": 0,
+      "criterion_negative_grounded_count": 0,
+      "criterion_report_only_count": 1,
+      "criterion_not_assessable_count": 0
+    },
+    {
+      "paper_id": "LebzzClHYw",
+      "gold_decision": "accept",
+      "pred_decision": "reject",
+      "criterion_links": {},
+      "covered_criteria": [
+        "significance_contribution",
+        "technical_soundness",
+        "empirical_adequacy",
+        "clarity_reproducibility"
+      ],
+      "state_grounded_criteria": [],
+      "positive_grounded_criteria": [],
+      "negative_grounded_criteria": [],
+      "not_assessable_criteria": [],
+      "report_only_criteria": [
+        "significance_contribution",
+        "technical_soundness",
+        "empirical_adequacy",
+        "clarity_reproducibility"
+      ],
+      "meta_leakage_criteria": [
+        "significance_contribution"
+      ],
+      "criterion_covered_novelty": false,
+      "criterion_state_grounded_novelty": false,
+      "criterion_positive_grounded_novelty": false,
+      "criterion_negative_grounded_novelty": false,
+      "criterion_not_assessable_novelty": false,
+      "criterion_report_only_novelty": false,
+      "criterion_meta_leakage_novelty": false,
+      "criterion_covered_significance": true,
+      "criterion_state_grounded_significance": false,
+      "criterion_positive_grounded_significance": false,
+      "criterion_negative_grounded_significance": false,
+      "criterion_not_assessable_significance": false,
+      "criterion_report_only_significance": true,
+      "criterion_meta_leakage_significance": true,
+      "criterion_covered_soundness": true,
+      "criterion_state_grounded_soundness": false,
+      "criterion_positive_grounded_soundness": false,
+      "criterion_negative_grounded_soundness": false,
+      "criterion_not_assessable_soundness": false,
+      "criterion_report_only_soundness": true,
+      "criterion_meta_leakage_soundness": false,
+      "criterion_covered_empirical": true,
+      "criterion_state_grounded_empirical": false,
+      "criterion_positive_grounded_empirical": false,
+      "criterion_negative_grounded_empirical": false,
+      "criterion_not_assessable_empirical": false,
+      "criterion_report_only_empirical": true,
+      "criterion_meta_leakage_empirical": false,
+      "criterion_covered_clarity": true,
+      "criterion_state_grounded_clarity": false,
+      "criterion_positive_grounded_clarity": false,
+      "criterion_negative_grounded_clarity": false,
+      "criterion_not_assessable_clarity": false,
+      "criterion_report_only_clarity": true,
+      "criterion_meta_leakage_clarity": false,
+      "real_strong_support_total": 0,
+      "non_abstract_strong_support_total": 0,
+      "criterion_state_grounded_count": 0,
+      "criterion_positive_grounded_count": 0,
+      "criterion_negative_grounded_count": 0,
+      "criterion_report_only_count": 4,
+      "criterion_not_assessable_count": 0
+    },
+    {
+      "paper_id": "BXY6fe7q31",
+      "gold_decision": "accept",
+      "pred_decision": "reject",
+      "criterion_links": {
+        "novelty": {
+          "positive_evidence_ids": [
+            "evidence-2"
+          ],
+          "negative_evidence_ids": [],
+          "flaw_ids": [],
+          "sections": [
+            "abstract"
+          ]
+        },
+        "significance": {
+          "positive_evidence_ids": [
+            "evidence-2"
+          ],
+          "negative_evidence_ids": [],
+          "flaw_ids": [],
+          "sections": [
+            "abstract"
+          ]
+        },
+        "clarity": {
+          "positive_evidence_ids": [
+            "evidence-2"
+          ],
+          "negative_evidence_ids": [],
+          "flaw_ids": [],
+          "sections": [
+            "abstract"
+          ]
+        }
+      },
+      "covered_criteria": [
+        "novelty_originality",
+        "significance_contribution",
+        "technical_soundness",
+        "empirical_adequacy"
+      ],
+      "state_grounded_criteria": [
+        "novelty_originality",
+        "significance_contribution",
+        "clarity_reproducibility"
+      ],
+      "positive_grounded_criteria": [
+        "novelty_originality",
+        "significance_contribution",
+        "clarity_reproducibility"
+      ],
+      "negative_grounded_criteria": [],
+      "not_assessable_criteria": [],
+      "report_only_criteria": [
+        "technical_soundness",
+        "empirical_adequacy"
+      ],
+      "meta_leakage_criteria": [
+        "technical_soundness"
+      ],
+      "criterion_covered_novelty": true,
+      "criterion_state_grounded_novelty": true,
+      "criterion_positive_grounded_novelty": true,
+      "criterion_negative_grounded_novelty": false,
+      "criterion_not_assessable_novelty": false,
+      "criterion_report_only_novelty": false,
+      "criterion_meta_leakage_novelty": false,
+      "criterion_covered_significance": true,
+      "criterion_state_grounded_significance": true,
+      "criterion_positive_grounded_significance": true,
+      "criterion_negative_grounded_significance": false,
+      "criterion_not_assessable_significance": false,
+      "criterion_report_only_significance": false,
+      "criterion_meta_leakage_significance": false,
+      "criterion_covered_soundness": true,
+      "criterion_state_grounded_soundness": false,
+      "criterion_positive_grounded_soundness": false,
+      "criterion_negative_grounded_soundness": false,
+      "criterion_not_assessable_soundness": false,
+      "criterion_report_only_soundness": true,
+      "criterion_meta_leakage_soundness": true,
+      "criterion_covered_empirical": true,
+      "criterion_state_grounded_empirical": false,
+      "criterion_positive_grounded_empirical": false,
+      "criterion_negative_grounded_empirical": false,
+      "criterion_not_assessable_empirical": false,
+      "criterion_report_only_empirical": true,
+      "criterion_meta_leakage_empirical": false,
+      "criterion_covered_clarity": false,
+      "criterion_state_grounded_clarity": true,
+      "criterion_positive_grounded_clarity": true,
+      "criterion_negative_grounded_clarity": false,
+      "criterion_not_assessable_clarity": false,
+      "criterion_report_only_clarity": false,
+      "criterion_meta_leakage_clarity": false,
+      "real_strong_support_total": 1,
+      "non_abstract_strong_support_total": 0,
+      "criterion_state_grounded_count": 3,
+      "criterion_positive_grounded_count": 3,
+      "criterion_negative_grounded_count": 0,
+      "criterion_report_only_count": 2,
+      "criterion_not_assessable_count": 0
+    },
+    {
+      "paper_id": "TPAj63ax4Y",
+      "gold_decision": "reject",
+      "pred_decision": "reject",
+      "criterion_links": {},
+      "covered_criteria": [
+        "significance_contribution",
+        "technical_soundness"
+      ],
+      "state_grounded_criteria": [],
+      "positive_grounded_criteria": [],
+      "negative_grounded_criteria": [],
+      "not_assessable_criteria": [],
+      "report_only_criteria": [
+        "significance_contribution",
+        "technical_soundness"
+      ],
+      "meta_leakage_criteria": [
+        "technical_soundness"
+      ],
+      "criterion_covered_novelty": false,
+      "criterion_state_grounded_novelty": false,
+      "criterion_positive_grounded_novelty": false,
+      "criterion_negative_grounded_novelty": false,
+      "criterion_not_assessable_novelty": false,
+      "criterion_report_only_novelty": false,
+      "criterion_meta_leakage_novelty": false,
+      "criterion_covered_significance": true,
+      "criterion_state_grounded_significance": false,
+      "criterion_positive_grounded_significance": false,
+      "criterion_negative_grounded_significance": false,
+      "criterion_not_assessable_significance": false,
+      "criterion_report_only_significance": true,
+      "criterion_meta_leakage_significance": false,
+      "criterion_covered_soundness": true,
+      "criterion_state_grounded_soundness": false,
+      "criterion_positive_grounded_soundness": false,
+      "criterion_negative_grounded_soundness": false,
+      "criterion_not_assessable_soundness": false,
+      "criterion_report_only_soundness": true,
+      "criterion_meta_leakage_soundness": true,
+      "criterion_covered_empirical": false,
+      "criterion_state_grounded_empirical": false,
+      "criterion_positive_grounded_empirical": false,
+      "criterion_negative_grounded_empirical": false,
+      "criterion_not_assessable_empirical": false,
+      "criterion_report_only_empirical": false,
+      "criterion_meta_leakage_empirical": false,
+      "criterion_covered_clarity": false,
+      "criterion_state_grounded_clarity": false,
+      "criterion_positive_grounded_clarity": false,
+      "criterion_negative_grounded_clarity": false,
+      "criterion_not_assessable_clarity": false,
+      "criterion_report_only_clarity": false,
+      "criterion_meta_leakage_clarity": false,
+      "real_strong_support_total": 0,
+      "non_abstract_strong_support_total": 0,
+      "criterion_state_grounded_count": 0,
+      "criterion_positive_grounded_count": 0,
+      "criterion_negative_grounded_count": 0,
+      "criterion_report_only_count": 2,
+      "criterion_not_assessable_count": 0
+    },
+    {
+      "paper_id": "mHv6wcBb0z",
+      "gold_decision": "reject",
+      "pred_decision": "reject",
+      "criterion_links": {},
+      "covered_criteria": [
+        "significance_contribution",
+        "technical_soundness",
+        "empirical_adequacy"
+      ],
+      "state_grounded_criteria": [],
+      "positive_grounded_criteria": [],
+      "negative_grounded_criteria": [],
+      "not_assessable_criteria": [],
+      "report_only_criteria": [
+        "significance_contribution",
+        "technical_soundness",
+        "empirical_adequacy"
+      ],
+      "meta_leakage_criteria": [],
+      "criterion_covered_novelty": false,
+      "criterion_state_grounded_novelty": false,
+      "criterion_positive_grounded_novelty": false,
+      "criterion_negative_grounded_novelty": false,
+      "criterion_not_assessable_novelty": false,
+      "criterion_report_only_novelty": false,
+      "criterion_meta_leakage_novelty": false,
+      "criterion_covered_significance": true,
+      "criterion_state_grounded_significance": false,
+      "criterion_positive_grounded_significance": false,
+      "criterion_negative_grounded_significance": false,
+      "criterion_not_assessable_significance": false,
+      "criterion_report_only_significance": true,
+      "criterion_meta_leakage_significance": false,
+      "criterion_covered_soundness": true,
+      "criterion_state_grounded_soundness": false,
+      "criterion_positive_grounded_soundness": false,
+      "criterion_negative_grounded_soundness": false,
+      "criterion_not_assessable_soundness": false,
+      "criterion_report_only_soundness": true,
+      "criterion_meta_leakage_soundness": false,
+      "criterion_covered_empirical": true,
+      "criterion_state_grounded_empirical": false,
+      "criterion_positive_grounded_empirical": false,
+      "criterion_negative_grounded_empirical": false,
+      "criterion_not_assessable_empirical": false,
+      "criterion_report_only_empirical": true,
+      "criterion_meta_leakage_empirical": false,
+      "criterion_covered_clarity": false,
+      "criterion_state_grounded_clarity": false,
+      "criterion_positive_grounded_clarity": false,
+      "criterion_negative_grounded_clarity": false,
+      "criterion_not_assessable_clarity": false,
+      "criterion_report_only_clarity": false,
+      "criterion_meta_leakage_clarity": false,
+      "real_strong_support_total": 0,
+      "non_abstract_strong_support_total": 0,
+      "criterion_state_grounded_count": 0,
+      "criterion_positive_grounded_count": 0,
+      "criterion_negative_grounded_count": 0,
+      "criterion_report_only_count": 3,
+      "criterion_not_assessable_count": 0
+    },
+    {
+      "paper_id": "xUe1YqEgd6",
+      "gold_decision": "reject",
+      "pred_decision": "reject",
+      "criterion_links": {
+        "novelty": {
+          "positive_evidence_ids": [
+            "evidence-1"
+          ],
+          "negative_evidence_ids": [],
+          "flaw_ids": [],
+          "sections": [
+            "abstract"
+          ]
+        },
+        "significance": {
+          "positive_evidence_ids": [
+            "evidence-1"
+          ],
+          "negative_evidence_ids": [],
+          "flaw_ids": [],
+          "sections": [
+            "abstract"
+          ]
+        },
+        "clarity": {
+          "positive_evidence_ids": [
+            "evidence-1"
+          ],
+          "negative_evidence_ids": [],
+          "flaw_ids": [
+            "flaw-fallback-1"
+          ],
+          "sections": [
+            "abstract"
+          ]
+        }
+      },
+      "covered_criteria": [
+        "technical_soundness",
+        "clarity_reproducibility"
+      ],
+      "state_grounded_criteria": [
+        "novelty_originality",
+        "significance_contribution",
+        "clarity_reproducibility"
+      ],
+      "positive_grounded_criteria": [
+        "novelty_originality",
+        "significance_contribution",
+        "clarity_reproducibility"
+      ],
+      "negative_grounded_criteria": [
+        "clarity_reproducibility"
+      ],
+      "not_assessable_criteria": [
+        "clarity_reproducibility"
+      ],
+      "report_only_criteria": [
+        "technical_soundness"
+      ],
+      "meta_leakage_criteria": [
+        "technical_soundness",
+        "clarity_reproducibility"
+      ],
+      "criterion_covered_novelty": false,
+      "criterion_state_grounded_novelty": true,
+      "criterion_positive_grounded_novelty": true,
+      "criterion_negative_grounded_novelty": false,
+      "criterion_not_assessable_novelty": false,
+      "criterion_report_only_novelty": false,
+      "criterion_meta_leakage_novelty": false,
+      "criterion_covered_significance": false,
+      "criterion_state_grounded_significance": true,
+      "criterion_positive_grounded_significance": true,
+      "criterion_negative_grounded_significance": false,
+      "criterion_not_assessable_significance": false,
+      "criterion_report_only_significance": false,
+      "criterion_meta_leakage_significance": false,
+      "criterion_covered_soundness": true,
+      "criterion_state_grounded_soundness": false,
+      "criterion_positive_grounded_soundness": false,
+      "criterion_negative_grounded_soundness": false,
+      "criterion_not_assessable_soundness": false,
+      "criterion_report_only_soundness": true,
+      "criterion_meta_leakage_soundness": true,
+      "criterion_covered_empirical": false,
+      "criterion_state_grounded_empirical": false,
+      "criterion_positive_grounded_empirical": false,
+      "criterion_negative_grounded_empirical": false,
+      "criterion_not_assessable_empirical": false,
+      "criterion_report_only_empirical": false,
+      "criterion_meta_leakage_empirical": false,
+      "criterion_covered_clarity": true,
+      "criterion_state_grounded_clarity": true,
+      "criterion_positive_grounded_clarity": true,
+      "criterion_negative_grounded_clarity": true,
+      "criterion_not_assessable_clarity": true,
+      "criterion_report_only_clarity": false,
+      "criterion_meta_leakage_clarity": true,
+      "real_strong_support_total": 1,
+      "non_abstract_strong_support_total": 0,
+      "criterion_state_grounded_count": 3,
+      "criterion_positive_grounded_count": 3,
+      "criterion_negative_grounded_count": 1,
+      "criterion_report_only_count": 1,
+      "criterion_not_assessable_count": 1
+    },
+    {
+      "paper_id": "jVEoydFOl9",
+      "gold_decision": "accept",
+      "pred_decision": "reject",
+      "criterion_links": {},
+      "covered_criteria": [
+        "significance_contribution"
+      ],
+      "state_grounded_criteria": [],
+      "positive_grounded_criteria": [],
+      "negative_grounded_criteria": [],
+      "not_assessable_criteria": [],
+      "report_only_criteria": [
+        "significance_contribution"
+      ],
+      "meta_leakage_criteria": [],
+      "criterion_covered_novelty": false,
+      "criterion_state_grounded_novelty": false,
+      "criterion_positive_grounded_novelty": false,
+      "criterion_negative_grounded_novelty": false,
+      "criterion_not_assessable_novelty": false,
+      "criterion_report_only_novelty": false,
+      "criterion_meta_leakage_novelty": false,
+      "criterion_covered_significance": true,
+      "criterion_state_grounded_significance": false,
+      "criterion_positive_grounded_significance": false,
+      "criterion_negative_grounded_significance": false,
+      "criterion_not_assessable_significance": false,
+      "criterion_report_only_significance": true,
+      "criterion_meta_leakage_significance": false,
+      "criterion_covered_soundness": false,
+      "criterion_state_grounded_soundness": false,
+      "criterion_positive_grounded_soundness": false,
+      "criterion_negative_grounded_soundness": false,
+      "criterion_not_assessable_soundness": false,
+      "criterion_report_only_soundness": false,
+      "criterion_meta_leakage_soundness": false,
+      "criterion_covered_empirical": false,
+      "criterion_state_grounded_empirical": false,
+      "criterion_positive_grounded_empirical": false,
+      "criterion_negative_grounded_empirical": false,
+      "criterion_not_assessable_empirical": false,
+      "criterion_report_only_empirical": false,
+      "criterion_meta_leakage_empirical": false,
+      "criterion_covered_clarity": false,
+      "criterion_state_grounded_clarity": false,
+      "criterion_positive_grounded_clarity": false,
+      "criterion_negative_grounded_clarity": false,
+      "criterion_not_assessable_clarity": false,
+      "criterion_report_only_clarity": false,
+      "criterion_meta_leakage_clarity": false,
+      "real_strong_support_total": 0,
+      "non_abstract_strong_support_total": 0,
+      "criterion_state_grounded_count": 0,
+      "criterion_positive_grounded_count": 0,
+      "criterion_negative_grounded_count": 0,
+      "criterion_report_only_count": 1,
+      "criterion_not_assessable_count": 0
+    },
+    {
+      "paper_id": "YXn76HMetm",
+      "gold_decision": "reject",
+      "pred_decision": "reject",
+      "criterion_links": {},
+      "covered_criteria": [
+        "novelty_originality",
+        "significance_contribution",
+        "clarity_reproducibility"
+      ],
+      "state_grounded_criteria": [],
+      "positive_grounded_criteria": [],
+      "negative_grounded_criteria": [],
+      "not_assessable_criteria": [],
+      "report_only_criteria": [
+        "novelty_originality",
+        "significance_contribution",
+        "clarity_reproducibility"
+      ],
+      "meta_leakage_criteria": [
+        "clarity_reproducibility"
+      ],
+      "criterion_covered_novelty": true,
+      "criterion_state_grounded_novelty": false,
+      "criterion_positive_grounded_novelty": false,
+      "criterion_negative_grounded_novelty": false,
+      "criterion_not_assessable_novelty": false,
+      "criterion_report_only_novelty": true,
+      "criterion_meta_leakage_novelty": false,
+      "criterion_covered_significance": true,
+      "criterion_state_grounded_significance": false,
+      "criterion_positive_grounded_significance": false,
+      "criterion_negative_grounded_significance": false,
+      "criterion_not_assessable_significance": false,
+      "criterion_report_only_significance": true,
+      "criterion_meta_leakage_significance": false,
+      "criterion_covered_soundness": false,
+      "criterion_state_grounded_soundness": false,
+      "criterion_positive_grounded_soundness": false,
+      "criterion_negative_grounded_soundness": false,
+      "criterion_not_assessable_soundness": false,
+      "criterion_report_only_soundness": false,
+      "criterion_meta_leakage_soundness": false,
+      "criterion_covered_empirical": false,
+      "criterion_state_grounded_empirical": false,
+      "criterion_positive_grounded_empirical": false,
+      "criterion_negative_grounded_empirical": false,
+      "criterion_not_assessable_empirical": false,
+      "criterion_report_only_empirical": false,
+      "criterion_meta_leakage_empirical": false,
+      "criterion_covered_clarity": true,
+      "criterion_state_grounded_clarity": false,
+      "criterion_positive_grounded_clarity": false,
+      "criterion_negative_grounded_clarity": false,
+      "criterion_not_assessable_clarity": false,
+      "criterion_report_only_clarity": true,
+      "criterion_meta_leakage_clarity": true,
+      "real_strong_support_total": 0,
+      "non_abstract_strong_support_total": 0,
+      "criterion_state_grounded_count": 0,
+      "criterion_positive_grounded_count": 0,
+      "criterion_negative_grounded_count": 0,
+      "criterion_report_only_count": 3,
+      "criterion_not_assessable_count": 0
+    },
+    {
+      "paper_id": "KOUAayk5Kx",
+      "gold_decision": "reject",
+      "pred_decision": "reject",
+      "criterion_links": {
+        "soundness": {
+          "positive_evidence_ids": [],
+          "negative_evidence_ids": [],
+          "flaw_ids": [
+            "flaw-fallback-1"
+          ],
+          "sections": []
+        }
+      },
+      "covered_criteria": [
+        "technical_soundness"
+      ],
+      "state_grounded_criteria": [
+        "technical_soundness"
+      ],
+      "positive_grounded_criteria": [],
+      "negative_grounded_criteria": [
+        "technical_soundness"
+      ],
+      "not_assessable_criteria": [],
+      "report_only_criteria": [],
+      "meta_leakage_criteria": [
+        "technical_soundness"
+      ],
+      "criterion_covered_novelty": false,
+      "criterion_state_grounded_novelty": false,
+      "criterion_positive_grounded_novelty": false,
+      "criterion_negative_grounded_novelty": false,
+      "criterion_not_assessable_novelty": false,
+      "criterion_report_only_novelty": false,
+      "criterion_meta_leakage_novelty": false,
+      "criterion_covered_significance": false,
+      "criterion_state_grounded_significance": false,
+      "criterion_positive_grounded_significance": false,
+      "criterion_negative_grounded_significance": false,
+      "criterion_not_assessable_significance": false,
+      "criterion_report_only_significance": false,
+      "criterion_meta_leakage_significance": false,
+      "criterion_covered_soundness": true,
+      "criterion_state_grounded_soundness": true,
+      "criterion_positive_grounded_soundness": false,
+      "criterion_negative_grounded_soundness": true,
+      "criterion_not_assessable_soundness": false,
+      "criterion_report_only_soundness": false,
+      "criterion_meta_leakage_soundness": true,
+      "criterion_covered_empirical": false,
+      "criterion_state_grounded_empirical": false,
+      "criterion_positive_grounded_empirical": false,
+      "criterion_negative_grounded_empirical": false,
+      "criterion_not_assessable_empirical": false,
+      "criterion_report_only_empirical": false,
+      "criterion_meta_leakage_empirical": false,
+      "criterion_covered_clarity": false,
+      "criterion_state_grounded_clarity": false,
+      "criterion_positive_grounded_clarity": false,
+      "criterion_negative_grounded_clarity": false,
+      "criterion_not_assessable_clarity": false,
+      "criterion_report_only_clarity": false,
+      "criterion_meta_leakage_clarity": false,
+      "real_strong_support_total": 0,
+      "non_abstract_strong_support_total": 0,
+      "criterion_state_grounded_count": 1,
+      "criterion_positive_grounded_count": 0,
+      "criterion_negative_grounded_count": 1,
+      "criterion_report_only_count": 0,
+      "criterion_not_assessable_count": 0
+    },
+    {
+      "paper_id": "XH3OiIhtvf",
+      "gold_decision": "reject",
+      "pred_decision": "reject",
+      "criterion_links": {},
+      "covered_criteria": [
+        "novelty_originality",
+        "significance_contribution",
+        "technical_soundness"
+      ],
+      "state_grounded_criteria": [],
+      "positive_grounded_criteria": [],
+      "negative_grounded_criteria": [],
+      "not_assessable_criteria": [],
+      "report_only_criteria": [
+        "novelty_originality",
+        "significance_contribution",
+        "technical_soundness"
+      ],
+      "meta_leakage_criteria": [
+        "novelty_originality"
+      ],
+      "criterion_covered_novelty": true,
+      "criterion_state_grounded_novelty": false,
+      "criterion_positive_grounded_novelty": false,
+      "criterion_negative_grounded_novelty": false,
+      "criterion_not_assessable_novelty": false,
+      "criterion_report_only_novelty": true,
+      "criterion_meta_leakage_novelty": true,
+      "criterion_covered_significance": true,
+      "criterion_state_grounded_significance": false,
+      "criterion_positive_grounded_significance": false,
+      "criterion_negative_grounded_significance": false,
+      "criterion_not_assessable_significance": false,
+      "criterion_report_only_significance": true,
+      "criterion_meta_leakage_significance": false,
+      "criterion_covered_soundness": true,
+      "criterion_state_grounded_soundness": false,
+      "criterion_positive_grounded_soundness": false,
+      "criterion_negative_grounded_soundness": false,
+      "criterion_not_assessable_soundness": false,
+      "criterion_report_only_soundness": true,
+      "criterion_meta_leakage_soundness": false,
+      "criterion_covered_empirical": false,
+      "criterion_state_grounded_empirical": false,
+      "criterion_positive_grounded_empirical": false,
+      "criterion_negative_grounded_empirical": false,
+      "criterion_not_assessable_empirical": false,
+      "criterion_report_only_empirical": false,
+      "criterion_meta_leakage_empirical": false,
+      "criterion_covered_clarity": false,
+      "criterion_state_grounded_clarity": false,
+      "criterion_positive_grounded_clarity": false,
+      "criterion_negative_grounded_clarity": false,
+      "criterion_not_assessable_clarity": false,
+      "criterion_report_only_clarity": false,
+      "criterion_meta_leakage_clarity": false,
+      "real_strong_support_total": 0,
+      "non_abstract_strong_support_total": 0,
+      "criterion_state_grounded_count": 0,
+      "criterion_positive_grounded_count": 0,
+      "criterion_negative_grounded_count": 0,
+      "criterion_report_only_count": 3,
+      "criterion_not_assessable_count": 0
+    },
+    {
+      "paper_id": "ZHr0JajZfH",
+      "gold_decision": "reject",
+      "pred_decision": "reject",
+      "criterion_links": {
+        "novelty": {
+          "positive_evidence_ids": [
+            "evidence-1"
+          ],
+          "negative_evidence_ids": [],
+          "flaw_ids": [],
+          "sections": [
+            "result"
+          ]
+        },
+        "significance": {
+          "positive_evidence_ids": [
+            "evidence-1"
+          ],
+          "negative_evidence_ids": [],
+          "flaw_ids": [],
+          "sections": [
+            "result"
+          ]
+        },
+        "soundness": {
+          "positive_evidence_ids": [
+            "evidence-1"
+          ],
+          "negative_evidence_ids": [],
+          "flaw_ids": [],
+          "sections": [
+            "result"
+          ]
+        },
+        "empirical": {
+          "positive_evidence_ids": [
+            "evidence-1"
+          ],
+          "negative_evidence_ids": [],
+          "flaw_ids": [],
+          "sections": [
+            "result"
+          ]
+        },
+        "clarity": {
+          "positive_evidence_ids": [
+            "evidence-1"
+          ],
+          "negative_evidence_ids": [],
+          "flaw_ids": [],
+          "sections": [
+            "result"
+          ]
+        }
+      },
+      "covered_criteria": [
+        "significance_contribution",
+        "technical_soundness",
+        "empirical_adequacy",
+        "clarity_reproducibility"
+      ],
+      "state_grounded_criteria": [
+        "novelty_originality",
+        "significance_contribution",
+        "technical_soundness",
+        "empirical_adequacy",
+        "clarity_reproducibility"
+      ],
+      "positive_grounded_criteria": [
+        "novelty_originality",
+        "significance_contribution",
+        "technical_soundness",
+        "empirical_adequacy",
+        "clarity_reproducibility"
+      ],
+      "negative_grounded_criteria": [],
+      "not_assessable_criteria": [
+        "technical_soundness"
+      ],
+      "report_only_criteria": [],
+      "meta_leakage_criteria": [
+        "technical_soundness",
+        "clarity_reproducibility"
+      ],
+      "criterion_covered_novelty": false,
+      "criterion_state_grounded_novelty": true,
+      "criterion_positive_grounded_novelty": true,
+      "criterion_negative_grounded_novelty": false,
+      "criterion_not_assessable_novelty": false,
+      "criterion_report_only_novelty": false,
+      "criterion_meta_leakage_novelty": false,
+      "criterion_covered_significance": true,
+      "criterion_state_grounded_significance": true,
+      "criterion_positive_grounded_significance": true,
+      "criterion_negative_grounded_significance": false,
+      "criterion_not_assessable_significance": false,
+      "criterion_report_only_significance": false,
+      "criterion_meta_leakage_significance": false,
+      "criterion_covered_soundness": true,
+      "criterion_state_grounded_soundness": true,
+      "criterion_positive_grounded_soundness": true,
+      "criterion_negative_grounded_soundness": false,
+      "criterion_not_assessable_soundness": true,
+      "criterion_report_only_soundness": false,
+      "criterion_meta_leakage_soundness": true,
+      "criterion_covered_empirical": true,
+      "criterion_state_grounded_empirical": true,
+      "criterion_positive_grounded_empirical": true,
+      "criterion_negative_grounded_empirical": false,
+      "criterion_not_assessable_empirical": false,
+      "criterion_report_only_empirical": false,
+      "criterion_meta_leakage_empirical": false,
+      "criterion_covered_clarity": true,
+      "criterion_state_grounded_clarity": true,
+      "criterion_positive_grounded_clarity": true,
+      "criterion_negative_grounded_clarity": false,
+      "criterion_not_assessable_clarity": false,
+      "criterion_report_only_clarity": false,
+      "criterion_meta_leakage_clarity": true,
+      "real_strong_support_total": 1,
+      "non_abstract_strong_support_total": 1,
+      "criterion_state_grounded_count": 5,
+      "criterion_positive_grounded_count": 5,
+      "criterion_negative_grounded_count": 0,
+      "criterion_report_only_count": 0,
+      "criterion_not_assessable_count": 1
+    },
+    {
+      "paper_id": "WLgbjzKJkk",
+      "gold_decision": "reject",
+      "pred_decision": "reject",
+      "criterion_links": {
+        "empirical": {
+          "positive_evidence_ids": [],
+          "negative_evidence_ids": [],
+          "flaw_ids": [
+            "flaw-1",
+            "flaw-2"
+          ],
+          "sections": []
+        },
+        "soundness": {
+          "positive_evidence_ids": [],
+          "negative_evidence_ids": [],
+          "flaw_ids": [
+            "flaw-1"
+          ],
+          "sections": []
+        },
+        "clarity": {
+          "positive_evidence_ids": [],
+          "negative_evidence_ids": [],
+          "flaw_ids": [
+            "flaw-2"
+          ],
+          "sections": []
+        }
+      },
+      "covered_criteria": [
+        "significance_contribution",
+        "technical_soundness",
+        "empirical_adequacy",
+        "clarity_reproducibility"
+      ],
+      "state_grounded_criteria": [
+        "technical_soundness",
+        "empirical_adequacy",
+        "clarity_reproducibility"
+      ],
+      "positive_grounded_criteria": [],
+      "negative_grounded_criteria": [
+        "technical_soundness",
+        "empirical_adequacy",
+        "clarity_reproducibility"
+      ],
+      "not_assessable_criteria": [],
+      "report_only_criteria": [
+        "significance_contribution"
+      ],
+      "meta_leakage_criteria": [
+        "technical_soundness"
+      ],
+      "criterion_covered_novelty": false,
+      "criterion_state_grounded_novelty": false,
+      "criterion_positive_grounded_novelty": false,
+      "criterion_negative_grounded_novelty": false,
+      "criterion_not_assessable_novelty": false,
+      "criterion_report_only_novelty": false,
+      "criterion_meta_leakage_novelty": false,
+      "criterion_covered_significance": true,
+      "criterion_state_grounded_significance": false,
+      "criterion_positive_grounded_significance": false,
+      "criterion_negative_grounded_significance": false,
+      "criterion_not_assessable_significance": false,
+      "criterion_report_only_significance": true,
+      "criterion_meta_leakage_significance": false,
+      "criterion_covered_soundness": true,
+      "criterion_state_grounded_soundness": true,
+      "criterion_positive_grounded_soundness": false,
+      "criterion_negative_grounded_soundness": true,
+      "criterion_not_assessable_soundness": false,
+      "criterion_report_only_soundness": false,
+      "criterion_meta_leakage_soundness": true,
+      "criterion_covered_empirical": true,
+      "criterion_state_grounded_empirical": true,
+      "criterion_positive_grounded_empirical": false,
+      "criterion_negative_grounded_empirical": true,
+      "criterion_not_assessable_empirical": false,
+      "criterion_report_only_empirical": false,
+      "criterion_meta_leakage_empirical": false,
+      "criterion_covered_clarity": true,
+      "criterion_state_grounded_clarity": true,
+      "criterion_positive_grounded_clarity": false,
+      "criterion_negative_grounded_clarity": true,
+      "criterion_not_assessable_clarity": false,
+      "criterion_report_only_clarity": false,
+      "criterion_meta_leakage_clarity": false,
+      "real_strong_support_total": 0,
+      "non_abstract_strong_support_total": 0,
+      "criterion_state_grounded_count": 3,
+      "criterion_positive_grounded_count": 0,
+      "criterion_negative_grounded_count": 3,
+      "criterion_report_only_count": 1,
+      "criterion_not_assessable_count": 0
+    },
+    {
+      "paper_id": "9JRsAj3ymy",
+      "gold_decision": "reject",
+      "pred_decision": "reject",
+      "criterion_links": {},
+      "covered_criteria": [
+        "significance_contribution",
+        "technical_soundness",
+        "empirical_adequacy"
+      ],
+      "state_grounded_criteria": [],
+      "positive_grounded_criteria": [],
+      "negative_grounded_criteria": [],
+      "not_assessable_criteria": [],
+      "report_only_criteria": [
+        "significance_contribution",
+        "technical_soundness",
+        "empirical_adequacy"
+      ],
+      "meta_leakage_criteria": [],
+      "criterion_covered_novelty": false,
+      "criterion_state_grounded_novelty": false,
+      "criterion_positive_grounded_novelty": false,
+      "criterion_negative_grounded_novelty": false,
+      "criterion_not_assessable_novelty": false,
+      "criterion_report_only_novelty": false,
+      "criterion_meta_leakage_novelty": false,
+      "criterion_covered_significance": true,
+      "criterion_state_grounded_significance": false,
+      "criterion_positive_grounded_significance": false,
+      "criterion_negative_grounded_significance": false,
+      "criterion_not_assessable_significance": false,
+      "criterion_report_only_significance": true,
+      "criterion_meta_leakage_significance": false,
+      "criterion_covered_soundness": true,
+      "criterion_state_grounded_soundness": false,
+      "criterion_positive_grounded_soundness": false,
+      "criterion_negative_grounded_soundness": false,
+      "criterion_not_assessable_soundness": false,
+      "criterion_report_only_soundness": true,
+      "criterion_meta_leakage_soundness": false,
+      "criterion_covered_empirical": true,
+      "criterion_state_grounded_empirical": false,
+      "criterion_positive_grounded_empirical": false,
+      "criterion_negative_grounded_empirical": false,
+      "criterion_not_assessable_empirical": false,
+      "criterion_report_only_empirical": true,
+      "criterion_meta_leakage_empirical": false,
+      "criterion_covered_clarity": false,
+      "criterion_state_grounded_clarity": false,
+      "criterion_positive_grounded_clarity": false,
+      "criterion_negative_grounded_clarity": false,
+      "criterion_not_assessable_clarity": false,
+      "criterion_report_only_clarity": false,
+      "criterion_meta_leakage_clarity": false,
+      "real_strong_support_total": 0,
+      "non_abstract_strong_support_total": 0,
+      "criterion_state_grounded_count": 0,
+      "criterion_positive_grounded_count": 0,
+      "criterion_negative_grounded_count": 0,
+      "criterion_report_only_count": 3,
+      "criterion_not_assessable_count": 0
+    },
+    {
+      "paper_id": "rEqETC88RY",
+      "gold_decision": "reject",
+      "pred_decision": "reject",
+      "criterion_links": {
+        "novelty": {
+          "positive_evidence_ids": [
+            "evidence-1",
+            "evidence-2"
+          ],
+          "negative_evidence_ids": [],
+          "flaw_ids": [],
+          "sections": [
+            "result",
+            "method"
+          ]
+        },
+        "significance": {
+          "positive_evidence_ids": [
+            "evidence-1"
+          ],
+          "negative_evidence_ids": [],
+          "flaw_ids": [],
+          "sections": [
+            "result"
+          ]
+        },
+        "soundness": {
+          "positive_evidence_ids": [
+            "evidence-1",
+            "evidence-2"
+          ],
+          "negative_evidence_ids": [],
+          "flaw_ids": [
+            "flaw-fallback-1"
+          ],
+          "sections": [
+            "result",
+            "method"
+          ]
+        },
+        "empirical": {
+          "positive_evidence_ids": [
+            "evidence-1"
+          ],
+          "negative_evidence_ids": [],
+          "flaw_ids": [],
+          "sections": [
+            "result"
+          ]
+        },
+        "clarity": {
+          "positive_evidence_ids": [
+            "evidence-1",
+            "evidence-2"
+          ],
+          "negative_evidence_ids": [],
+          "flaw_ids": [
+            "flaw-fallback-1"
+          ],
+          "sections": [
+            "result",
+            "method"
+          ]
+        }
+      },
+      "covered_criteria": [
+        "novelty_originality",
+        "technical_soundness",
+        "clarity_reproducibility"
+      ],
+      "state_grounded_criteria": [
+        "novelty_originality",
+        "significance_contribution",
+        "technical_soundness",
+        "empirical_adequacy",
+        "clarity_reproducibility"
+      ],
+      "positive_grounded_criteria": [
+        "novelty_originality",
+        "significance_contribution",
+        "technical_soundness",
+        "empirical_adequacy",
+        "clarity_reproducibility"
+      ],
+      "negative_grounded_criteria": [
+        "technical_soundness",
+        "clarity_reproducibility"
+      ],
+      "not_assessable_criteria": [
+        "technical_soundness",
+        "clarity_reproducibility"
+      ],
+      "report_only_criteria": [],
+      "meta_leakage_criteria": [
+        "technical_soundness",
+        "clarity_reproducibility"
+      ],
+      "criterion_covered_novelty": true,
+      "criterion_state_grounded_novelty": true,
+      "criterion_positive_grounded_novelty": true,
+      "criterion_negative_grounded_novelty": false,
+      "criterion_not_assessable_novelty": false,
+      "criterion_report_only_novelty": false,
+      "criterion_meta_leakage_novelty": false,
+      "criterion_covered_significance": false,
+      "criterion_state_grounded_significance": true,
+      "criterion_positive_grounded_significance": true,
+      "criterion_negative_grounded_significance": false,
+      "criterion_not_assessable_significance": false,
+      "criterion_report_only_significance": false,
+      "criterion_meta_leakage_significance": false,
+      "criterion_covered_soundness": true,
+      "criterion_state_grounded_soundness": true,
+      "criterion_positive_grounded_soundness": true,
+      "criterion_negative_grounded_soundness": true,
+      "criterion_not_assessable_soundness": true,
+      "criterion_report_only_soundness": false,
+      "criterion_meta_leakage_soundness": true,
+      "criterion_covered_empirical": false,
+      "criterion_state_grounded_empirical": true,
+      "criterion_positive_grounded_empirical": true,
+      "criterion_negative_grounded_empirical": false,
+      "criterion_not_assessable_empirical": false,
+      "criterion_report_only_empirical": false,
+      "criterion_meta_leakage_empirical": false,
+      "criterion_covered_clarity": true,
+      "criterion_state_grounded_clarity": true,
+      "criterion_positive_grounded_clarity": true,
+      "criterion_negative_grounded_clarity": true,
+      "criterion_not_assessable_clarity": true,
+      "criterion_report_only_clarity": false,
+      "criterion_meta_leakage_clarity": true,
+      "real_strong_support_total": 2,
+      "non_abstract_strong_support_total": 2,
+      "criterion_state_grounded_count": 5,
+      "criterion_positive_grounded_count": 5,
+      "criterion_negative_grounded_count": 2,
+      "criterion_report_only_count": 0,
+      "criterion_not_assessable_count": 2
+    },
+    {
+      "paper_id": "aTBE70xiFw",
+      "gold_decision": "reject",
+      "pred_decision": "reject",
+      "criterion_links": {},
+      "covered_criteria": [
+        "novelty_originality",
+        "significance_contribution",
+        "technical_soundness",
+        "empirical_adequacy"
+      ],
+      "state_grounded_criteria": [],
+      "positive_grounded_criteria": [],
+      "negative_grounded_criteria": [],
+      "not_assessable_criteria": [],
+      "report_only_criteria": [
+        "novelty_originality",
+        "significance_contribution",
+        "technical_soundness",
+        "empirical_adequacy"
+      ],
+      "meta_leakage_criteria": [
+        "technical_soundness"
+      ],
+      "criterion_covered_novelty": true,
+      "criterion_state_grounded_novelty": false,
+      "criterion_positive_grounded_novelty": false,
+      "criterion_negative_grounded_novelty": false,
+      "criterion_not_assessable_novelty": false,
+      "criterion_report_only_novelty": true,
+      "criterion_meta_leakage_novelty": false,
+      "criterion_covered_significance": true,
+      "criterion_state_grounded_significance": false,
+      "criterion_positive_grounded_significance": false,
+      "criterion_negative_grounded_significance": false,
+      "criterion_not_assessable_significance": false,
+      "criterion_report_only_significance": true,
+      "criterion_meta_leakage_significance": false,
+      "criterion_covered_soundness": true,
+      "criterion_state_grounded_soundness": false,
+      "criterion_positive_grounded_soundness": false,
+      "criterion_negative_grounded_soundness": false,
+      "criterion_not_assessable_soundness": false,
+      "criterion_report_only_soundness": true,
+      "criterion_meta_leakage_soundness": true,
+      "criterion_covered_empirical": true,
+      "criterion_state_grounded_empirical": false,
+      "criterion_positive_grounded_empirical": false,
+      "criterion_negative_grounded_empirical": false,
+      "criterion_not_assessable_empirical": false,
+      "criterion_report_only_empirical": true,
+      "criterion_meta_leakage_empirical": false,
+      "criterion_covered_clarity": false,
+      "criterion_state_grounded_clarity": false,
+      "criterion_positive_grounded_clarity": false,
+      "criterion_negative_grounded_clarity": false,
+      "criterion_not_assessable_clarity": false,
+      "criterion_report_only_clarity": false,
+      "criterion_meta_leakage_clarity": false,
+      "real_strong_support_total": 0,
+      "non_abstract_strong_support_total": 0,
+      "criterion_state_grounded_count": 0,
+      "criterion_positive_grounded_count": 0,
+      "criterion_negative_grounded_count": 0,
+      "criterion_report_only_count": 4,
+      "criterion_not_assessable_count": 0
+    },
+    {
+      "paper_id": "LieTse3fQB",
+      "gold_decision": "reject",
+      "pred_decision": "reject",
+      "criterion_links": {},
+      "covered_criteria": [
+        "significance_contribution",
+        "technical_soundness",
+        "empirical_adequacy"
+      ],
+      "state_grounded_criteria": [],
+      "positive_grounded_criteria": [],
+      "negative_grounded_criteria": [],
+      "not_assessable_criteria": [],
+      "report_only_criteria": [
+        "significance_contribution",
+        "technical_soundness",
+        "empirical_adequacy"
+      ],
+      "meta_leakage_criteria": [],
+      "criterion_covered_novelty": false,
+      "criterion_state_grounded_novelty": false,
+      "criterion_positive_grounded_novelty": false,
+      "criterion_negative_grounded_novelty": false,
+      "criterion_not_assessable_novelty": false,
+      "criterion_report_only_novelty": false,
+      "criterion_meta_leakage_novelty": false,
+      "criterion_covered_significance": true,
+      "criterion_state_grounded_significance": false,
+      "criterion_positive_grounded_significance": false,
+      "criterion_negative_grounded_significance": false,
+      "criterion_not_assessable_significance": false,
+      "criterion_report_only_significance": true,
+      "criterion_meta_leakage_significance": false,
+      "criterion_covered_soundness": true,
+      "criterion_state_grounded_soundness": false,
+      "criterion_positive_grounded_soundness": false,
+      "criterion_negative_grounded_soundness": false,
+      "criterion_not_assessable_soundness": false,
+      "criterion_report_only_soundness": true,
+      "criterion_meta_leakage_soundness": false,
+      "criterion_covered_empirical": true,
+      "criterion_state_grounded_empirical": false,
+      "criterion_positive_grounded_empirical": false,
+      "criterion_negative_grounded_empirical": false,
+      "criterion_not_assessable_empirical": false,
+      "criterion_report_only_empirical": true,
+      "criterion_meta_leakage_empirical": false,
+      "criterion_covered_clarity": false,
+      "criterion_state_grounded_clarity": false,
+      "criterion_positive_grounded_clarity": false,
+      "criterion_negative_grounded_clarity": false,
+      "criterion_not_assessable_clarity": false,
+      "criterion_report_only_clarity": false,
+      "criterion_meta_leakage_clarity": false,
+      "real_strong_support_total": 0,
+      "non_abstract_strong_support_total": 0,
+      "criterion_state_grounded_count": 0,
+      "criterion_positive_grounded_count": 0,
+      "criterion_negative_grounded_count": 0,
+      "criterion_report_only_count": 3,
+      "criterion_not_assessable_count": 0
+    },
+    {
+      "paper_id": "kam84eEmub",
+      "gold_decision": "reject",
+      "pred_decision": "reject",
+      "criterion_links": {
+        "novelty": {
+          "positive_evidence_ids": [
+            "evidence-1",
+            "evidence-2",
+            "evidence-3"
+          ],
+          "negative_evidence_ids": [],
+          "flaw_ids": [],
+          "sections": [
+            "method",
+            "abstract",
+            "abstract"
+          ]
+        },
+        "soundness": {
+          "positive_evidence_ids": [
+            "evidence-1"
+          ],
+          "negative_evidence_ids": [],
+          "flaw_ids": [],
+          "sections": [
+            "method"
+          ]
+        },
+        "clarity": {
+          "positive_evidence_ids": [
+            "evidence-1",
+            "evidence-2",
+            "evidence-3"
+          ],
+          "negative_evidence_ids": [],
+          "flaw_ids": [],
+          "sections": [
+            "method",
+            "abstract",
+            "abstract"
+          ]
+        },
+        "significance": {
+          "positive_evidence_ids": [
+            "evidence-2",
+            "evidence-3"
+          ],
+          "negative_evidence_ids": [],
+          "flaw_ids": [],
+          "sections": [
+            "abstract",
+            "abstract"
+          ]
+        }
+      },
+      "covered_criteria": [
+        "novelty_originality",
+        "significance_contribution",
+        "technical_soundness",
+        "empirical_adequacy"
+      ],
+      "state_grounded_criteria": [
+        "novelty_originality",
+        "significance_contribution",
+        "technical_soundness",
+        "clarity_reproducibility"
+      ],
+      "positive_grounded_criteria": [
+        "novelty_originality",
+        "significance_contribution",
+        "technical_soundness",
+        "clarity_reproducibility"
+      ],
+      "negative_grounded_criteria": [],
+      "not_assessable_criteria": [],
+      "report_only_criteria": [
+        "empirical_adequacy"
+      ],
+      "meta_leakage_criteria": [],
+      "criterion_covered_novelty": true,
+      "criterion_state_grounded_novelty": true,
+      "criterion_positive_grounded_novelty": true,
+      "criterion_negative_grounded_novelty": false,
+      "criterion_not_assessable_novelty": false,
+      "criterion_report_only_novelty": false,
+      "criterion_meta_leakage_novelty": false,
+      "criterion_covered_significance": true,
+      "criterion_state_grounded_significance": true,
+      "criterion_positive_grounded_significance": true,
+      "criterion_negative_grounded_significance": false,
+      "criterion_not_assessable_significance": false,
+      "criterion_report_only_significance": false,
+      "criterion_meta_leakage_significance": false,
+      "criterion_covered_soundness": true,
+      "criterion_state_grounded_soundness": true,
+      "criterion_positive_grounded_soundness": true,
+      "criterion_negative_grounded_soundness": false,
+      "criterion_not_assessable_soundness": false,
+      "criterion_report_only_soundness": false,
+      "criterion_meta_leakage_soundness": false,
+      "criterion_covered_empirical": true,
+      "criterion_state_grounded_empirical": false,
+      "criterion_positive_grounded_empirical": false,
+      "criterion_negative_grounded_empirical": false,
+      "criterion_not_assessable_empirical": false,
+      "criterion_report_only_empirical": true,
+      "criterion_meta_leakage_empirical": false,
+      "criterion_covered_clarity": false,
+      "criterion_state_grounded_clarity": true,
+      "criterion_positive_grounded_clarity": true,
+      "criterion_negative_grounded_clarity": false,
+      "criterion_not_assessable_clarity": false,
+      "criterion_report_only_clarity": false,
+      "criterion_meta_leakage_clarity": false,
+      "real_strong_support_total": 3,
+      "non_abstract_strong_support_total": 1,
+      "criterion_state_grounded_count": 4,
+      "criterion_positive_grounded_count": 4,
+      "criterion_negative_grounded_count": 0,
+      "criterion_report_only_count": 1,
+      "criterion_not_assessable_count": 0
+    },
+    {
+      "paper_id": "N0isTh3rml",
+      "gold_decision": "reject",
+      "pred_decision": "reject",
+      "criterion_links": {},
+      "covered_criteria": [
+        "significance_contribution",
+        "empirical_adequacy"
+      ],
+      "state_grounded_criteria": [],
+      "positive_grounded_criteria": [],
+      "negative_grounded_criteria": [],
+      "not_assessable_criteria": [],
+      "report_only_criteria": [
+        "significance_contribution",
+        "empirical_adequacy"
+      ],
+      "meta_leakage_criteria": [],
+      "criterion_covered_novelty": false,
+      "criterion_state_grounded_novelty": false,
+      "criterion_positive_grounded_novelty": false,
+      "criterion_negative_grounded_novelty": false,
+      "criterion_not_assessable_novelty": false,
+      "criterion_report_only_novelty": false,
+      "criterion_meta_leakage_novelty": false,
+      "criterion_covered_significance": true,
+      "criterion_state_grounded_significance": false,
+      "criterion_positive_grounded_significance": false,
+      "criterion_negative_grounded_significance": false,
+      "criterion_not_assessable_significance": false,
+      "criterion_report_only_significance": true,
+      "criterion_meta_leakage_significance": false,
+      "criterion_covered_soundness": false,
+      "criterion_state_grounded_soundness": false,
+      "criterion_positive_grounded_soundness": false,
+      "criterion_negative_grounded_soundness": false,
+      "criterion_not_assessable_soundness": false,
+      "criterion_report_only_soundness": false,
+      "criterion_meta_leakage_soundness": false,
+      "criterion_covered_empirical": true,
+      "criterion_state_grounded_empirical": false,
+      "criterion_positive_grounded_empirical": false,
+      "criterion_negative_grounded_empirical": false,
+      "criterion_not_assessable_empirical": false,
+      "criterion_report_only_empirical": true,
+      "criterion_meta_leakage_empirical": false,
+      "criterion_covered_clarity": false,
+      "criterion_state_grounded_clarity": false,
+      "criterion_positive_grounded_clarity": false,
+      "criterion_negative_grounded_clarity": false,
+      "criterion_not_assessable_clarity": false,
+      "criterion_report_only_clarity": false,
+      "criterion_meta_leakage_clarity": false,
+      "real_strong_support_total": 0,
+      "non_abstract_strong_support_total": 0,
+      "criterion_state_grounded_count": 0,
+      "criterion_positive_grounded_count": 0,
+      "criterion_negative_grounded_count": 0,
+      "criterion_report_only_count": 2,
+      "criterion_not_assessable_count": 0
+    },
+    {
+      "paper_id": "2L7KQ4qbHi",
+      "gold_decision": "reject",
+      "pred_decision": "reject",
+      "criterion_links": {},
+      "covered_criteria": [
+        "significance_contribution",
+        "technical_soundness"
+      ],
+      "state_grounded_criteria": [],
+      "positive_grounded_criteria": [],
+      "negative_grounded_criteria": [],
+      "not_assessable_criteria": [],
+      "report_only_criteria": [
+        "significance_contribution",
+        "technical_soundness"
+      ],
+      "meta_leakage_criteria": [],
+      "criterion_covered_novelty": false,
+      "criterion_state_grounded_novelty": false,
+      "criterion_positive_grounded_novelty": false,
+      "criterion_negative_grounded_novelty": false,
+      "criterion_not_assessable_novelty": false,
+      "criterion_report_only_novelty": false,
+      "criterion_meta_leakage_novelty": false,
+      "criterion_covered_significance": true,
+      "criterion_state_grounded_significance": false,
+      "criterion_positive_grounded_significance": false,
+      "criterion_negative_grounded_significance": false,
+      "criterion_not_assessable_significance": false,
+      "criterion_report_only_significance": true,
+      "criterion_meta_leakage_significance": false,
+      "criterion_covered_soundness": true,
+      "criterion_state_grounded_soundness": false,
+      "criterion_positive_grounded_soundness": false,
+      "criterion_negative_grounded_soundness": false,
+      "criterion_not_assessable_soundness": false,
+      "criterion_report_only_soundness": true,
+      "criterion_meta_leakage_soundness": false,
+      "criterion_covered_empirical": false,
+      "criterion_state_grounded_empirical": false,
+      "criterion_positive_grounded_empirical": false,
+      "criterion_negative_grounded_empirical": false,
+      "criterion_not_assessable_empirical": false,
+      "criterion_report_only_empirical": false,
+      "criterion_meta_leakage_empirical": false,
+      "criterion_covered_clarity": false,
+      "criterion_state_grounded_clarity": false,
+      "criterion_positive_grounded_clarity": false,
+      "criterion_negative_grounded_clarity": false,
+      "criterion_not_assessable_clarity": false,
+      "criterion_report_only_clarity": false,
+      "criterion_meta_leakage_clarity": false,
+      "real_strong_support_total": 0,
+      "non_abstract_strong_support_total": 0,
+      "criterion_state_grounded_count": 0,
+      "criterion_positive_grounded_count": 0,
+      "criterion_negative_grounded_count": 0,
+      "criterion_report_only_count": 2,
+      "criterion_not_assessable_count": 0
+    },
+    {
+      "paper_id": "aRxLDcxFcL",
+      "gold_decision": "reject",
+      "pred_decision": "reject",
+      "criterion_links": {
+        "novelty": {
+          "positive_evidence_ids": [
+            "evidence-1",
+            "evidence-2",
+            "acceptance"
+          ],
+          "negative_evidence_ids": [],
+          "flaw_ids": [],
+          "sections": [
+            "abstract",
+            "abstract",
+            "abstract"
+          ]
+        },
+        "significance": {
+          "positive_evidence_ids": [
+            "evidence-1",
+            "evidence-2",
+            "acceptance"
+          ],
+          "negative_evidence_ids": [],
+          "flaw_ids": [],
+          "sections": [
+            "abstract",
+            "abstract",
+            "abstract"
+          ]
+        },
+        "clarity": {
+          "positive_evidence_ids": [
+            "evidence-1",
+            "evidence-2",
+            "acceptance"
+          ],
+          "negative_evidence_ids": [],
+          "flaw_ids": [],
+          "sections": [
+            "abstract",
+            "abstract",
+            "abstract"
+          ]
+        }
+      },
+      "covered_criteria": [
+        "significance_contribution",
+        "technical_soundness",
+        "empirical_adequacy"
+      ],
+      "state_grounded_criteria": [
+        "novelty_originality",
+        "significance_contribution",
+        "clarity_reproducibility"
+      ],
+      "positive_grounded_criteria": [
+        "novelty_originality",
+        "significance_contribution",
+        "clarity_reproducibility"
+      ],
+      "negative_grounded_criteria": [],
+      "not_assessable_criteria": [],
+      "report_only_criteria": [
+        "technical_soundness",
+        "empirical_adequacy"
+      ],
+      "meta_leakage_criteria": [
+        "technical_soundness"
+      ],
+      "criterion_covered_novelty": false,
+      "criterion_state_grounded_novelty": true,
+      "criterion_positive_grounded_novelty": true,
+      "criterion_negative_grounded_novelty": false,
+      "criterion_not_assessable_novelty": false,
+      "criterion_report_only_novelty": false,
+      "criterion_meta_leakage_novelty": false,
+      "criterion_covered_significance": true,
+      "criterion_state_grounded_significance": true,
+      "criterion_positive_grounded_significance": true,
+      "criterion_negative_grounded_significance": false,
+      "criterion_not_assessable_significance": false,
+      "criterion_report_only_significance": false,
+      "criterion_meta_leakage_significance": false,
+      "criterion_covered_soundness": true,
+      "criterion_state_grounded_soundness": false,
+      "criterion_positive_grounded_soundness": false,
+      "criterion_negative_grounded_soundness": false,
+      "criterion_not_assessable_soundness": false,
+      "criterion_report_only_soundness": true,
+      "criterion_meta_leakage_soundness": true,
+      "criterion_covered_empirical": true,
+      "criterion_state_grounded_empirical": false,
+      "criterion_positive_grounded_empirical": false,
+      "criterion_negative_grounded_empirical": false,
+      "criterion_not_assessable_empirical": false,
+      "criterion_report_only_empirical": true,
+      "criterion_meta_leakage_empirical": false,
+      "criterion_covered_clarity": false,
+      "criterion_state_grounded_clarity": true,
+      "criterion_positive_grounded_clarity": true,
+      "criterion_negative_grounded_clarity": false,
+      "criterion_not_assessable_clarity": false,
+      "criterion_report_only_clarity": false,
+      "criterion_meta_leakage_clarity": false,
+      "real_strong_support_total": 3,
+      "non_abstract_strong_support_total": 0,
+      "criterion_state_grounded_count": 3,
+      "criterion_positive_grounded_count": 3,
+      "criterion_negative_grounded_count": 0,
+      "criterion_report_only_count": 2,
+      "criterion_not_assessable_count": 0
+    }
+  ]
+}

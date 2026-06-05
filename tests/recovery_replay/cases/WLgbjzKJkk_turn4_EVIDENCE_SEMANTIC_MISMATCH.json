@@ -1,0 +1,230 @@
+{
+  "case_id": "WLgbjzKJkk_turn4_EVIDENCE_SEMANTIC_MISMATCH",
+  "paper_id": "WLgbjzKJkk",
+  "turn_id": 4,
+  "review_state": {
+    "claims": [
+      {
+        "claim_id": "claim-1",
+        "claim": "Existing end-to-end Multi-Object Tracking methods have not surpassed non-end-to-end tracking-by-detection methods, potentially due to label assignment issues.",
+        "importance": "high",
+        "status": "partially_supported",
+        "claim_type": "contribution",
+        "claim_kind": "paper_extracted",
+        "evidence_need": "method",
+        "coverage_tags": [
+          "contribution",
+          "limitation",
+          "method"
+        ],
+        "supporting_evidence_ids": [
+          "evidence-1-turn-2"
+        ]
+      },
+      {
+        "claim_id": "claim-2",
+        "claim": "CO-MOT boosts end-to-end Transformer-based MOT via Coopetition Label Assignment and Shadow Sets.",
+        "importance": "high",
+        "status": "uncertain",
+        "claim_type": "method",
+        "claim_kind": "paper_extracted",
+        "evidence_need": "method",
+        "coverage_tags": [
+          "method"
+        ],
+        "supporting_evidence_ids": []
+      },
+      {
+        "claim_id": "claim-3",
+        "claim": "CO-MOT outperforms state-of-the-art methods on DanceTrack and MOT17 datasets.",
+        "importance": "high",
+        "status": "uncertain",
+        "claim_type": "empirical",
+        "claim_kind": "paper_extracted",
+        "evidence_need": "result",
+        "coverage_tags": [
+          "empirical",
+          "comparison",
+          "method"
+        ],
+        "supporting_evidence_ids": []
+      },
+      {
+        "claim_id": "claim-4",
+        "claim": "Insufficient MOT17 training data may limit the ability of Transformer-based MOT models to fully learn.",
+        "importance": "medium",
+        "status": "uncertain",
+        "claim_type": "limitation_or_boundary",
+        "claim_kind": "paper_extracted",
+        "evidence_need": "limitation",
+        "coverage_tags": [
+          "limitation",
+          "scope",
+          "method"
+        ],
+        "supporting_evidence_ids": []
+      }
+    ],
+    "evidence_map": [
+      {
+        "evidence_id": "evidence-1-turn-2",
+        "claim_id": "claim-1",
+        "evidence": "Abstract title confirms CO-MOT boosts end-to-end tracking via Coopetition Label Assignment.",
+        "source": "abstract",
+        "source_locator": "Abstract excerpt #1",
+        "raw_quote": "\\title{CO-MOT: Boosting End-to-end Transformer-based Multi-Object Tracking via Coopetition Label Assignment and Shadow Sets}",
+        "quote_id": "quote-abstract-1",
+        "source_span_start": 0,
+        "source_span_end": 123,
+        "strength": "medium",
+        "stance": "supports",
+        "binding_status": "bound_real_claim",
+        "binding_confidence": 0.9,
+        "binding_rationale": "Directly matches claim about boosting tracking via label assignment.",
+        "grounded_judge_label": "self_claimed_by_agent",
+        "grounded_judge_reason": "Exact copy from provided abstract excerpt.",
+        "verified_grounding_label": "paper_grounded_exact",
+        "verified_grounding_reason": "quote_id matched a program-extracted quote-bank item; raw_quote was canonicalized to that item",
+        "verified_source_span_start": 0,
+        "verified_source_span_end": 123,
+        "verified_quote_match_type": "quote_bank_id_canonical",
+        "verified_locator_quality": "",
+        "semantic_grounding_label": "semantic_support_verified",
+        "semantic_grounding_reasons": [],
+        "semantic_alignment_score": 1.0,
+        "semantic_grounding_checked": true,
+        "quote_evidence_semantic_mismatch": false,
+        "verified_claim_overlap_score": 11,
+        "quote_bank_claim_overlap_fallback_used": false,
+        "quote_bank_claim_overlap_fallback_quote_id": "",
+        "quote_bank_claim_overlap_fallback_source_bucket": "",
+        "quote_bank_claim_overlap_fallback_score": 0,
+        "semantic_weak_promotion_used": false,
+        "semantic_weak_promotion_reason": "",
+        "strength_promotion_from_medium_used": false,
+        "strength_promotion_reason": "",
+        "support_source_bucket": "abstract",
+        "support_quality": "abstract_claim_support",
+        "support_quality_reason": "Title confirms method goal but lacks empirical metrics.",
+        "paper_id": "WLgbjzKJkk",
+        "support_id": "evidence-1-turn-2",
+        "turn_id": 2,
+        "initial_strength": "medium",
+        "initial_stance": "supports",
+        "source_locator_specific": false,
+        "support_depth": "shallow",
+        "final_strength": "medium",
+        "final_support_depth": "shallow",
+        "agent_raw_quote": "CO-MOT: Boosting End-to-end Transformer-based Multi-Object Tracking via Coopetition Label Assignment and Shadow Sets",
+        "quote_bank_canonicalized": true,
+        "verified_source_bucket": "abstract"
+      },
+      {
+        "evidence_id": "evidence-negative-quote-bank-quote-negative-or-gap-1-1",
+        "claim_id": "claim-1",
+        "evidence": "Paper-grounded limitation/gap quote for hard-negative review: feed the entire set to the next frame for subsequent tracking. Sets that do not capture any object will be discarded. \\section{4 EXPERIMENT } Table 2: Comparison to state-of-the-art methods on different dataset. Please p",
+        "source": "quote-bank-negative-grounding",
+        "source_locator": "Table 2",
+        "raw_quote": "feed the entire set to the next frame for subsequent tracking. Sets that do not capture any object will be discarded. \\section{4 EXPERIMENT } Table 2: Comparison to state-of-the-art methods on different dataset. Please p",
+        "quote_id": "quote-negative-or-gap-1",
+        "source_span_start": 20386,
+        "source_span_end": 20605,
+        "strength": "missing",
+        "stance": "missing",
+        "binding_status": "bound_real_claim",
+        "binding_confidence": 0.72,
+        "binding_rationale": "Deterministic hard-negative salvage from program-extracted negative_or_gap quote bank.",
+        "grounded_judge_label": "paper_grounded",
+        "grounded_judge_reason": "Quote was copied from the ReviewState evidence quote bank; semantic verification is applied during state merge.",
+        "verified_grounding_label": "paper_grounded_exact",
+        "verified_grounding_reason": "quote_id matched a program-extracted quote-bank item; raw_quote was canonicalized to that item",
+        "verified_source_span_start": 20386,
+        "verified_source_span_end": 20605,
+        "verified_quote_match_type": "quote_bank_id_canonical",
+        "verified_locator_quality": "",
+        "semantic_grounding_label": "semantic_mismatch",
+        "semantic_grounding_reasons": [
+          "quote_lacks_negative_anchor"
+        ],
+        "semantic_alignment_score": 1.0,
+        "semantic_grounding_checked": true,
+        "quote_evidence_semantic_mismatch": true,
+        "verified_claim_overlap_score": 3,
+        "quote_bank_claim_overlap_fallback_used": false,
+        "quote_bank_claim_overlap_fallback_quote_id": "",
+        "quote_bank_claim_overlap_fallback_source_bucket": "",
+        "quote_bank_claim_overlap_fallback_score": 0,
+        "semantic_weak_promotion_used": false,
+        "semantic_weak_promotion_reason": "",
+        "strength_promotion_from_medium_used": false,
+        "strength_promotion_reason": "",
+        "support_source_bucket": "limitation_or_gap",
+        "support_quality": "unspecified_support",
+        "support_quality_reason": "",
+        "paper_id": "WLgbjzKJkk",
+        "support_id": "evidence-negative-quote-bank-quote-negative-or-gap-1-1",
+        "turn_id": 0,
+        "initial_strength": "missing",
+        "initial_stance": "missing",
+        "source_locator_specific": true,
+        "support_depth": "deep",
+        "final_strength": "missing",
+        "final_support_depth": "deep",
+        "verified_source_bucket": "negative_or_gap"
+      }
+    ],
+    "flaw_candidates": [
+      {
+        "flaw_id": "flaw-negative-quote-bank-quote-negative-or-gap-1",
+        "title": "Target flaw has a verified negative_or_gap quote candidate; keep as candidate until critique confirms severity.",
+        "description": "Target flaw has a verified negative_or_gap quote candidate; keep as candidate until critique confirms severity.",
+        "severity": "minor",
+        "status": "candidate",
+        "related_claim_ids": [
+          "claim-1"
+        ],
+        "evidence_ids": [
+          "evidence-negative-quote-bank-quote-negative-or-gap-1-1"
+        ],
+        "confidence": 0.5,
+        "negative_evidence_ids": [
+          "evidence-negative-quote-bank-quote-negative-or-gap-1-1"
+        ],
+        "source": "quote-bank-negative-grounding",
+        "grounding_status": "grounded_candidate"
+      }
+    ],
+    "current_hypotheses": [],
+    "conflict_notes": []
+  },
+  "raw_payload": {
+    "action": "apply_recovery_patch",
+    "target_type": "claim",
+    "target_id": "claim-1",
+    "old_status": "partially_supported",
+    "new_status": "unsupported",
+    "supporting_evidence_ids": [
+      "evidence-negative-quote-bank-quote-negative-or-gap-1-1"
+    ],
+    "negative_evidence_ids": null,
+    "conflict_note_ids": [],
+    "reason_for_change": "Turn-local contradictory evidence triggered deterministic recovery salvage.",
+    "resolution_expectation": "partially_resolved",
+    "confidence": 0.3,
+    "blocked_reason": "",
+    "missing_requirements": [],
+    "_recovery_patch_source": "system_salvaged"
+  },
+  "expected": {
+    "failure_code": "EVIDENCE_SEMANTIC_MISMATCH",
+    "validated": true,
+    "commit_allowed": false
+  },
+  "meta": {
+    "runner_failure_code": "EVIDENCE_SEMANTIC_MISMATCH",
+    "snapshot_timing": "post_recovery",
+    "recovery_target_id": "claim-1",
+    "recovery_target_type": "claim",
+    "recovery_patch_source": "system_salvaged"
+  }
+}

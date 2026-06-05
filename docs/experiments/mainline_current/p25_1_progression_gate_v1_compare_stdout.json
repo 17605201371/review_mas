@@ -1,0 +1,50 @@
+{
+  "baseline": {
+    "rows_with_any_commit": 4,
+    "NO_EFFECT_PATCH": 1,
+    "BLOCKED_BY_POLICY": 27,
+    "recovery_enter_count": 34,
+    "patch_emitted_count": 17,
+    "patch_committed_count": 6,
+    "system_salvaged_commit_count": 4,
+    "target_switch_count": 8,
+    "broad_target_recovery_count": 2,
+    "model_generated_commit_count": 2,
+    "fallback_target_recovery_count": 6,
+    "rows": 10,
+    "avg_reward": 0.5443,
+    "decision_correct_rate": 0.9,
+    "policy_source_counts": {
+      "manager_model": 30,
+      "evidence_progress_override": 25,
+      "s4_evidence_to_flaw_override": 2,
+      "sticky_recovery_bias": 18,
+      "s4_clarification_to_evidence_override": 5
+    }
+  },
+  "candidate": {
+    "rows_with_any_commit": 1,
+    "NO_EFFECT_PATCH": 0,
+    "BLOCKED_BY_POLICY": 3,
+    "recovery_enter_count": 5,
+    "fallback_target_recovery_count": 5,
+    "patch_emitted_count": 2,
+    "patch_committed_count": 1,
+    "system_salvaged_commit_count": 1,
+    "progression_gate_triggered_turns": 6,
+    "fallback_target_gate_blocked": 6,
+    "rows": 10,
+    "avg_reward": 0.5683,
+    "decision_correct_rate": 0.9,
+    "policy_source_counts": {
+      "s4_preclaim_clarification_override": 1,
+      "evidence_progress_override": 51,
+      "s4_clarification_to_evidence_override": 1,
+      "manager_model": 14,
+      "sticky_recovery_bias": 1,
+      "recovery_target_exhausted_override": 1,
+      "s4_evidence_to_flaw_override": 1,
+      "progression_gate_override": 6
+    }
+  }
+}

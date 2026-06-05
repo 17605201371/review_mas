@@ -1,0 +1,1216 @@
+{
+  "summary": {
+    "input": "LATEST_MAINLINE_FINAL_V1_CLOSURE_9B_FULLTEST39_20260504_gold.jsonl",
+    "rows": 39,
+    "raw_unresolved_total": 269,
+    "raw_gap_total": 110,
+    "raw_flaw_total": 48,
+    "raw_conflict_total": 73,
+    "hygiene_open_unresolved_total": 0,
+    "hygiene_gap_total": 52,
+    "hygiene_conflict_total": 35,
+    "unresolved_categories": {
+      "context_limitation": 69,
+      "targetless_open_question": 200
+    },
+    "gap_categories": {
+      "stale_gap_resolved_by_support": 42,
+      "open_gap": 68
+    },
+    "flaw_categories": {
+      "fallback_or_meta_flaw": 43,
+      "ungrounded_candidate": 4,
+      "grounded_major_or_critical": 1
+    },
+    "conflict_categories": {
+      "fallback_or_context_conflict": 53,
+      "open_conflict": 20
+    }
+  },
+  "case_rows": [
+    {
+      "paper_id": "ye3NrNrYOY",
+      "gold": "reject",
+      "runtime_pred": "reject",
+      "recommendation_view": "borderline_insufficient",
+      "recommendation_reason": "some_real_support_but_not_enough_quality_or_coverage_for_accept_like",
+      "real_strong": 2,
+      "nonabstract": 2,
+      "empirical": 1,
+      "raw_unresolved_count": 5,
+      "raw_gap_count": 3,
+      "raw_flaw_count": 1,
+      "raw_conflict_count": 2,
+      "hygiene_open_unresolved_count": 0,
+      "hygiene_gap_count": 1,
+      "hygiene_conflict_count": 0,
+      "unresolved_category_counts": {
+        "context_limitation": 4,
+        "targetless_open_question": 1
+      },
+      "gap_category_counts": {
+        "stale_gap_resolved_by_support": 2,
+        "open_gap": 1
+      },
+      "flaw_category_counts": {
+        "fallback_or_meta_flaw": 1
+      },
+      "conflict_category_counts": {
+        "fallback_or_context_conflict": 2
+      }
+    },
+    {
+      "paper_id": "WNxlJJIEVj",
+      "gold": "reject",
+      "runtime_pred": "reject",
+      "recommendation_view": "borderline_insufficient",
+      "recommendation_reason": "some_real_support_but_not_enough_quality_or_coverage_for_accept_like",
+      "real_strong": 1,
+      "nonabstract": 1,
+      "empirical": 0,
+      "raw_unresolved_count": 7,
+      "raw_gap_count": 5,
+      "raw_flaw_count": 2,
+      "raw_conflict_count": 3,
+      "hygiene_open_unresolved_count": 0,
+      "hygiene_gap_count": 2,
+      "hygiene_conflict_count": 3,
+      "unresolved_category_counts": {
+        "targetless_open_question": 7
+      },
+      "gap_category_counts": {
+        "open_gap": 4,
+        "stale_gap_resolved_by_support": 1
+      },
+      "flaw_category_counts": {
+        "ungrounded_candidate": 2
+      },
+      "conflict_category_counts": {
+        "open_conflict": 3
+      }
+    },
+    {
+      "paper_id": "uOrfve3prk",
+      "gold": "reject",
+      "runtime_pred": "reject",
+      "recommendation_view": "borderline_insufficient",
+      "recommendation_reason": "some_real_support_but_not_enough_quality_or_coverage_for_accept_like",
+      "real_strong": 2,
+      "nonabstract": 2,
+      "empirical": 1,
+      "raw_unresolved_count": 5,
+      "raw_gap_count": 3,
+      "raw_flaw_count": 1,
+      "raw_conflict_count": 2,
+      "hygiene_open_unresolved_count": 0,
+      "hygiene_gap_count": 1,
+      "hygiene_conflict_count": 0,
+      "unresolved_category_counts": {
+        "context_limitation": 3,
+        "targetless_open_question": 2
+      },
+      "gap_category_counts": {
+        "stale_gap_resolved_by_support": 2,
+        "open_gap": 1
+      },
+      "flaw_category_counts": {
+        "fallback_or_meta_flaw": 1
+      },
+      "conflict_category_counts": {
+        "fallback_or_context_conflict": 2
+      }
+    },
+    {
+      "paper_id": "hj323oR3rw",
+      "gold": "accept",
+      "runtime_pred": "reject",
+      "recommendation_view": "not_assessable_uncertain",
+      "recommendation_reason": "insufficient_grounded_support_with_open_uncertainty",
+      "real_strong": 0,
+      "nonabstract": 0,
+      "empirical": 0,
+      "raw_unresolved_count": 5,
+      "raw_gap_count": 3,
+      "raw_flaw_count": 1,
+      "raw_conflict_count": 2,
+      "hygiene_open_unresolved_count": 0,
+      "hygiene_gap_count": 3,
+      "hygiene_conflict_count": 1,
+      "unresolved_category_counts": {
+        "targetless_open_question": 5
+      },
+      "gap_category_counts": {
+        "open_gap": 3
+      },
+      "flaw_category_counts": {
+        "fallback_or_meta_flaw": 1
+      },
+      "conflict_category_counts": {
+        "fallback_or_context_conflict": 2
+      }
+    },
+    {
+      "paper_id": "7Dub7UXTXN",
+      "gold": "reject",
+      "runtime_pred": "reject",
+      "recommendation_view": "borderline_insufficient",
+      "recommendation_reason": "some_real_support_but_not_enough_quality_or_coverage_for_accept_like",
+      "real_strong": 1,
+      "nonabstract": 1,
+      "empirical": 1,
+      "raw_unresolved_count": 5,
+      "raw_gap_count": 2,
+      "raw_flaw_count": 1,
+      "raw_conflict_count": 2,
+      "hygiene_open_unresolved_count": 0,
+      "hygiene_gap_count": 1,
+      "hygiene_conflict_count": 1,
+      "unresolved_category_counts": {
+        "targetless_open_question": 4,
+        "context_limitation": 1
+      },
+      "gap_category_counts": {
+        "open_gap": 1,
+        "stale_gap_resolved_by_support": 1
+      },
+      "flaw_category_counts": {
+        "fallback_or_meta_flaw": 1
+      },
+      "conflict_category_counts": {
+        "fallback_or_context_conflict": 2
+      }
+    },
+    {
+      "paper_id": "9zEBK3E9bX",
+      "gold": "reject",
+      "runtime_pred": "reject",
+      "recommendation_view": "borderline_positive",
+      "recommendation_reason": "positive_support_present_but_uncertainty_or_unverified_negative_remains",
+      "real_strong": 3,
+      "nonabstract": 3,
+      "empirical": 3,
+      "raw_unresolved_count": 10,
+      "raw_gap_count": 3,
+      "raw_flaw_count": 1,
+      "raw_conflict_count": 2,
+      "hygiene_open_unresolved_count": 0,
+      "hygiene_gap_count": 1,
+      "hygiene_conflict_count": 1,
+      "unresolved_category_counts": {
+        "targetless_open_question": 6,
+        "context_limitation": 4
+      },
+      "gap_category_counts": {
+        "open_gap": 1,
+        "stale_gap_resolved_by_support": 2
+      },
+      "flaw_category_counts": {
+        "fallback_or_meta_flaw": 1
+      },
+      "conflict_category_counts": {
+        "fallback_or_context_conflict": 2
+      }
+    },
+    {
+      "paper_id": "XyB4VvF01X",
+      "gold": "reject",
+      "runtime_pred": "reject",
+      "recommendation_view": "borderline_insufficient",
+      "recommendation_reason": "some_real_support_but_not_enough_quality_or_coverage_for_accept_like",
+      "real_strong": 2,
+      "nonabstract": 2,
+      "empirical": 2,
+      "raw_unresolved_count": 10,
+      "raw_gap_count": 3,
+      "raw_flaw_count": 2,
+      "raw_conflict_count": 0,
+      "hygiene_open_unresolved_count": 0,
+      "hygiene_gap_count": 1,
+      "hygiene_conflict_count": 0,
+      "unresolved_category_counts": {
+        "targetless_open_question": 7,
+        "context_limitation": 3
+      },
+      "gap_category_counts": {
+        "open_gap": 2,
+        "stale_gap_resolved_by_support": 1
+      },
+      "flaw_category_counts": {
+        "fallback_or_meta_flaw": 2
+      },
+      "conflict_category_counts": {}
+    },
+    {
+      "paper_id": "GE6iywJtsV",
+      "gold": "reject",
+      "runtime_pred": "reject",
+      "recommendation_view": "not_assessable_uncertain",
+      "recommendation_reason": "insufficient_grounded_support_with_open_uncertainty",
+      "real_strong": 0,
+      "nonabstract": 0,
+      "empirical": 0,
+      "raw_unresolved_count": 10,
+      "raw_gap_count": 2,
+      "raw_flaw_count": 1,
+      "raw_conflict_count": 2,
+      "hygiene_open_unresolved_count": 0,
+      "hygiene_gap_count": 1,
+      "hygiene_conflict_count": 2,
+      "unresolved_category_counts": {
+        "targetless_open_question": 7,
+        "context_limitation": 3
+      },
+      "gap_category_counts": {
+        "open_gap": 2
+      },
+      "flaw_category_counts": {
+        "fallback_or_meta_flaw": 1
+      },
+      "conflict_category_counts": {
+        "open_conflict": 2
+      }
+    },
+    {
+      "paper_id": "QAAsnSRwgu",
+      "gold": "accept",
+      "runtime_pred": "reject",
+      "recommendation_view": "borderline_insufficient",
+      "recommendation_reason": "some_real_support_but_not_enough_quality_or_coverage_for_accept_like",
+      "real_strong": 1,
+      "nonabstract": 1,
+      "empirical": 1,
+      "raw_unresolved_count": 4,
+      "raw_gap_count": 3,
+      "raw_flaw_count": 1,
+      "raw_conflict_count": 2,
+      "hygiene_open_unresolved_count": 0,
+      "hygiene_gap_count": 2,
+      "hygiene_conflict_count": 1,
+      "unresolved_category_counts": {
+        "targetless_open_question": 4
+      },
+      "gap_category_counts": {
+        "open_gap": 2,
+        "stale_gap_resolved_by_support": 1
+      },
+      "flaw_category_counts": {
+        "fallback_or_meta_flaw": 1
+      },
+      "conflict_category_counts": {
+        "fallback_or_context_conflict": 2
+      }
+    },
+    {
+      "paper_id": "WpXq5n8yLb",
+      "gold": "reject",
+      "runtime_pred": "reject",
+      "recommendation_view": "borderline_insufficient",
+      "recommendation_reason": "some_real_support_but_not_enough_quality_or_coverage_for_accept_like",
+      "real_strong": 2,
+      "nonabstract": 2,
+      "empirical": 2,
+      "raw_unresolved_count": 6,
+      "raw_gap_count": 3,
+      "raw_flaw_count": 1,
+      "raw_conflict_count": 2,
+      "hygiene_open_unresolved_count": 0,
+      "hygiene_gap_count": 1,
+      "hygiene_conflict_count": 0,
+      "unresolved_category_counts": {
+        "context_limitation": 4,
+        "targetless_open_question": 2
+      },
+      "gap_category_counts": {
+        "stale_gap_resolved_by_support": 2,
+        "open_gap": 1
+      },
+      "flaw_category_counts": {
+        "fallback_or_meta_flaw": 1
+      },
+      "conflict_category_counts": {
+        "fallback_or_context_conflict": 2
+      }
+    },
+    {
+      "paper_id": "X41c4uB4k0",
+      "gold": "accept",
+      "runtime_pred": "reject",
+      "recommendation_view": "borderline_insufficient",
+      "recommendation_reason": "some_real_support_but_not_enough_quality_or_coverage_for_accept_like",
+      "real_strong": 1,
+      "nonabstract": 1,
+      "empirical": 0,
+      "raw_unresolved_count": 3,
+      "raw_gap_count": 3,
+      "raw_flaw_count": 1,
+      "raw_conflict_count": 2,
+      "hygiene_open_unresolved_count": 0,
+      "hygiene_gap_count": 2,
+      "hygiene_conflict_count": 1,
+      "unresolved_category_counts": {
+        "targetless_open_question": 3
+      },
+      "gap_category_counts": {
+        "open_gap": 2,
+        "stale_gap_resolved_by_support": 1
+      },
+      "flaw_category_counts": {
+        "fallback_or_meta_flaw": 1
+      },
+      "conflict_category_counts": {
+        "fallback_or_context_conflict": 2
+      }
+    },
+    {
+      "paper_id": "NnExMNiTHw",
+      "gold": "reject",
+      "runtime_pred": "reject",
+      "recommendation_view": "borderline_insufficient",
+      "recommendation_reason": "some_real_support_but_not_enough_quality_or_coverage_for_accept_like",
+      "real_strong": 2,
+      "nonabstract": 2,
+      "empirical": 2,
+      "raw_unresolved_count": 6,
+      "raw_gap_count": 3,
+      "raw_flaw_count": 1,
+      "raw_conflict_count": 2,
+      "hygiene_open_unresolved_count": 0,
+      "hygiene_gap_count": 2,
+      "hygiene_conflict_count": 1,
+      "unresolved_category_counts": {
+        "context_limitation": 5,
+        "targetless_open_question": 1
+      },
+      "gap_category_counts": {
+        "open_gap": 2,
+        "stale_gap_resolved_by_support": 1
+      },
+      "flaw_category_counts": {
+        "fallback_or_meta_flaw": 1
+      },
+      "conflict_category_counts": {
+        "fallback_or_context_conflict": 2
+      }
+    },
+    {
+      "paper_id": "gzqrANCF4g",
+      "gold": "accept",
+      "runtime_pred": "reject",
+      "recommendation_view": "reject_like",
+      "recommendation_reason": "grounded_major_or_critical_flaw",
+      "real_strong": 1,
+      "nonabstract": 1,
+      "empirical": 1,
+      "raw_unresolved_count": 10,
+      "raw_gap_count": 2,
+      "raw_flaw_count": 2,
+      "raw_conflict_count": 4,
+      "hygiene_open_unresolved_count": 0,
+      "hygiene_gap_count": 1,
+      "hygiene_conflict_count": 4,
+      "unresolved_category_counts": {
+        "targetless_open_question": 8,
+        "context_limitation": 2
+      },
+      "gap_category_counts": {
+        "open_gap": 1,
+        "stale_gap_resolved_by_support": 1
+      },
+      "flaw_category_counts": {
+        "grounded_major_or_critical": 1,
+        "fallback_or_meta_flaw": 1
+      },
+      "conflict_category_counts": {
+        "open_conflict": 4
+      }
+    },
+    {
+      "paper_id": "a6SntIisgg",
+      "gold": "reject",
+      "runtime_pred": "reject",
+      "recommendation_view": "borderline_insufficient",
+      "recommendation_reason": "some_real_support_but_not_enough_quality_or_coverage_for_accept_like",
+      "real_strong": 2,
+      "nonabstract": 2,
+      "empirical": 0,
+      "raw_unresolved_count": 9,
+      "raw_gap_count": 6,
+      "raw_flaw_count": 2,
+      "raw_conflict_count": 3,
+      "hygiene_open_unresolved_count": 0,
+      "hygiene_gap_count": 2,
+      "hygiene_conflict_count": 3,
+      "unresolved_category_counts": {
+        "context_limitation": 4,
+        "targetless_open_question": 5
+      },
+      "gap_category_counts": {
+        "stale_gap_resolved_by_support": 2,
+        "open_gap": 4
+      },
+      "flaw_category_counts": {
+        "fallback_or_meta_flaw": 2
+      },
+      "conflict_category_counts": {
+        "open_conflict": 3
+      }
+    },
+    {
+      "paper_id": "cklg91aPGk",
+      "gold": "reject",
+      "runtime_pred": "reject",
+      "recommendation_view": "borderline_insufficient",
+      "recommendation_reason": "some_real_support_but_not_enough_quality_or_coverage_for_accept_like",
+      "real_strong": 2,
+      "nonabstract": 2,
+      "empirical": 1,
+      "raw_unresolved_count": 3,
+      "raw_gap_count": 3,
+      "raw_flaw_count": 1,
+      "raw_conflict_count": 2,
+      "hygiene_open_unresolved_count": 0,
+      "hygiene_gap_count": 1,
+      "hygiene_conflict_count": 0,
+      "unresolved_category_counts": {
+        "targetless_open_question": 2,
+        "context_limitation": 1
+      },
+      "gap_category_counts": {
+        "stale_gap_resolved_by_support": 2,
+        "open_gap": 1
+      },
+      "flaw_category_counts": {
+        "fallback_or_meta_flaw": 1
+      },
+      "conflict_category_counts": {
+        "fallback_or_context_conflict": 2
+      }
+    },
+    {
+      "paper_id": "HPuLU6q7xq",
+      "gold": "reject",
+      "runtime_pred": "reject",
+      "recommendation_view": "not_assessable_uncertain",
+      "recommendation_reason": "insufficient_grounded_support_with_open_uncertainty",
+      "real_strong": 0,
+      "nonabstract": 0,
+      "empirical": 0,
+      "raw_unresolved_count": 10,
+      "raw_gap_count": 2,
+      "raw_flaw_count": 2,
+      "raw_conflict_count": 1,
+      "hygiene_open_unresolved_count": 0,
+      "hygiene_gap_count": 1,
+      "hygiene_conflict_count": 1,
+      "unresolved_category_counts": {
+        "targetless_open_question": 7,
+        "context_limitation": 3
+      },
+      "gap_category_counts": {
+        "open_gap": 2
+      },
+      "flaw_category_counts": {
+        "fallback_or_meta_flaw": 1,
+        "ungrounded_candidate": 1
+      },
+      "conflict_category_counts": {
+        "open_conflict": 1
+      }
+    },
+    {
+      "paper_id": "fGXyvmWpw6",
+      "gold": "reject",
+      "runtime_pred": "reject",
+      "recommendation_view": "borderline_insufficient",
+      "recommendation_reason": "some_real_support_but_not_enough_quality_or_coverage_for_accept_like",
+      "real_strong": 1,
+      "nonabstract": 1,
+      "empirical": 0,
+      "raw_unresolved_count": 7,
+      "raw_gap_count": 2,
+      "raw_flaw_count": 1,
+      "raw_conflict_count": 2,
+      "hygiene_open_unresolved_count": 0,
+      "hygiene_gap_count": 1,
+      "hygiene_conflict_count": 1,
+      "unresolved_category_counts": {
+        "targetless_open_question": 6,
+        "context_limitation": 1
+      },
+      "gap_category_counts": {
+        "open_gap": 1,
+        "stale_gap_resolved_by_support": 1
+      },
+      "flaw_category_counts": {
+        "fallback_or_meta_flaw": 1
+      },
+      "conflict_category_counts": {
+        "fallback_or_context_conflict": 2
+      }
+    },
+    {
+      "paper_id": "QAgwFiIY4p",
+      "gold": "reject",
+      "runtime_pred": "reject",
+      "recommendation_view": "borderline_insufficient",
+      "recommendation_reason": "some_real_support_but_not_enough_quality_or_coverage_for_accept_like",
+      "real_strong": 2,
+      "nonabstract": 2,
+      "empirical": 1,
+      "raw_unresolved_count": 6,
+      "raw_gap_count": 3,
+      "raw_flaw_count": 1,
+      "raw_conflict_count": 2,
+      "hygiene_open_unresolved_count": 0,
+      "hygiene_gap_count": 1,
+      "hygiene_conflict_count": 0,
+      "unresolved_category_counts": {
+        "targetless_open_question": 5,
+        "context_limitation": 1
+      },
+      "gap_category_counts": {
+        "stale_gap_resolved_by_support": 2,
+        "open_gap": 1
+      },
+      "flaw_category_counts": {
+        "fallback_or_meta_flaw": 1
+      },
+      "conflict_category_counts": {
+        "fallback_or_context_conflict": 2
+      }
+    },
+    {
+      "paper_id": "KI9NqjLVDT",
+      "gold": "reject",
+      "runtime_pred": "reject",
+      "recommendation_view": "borderline_positive",
+      "recommendation_reason": "positive_support_present_but_uncertainty_or_unverified_negative_remains",
+      "real_strong": 3,
+      "nonabstract": 3,
+      "empirical": 3,
+      "raw_unresolved_count": 7,
+      "raw_gap_count": 3,
+      "raw_flaw_count": 1,
+      "raw_conflict_count": 2,
+      "hygiene_open_unresolved_count": 0,
+      "hygiene_gap_count": 1,
+      "hygiene_conflict_count": 0,
+      "unresolved_category_counts": {
+        "targetless_open_question": 6,
+        "context_limitation": 1
+      },
+      "gap_category_counts": {
+        "stale_gap_resolved_by_support": 2,
+        "open_gap": 1
+      },
+      "flaw_category_counts": {
+        "fallback_or_meta_flaw": 1
+      },
+      "conflict_category_counts": {
+        "fallback_or_context_conflict": 2
+      }
+    },
+    {
+      "paper_id": "1HCN4pjTb4",
+      "gold": "accept",
+      "runtime_pred": "reject",
+      "recommendation_view": "not_assessable_uncertain",
+      "recommendation_reason": "insufficient_grounded_support_with_open_uncertainty",
+      "real_strong": 0,
+      "nonabstract": 0,
+      "empirical": 0,
+      "raw_unresolved_count": 10,
+      "raw_gap_count": 1,
+      "raw_flaw_count": 1,
+      "raw_conflict_count": 0,
+      "hygiene_open_unresolved_count": 0,
+      "hygiene_gap_count": 1,
+      "hygiene_conflict_count": 0,
+      "unresolved_category_counts": {
+        "targetless_open_question": 7,
+        "context_limitation": 3
+      },
+      "gap_category_counts": {
+        "open_gap": 1
+      },
+      "flaw_category_counts": {
+        "fallback_or_meta_flaw": 1
+      },
+      "conflict_category_counts": {}
+    },
+    {
+      "paper_id": "LebzzClHYw",
+      "gold": "accept",
+      "runtime_pred": "reject",
+      "recommendation_view": "not_assessable_uncertain",
+      "recommendation_reason": "insufficient_grounded_support_with_open_uncertainty",
+      "real_strong": 0,
+      "nonabstract": 0,
+      "empirical": 0,
+      "raw_unresolved_count": 8,
+      "raw_gap_count": 2,
+      "raw_flaw_count": 1,
+      "raw_conflict_count": 2,
+      "hygiene_open_unresolved_count": 0,
+      "hygiene_gap_count": 2,
+      "hygiene_conflict_count": 1,
+      "unresolved_category_counts": {
+        "targetless_open_question": 7,
+        "context_limitation": 1
+      },
+      "gap_category_counts": {
+        "open_gap": 2
+      },
+      "flaw_category_counts": {
+        "fallback_or_meta_flaw": 1
+      },
+      "conflict_category_counts": {
+        "fallback_or_context_conflict": 2
+      }
+    },
+    {
+      "paper_id": "BXY6fe7q31",
+      "gold": "accept",
+      "runtime_pred": "reject",
+      "recommendation_view": "borderline_insufficient",
+      "recommendation_reason": "some_real_support_but_not_enough_quality_or_coverage_for_accept_like",
+      "real_strong": 1,
+      "nonabstract": 1,
+      "empirical": 1,
+      "raw_unresolved_count": 4,
+      "raw_gap_count": 2,
+      "raw_flaw_count": 1,
+      "raw_conflict_count": 2,
+      "hygiene_open_unresolved_count": 0,
+      "hygiene_gap_count": 1,
+      "hygiene_conflict_count": 0,
+      "unresolved_category_counts": {
+        "targetless_open_question": 4
+      },
+      "gap_category_counts": {
+        "stale_gap_resolved_by_support": 1,
+        "open_gap": 1
+      },
+      "flaw_category_counts": {
+        "fallback_or_meta_flaw": 1
+      },
+      "conflict_category_counts": {
+        "fallback_or_context_conflict": 2
+      }
+    },
+    {
+      "paper_id": "TPAj63ax4Y",
+      "gold": "reject",
+      "runtime_pred": "reject",
+      "recommendation_view": "borderline_insufficient",
+      "recommendation_reason": "some_real_support_but_not_enough_quality_or_coverage_for_accept_like",
+      "real_strong": 2,
+      "nonabstract": 2,
+      "empirical": 2,
+      "raw_unresolved_count": 7,
+      "raw_gap_count": 2,
+      "raw_flaw_count": 1,
+      "raw_conflict_count": 2,
+      "hygiene_open_unresolved_count": 0,
+      "hygiene_gap_count": 0,
+      "hygiene_conflict_count": 2,
+      "unresolved_category_counts": {
+        "targetless_open_question": 5,
+        "context_limitation": 2
+      },
+      "gap_category_counts": {
+        "stale_gap_resolved_by_support": 1,
+        "open_gap": 1
+      },
+      "flaw_category_counts": {
+        "fallback_or_meta_flaw": 1
+      },
+      "conflict_category_counts": {
+        "fallback_or_context_conflict": 1,
+        "open_conflict": 1
+      }
+    },
+    {
+      "paper_id": "mHv6wcBb0z",
+      "gold": "reject",
+      "runtime_pred": "reject",
+      "recommendation_view": "borderline_insufficient",
+      "recommendation_reason": "some_real_support_but_not_enough_quality_or_coverage_for_accept_like",
+      "real_strong": 1,
+      "nonabstract": 1,
+      "empirical": 1,
+      "raw_unresolved_count": 10,
+      "raw_gap_count": 1,
+      "raw_flaw_count": 1,
+      "raw_conflict_count": 1,
+      "hygiene_open_unresolved_count": 0,
+      "hygiene_gap_count": 0,
+      "hygiene_conflict_count": 1,
+      "unresolved_category_counts": {
+        "targetless_open_question": 8,
+        "context_limitation": 2
+      },
+      "gap_category_counts": {
+        "stale_gap_resolved_by_support": 1
+      },
+      "flaw_category_counts": {
+        "fallback_or_meta_flaw": 1
+      },
+      "conflict_category_counts": {
+        "open_conflict": 1
+      }
+    },
+    {
+      "paper_id": "xUe1YqEgd6",
+      "gold": "reject",
+      "runtime_pred": "reject",
+      "recommendation_view": "borderline_insufficient",
+      "recommendation_reason": "some_real_support_but_not_enough_quality_or_coverage_for_accept_like",
+      "real_strong": 2,
+      "nonabstract": 2,
+      "empirical": 1,
+      "raw_unresolved_count": 5,
+      "raw_gap_count": 4,
+      "raw_flaw_count": 1,
+      "raw_conflict_count": 2,
+      "hygiene_open_unresolved_count": 0,
+      "hygiene_gap_count": 2,
+      "hygiene_conflict_count": 1,
+      "unresolved_category_counts": {
+        "targetless_open_question": 5
+      },
+      "gap_category_counts": {
+        "open_gap": 2,
+        "stale_gap_resolved_by_support": 2
+      },
+      "flaw_category_counts": {
+        "fallback_or_meta_flaw": 1
+      },
+      "conflict_category_counts": {
+        "fallback_or_context_conflict": 2
+      }
+    },
+    {
+      "paper_id": "jVEoydFOl9",
+      "gold": "accept",
+      "runtime_pred": "accept",
+      "recommendation_view": "accept_like",
+      "recommendation_reason": "high_confidence_real_empirical_support_without_grounded_blocker",
+      "real_strong": 4,
+      "nonabstract": 4,
+      "empirical": 2,
+      "raw_unresolved_count": 8,
+      "raw_gap_count": 3,
+      "raw_flaw_count": 1,
+      "raw_conflict_count": 2,
+      "hygiene_open_unresolved_count": 0,
+      "hygiene_gap_count": 0,
+      "hygiene_conflict_count": 0,
+      "unresolved_category_counts": {
+        "targetless_open_question": 7,
+        "context_limitation": 1
+      },
+      "gap_category_counts": {
+        "stale_gap_resolved_by_support": 3
+      },
+      "flaw_category_counts": {
+        "fallback_or_meta_flaw": 1
+      },
+      "conflict_category_counts": {
+        "fallback_or_context_conflict": 2
+      }
+    },
+    {
+      "paper_id": "YXn76HMetm",
+      "gold": "reject",
+      "runtime_pred": "reject",
+      "recommendation_view": "borderline_insufficient",
+      "recommendation_reason": "some_real_support_but_not_enough_quality_or_coverage_for_accept_like",
+      "real_strong": 2,
+      "nonabstract": 2,
+      "empirical": 2,
+      "raw_unresolved_count": 2,
+      "raw_gap_count": 3,
+      "raw_flaw_count": 1,
+      "raw_conflict_count": 2,
+      "hygiene_open_unresolved_count": 0,
+      "hygiene_gap_count": 1,
+      "hygiene_conflict_count": 0,
+      "unresolved_category_counts": {
+        "targetless_open_question": 2
+      },
+      "gap_category_counts": {
+        "stale_gap_resolved_by_support": 2,
+        "open_gap": 1
+      },
+      "flaw_category_counts": {
+        "fallback_or_meta_flaw": 1
+      },
+      "conflict_category_counts": {
+        "fallback_or_context_conflict": 2
+      }
+    },
+    {
+      "paper_id": "KOUAayk5Kx",
+      "gold": "reject",
+      "runtime_pred": "reject",
+      "recommendation_view": "borderline_insufficient",
+      "recommendation_reason": "some_real_support_but_not_enough_quality_or_coverage_for_accept_like",
+      "real_strong": 2,
+      "nonabstract": 2,
+      "empirical": 2,
+      "raw_unresolved_count": 10,
+      "raw_gap_count": 2,
+      "raw_flaw_count": 1,
+      "raw_conflict_count": 0,
+      "hygiene_open_unresolved_count": 0,
+      "hygiene_gap_count": 0,
+      "hygiene_conflict_count": 0,
+      "unresolved_category_counts": {
+        "targetless_open_question": 9,
+        "context_limitation": 1
+      },
+      "gap_category_counts": {
+        "stale_gap_resolved_by_support": 1,
+        "open_gap": 1
+      },
+      "flaw_category_counts": {
+        "fallback_or_meta_flaw": 1
+      },
+      "conflict_category_counts": {}
+    },
+    {
+      "paper_id": "XH3OiIhtvf",
+      "gold": "reject",
+      "runtime_pred": "reject",
+      "recommendation_view": "not_assessable_uncertain",
+      "recommendation_reason": "insufficient_grounded_support_with_open_uncertainty",
+      "real_strong": 0,
+      "nonabstract": 0,
+      "empirical": 0,
+      "raw_unresolved_count": 10,
+      "raw_gap_count": 2,
+      "raw_flaw_count": 2,
+      "raw_conflict_count": 1,
+      "hygiene_open_unresolved_count": 0,
+      "hygiene_gap_count": 1,
+      "hygiene_conflict_count": 1,
+      "unresolved_category_counts": {
+        "targetless_open_question": 9,
+        "context_limitation": 1
+      },
+      "gap_category_counts": {
+        "open_gap": 2
+      },
+      "flaw_category_counts": {
+        "fallback_or_meta_flaw": 2
+      },
+      "conflict_category_counts": {
+        "open_conflict": 1
+      }
+    },
+    {
+      "paper_id": "ZHr0JajZfH",
+      "gold": "reject",
+      "runtime_pred": "reject",
+      "recommendation_view": "not_assessable_uncertain",
+      "recommendation_reason": "insufficient_grounded_support_with_open_uncertainty",
+      "real_strong": 0,
+      "nonabstract": 0,
+      "empirical": 0,
+      "raw_unresolved_count": 10,
+      "raw_gap_count": 5,
+      "raw_flaw_count": 1,
+      "raw_conflict_count": 1,
+      "hygiene_open_unresolved_count": 0,
+      "hygiene_gap_count": 4,
+      "hygiene_conflict_count": 1,
+      "unresolved_category_counts": {
+        "context_limitation": 4,
+        "targetless_open_question": 6
+      },
+      "gap_category_counts": {
+        "open_gap": 5
+      },
+      "flaw_category_counts": {
+        "fallback_or_meta_flaw": 1
+      },
+      "conflict_category_counts": {
+        "open_conflict": 1
+      }
+    },
+    {
+      "paper_id": "WLgbjzKJkk",
+      "gold": "reject",
+      "runtime_pred": "reject",
+      "recommendation_view": "borderline_insufficient",
+      "recommendation_reason": "some_real_support_but_not_enough_quality_or_coverage_for_accept_like",
+      "real_strong": 2,
+      "nonabstract": 2,
+      "empirical": 1,
+      "raw_unresolved_count": 4,
+      "raw_gap_count": 3,
+      "raw_flaw_count": 1,
+      "raw_conflict_count": 2,
+      "hygiene_open_unresolved_count": 0,
+      "hygiene_gap_count": 1,
+      "hygiene_conflict_count": 0,
+      "unresolved_category_counts": {
+        "targetless_open_question": 3,
+        "context_limitation": 1
+      },
+      "gap_category_counts": {
+        "stale_gap_resolved_by_support": 2,
+        "open_gap": 1
+      },
+      "flaw_category_counts": {
+        "fallback_or_meta_flaw": 1
+      },
+      "conflict_category_counts": {
+        "fallback_or_context_conflict": 2
+      }
+    },
+    {
+      "paper_id": "9JRsAj3ymy",
+      "gold": "reject",
+      "runtime_pred": "reject",
+      "recommendation_view": "not_assessable_uncertain",
+      "recommendation_reason": "insufficient_grounded_support_with_open_uncertainty",
+      "real_strong": 0,
+      "nonabstract": 0,
+      "empirical": 0,
+      "raw_unresolved_count": 7,
+      "raw_gap_count": 3,
+      "raw_flaw_count": 1,
+      "raw_conflict_count": 2,
+      "hygiene_open_unresolved_count": 0,
+      "hygiene_gap_count": 3,
+      "hygiene_conflict_count": 1,
+      "unresolved_category_counts": {
+        "context_limitation": 2,
+        "targetless_open_question": 5
+      },
+      "gap_category_counts": {
+        "open_gap": 3
+      },
+      "flaw_category_counts": {
+        "fallback_or_meta_flaw": 1
+      },
+      "conflict_category_counts": {
+        "fallback_or_context_conflict": 2
+      }
+    },
+    {
+      "paper_id": "rEqETC88RY",
+      "gold": "reject",
+      "runtime_pred": "reject",
+      "recommendation_view": "not_assessable_uncertain",
+      "recommendation_reason": "insufficient_grounded_support_with_open_uncertainty",
+      "real_strong": 0,
+      "nonabstract": 0,
+      "empirical": 0,
+      "raw_unresolved_count": 9,
+      "raw_gap_count": 5,
+      "raw_flaw_count": 3,
+      "raw_conflict_count": 4,
+      "hygiene_open_unresolved_count": 0,
+      "hygiene_gap_count": 3,
+      "hygiene_conflict_count": 3,
+      "unresolved_category_counts": {
+        "targetless_open_question": 8,
+        "context_limitation": 1
+      },
+      "gap_category_counts": {
+        "open_gap": 5
+      },
+      "flaw_category_counts": {
+        "fallback_or_meta_flaw": 2,
+        "ungrounded_candidate": 1
+      },
+      "conflict_category_counts": {
+        "fallback_or_context_conflict": 3,
+        "open_conflict": 1
+      }
+    },
+    {
+      "paper_id": "aTBE70xiFw",
+      "gold": "reject",
+      "runtime_pred": "reject",
+      "recommendation_view": "borderline_insufficient",
+      "recommendation_reason": "some_real_support_but_not_enough_quality_or_coverage_for_accept_like",
+      "real_strong": 1,
+      "nonabstract": 1,
+      "empirical": 1,
+      "raw_unresolved_count": 5,
+      "raw_gap_count": 2,
+      "raw_flaw_count": 1,
+      "raw_conflict_count": 2,
+      "hygiene_open_unresolved_count": 0,
+      "hygiene_gap_count": 1,
+      "hygiene_conflict_count": 1,
+      "unresolved_category_counts": {
+        "context_limitation": 2,
+        "targetless_open_question": 3
+      },
+      "gap_category_counts": {
+        "open_gap": 1,
+        "stale_gap_resolved_by_support": 1
+      },
+      "flaw_category_counts": {
+        "fallback_or_meta_flaw": 1
+      },
+      "conflict_category_counts": {
+        "fallback_or_context_conflict": 2
+      }
+    },
+    {
+      "paper_id": "LieTse3fQB",
+      "gold": "reject",
+      "runtime_pred": "reject",
+      "recommendation_view": "borderline_insufficient",
+      "recommendation_reason": "some_real_support_but_not_enough_quality_or_coverage_for_accept_like",
+      "real_strong": 2,
+      "nonabstract": 2,
+      "empirical": 2,
+      "raw_unresolved_count": 3,
+      "raw_gap_count": 3,
+      "raw_flaw_count": 1,
+      "raw_conflict_count": 2,
+      "hygiene_open_unresolved_count": 0,
+      "hygiene_gap_count": 1,
+      "hygiene_conflict_count": 0,
+      "unresolved_category_counts": {
+        "targetless_open_question": 3
+      },
+      "gap_category_counts": {
+        "stale_gap_resolved_by_support": 2,
+        "open_gap": 1
+      },
+      "flaw_category_counts": {
+        "fallback_or_meta_flaw": 1
+      },
+      "conflict_category_counts": {
+        "fallback_or_context_conflict": 2
+      }
+    },
+    {
+      "paper_id": "kam84eEmub",
+      "gold": "reject",
+      "runtime_pred": "reject",
+      "recommendation_view": "not_assessable_uncertain",
+      "recommendation_reason": "insufficient_grounded_support_with_open_uncertainty",
+      "real_strong": 0,
+      "nonabstract": 0,
+      "empirical": 0,
+      "raw_unresolved_count": 9,
+      "raw_gap_count": 2,
+      "raw_flaw_count": 1,
+      "raw_conflict_count": 0,
+      "hygiene_open_unresolved_count": 0,
+      "hygiene_gap_count": 1,
+      "hygiene_conflict_count": 0,
+      "unresolved_category_counts": {
+        "targetless_open_question": 5,
+        "context_limitation": 4
+      },
+      "gap_category_counts": {
+        "open_gap": 2
+      },
+      "flaw_category_counts": {
+        "fallback_or_meta_flaw": 1
+      },
+      "conflict_category_counts": {}
+    },
+    {
+      "paper_id": "N0isTh3rml",
+      "gold": "reject",
+      "runtime_pred": "reject",
+      "recommendation_view": "borderline_insufficient",
+      "recommendation_reason": "some_real_support_but_not_enough_quality_or_coverage_for_accept_like",
+      "real_strong": 1,
+      "nonabstract": 1,
+      "empirical": 1,
+      "raw_unresolved_count": 4,
+      "raw_gap_count": 2,
+      "raw_flaw_count": 1,
+      "raw_conflict_count": 2,
+      "hygiene_open_unresolved_count": 0,
+      "hygiene_gap_count": 1,
+      "hygiene_conflict_count": 0,
+      "unresolved_category_counts": {
+        "targetless_open_question": 4
+      },
+      "gap_category_counts": {
+        "stale_gap_resolved_by_support": 1,
+        "open_gap": 1
+      },
+      "flaw_category_counts": {
+        "fallback_or_meta_flaw": 1
+      },
+      "conflict_category_counts": {
+        "fallback_or_context_conflict": 2
+      }
+    },
+    {
+      "paper_id": "2L7KQ4qbHi",
+      "gold": "reject",
+      "runtime_pred": "reject",
+      "recommendation_view": "not_assessable_uncertain",
+      "recommendation_reason": "insufficient_grounded_support_with_open_uncertainty",
+      "real_strong": 0,
+      "nonabstract": 0,
+      "empirical": 0,
+      "raw_unresolved_count": 10,
+      "raw_gap_count": 3,
+      "raw_flaw_count": 2,
+      "raw_conflict_count": 3,
+      "hygiene_open_unresolved_count": 0,
+      "hygiene_gap_count": 1,
+      "hygiene_conflict_count": 3,
+      "unresolved_category_counts": {
+        "targetless_open_question": 6,
+        "context_limitation": 4
+      },
+      "gap_category_counts": {
+        "open_gap": 3
+      },
+      "flaw_category_counts": {
+        "fallback_or_meta_flaw": 2
+      },
+      "conflict_category_counts": {
+        "fallback_or_context_conflict": 1,
+        "open_conflict": 2
+      }
+    },
+    {
+      "paper_id": "aRxLDcxFcL",
+      "gold": "reject",
+      "runtime_pred": "reject",
+      "recommendation_view": "borderline_insufficient",
+      "recommendation_reason": "some_real_support_but_not_enough_quality_or_coverage_for_accept_like",
+      "real_strong": 1,
+      "nonabstract": 1,
+      "empirical": 0,
+      "raw_unresolved_count": 6,
+      "raw_gap_count": 3,
+      "raw_flaw_count": 1,
+      "raw_conflict_count": 2,
+      "hygiene_open_unresolved_count": 0,
+      "hygiene_gap_count": 2,
+      "hygiene_conflict_count": 0,
+      "unresolved_category_counts": {
+        "targetless_open_question": 6
+      },
+      "gap_category_counts": {
+        "stale_gap_resolved_by_support": 1,
+        "open_gap": 2
+      },
+      "flaw_category_counts": {
+        "fallback_or_meta_flaw": 1
+      },
+      "conflict_category_counts": {
+        "fallback_or_context_conflict": 2
+      }
+    }
+  ]
+}

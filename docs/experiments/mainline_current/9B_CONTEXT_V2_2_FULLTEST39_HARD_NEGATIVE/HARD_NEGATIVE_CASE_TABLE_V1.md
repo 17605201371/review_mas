@@ -1,0 +1,34 @@
+# Hard-Negative Case Table v1
+
+| paper_id | view | dominant_gap | real | empirical | grounded_major | grounded_negative | negative_unresolved | meta_burden | targetless_unresolved |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| ye3NrNrYOY | borderline_positive | meta_burden_masks_missing_hard_negative | 2 | 1 | 0 | 0 | 0 | 4 | 2 |
+| WNxlJJIEVj | not_assessable | insufficient_positive_and_negative_grounding | 1 | 0 | 0 | 0 | 0 | 0 | 7 |
+| uOrfve3prk | borderline_positive | negative_unresolved_not_promoted | 2 | 1 | 0 | 0 | 1 | 3 | 3 |
+| 7Dub7UXTXN | not_assessable | insufficient_positive_and_negative_grounding | 1 | 1 | 0 | 0 | 0 | 1 | 5 |
+| 9zEBK3E9bX | borderline_positive | negative_unresolved_not_promoted | 3 | 3 | 0 | 0 | 1 | 3 | 8 |
+| XyB4VvF01X | reject_like | has_grounded_major_or_critical | 2 | 2 | 1 | 0 | 2 | 3 | 8 |
+| GE6iywJtsV | not_assessable | negative_unresolved_not_promoted | 0 | 0 | 0 | 0 | 4 | 3 | 8 |
+| WpXq5n8yLb | borderline_positive | meta_burden_masks_missing_hard_negative | 2 | 2 | 0 | 0 | 0 | 5 | 2 |
+| NnExMNiTHw | borderline_positive | meta_burden_masks_missing_hard_negative | 2 | 2 | 0 | 0 | 0 | 3 | 4 |
+| a6SntIisgg | not_assessable | meta_burden_masks_missing_hard_negative | 2 | 0 | 0 | 0 | 0 | 4 | 6 |
+| cklg91aPGk | borderline_positive | meta_burden_masks_missing_hard_negative | 2 | 1 | 0 | 0 | 0 | 1 | 3 |
+| HPuLU6q7xq | not_assessable | negative_unresolved_not_promoted | 0 | 0 | 0 | 0 | 2 | 4 | 7 |
+| fGXyvmWpw6 | not_assessable | insufficient_positive_and_negative_grounding | 1 | 0 | 0 | 0 | 0 | 2 | 6 |
+| QAgwFiIY4p | borderline_positive | negative_unresolved_not_promoted | 2 | 1 | 0 | 0 | 1 | 2 | 5 |
+| TPAj63ax4Y | borderline_positive | negative_unresolved_not_promoted | 2 | 2 | 0 | 0 | 1 | 2 | 6 |
+| mHv6wcBb0z | not_assessable | insufficient_positive_and_negative_grounding | 1 | 1 | 0 | 0 | 0 | 2 | 9 |
+| xUe1YqEgd6 | borderline_positive | negative_unresolved_not_promoted | 2 | 1 | 0 | 0 | 2 | 1 | 5 |
+| YXn76HMetm | borderline_positive | meta_burden_masks_missing_hard_negative | 2 | 2 | 0 | 0 | 0 | 1 | 2 |
+| KOUAayk5Kx | borderline_positive | negative_unresolved_not_promoted | 2 | 2 | 0 | 0 | 1 | 2 | 9 |
+| XH3OiIhtvf | not_assessable | insufficient_positive_and_negative_grounding | 0 | 0 | 0 | 0 | 0 | 5 | 6 |
+| ZHr0JajZfH | not_assessable | negative_unresolved_not_promoted | 0 | 0 | 0 | 0 | 1 | 4 | 7 |
+| WLgbjzKJkk | borderline_positive | meta_burden_masks_missing_hard_negative | 2 | 1 | 0 | 0 | 0 | 2 | 3 |
+| 9JRsAj3ymy | not_assessable | negative_unresolved_not_promoted | 0 | 0 | 0 | 0 | 1 | 2 | 6 |
+| rEqETC88RY | not_assessable | negative_unresolved_not_promoted | 0 | 0 | 0 | 0 | 2 | 2 | 9 |
+| aTBE70xiFw | borderline_insufficient | insufficient_positive_and_negative_grounding | 1 | 1 | 0 | 0 | 0 | 2 | 4 |
+| LieTse3fQB | borderline_positive | negative_unresolved_not_promoted | 2 | 2 | 0 | 0 | 1 | 1 | 3 |
+| kam84eEmub | not_assessable | insufficient_positive_and_negative_grounding | 0 | 0 | 0 | 0 | 0 | 3 | 7 |
+| N0isTh3rml | not_assessable | insufficient_positive_and_negative_grounding | 1 | 1 | 0 | 0 | 0 | 1 | 4 |
+| 2L7KQ4qbHi | not_assessable | insufficient_positive_and_negative_grounding | 0 | 0 | 0 | 0 | 0 | 4 | 8 |
+| aRxLDcxFcL | not_assessable | negative_unresolved_not_promoted | 1 | 0 | 0 | 0 | 1 | 1 | 6 |

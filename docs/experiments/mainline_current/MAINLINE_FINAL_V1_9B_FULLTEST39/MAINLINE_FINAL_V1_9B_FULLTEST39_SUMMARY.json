@@ -1,0 +1,195 @@
+{
+  "generated_at_utc": "2026-05-04T04:08:07.717595+00:00",
+  "inputs": {
+    "runtime_summary": "outputs/results_main/review_infer/mainline_final_v1_9b_context_v2_2_fulltest39_merged_20260503_summary.json",
+    "preflight": "outputs/results_main/review_infer/mainline_final_v1_9b_context_v2_2_fulltest39_merged_20260503_preflight.json",
+    "soft_recommendation": "outputs/results_main/review_infer/soft_evidence_recommendation_v1_9b_context_v2_2.json",
+    "hard_negative": "outputs/results_main/review_infer/hard_negative_grounding_v2_9b_context_v2_2.json",
+    "final_view_report_summary": "outputs/results_main/review_infer/mainline_final_v1_9b_context_v2_2_fulltest39_final_view_report_v2_summary.json"
+  },
+  "decision_health": {
+    "row_count": 39,
+    "gold_accept": 9,
+    "gold_reject": 30,
+    "predicted_accept_count": 0,
+    "predicted_reject_count": 39,
+    "accuracy": 0.7692,
+    "macro_f1": 0.4348,
+    "accept_recall": 0.0,
+    "reject_recall": 1.0,
+    "true_accept_count": 0,
+    "false_accept_count": 0,
+    "false_reject_count": 9,
+    "false_accept_ids": [],
+    "false_reject_ids": [
+      "hj323oR3rw",
+      "QAAsnSRwgu",
+      "X41c4uB4k0",
+      "gzqrANCF4g",
+      "KI9NqjLVDT",
+      "1HCN4pjTb4",
+      "LebzzClHYw",
+      "BXY6fe7q31",
+      "jVEoydFOl9"
+    ]
+  },
+  "support_quality": {
+    "real_strong_support_total": 49,
+    "nonabstract_strong_support_total": 49,
+    "empirical_strong_support_total": 38,
+    "method_strong_support_total": 11,
+    "table_or_figure_strong_support_total": 1,
+    "ablation_strong_support_total": 35,
+    "abstract_strong_support_total": 0,
+    "fallback_strong_support_total": 0,
+    "unbound_strong_support_total": 0,
+    "strong_support_binding_precision": 1.0,
+    "rows_with_2plus_real_strong_support": 17,
+    "accept_rows_with_2plus_real_strong_support": 2,
+    "rows_with_empirical_support": 23,
+    "accept_rows_with_empirical_support": 5
+  },
+  "recovery": {
+    "patch_emitted_count": 96,
+    "patch_validated_count": 90,
+    "patch_committed_count": 1,
+    "rows_with_any_commit": 1,
+    "validation_to_commit_rate": 0.0111,
+    "emission_to_commit_rate": 0.0104,
+    "model_generated_commit_count": 1,
+    "system_salvaged_commit_count": 0
+  },
+  "soft_view_counts": {
+    "not_assessable_evidence_conflict": 7,
+    "reject_like": 7,
+    "borderline_positive": 8,
+    "borderline_insufficient": 12,
+    "not_assessable_uncertain": 4,
+    "accept_like": 1
+  },
+  "hard_negative_view_counts": {
+    "not_assessable_context_limited": 15,
+    "reject_like": 6,
+    "not_assessable_targetless_unresolved": 14,
+    "not_assessable_hard_negative_unverified": 4
+  },
+  "criterion_stats": {
+    "row_count": 39,
+    "counts": {
+      "novelty_originality": {
+        "covered": 39,
+        "grounded": 11,
+        "not_assessable": 28
+      },
+      "significance_contribution": {
+        "covered": 39,
+        "grounded": 28,
+        "not_assessable": 11
+      },
+      "technical_soundness": {
+        "covered": 39,
+        "grounded": 12,
+        "not_assessable": 27
+      },
+      "empirical_adequacy": {
+        "covered": 39,
+        "grounded": 23,
+        "not_assessable": 16
+      },
+      "clarity_reproducibility": {
+        "covered": 39,
+        "grounded": 28,
+        "not_assessable": 11
+      }
+    }
+  },
+  "case_studies": [
+    {
+      "paper_id": "jVEoydFOl9",
+      "gold": "accept",
+      "runtime_pred": "reject",
+      "soft_view": null,
+      "final_view_v4": "not_assessable_context_limited",
+      "real_strong": 4,
+      "nonabstract_support": 4,
+      "empirical_support": 2,
+      "independent_groups": 3,
+      "negative_score": 0.45,
+      "uncertainty_score": 3.35,
+      "v4_reason": "support_positive_but_review_context_limited"
+    },
+    {
+      "paper_id": "BXY6fe7q31",
+      "gold": "accept",
+      "runtime_pred": "reject",
+      "soft_view": null,
+      "final_view_v4": "not_assessable_hard_negative_unverified",
+      "real_strong": 1,
+      "nonabstract_support": 1,
+      "empirical_support": 1,
+      "independent_groups": 1,
+      "negative_score": 0.45,
+      "uncertainty_score": 2.06,
+      "v4_reason": "negative_concern_exists_but_not_grounded"
+    },
+    {
+      "paper_id": "uOrfve3prk",
+      "gold": "reject",
+      "runtime_pred": "reject",
+      "soft_view": null,
+      "final_view_v4": "not_assessable_context_limited",
+      "real_strong": 2,
+      "nonabstract_support": 2,
+      "empirical_support": 1,
+      "independent_groups": 2,
+      "negative_score": 0.45,
+      "uncertainty_score": 2.69,
+      "v4_reason": "support_positive_but_review_context_limited"
+    },
+    {
+      "paper_id": "ye3NrNrYOY",
+      "gold": "reject",
+      "runtime_pred": "reject",
+      "soft_view": null,
+      "final_view_v4": "not_assessable_context_limited",
+      "real_strong": 2,
+      "nonabstract_support": 2,
+      "empirical_support": 1,
+      "independent_groups": 2,
+      "negative_score": 0.0,
+      "uncertainty_score": 4.09,
+      "v4_reason": "support_positive_but_review_context_limited"
+    },
+    {
+      "paper_id": "hj323oR3rw",
+      "gold": "accept",
+      "runtime_pred": "reject",
+      "soft_view": null,
+      "final_view_v4": "not_assessable_targetless_unresolved",
+      "real_strong": 0,
+      "nonabstract_support": 0,
+      "empirical_support": 0,
+      "independent_groups": 0,
+      "negative_score": 4.2,
+      "uncertainty_score": 5.6,
+      "v4_reason": "targetless_unresolved_too_high"
+    }
+  ],
+  "soft_negative_series": {
+    "4b": {
+      "rows": 9,
+      "trusted_blocker_rows": 3,
+      "parse_error_rows": 0
+    },
+    "9b": {
+      "rows": 9,
+      "trusted_blocker_rows": 0,
+      "parse_error_rows": 2
+    },
+    "compact": {
+      "rows": 9,
+      "trusted_blocker_rows": 0,
+      "parse_error_rows": 7
+    }
+  }
+}

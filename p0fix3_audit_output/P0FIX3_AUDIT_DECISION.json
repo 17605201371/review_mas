@@ -1,0 +1,24 @@
+{
+  "color": "YELLOW",
+  "green_flags": [
+    "P0-1 Evidence Formation dead loop eliminated",
+    "P0-4 2 claims have 2+ independent support",
+    "P0-5 11 empirical/table/figure strong items verified",
+    "P2-1 5 flaw candidates detected",
+    "P2-1 No contested support items",
+    "P2-2 20 locator items exported for review"
+  ],
+  "yellow_flags": [
+    "P0-2 11 first-support fallback strong items need human review",
+    "P0-3 12 medium->strong promotion items need human review",
+    "P0-3 >80% of strong from promotion, moderate layer absorbed",
+    "P0-4 2 cross-claim quote reuse cases need review",
+    "P1-1 recovery_effective_repair=1, still low",
+    "P1-2 84/84 gaps are targetless",
+    "P1-3 2 zero-real papers remain"
+  ],
+  "red_flags": [],
+  "claims_2plus_independent_support": 2,
+  "can_be_baseline": true,
+  "classification": "P0 evidence formation fix + independent evidence optimization"
+}

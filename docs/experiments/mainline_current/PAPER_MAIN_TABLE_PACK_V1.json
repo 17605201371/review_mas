@@ -1,0 +1,137 @@
+{
+  "inputs": {
+    "clean_4b_summary": "outputs/results_main/review_infer/mainline_final_v1_clean_4b_fulltest39_20260502_summary.json",
+    "9b_summary": "outputs/results_main/review_infer/mainline_final_v1_9b_context_v2_2_fulltest39_merged_20260503_summary.json",
+    "9b_final_view_report": "outputs/results_main/review_infer/mainline_final_v1_9b_context_v2_2_fulltest39_final_view_report_v2_summary.json",
+    "9b_support_quality": "docs/experiments/mainline_current/SUPPORT_QUALITY_FINAL_AUDIT_9B_FULLTEST39.json",
+    "9b_criterion_grounding": "docs/experiments/mainline_current/CRITERION_GROUNDING_LINKER_V1_9B_FULLTEST39.json"
+  },
+  "runtime_support_table": [
+    [
+      "Clean 4B fulltest39",
+      39,
+      28,
+      25,
+      20,
+      0,
+      1.0,
+      27,
+      0
+    ],
+    [
+      "9B context v2.2 fulltest39",
+      39,
+      49,
+      49,
+      38,
+      0,
+      1.0,
+      0,
+      0
+    ]
+  ],
+  "decision_health_table": [
+    [
+      "Clean 4B fulltest39",
+      0.7692,
+      0.4348,
+      0.0,
+      1.0,
+      0,
+      0,
+      9
+    ],
+    [
+      "9B context v2.2 fulltest39",
+      0.7692,
+      0.4348,
+      0.0,
+      1.0,
+      0,
+      0,
+      9
+    ]
+  ],
+  "state_recovery_table": [
+    [
+      "Clean 4B fulltest39",
+      190,
+      147,
+      51,
+      79,
+      109,
+      6,
+      6
+    ],
+    [
+      "9B context v2.2 fulltest39",
+      269,
+      110,
+      48,
+      73,
+      96,
+      1,
+      1
+    ]
+  ],
+  "recommendation_view_v2_counts": {
+    "borderline_positive": 15,
+    "not_assessable": 21,
+    "reject_like": 1,
+    "borderline_insufficient": 2
+  },
+  "final_view_report_renderer_v2": {
+    "rows": 39,
+    "classifier_view_counts": {
+      "borderline_positive": 15,
+      "not_assessable": 21,
+      "reject_like": 1,
+      "borderline_insufficient": 2
+    },
+    "section_totals": {
+      "confirmed_weaknesses": 2,
+      "potential_concerns": 4,
+      "review_limitations": 103,
+      "unresolved_questions": 228,
+      "resolved_or_stale_items": 74,
+      "minor_or_nonblocking_flaws": 0
+    },
+    "confirmed_weakness_meta_leak_rows": 0,
+    "reports_with_confirmed_weakness": 2,
+    "reports_with_potential_concerns": 3,
+    "reports_with_review_limitations": 37,
+    "reports_with_unresolved_questions": 39
+  },
+  "criterion_grounding_table": [
+    [
+      "novelty",
+      10,
+      10,
+      3
+    ],
+    [
+      "significance",
+      36,
+      9,
+      2
+    ],
+    [
+      "soundness",
+      29,
+      7,
+      19
+    ],
+    [
+      "empirical",
+      28,
+      4,
+      3
+    ],
+    [
+      "clarity",
+      10,
+      14,
+      8
+    ]
+  ]
+}

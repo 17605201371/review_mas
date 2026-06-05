@@ -1,0 +1,296 @@
+{
+  "id_turn_scoping_v1": {
+    "payload_evidence": 69,
+    "payload_unique": 69,
+    "rows_payload_dup": 0,
+    "final_evidence": 69,
+    "final_real_strong": 13,
+    "rows_final_2plus": 4,
+    "invalid_bound": 8,
+    "invalid_bound_strong": 0,
+    "invalid_unbound": 0,
+    "original_claim_id_records": 0,
+    "unresolved": 89,
+    "gaps": 60,
+    "candidate_flaws": 20,
+    "rows": 16,
+    "avg_reward": 0.438927
+  },
+  "id_turn_scoping_v1_cases": [
+    {
+      "paper_id": "cWEfRkYj46",
+      "final_real_strong": 0,
+      "invalid_bound": 5,
+      "invalid_unbound": 0,
+      "final_evidence": 5,
+      "reward": 0.2734
+    },
+    {
+      "paper_id": "xYzOkOGD96",
+      "final_real_strong": 0,
+      "invalid_bound": 0,
+      "invalid_unbound": 0,
+      "final_evidence": 4,
+      "reward": 0.7379000000000001
+    },
+    {
+      "paper_id": "nrvoWOWcyg",
+      "final_real_strong": 3,
+      "invalid_bound": 0,
+      "invalid_unbound": 0,
+      "final_evidence": 5,
+      "reward": 0.1974952380952381
+    },
+    {
+      "paper_id": "bcHty5VvkQ",
+      "final_real_strong": 0,
+      "invalid_bound": 0,
+      "invalid_unbound": 0,
+      "final_evidence": 6,
+      "reward": 0.5093090909090912
+    },
+    {
+      "paper_id": "VEJzjAvaIy",
+      "final_real_strong": 0,
+      "invalid_bound": 0,
+      "invalid_unbound": 0,
+      "final_evidence": 5,
+      "reward": 0.32592450246046223
+    },
+    {
+      "paper_id": "k243qi7S50",
+      "final_real_strong": 0,
+      "invalid_bound": 0,
+      "invalid_unbound": 0,
+      "final_evidence": 5,
+      "reward": 0.6113920892484301
+    },
+    {
+      "paper_id": "nrRkAAAufl",
+      "final_real_strong": 2,
+      "invalid_bound": 0,
+      "invalid_unbound": 0,
+      "final_evidence": 4,
+      "reward": 0.2985666666666667
+    },
+    {
+      "paper_id": "GSckuQMzBG",
+      "final_real_strong": 1,
+      "invalid_bound": 0,
+      "invalid_unbound": 0,
+      "final_evidence": 4,
+      "reward": 0.5544711462450596
+    },
+    {
+      "paper_id": "IdAyXxBud7",
+      "final_real_strong": 1,
+      "invalid_bound": 0,
+      "invalid_unbound": 0,
+      "final_evidence": 4,
+      "reward": 0.2132095238095238
+    },
+    {
+      "paper_id": "JdWpIe70FL",
+      "final_real_strong": 0,
+      "invalid_bound": 0,
+      "invalid_unbound": 0,
+      "final_evidence": 4,
+      "reward": 0.5858058947402507
+    },
+    {
+      "paper_id": "pOq9vDIYev",
+      "final_real_strong": 2,
+      "invalid_bound": 0,
+      "invalid_unbound": 0,
+      "final_evidence": 4,
+      "reward": 0.265212865497076
+    },
+    {
+      "paper_id": "YvWuac63bg",
+      "final_real_strong": 0,
+      "invalid_bound": 0,
+      "invalid_unbound": 0,
+      "final_evidence": 4,
+      "reward": 0.6348444444444447
+    },
+    {
+      "paper_id": "giU9fYGTND",
+      "final_real_strong": 1,
+      "invalid_bound": 0,
+      "invalid_unbound": 0,
+      "final_evidence": 4,
+      "reward": 0.3502260869565218
+    },
+    {
+      "paper_id": "qgyF6JVmar",
+      "final_real_strong": 0,
+      "invalid_bound": 3,
+      "invalid_unbound": 0,
+      "final_evidence": 3,
+      "reward": 0.6033206114921251
+    },
+    {
+      "paper_id": "cpGPPLLYYx",
+      "final_real_strong": 1,
+      "invalid_bound": 0,
+      "invalid_unbound": 0,
+      "final_evidence": 4,
+      "reward": 0.3577571428571429
+    },
+    {
+      "paper_id": "77plFC53J5",
+      "final_real_strong": 2,
+      "invalid_bound": 0,
+      "invalid_unbound": 0,
+      "final_evidence": 4,
+      "reward": 0.5040043956043958
+    }
+  ],
+  "claim_binding_guard_v1": {
+    "payload_evidence": 73,
+    "payload_unique": 67,
+    "rows_payload_dup": 2,
+    "final_evidence": 67,
+    "final_real_strong": 8,
+    "rows_final_2plus": 3,
+    "invalid_bound": 0,
+    "invalid_bound_strong": 0,
+    "invalid_unbound": 12,
+    "original_claim_id_records": 12,
+    "unresolved": 82,
+    "gaps": 53,
+    "candidate_flaws": 20,
+    "rows": 16,
+    "avg_reward": 0.462282
+  },
+  "claim_binding_guard_v1_cases": [
+    {
+      "paper_id": "cWEfRkYj46",
+      "final_real_strong": 0,
+      "invalid_bound": 0,
+      "invalid_unbound": 3,
+      "final_evidence": 3,
+      "reward": 0.2683791999883289
+    },
+    {
+      "paper_id": "xYzOkOGD96",
+      "final_real_strong": 0,
+      "invalid_bound": 0,
+      "invalid_unbound": 0,
+      "final_evidence": 4,
+      "reward": 0.7379000000000001
+    },
+    {
+      "paper_id": "nrvoWOWcyg",
+      "final_real_strong": 3,
+      "invalid_bound": 0,
+      "invalid_unbound": 0,
+      "final_evidence": 5,
+      "reward": 0.6184952380952383
+    },
+    {
+      "paper_id": "bcHty5VvkQ",
+      "final_real_strong": 0,
+      "invalid_bound": 0,
+      "invalid_unbound": 0,
+      "final_evidence": 6,
+      "reward": 0.5138545454545457
+    },
+    {
+      "paper_id": "VEJzjAvaIy",
+      "final_real_strong": 0,
+      "invalid_bound": 0,
+      "invalid_unbound": 5,
+      "final_evidence": 5,
+      "reward": 0.28530909090909096
+    },
+    {
+      "paper_id": "k243qi7S50",
+      "final_real_strong": 0,
+      "invalid_bound": 0,
+      "invalid_unbound": 0,
+      "final_evidence": 6,
+      "reward": 0.6131500000000002
+    },
+    {
+      "paper_id": "nrRkAAAufl",
+      "final_real_strong": 2,
+      "invalid_bound": 0,
+      "invalid_unbound": 0,
+      "final_evidence": 2,
+      "reward": 0.2430666666666667
+    },
+    {
+      "paper_id": "GSckuQMzBG",
+      "final_real_strong": 0,
+      "invalid_bound": 0,
+      "invalid_unbound": 0,
+      "final_evidence": 3,
+      "reward": 0.5508347826086959
+    },
+    {
+      "paper_id": "IdAyXxBud7",
+      "final_real_strong": 0,
+      "invalid_bound": 0,
+      "invalid_unbound": 0,
+      "final_evidence": 4,
+      "reward": 0.1746222222222223
+    },
+    {
+      "paper_id": "JdWpIe70FL",
+      "final_real_strong": 0,
+      "invalid_bound": 0,
+      "invalid_unbound": 2,
+      "final_evidence": 5,
+      "reward": 0.5825219260668425
+    },
+    {
+      "paper_id": "pOq9vDIYev",
+      "final_real_strong": 0,
+      "invalid_bound": 0,
+      "invalid_unbound": 2,
+      "final_evidence": 4,
+      "reward": 0.2509222672064778
+    },
+    {
+      "paper_id": "YvWuac63bg",
+      "final_real_strong": 2,
+      "invalid_bound": 0,
+      "invalid_unbound": 0,
+      "final_evidence": 6,
+      "reward": 0.6304000000000002
+    },
+    {
+      "paper_id": "giU9fYGTND",
+      "final_real_strong": 0,
+      "invalid_bound": 0,
+      "invalid_unbound": 0,
+      "final_evidence": 4,
+      "reward": 0.3640183574879227
+    },
+    {
+      "paper_id": "qgyF6JVmar",
+      "final_real_strong": 1,
+      "invalid_bound": 0,
+      "invalid_unbound": 0,
+      "final_evidence": 4,
+      "reward": 0.7162750000000001
+    },
+    {
+      "paper_id": "cpGPPLLYYx",
+      "final_real_strong": 0,
+      "invalid_bound": 0,
+      "invalid_unbound": 0,
+      "final_evidence": 4,
+      "reward": 0.3599000000000001
+    },
+    {
+      "paper_id": "77plFC53J5",
+      "final_real_strong": 0,
+      "invalid_bound": 0,
+      "invalid_unbound": 0,
+      "final_evidence": 2,
+      "reward": 0.4868615384615386
+    }
+  ]
+}
