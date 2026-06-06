@@ -30,15 +30,18 @@ _DEBUG_REWARD_PRINTS = 0
 
 
 class ReviewEnv:
-    def __init__(self, max_turns: int, mode: str, log_dir: Optional[str] = None):
+    def __init__(self, max_turns: int, mode: str, log_dir: Optional[str] = None, model_adapter_mode: str = "auto"):
         self.max_turns = max_turns
         self.mode = mode
         self.log_dir = log_dir
+        self.model_adapter_mode = str(model_adapter_mode or "auto")
         self.done = False
         self.task: Dict[str, Any] | None = None
         self.last_info: Dict[str, Any] | None = None
 
     def reset(self, extras: Dict[str, Any]):
+        extras = dict(extras or {})
+        extras.setdefault("model_adapter_mode", self.model_adapter_mode)
         self.task = build_review_task(extras, mode=self.mode, max_turns=self.max_turns)
         self.done = False
         self.last_info = None
@@ -264,8 +267,14 @@ class ReviewMultiProcessEnv:
         self.batch_size = env_num * group_n
         self.max_turns = int(getattr(env_config, "max_steps", 1))
         self.log_dir = OmegaConf.select(env_config, "review.log_dir", default=None) if env_config is not None else None
+        self.model_adapter_mode = OmegaConf.select(env_config, "review.model_adapter_mode", default="auto") if env_config is not None else "auto"
         self.envs = [
-            ReviewEnv(max_turns=self.max_turns, mode=review_mode, log_dir=self.log_dir)
+            ReviewEnv(
+                max_turns=self.max_turns,
+                mode=review_mode,
+                log_dir=self.log_dir,
+                model_adapter_mode=self.model_adapter_mode,
+            )
             for _ in range(self.batch_size)
         ]
         self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=min(self.batch_size, 256))

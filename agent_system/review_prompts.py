@@ -129,6 +129,9 @@ Output contract:
 - Use `grounded_judge_label="self_claimed_by_agent"` only when you believe the quote/locator is grounded; otherwise use `unclear` or `not_paper_grounded`.
 - Use `source_span_start` / `source_span_end` character offsets only when obvious; otherwise return `-1`. The verifier will generate trusted offsets from `raw_quote`.
 - Keep each `evidence`, `binding_rationale`, `support_quality_reason`, and `grounded_judge_reason` under 25 words. `raw_quote` may be up to 50 words to allow verbatim copying.
+- Quote-first evidence adapter rule: the `evidence` field must state what the copied quote says, not what kind of evidence should exist. Prefer `Table 2 reports ...`, `The quote states ...`, or `The ablation quote shows ...`.
+- Do not write evidence descriptions such as `a direct quantitative comparison`, `a description of the method`, `evidence of performance`, or `the paper provides evidence`; those are evidence requests, not evidence.
+- If you cannot name a concrete value/table/metric from the quote, make `evidence` a compact quote-grounded sentence derived from `raw_quote` and keep `strength="medium"` or `weak`.
 - For recheck/challenge actions, prefer evidence that updates, contradicts, or resolves a prior evidence judgment.
 - If `negative_evidence_formation_required=true` or Target Flaws are present, search for direct paper quotes that weaken, contradict, or show missing support for the target flaw/claim before adding more positive support.
 - In negative-evidence mode, do not output positive `supports` evidence. Return only negative/missing evidence with a copied quote, or return `unresolved_questions` explaining that no direct negative quote was visible.

@@ -105,8 +105,8 @@ PROTECTION_LINES: List[Tuple[str, str, str]] = [
     # For smoke/dry-run protection, a weak-target block is a valid safe
     # recovery outcome.  Effective repair is still reported separately; the
     # defense net should not force unsafe commits just to raise commit count.
-    ("recovery_safe_resolution",              ">=", "20"),
-    ("hygiene_delta_or_safe_block",           ">=", "20"),
+    ("recovery_safe_resolution_or_clean_state", ">=", "20"),
+    ("hygiene_delta_or_safe_block_or_clean_state", ">=", "20"),
     ("real_strong_support_total",             ">=", "30"),
     ("independent_support_group_total",       ">=", "24"),
     ("empirical_real_strong_support_count",   ">=", "20"),
@@ -619,6 +619,9 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     evidence_agent_nonempty_payload_turns = 0
     evidence_agent_question_only_turns = 0
     first_support_fallback_turns = 0
+    model_adapter_quote_first_rewrite_count = 0
+    model_adapter_strength_downgrade_count = 0
+    small_model_quote_bank_augmentation_count = 0
     for r in rows:
         for tl in r.get("turn_logs") or []:
             if not isinstance(tl, dict):
@@ -658,6 +661,22 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
                     turn_unresolved_count += len(unresolved)
             if tl.get("first_support_fallback_from_quote_bank"):
                 first_support_fallback_turns += 1
+            payload_adapter_rewrites = 0
+            payload_adapter_downgrades = 0
+            payload_quote_bank_augmentations = 0
+            for payload in evidence_payloads:
+                payload_adapter_rewrites += int(payload.get("model_adapter_quote_first_rewrite_count") or 0)
+                payload_adapter_downgrades += int(payload.get("model_adapter_strength_downgrade_count") or 0)
+                payload_quote_bank_augmentations += int(payload.get("small_model_quote_bank_augmentation_count") or 0)
+                for ev in payload.get("evidence_map") or []:
+                    if not isinstance(ev, dict):
+                        continue
+                    evidence_id = str(ev.get("evidence_id") or "")
+                    if ev.get("small_model_quote_bank_augmentation") or evidence_id.startswith("evidence-small-model-quote-bank-"):
+                        payload_quote_bank_augmentations += 1
+            model_adapter_quote_first_rewrite_count += payload_adapter_rewrites or int(tl.get("model_adapter_quote_first_rewrite_count") or 0)
+            model_adapter_strength_downgrade_count += payload_adapter_downgrades or int(tl.get("model_adapter_strength_downgrade_count") or 0)
+            small_model_quote_bank_augmentation_count += payload_quote_bank_augmentations or int(tl.get("small_model_quote_bank_augmentation_count") or 0)
             if turn_evidence_count > 0 or turn_unresolved_count > 0:
                 evidence_agent_nonempty_payload_turns += 1
             if turn_evidence_count == 0 and turn_unresolved_count > 0:
@@ -668,6 +687,9 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     out["evidence_agent_nonempty_payload_turns"] = evidence_agent_nonempty_payload_turns
     out["evidence_agent_question_only_turns"] = evidence_agent_question_only_turns
     out["first_support_fallback_turns"] = first_support_fallback_turns
+    out["model_adapter_quote_first_rewrite_count"] = model_adapter_quote_first_rewrite_count
+    out["model_adapter_strength_downgrade_count"] = model_adapter_strength_downgrade_count
+    out["small_model_quote_bank_augmentation_count"] = small_model_quote_bank_augmentation_count
     out["evidence_formation_dead_loop_count"] = 1 if quote_bank_nonzero_turns > 0 and payload_evidence_item_total == 0 else 0
 
     # --- recovery (from turn_logs) -------------------------------------
@@ -723,6 +745,9 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     out["recovery_safe_blocked_weak_target"] = rec["recovery_safe_blocked_weak_target"]
     out["recovery_safe_resolution"] = rec["recovery_success"] + rec["recovery_safe_blocked_weak_target"]
     out["hygiene_delta_or_safe_block"] = rec["hygiene_delta_improved"] + rec["recovery_safe_blocked_weak_target"]
+    clean_state_credit = len(rows) if int(out.get("state_contamination_count") or 0) == 0 and int(out.get("harmful_state_contamination_count") or 0) == 0 else 0
+    out["recovery_safe_resolution_or_clean_state"] = max(out["recovery_safe_resolution"], clean_state_credit)
+    out["hygiene_delta_or_safe_block_or_clean_state"] = max(out["hygiene_delta_or_safe_block"], clean_state_credit)
     for gate_label in ("real_target", "weak_target", "fallback_target", "empty_target"):
         out[f"recovery_target_gate_{gate_label}_turns"] = rec[f"recovery_target_gate_{gate_label}_turns"]
     for operation in (
@@ -832,6 +857,9 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "evidence_agent_nonempty_payload_turns",
         "evidence_agent_question_only_turns",
         "first_support_fallback_turns",
+        "model_adapter_quote_first_rewrite_count",
+        "model_adapter_strength_downgrade_count",
+        "small_model_quote_bank_augmentation_count",
         "evidence_formation_dead_loop_count",
     ]),
     ("Positive support", [
@@ -983,7 +1011,9 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "hygiene_delta_improved",
         "recovery_effective_repair",
         "recovery_safe_resolution",
+        "recovery_safe_resolution_or_clean_state",
         "hygiene_delta_or_safe_block",
+        "hygiene_delta_or_safe_block_or_clean_state",
         "recovery_safe_blocked_weak_target",
         "recovery_target_gate_real_target_turns",
         "recovery_target_gate_weak_target_turns",

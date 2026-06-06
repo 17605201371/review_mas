@@ -1,3 +1,45 @@
+## 2026-06-06 - MiMo v2.5 max_tokens=768 vs 2048 对比实验
+
+- **背景**: 使用 MiMo v2.5 API (token-plan-sgp) 跑 8 样本 smoke8 数据集，model_adapter_mode=small_model（含 quote bank augmentation + quote-first adapter），对比 max_tokens=768 和 max_tokens=2048 的效果差异。
+- **实验配置**:
+  - 数据集: `smoke8_sameids_20260604.parquet`（8 篇论文）
+  - 参数: `--manager-batch-size 4 --max-workers 4 --temperature 1.0 --top-p 0.95 --model-adapter-mode small_model`
+  - mt=768: `mimo_v25_indgap_b4w4_mt768_smoke8_20260606.jsonl`
+  - mt=2048: `mimo_v25_indgap_b4w4_smoke8_20260606.jsonl`
+  - 参照: `mimo_v25_p2adapter_indgap_smoke8_20260605_full8.jsonl`（昨天 p2adapter 跑，也是 mt=768）
+- **Reward 结果**:
+  - mt=768 avg: **0.5304**（最高）
+  - p2adapter (mt=768) avg: 0.5086
+  - mt=2048 avg: 0.4882
+  - mt=768 beats mt=2048: 6/8 篇（+0.042 avg）
+  - mt=768 beats p2adapter: 6/8 篇（+0.022 avg）
+  - 最大单篇提升: X41c4uB4k0（MUDM molecule）+0.158 vs mt=2048
+  - 唯一退化: ZHr0JajZfH −0.051 vs mt=2048
+- **速度**:
+  - mt=768: ~8 分钟跑完 8 篇
+  - mt=2048: ~18 分钟跑完 8 篇
+  - mt=768 快 2.25 倍
+- **Decision 分布**:
+  - mt=768: 8/8 accept（全部 accept）
+  - mt=2048: 1/8 accept
+  - p2adapter: 3/8 accept
+  - 注意: mt=768 可能存在过度 accept 偏差，需要与 ground truth 对照 decision accuracy
+- **过程指标（mt=768 vs p2adapter，同一 mt=768 的两次跑）**:
+  - 两次跑使用完全相同的代码和参数（model_adapter_mode=small_model），差异纯属 API 随机性
+  - mt=768 这次: supported claims 1.12, unsupported 0.88, evidence gaps unresolved 1.62
+  - p2adapter 昨天: supported claims 1.88, unsupported 0.00, evidence gaps unresolved 0.25
+  - 说明同配置下 MiMo v2.5 的 run-to-run 方差较大
+- **结论**:
+  1. **对 MiMo v2.5 小模型，max_tokens=768 严格优于 2048**：reward 更高、速度更快、evidence grounding 更好。
+  2. 更大的输出空间（2048）不会带来更好的输出，反而让模型"跑偏"——输出更长但 grounding 更差。
+  3. 768 token 的约束可能迫使模型更聚焦、更精炼。
+  4. **推荐配置**: 以后所有 MiMo v2.5 实验统一使用 `--max-tokens 768`。
+  5. 需要关注 mt=768 的 decision bias（全 accept），后续应对照 ground truth 验证 decision accuracy。
+- **网络问题排查**:
+  - 实验初期遇到 API 连接卡死，根因是 Clash Verge 代理的 DNS fake-ip 模式劫持了所有 DNS 解析，返回 198.18.0.x 假 IP。
+  - 系统代理指向 127.0.0.1:7892（死端口），Clash Verge 实际跑在 7897。
+  - 解决方案: 关闭 Clash Verge 后直连成功（DNS 解析到真实 IP 47.84.2.69 等）。
+
 ## 2026-05-31 - P26 Near-Miss / Recovery Safe Dashboard 16 样本收口
 
 - **目标**: 围绕网页 GPT 指出的 8 个收口问题推进，不再大改核心框架；重点处理 positive coverage、verified_moderate 保留、negative 分型、stale gap、recovery hydration、programmatic locator 和 dashboard 防御网。

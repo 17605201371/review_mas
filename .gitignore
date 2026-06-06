@@ -1,3 +1,6 @@
+# API keys and secrets
+.env
+
 # Experiment outputs
 *.jsonl
 *.log
@@ -10,3 +13,16 @@ __pycache__/
 *.pyc
 .pytest_cache/
 outputs/
+
+# Experiment logs and dashboards
+*_logs/
+*_logs_*/
+MIMO_*.json
+MIMO_*.md
+MAINLINE_BASELINE_V2_METADATA.*
+local_deepseek_v3_*
+p0fix3_audit_output/
+r2_baseline_deepseek_v3_logs/
+mimo_v25_smoke8_logs/
+extract_rewards.py
+scripts/extract_process_metrics.py

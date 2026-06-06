@@ -421,17 +421,26 @@ def _select_negative_quote_bank_entry(state: Optional[Dict[str, Any]], manager_p
     ]).strip()
     candidates = []
     for item in quote_bank:
-        if str(item.get("source_bucket") or "") != "negative_or_gap":
-            continue
+        source_bucket = str(item.get("source_bucket") or "")
         raw_quote = str(item.get("raw_quote") or "").strip()
         if not raw_quote or not _NEGATIVE_QUOTE_ANCHOR_RE.search(raw_quote):
             continue
+        if source_bucket == "abstract":
+            continue
+        explicit_negative_bucket = source_bucket == "negative_or_gap"
+        if not explicit_negative_bucket and _negative_quote_entry_type(item) in {"generic_gap", "neutral_control_context"}:
+            # Non-abstract quotes with negative terms are useful to ground an
+            # assessment limitation, but not enough for claim-status downgrade.
+            item = dict(item)
+            item.setdefault("negative_evidence_type", "scope_limitation")
+            item["negative_quote_bank_inferred_from_anchor"] = True
         score = _runner_overlap_score(target_text, raw_quote) if target_text else 0.0
-        candidates.append((score, item))
+        priority = 2 if explicit_negative_bucket else 1
+        candidates.append((priority, score, item))
     if not candidates:
         return None
-    candidates.sort(key=lambda pair: pair[0], reverse=True)
-    return candidates[0][1]
+    candidates.sort(key=lambda pair: (pair[0], pair[1]), reverse=True)
+    return candidates[0][2]
 
 
 def _select_negative_quote_target_claim(state: Optional[Dict[str, Any]], manager_payload: Dict[str, Any], quote: str) -> str:
@@ -1727,7 +1736,7 @@ def _real_claims_by_id(state: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         if not isinstance(item, dict):
             continue
         claim_id = str(item.get("claim_id") or "").strip()
-        if not claim_id or claim_id.startswith("claim-fallback"):
+        if not claim_id or claim_id.startswith(("claim-context", "claim-fallback", "claim-recovery")):
             continue
         claims[claim_id] = item
     return claims
@@ -1850,6 +1859,445 @@ def _first_support_evidence_text(quote_text: str) -> str:
     if len(snippet) > 220:
         snippet = snippet[:217].rstrip() + "..."
     return f"Copied paper quote provides initial claim support: {snippet}"
+
+
+def _small_model_quote_bank_evidence_text(quote_text: str, locator: str = "") -> str:
+    snippet = re.sub(r"\s+", " ", str(quote_text or "")).strip()
+    if len(snippet) > 220:
+        snippet = snippet[:217].rstrip() + "..."
+    locator = str(locator or "").strip()
+    if re.search(r"\bTable\s*\d+", locator, re.IGNORECASE):
+        return f"{locator} reports: {snippet}"
+    if re.search(r"\b(?:Figure|Fig\.)\s*\d+", locator, re.IGNORECASE):
+        return f"{locator} shows: {snippet}"
+    return f"The copied paper quote states: {snippet}"
+
+
+def _small_model_quote_bank_support_item(
+    state: Dict[str, Any],
+    manager_payload: Dict[str, Any],
+    claim_id: str,
+    quote: Dict[str, Any],
+    evidence_index: int,
+    *,
+    reason: str,
+) -> Dict[str, Any]:
+    quote_text = str(quote.get("raw_quote") or "").strip()
+    source = _first_support_source_bucket(quote)
+    support_bucket = _quote_bank_source_to_support_bucket(source)
+    source_locator = str(quote.get("source_locator") or "")
+    locator_specific = bool(re.search(r"\b(?:Table|Figure|Fig\.|Section|Sec\.)\s*\d+", source_locator, re.IGNORECASE))
+    concrete_quote = bool(_QUOTE_CONCRETE_ANCHOR_RE.search(quote_text))
+    deep_source = source in {"table_or_figure", "results", "claim_match_result", "ablation", "comparison"}
+    strength = "strong" if deep_source and (locator_specific or concrete_quote) else "medium"
+    binding_confidence = 0.62 if strength == "strong" else 0.48
+    return {
+        "evidence_id": f"evidence-small-model-quote-bank-{evidence_index}",
+        "claim_id": claim_id,
+        "evidence": _small_model_quote_bank_evidence_text(quote_text, source_locator),
+        "source": source_locator or quote.get("source_bucket") or "paper quote bank",
+        "source_locator": source_locator,
+        "raw_quote": quote_text,
+        "quote_id": quote.get("quote_id") or "",
+        "source_span_start": int(quote.get("source_span_start", -1) or -1),
+        "source_span_end": int(quote.get("source_span_end", -1) or -1),
+        "strength": strength,
+        "stance": "partially_supports",
+        "binding_status": "bound_real_claim",
+        "binding_confidence": binding_confidence,
+        "binding_rationale": "Deterministic small-model augmentation binds a copied quote-bank span to the targeted real claim.",
+        "grounded_judge_label": "self_claimed_by_agent",
+        "grounded_judge_reason": "Quote copied from Evidence Quote Bank; verifier assigns final grounding and semantic labels.",
+        "support_source_bucket": support_bucket,
+        "support_quality_reason": (
+            "Small-model quote-bank augmentation; final strength depends on verifier semantic alignment."
+        ),
+        "small_model_quote_bank_augmentation": True,
+        "small_model_quote_bank_augmentation_reason": reason,
+        "model_adapter_quote_bank_augmentation": True,
+    }
+
+
+def _apply_small_model_quote_bank_support_augmentation(
+    worker_id: str,
+    worker_payload: Dict[str, Any],
+    state: Dict[str, Any],
+    manager_payload: Dict[str, Any],
+    trace_worker: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Add conservative quote-bank evidence when small models under-produce.
+
+    MiMo-like models often understand the task but emit too few concrete
+    evidence items or return empty content on long Evidence prompts.  This path
+    does not invent text: it only copies program-extracted quote-bank spans,
+    binds them to existing real paper claims, and lets the state verifier decide
+    final grounding/semantic admission.
+    """
+    if worker_id != "Evidence Agent" or not isinstance(worker_payload, dict):
+        return worker_payload
+    mode = _normalize_model_adapter_mode(manager_payload.get("model_adapter_mode", "auto"))
+    if not _model_adapter_quote_first_enabled(mode):
+        return worker_payload
+    if _is_negative_evidence_formation_turn(manager_payload):
+        return worker_payload
+    action_type = str(manager_payload.get("effective_action_type") or manager_payload.get("action_type") or "").strip()
+    if action_type not in {"verify_evidence", "request_evidence_recheck", "challenge_previous_hypothesis"}:
+        return worker_payload
+
+    claims_by_id = _real_claims_by_id(state)
+    if not claims_by_id:
+        return worker_payload
+    evidence_items = [item for item in worker_payload.get("evidence_map", []) or [] if isinstance(item, dict)]
+    support_evidence_items = [
+        item for item in evidence_items
+        if str(item.get("stance") or "").strip().lower() in {"supports", "partially_supports"}
+        and str(item.get("raw_quote") or item.get("quote_id") or "").strip()
+    ]
+    target_claim_ids = [
+        str(item).strip()
+        for item in (manager_payload.get("target_claim_ids") or [])
+        if str(item).strip() in claims_by_id
+    ] or list(claims_by_id.keys())[:4]
+    if not target_claim_ids:
+        return worker_payload
+
+    quote_bank = [
+        item for item in _support_quote_bank_from_state(state)
+        if not _first_support_quote_is_negative(item)
+        and str(item.get("raw_quote") or "").strip()
+        and not _first_support_quote_is_title_or_abstract_stub(item)
+    ]
+    if not quote_bank:
+        return worker_payload
+
+    def support_group_key(item: Dict[str, Any]) -> str:
+        quote_id = str(item.get("quote_id") or "").strip()
+        if quote_id:
+            return f"quote:{quote_id}"
+        quote_text = re.sub(r"\s+", " ", str(item.get("raw_quote") or "")).strip().lower()
+        if quote_text:
+            return f"text:{quote_text[:160]}"
+        locator = re.sub(r"\s+", " ", str(item.get("source_locator") or item.get("source") or "")).strip().lower()
+        return f"locator:{locator[:120]}"
+
+    existing_support_groups_by_claim: Dict[str, set[str]] = {}
+    for item in list((state or {}).get("evidence_map", []) or []) + evidence_items:
+        if not isinstance(item, dict):
+            continue
+        if str(item.get("stance") or "").strip().lower() not in {"supports", "partially_supports"}:
+            continue
+        claim_id = str(item.get("claim_id") or "").strip()
+        if claim_id not in claims_by_id:
+            continue
+        group_key = support_group_key(item)
+        if not group_key:
+            continue
+        existing_support_groups_by_claim.setdefault(claim_id, set()).add(group_key)
+
+    existing_support_claims = {
+        claim_id for claim_id, groups in existing_support_groups_by_claim.items() if groups
+    }
+    payload_support_claims = {
+        str(item.get("claim_id") or "")
+        for item in evidence_items
+        if str(item.get("stance") or "").strip().lower() in {"supports", "partially_supports"}
+    }
+    used_pairs = {
+        (str(item.get("claim_id") or ""), str(item.get("quote_id") or ""), re.sub(r"\s+", " ", str(item.get("raw_quote") or "")).strip().lower())
+        for item in list((state or {}).get("evidence_map", []) or []) + evidence_items
+        if isinstance(item, dict)
+    }
+    used_quote_ids = {quote_id for _, quote_id, _ in used_pairs if quote_id}
+
+    def rank_pair(pair: tuple[str, Dict[str, Any]]) -> tuple[int, int, int, int, int, int, int, int, int, int, int]:
+        claim_id, quote = pair
+        claim = claims_by_id.get(claim_id, {})
+        claim_text = " ".join(str(claim.get(key) or "") for key in ("claim", "evidence_need", "claim_type", "coverage_tags"))
+        claim_lower = claim_text.lower()
+        quote_text = " ".join(str(quote.get(key) or "") for key in ("raw_quote", "source_locator", "source_bucket", "support_role_hint"))
+        source = _first_support_source_bucket(quote)
+        source_priority = {
+            "table_or_figure": 8,
+            "results": 7,
+            "claim_match_result": 7,
+            "ablation": 6,
+            "comparison": 5,
+            "method": 4,
+            "claim_match_method": 4,
+            "theory_or_proof": 3,
+            "claim_match": 2,
+            "abstract": 0,
+        }.get(source, 1)
+        overlap = int(quote.get("claim_overlap_score") or 0) + _word_overlap_score(claim_text, quote_text)
+        locator = str(quote.get("source_locator") or "")
+        locator_specific = 1 if re.search(r"\b(?:Table|Figure|Fig\.|Section|Sec\.)\s*\d+", locator, re.IGNORECASE) else 0
+        existing_group_count = len(existing_support_groups_by_claim.get(claim_id, set()))
+        needs_second_independent = 1 if existing_group_count == 1 else 0
+        uncovered_claim = 1 if existing_group_count == 0 and claim_id not in payload_support_claims else 0
+        under_independent = 1 if existing_group_count < 2 else 0
+        unused_quote = 1 if str(quote.get("quote_id") or "") not in used_quote_ids else 0
+        concrete = 1 if _QUOTE_CONCRETE_ANCHOR_RE.search(str(quote.get("raw_quote") or "")) else 0
+        quote_length = min(len(str(quote.get("raw_quote") or "")), 260)
+        claim_priority = _first_support_claim_priority(claim)
+        claim_source_match = 0
+        if source in {"table_or_figure", "results", "claim_match_result", "ablation", "comparison"} and any(
+            term in claim_lower for term in ("empirical", "experiment", "result", "performance", "metric", "benchmark", "baseline", "outperform")
+        ):
+            claim_source_match = 1
+        elif source in {"method", "claim_match_method", "theory_or_proof"} and any(
+            term in claim_lower for term in ("method", "algorithm", "approach", "objective", "architecture", "training", "model")
+        ):
+            claim_source_match = 1
+        return (
+            under_independent,
+            needs_second_independent,
+            uncovered_claim,
+            unused_quote,
+            claim_source_match,
+            source_priority,
+            claim_priority,
+            locator_specific,
+            concrete,
+            overlap,
+            quote_length,
+        )
+
+    pairs: List[tuple[str, Dict[str, Any]]] = []
+    for claim_id in target_claim_ids:
+        for quote in quote_bank:
+            quote_key = re.sub(r"\s+", " ", str(quote.get("raw_quote") or "")).strip().lower()
+            pair_key = (claim_id, str(quote.get("quote_id") or ""), quote_key)
+            if pair_key in used_pairs:
+                continue
+            pairs.append((claim_id, quote))
+    if not pairs:
+        return worker_payload
+
+    target_min = 2 if action_type in {"verify_evidence", "request_evidence_recheck"} else 1
+    max_additions = max(0, target_min - len(support_evidence_items))
+    independence_need = sum(
+        1
+        for claim_id in target_claim_ids
+        if _first_support_claim_priority(claims_by_id.get(claim_id, {})) >= 2
+        and len(existing_support_groups_by_claim.get(claim_id, set())) == 1
+    )
+    uncovered_need = sum(
+        1
+        for claim_id in target_claim_ids
+        if _first_support_claim_priority(claims_by_id.get(claim_id, {})) >= 2
+        and len(existing_support_groups_by_claim.get(claim_id, set())) == 0
+        and claim_id not in payload_support_claims
+    )
+    if max_additions <= 0 and independence_need <= 0 and uncovered_need <= 0:
+        return worker_payload
+    max_additions = max(max_additions, min(independence_need, 2), 1 if uncovered_need else 0)
+    max_additions = min(max_additions, 3)
+
+    selected: List[tuple[str, Dict[str, Any]]] = []
+    selected_groups_by_claim: Dict[str, set[str]] = {}
+    selected_quote_ids: set[str] = set()
+    for claim_id, quote in sorted(pairs, key=rank_pair, reverse=True):
+        quote_id = str(quote.get("quote_id") or "")
+        if quote_id:
+            candidate_group = f"quote:{quote_id}"
+        else:
+            quote_group_text = re.sub(r"\s+", " ", str(quote.get("raw_quote") or "")).strip().lower()
+            candidate_group = f"text:{quote_group_text[:160]}"
+        current_groups = set(existing_support_groups_by_claim.get(claim_id, set()))
+        current_groups.update(selected_groups_by_claim.get(claim_id, set()))
+        if candidate_group in current_groups:
+            continue
+        if len(current_groups) >= 2:
+            continue
+        if quote_id and quote_id in selected_quote_ids:
+            continue
+        selected.append((claim_id, quote))
+        selected_groups_by_claim.setdefault(claim_id, set()).add(candidate_group)
+        if quote_id:
+            selected_quote_ids.add(quote_id)
+        if len(selected) >= max_additions:
+            break
+    if not selected:
+        return worker_payload
+
+    updated = dict(worker_payload)
+    updated_items = list(evidence_items)
+    base_index = len((state or {}).get("evidence_map", []) or []) + len(updated_items) + 1
+    additions = [
+        _small_model_quote_bank_support_item(
+            state,
+            manager_payload,
+            claim_id,
+            quote,
+            base_index + idx,
+            reason="small_model_underproduced_evidence",
+        )
+        for idx, (claim_id, quote) in enumerate(selected)
+    ]
+    updated_items.extend(additions)
+    updated["evidence_map"] = updated_items
+    updated["small_model_quote_bank_augmentation_count"] = int(updated.get("small_model_quote_bank_augmentation_count") or 0) + len(additions)
+    manager_payload["small_model_quote_bank_augmentation_count"] = int(manager_payload.get("small_model_quote_bank_augmentation_count") or 0) + len(additions)
+    if trace_worker is not None:
+        trace_worker["small_model_quote_bank_augmentation_count"] = len(additions)
+        trace_worker["small_model_quote_bank_augmentation_examples"] = [
+            {
+                "claim_id": item["claim_id"],
+                "quote_id": item.get("quote_id", ""),
+                "strength": item.get("strength", ""),
+            }
+            for item in additions[:3]
+        ]
+    normalized = normalize_review_update_payload(updated, required_fields=["evidence_map"])
+    normalized["small_model_quote_bank_augmentation_count"] = int(updated.get("small_model_quote_bank_augmentation_count") or len(additions))
+    return normalized
+
+
+_EVIDENCE_DESCRIPTION_ONLY_RE = re.compile(
+    r"^\s*(?:"
+    r"an?\s+(?:direct\s+)?(?:quantitative\s+)?(?:comparison|description|analysis|evaluation|ablation|result|evidence|statement|discussion)\b|"
+    r"(?:direct|quantitative|empirical|methodological)\s+(?:comparison|evidence|support|description)\b|"
+    r"evidence\s+(?:of|for|that)\b|"
+    r"the\s+paper\s+(?:provides|presents|includes|contains|describes|reports)\s+(?:evidence|a\s+description|an\s+analysis)\b"
+    r")",
+    re.IGNORECASE,
+)
+_QUOTE_CONCRETE_ANCHOR_RE = re.compile(
+    r"\b(?:Table|Figure|Fig\.|Section|Sec\.)\s*\d+|"
+    r"\b\d+(?:\.\d+)?\s*(?:%|points?|HOTA|MOTA|IDF1|AP|F1|accuracy|AUC|BLEU|ROUGE|mAP)?\b|"
+    r"\b(?:outperform|improv|ablation|baseline|dataset|benchmark|validation|test set|result)\w*\b",
+    re.IGNORECASE,
+)
+_EVIDENCE_CONCRETE_ANCHOR_RE = re.compile(
+    r"\b(?:Table|Figure|Fig\.|Section|Sec\.)\s*\d+|"
+    r"\b\d+(?:\.\d+)?\s*(?:%|points?|HOTA|MOTA|IDF1|AP|F1|accuracy|AUC|BLEU|ROUGE|mAP)?\b",
+    re.IGNORECASE,
+)
+
+
+def _normalize_model_adapter_mode(mode: Any) -> str:
+    normalized = str(mode or "auto").strip().lower().replace("-", "_")
+    aliases = {
+        "small": "small_model",
+        "smallmodel": "small_model",
+        "small_model": "small_model",
+        "large": "large_model",
+        "largemodel": "large_model",
+        "large_model": "large_model",
+        "disabled": "off",
+        "false": "off",
+        "none": "off",
+        "0": "off",
+        "true": "small_model",
+        "1": "small_model",
+        "auto": "auto",
+        "off": "off",
+    }
+    return aliases.get(normalized, "auto")
+
+
+def _model_adapter_quote_first_enabled(mode: Any) -> bool:
+    normalized = _normalize_model_adapter_mode(mode)
+    return normalized in {"auto", "small_model"}
+
+
+def _quote_first_statement_from_item(item: Dict[str, Any]) -> str:
+    quote = re.sub(r"\s+", " ", str(item.get("raw_quote") or "")).strip()
+    if not quote:
+        return ""
+    locator = str(item.get("source_locator") or item.get("source") or "").strip()
+    prefix = "The copied quote"
+    if re.search(r"\bTable\s*\d+", locator, re.IGNORECASE):
+        prefix = f"{locator} reports"
+    elif re.search(r"\b(?:Figure|Fig\.)\s*\d+", locator, re.IGNORECASE):
+        prefix = f"{locator} shows"
+    elif re.search(r"\bablation\b", " ".join(str(item.get(k) or "") for k in ("support_source_bucket", "source", "source_locator", "raw_quote")), re.IGNORECASE):
+        prefix = "The ablation quote states"
+    elif re.search(r"\bmethod|approach|algorithm|framework\b", str(item.get("support_source_bucket") or item.get("source") or ""), re.IGNORECASE):
+        prefix = "The method quote states"
+    snippet = quote
+    if len(snippet) > 190:
+        snippet = snippet[:187].rstrip() + "..."
+    # Avoid doubling punctuation after truncated LaTeX fragments.
+    return f"{prefix}: {snippet}"
+
+
+def _apply_quote_first_evidence_statement_adapter(
+    worker_id: str,
+    worker_payload: Dict[str, Any],
+    manager_payload: Dict[str, Any],
+    trace_worker: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Convert description-only evidence statements into quote-first statements.
+
+    Smaller instruction-following models often output what evidence should be
+    ("a direct quantitative comparison") rather than what the paper quote says.
+    This adapter does not create new evidence or increase strength; it only
+    makes the evidence statement faithful to an already copied quote so the
+    verifier/reward pipeline can judge the item instead of a paraphrased request.
+    """
+    if worker_id != "Evidence Agent" or not isinstance(worker_payload, dict):
+        return worker_payload
+    mode = _normalize_model_adapter_mode(manager_payload.get("model_adapter_mode", "auto"))
+    if not _model_adapter_quote_first_enabled(mode):
+        if trace_worker is not None:
+            trace_worker["model_adapter_mode"] = mode
+            trace_worker["model_adapter_quote_first_enabled"] = False
+        return worker_payload
+    evidence_items = [item for item in worker_payload.get("evidence_map", []) or [] if isinstance(item, dict)]
+    if not evidence_items:
+        return worker_payload
+    adapted = 0
+    downgraded = 0
+    examples: List[Dict[str, str]] = []
+    for item in evidence_items:
+        evidence_text = str(item.get("evidence") or "").strip()
+        raw_quote = str(item.get("raw_quote") or "").strip()
+        if not evidence_text or not raw_quote:
+            continue
+        description_only = bool(_EVIDENCE_DESCRIPTION_ONLY_RE.search(evidence_text))
+        lacks_concrete_anchor = not bool(_EVIDENCE_CONCRETE_ANCHOR_RE.search(evidence_text))
+        quote_has_anchor = bool(_QUOTE_CONCRETE_ANCHOR_RE.search(raw_quote))
+        # Trigger on description-only statements, especially when the quote is
+        # more concrete than the evidence field.  Leave already concrete
+        # statements with table IDs/numbers untouched.
+        if not description_only and not (lacks_concrete_anchor and quote_has_anchor and len(evidence_text.split()) <= 18):
+            continue
+        replacement = _quote_first_statement_from_item(item)
+        if not replacement:
+            continue
+        item["agent_evidence_statement"] = evidence_text
+        item["evidence"] = replacement
+        item["model_adapter_quote_first_rewrite"] = True
+        item["model_adapter_reason"] = "description_only_evidence_statement_rewritten_from_raw_quote"
+        adapted += 1
+        if str(item.get("strength") or "").lower() == "strong" and lacks_concrete_anchor:
+            item["strength"] = "medium"
+            item["model_adapter_strength_downgrade"] = True
+            downgraded += 1
+        if len(examples) < 3:
+            examples.append({
+                "evidence_id": str(item.get("evidence_id") or ""),
+                "before": evidence_text[:160],
+                "after": replacement[:160],
+            })
+    if adapted:
+        worker_payload = dict(worker_payload)
+        worker_payload["evidence_map"] = evidence_items
+        worker_payload["model_adapter_quote_first_rewrite_count"] = adapted
+        worker_payload["model_adapter_strength_downgrade_count"] = downgraded
+        manager_payload["model_adapter_quote_first_rewrite_count"] = int(manager_payload.get("model_adapter_quote_first_rewrite_count") or 0) + adapted
+        manager_payload["model_adapter_strength_downgrade_count"] = int(manager_payload.get("model_adapter_strength_downgrade_count") or 0) + downgraded
+        if trace_worker is not None:
+            trace_worker["model_adapter_mode"] = mode
+            trace_worker["model_adapter_quote_first_enabled"] = True
+            trace_worker["model_adapter_quote_first_rewrite_count"] = adapted
+            trace_worker["model_adapter_strength_downgrade_count"] = downgraded
+            trace_worker["model_adapter_quote_first_examples"] = examples
+    elif trace_worker is not None:
+        trace_worker["model_adapter_mode"] = mode
+        trace_worker["model_adapter_quote_first_enabled"] = True
+    return worker_payload
 
 
 def _maybe_salvage_first_support_payload(
@@ -2670,13 +3118,27 @@ _CLAIM_CONTEXT_PATTERN = re.compile(
 
 def _clean_fallback_claim_text(text: str) -> str:
     cleaned = " ".join(str(text or "").split())
+    cleaned = re.sub(
+        r"^(?:an?\s+)?(?:contribution|method|empirical|comparison|limitation|scope)\s+claim(?:\s+from\s+the\s+abstract)?\s*[:\-–]\s*",
+        "",
+        cleaned,
+        flags=re.IGNORECASE,
+    )
     cleaned = re.sub(r"^(?:the paper|this paper|the authors)\s+(?:claims?|argues?|proposes?|demonstrates?|shows?)\s+(?:that\s+)?", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.split(r"\b(?:however|but)\b.*\b(?:infer|not detailed|not provided|excerpt)\b", cleaned, maxsplit=1, flags=re.IGNORECASE)[0].strip()
+    cleaned = re.sub(r"\bI\s+(?:can|might|should)\s+infer\b.*$", "", cleaned, flags=re.IGNORECASE).strip()
     cleaned = cleaned.strip(' -:;{}')
     cleaned = re.sub(r"^(?:abstract|introduction|methods?|methodology|experiments?|evaluation|results?|discussion|conclusion)\s+(?=(?:we|our|the|this)\b)", "", cleaned, flags=re.IGNORECASE)
     return cleaned[:280]
 
 
-def _fallback_claim_items_from_raw(raw_text: str, state: Dict[str, Any], target_claim_id: str = "") -> List[Dict[str, Any]]:
+def _fallback_claim_items_from_raw(
+    raw_text: str,
+    state: Dict[str, Any],
+    target_claim_id: str = "",
+    *,
+    paper_claim_salvage: bool = False,
+) -> List[Dict[str, Any]]:
     existing_ids = {str(item.get("claim_id") or "") for item in state.get("claims", []) if isinstance(item, dict)}
     next_idx = len(existing_ids) + 1
     candidates: List[str] = []
@@ -2699,20 +3161,31 @@ def _fallback_claim_items_from_raw(raw_text: str, state: Dict[str, Any], target_
             break
     claims: List[Dict[str, Any]] = []
     for candidate in candidates[:3]:
-        claim_id = target_claim_id if target_claim_id and target_claim_id not in existing_ids and not claims else f"claim-fallback-{next_idx}"
+        prefix = "claim-paper-fallback" if paper_claim_salvage else "claim-fallback"
+        claim_id = target_claim_id if target_claim_id and target_claim_id not in existing_ids and not claims else f"{prefix}-{next_idx}"
         while claim_id in existing_ids or any(item["claim_id"] == claim_id for item in claims):
             next_idx += 1
-            claim_id = f"claim-fallback-{next_idx}"
-        claims.append({
+            claim_id = f"{prefix}-{next_idx}"
+        metadata = _claim_metadata_from_context(candidate) if paper_claim_salvage else {
+            "claim_type": "other",
+            "coverage_tags": [],
+            "evidence_need": "method/result/table evidence",
+        }
+        item = {
             "claim_id": claim_id,
             "claim": candidate,
             "importance": "high" if not claims else "medium",
             "status": "uncertain",
-            "claim_type": "other",
-            "claim_kind": "manager_fallback",
-            "evidence_need": "method/result/table evidence",
-            "coverage_tags": [],
-        })
+            "claim_kind": "paper_extracted" if paper_claim_salvage else "manager_fallback",
+            **metadata,
+        }
+        if paper_claim_salvage:
+            item.update({
+                "claim_origin_kind": "raw_salvaged_claim_agent_output",
+                "claim_origin": "malformed_claim_agent_output",
+                "claim_source": "claim_agent_raw_salvage",
+            })
+        claims.append(item)
         next_idx += 1
     return claims
 
@@ -2739,9 +3212,9 @@ def _claim_metadata_from_context(candidate: str) -> Dict[str, Any]:
     low = candidate.lower()
     if re.search(r"\b(limitation|limited|only|scope|trade[- ]?off|robustness|generalization)\b", low):
         return {"claim_type": "limitation_or_boundary", "coverage_tags": ["limitation", "scope"], "evidence_need": "scope or limitation evidence"}
-    if re.search(r"\b(experiment|experiments|benchmark|benchmarks|result|results|outperform|performance|metric|accuracy|f1|auc)\b", low):
+    if re.search(r"\b(experiment|experiments|evaluate|evaluates|evaluated|evaluation|benchmark|benchmarks|result|results|outperform|outperforms|outperformed|outperforming|performance|metric|accuracy|f1|auc)\b", low):
         return {"claim_type": "empirical", "coverage_tags": ["empirical"], "evidence_need": "result/table/benchmark evidence"}
-    if re.search(r"\b(method|framework|stage|stages|training|modeling|algorithm|architecture|objective|dataset construction|instruction tuning)\b", low):
+    if re.search(r"\b(method|framework|stage|stages|use|uses|used|using|training|trained|modeling|algorithm|architecture|objective|loss|contrastive|dataset construction|instruction tuning)\b", low):
         return {"claim_type": "method", "coverage_tags": ["method"], "evidence_need": "method or implementation evidence"}
     if re.search(r"\b(propose|proposes|present|presents|introduce|introduces|contribution|new|first)\b", low):
         return {"claim_type": "contribution", "coverage_tags": ["contribution"], "evidence_need": "paper contribution evidence"}
@@ -2787,10 +3260,10 @@ def _fallback_claim_items_from_context(
     )
     claims: List[Dict[str, Any]] = []
     for candidate in candidates[:max_claims]:
-        claim_id = target_claim_id if target_claim_id and target_claim_id not in existing_ids and not claims else f"claim-context-{next_idx}"
+        claim_id = target_claim_id if target_claim_id and target_claim_id not in existing_ids and not claims else f"claim-paper-context-{next_idx}"
         while claim_id in existing_ids or any(item["claim_id"] == claim_id for item in claims):
             next_idx += 1
-            claim_id = f"claim-context-{next_idx}"
+            claim_id = f"claim-paper-context-{next_idx}"
         metadata = _claim_metadata_from_context(candidate)
         claims.append({
             "claim_id": claim_id,
@@ -2906,7 +3379,12 @@ def _fallback_worker_payload(
     target_evidence_ids = manager_payload.get("target_evidence_ids", [])
     if agent_id == "Claim Agent":
         target_claim_id = target_claim_ids[0] if target_claim_ids else ""
-        claims = _fallback_claim_items_from_raw(raw_text, state, target_claim_id=target_claim_id)
+        claims = _fallback_claim_items_from_raw(
+            raw_text,
+            state,
+            target_claim_id=target_claim_id,
+            paper_claim_salvage=True,
+        )
         if not claims:
             claims = _fallback_claim_items_from_context(prompt_text, state, target_claim_id=target_claim_id, max_claims=2)
         if not claims:
@@ -3188,11 +3666,13 @@ def run_review_episode(
     max_turns: Optional[int] = None,
     max_workers_per_turn: Optional[int] = None,
     log_dir: Optional[str] = None,
+    model_adapter_mode: str = "auto",
 ) -> Dict[str, Any]:
     plan = get_agent_plan(mode)
     turn_cap = int(max_turns or plan["max_turns_default"])
     worker_limit = max_workers_per_turn if max_workers_per_turn is not None else max(1, len(plan["workers"]))
-    env = ReviewEnv(max_turns=turn_cap, mode=plan["mode"], log_dir=log_dir)
+    effective_adapter_mode = _normalize_model_adapter_mode((extras or {}).get("model_adapter_mode") or model_adapter_mode)
+    env = ReviewEnv(max_turns=turn_cap, mode=plan["mode"], log_dir=log_dir, model_adapter_mode=effective_adapter_mode)
     env.reset(extras)
 
     try:
@@ -3260,6 +3740,7 @@ def run_review_episode(
                 worker_ids,
                 worker_limit,
             )
+            manager_payload["model_adapter_mode"] = obs["review_state"].get("model_adapter_mode", effective_adapter_mode)
             selected_workers = manager_payload.get("selected_agents", [])[:worker_limit]
             manager_payload["selected_agents"] = selected_workers
             manager_payload = _apply_turn_mode(manager_payload)
@@ -3380,6 +3861,19 @@ def run_review_episode(
                         continue
                     if worker_id == "Evidence Agent":
                         worker_payload = _maybe_salvage_first_support_payload(
+                            worker_id,
+                            worker_payload,
+                            obs["review_state"],
+                            manager_payload,
+                            trace_worker=trace_worker,
+                        )
+                        worker_payload = _apply_quote_first_evidence_statement_adapter(
+                            worker_id,
+                            worker_payload,
+                            manager_payload,
+                            trace_worker=trace_worker,
+                        )
+                        worker_payload = _apply_small_model_quote_bank_support_augmentation(
                             worker_id,
                             worker_payload,
                             obs["review_state"],
@@ -3519,11 +4013,20 @@ def run_review_batch(
     max_turns: Optional[int] = None,
     max_workers_per_turn: Optional[int] = None,
     log_dir: Optional[str] = None,
+    model_adapter_mode: str = "auto",
 ) -> List[Dict[str, Any]]:
     plan = get_agent_plan(mode)
     turn_cap = int(max_turns or plan["max_turns_default"])
     worker_limit = max_workers_per_turn if max_workers_per_turn is not None else max(1, len(plan["workers"]))
-    envs = [ReviewEnv(max_turns=turn_cap, mode=plan["mode"], log_dir=log_dir) for _ in extras_list]
+    envs = [
+        ReviewEnv(
+            max_turns=turn_cap,
+            mode=plan["mode"],
+            log_dir=log_dir,
+            model_adapter_mode=_normalize_model_adapter_mode((extras or {}).get("model_adapter_mode") or model_adapter_mode),
+        )
+        for extras in extras_list
+    ]
     results: List[Optional[Dict[str, Any]]] = [None] * len(extras_list)
     task_states: List[Dict[str, Any]] = []
     try:
@@ -3609,6 +4112,7 @@ def run_review_batch(
                 )
                 selected_workers = manager_payload.get("selected_agents", [])[:worker_limit]
                 manager_payload["selected_agents"] = selected_workers
+                manager_payload["model_adapter_mode"] = obs["review_state"].get("model_adapter_mode", model_adapter_mode)
                 manager_payload = _apply_turn_mode(manager_payload)
                 team_context = append_team_context(team_context, plan["manager"], json.dumps(manager_payload, ensure_ascii=False, sort_keys=True))
 
@@ -3756,6 +4260,19 @@ def run_review_batch(
                             continue
                         if worker_id == "Evidence Agent":
                             worker_payload = _maybe_salvage_first_support_payload(
+                                worker_id,
+                                worker_payload,
+                                task["obs"]["review_state"],
+                                manager_payload,
+                                trace_worker=trace_worker,
+                            )
+                            worker_payload = _apply_quote_first_evidence_statement_adapter(
+                                worker_id,
+                                worker_payload,
+                                manager_payload,
+                                trace_worker=trace_worker,
+                            )
+                            worker_payload = _apply_small_model_quote_bank_support_augmentation(
                                 worker_id,
                                 worker_payload,
                                 task["obs"]["review_state"],
@@ -4051,6 +4568,8 @@ class ApiReviewGenerator:
         timeout: int = 120,
         max_retries: int = 3,
         retry_delay: float = 2.0,
+        provider: str = "auto",
+        system_prompt: Optional[str] = None,
     ):
         try:
             from openai import OpenAI
@@ -4068,17 +4587,107 @@ class ApiReviewGenerator:
         self.timeout = timeout
         self.max_retries = max_retries
         self.retry_delay = retry_delay
+        self.provider = str(provider or "auto").strip().lower()
 
-        resolved_key = api_key or os.environ.get("DEEPSEEK_API_KEY") or os.environ.get("OPENAI_API_KEY", "")
-        resolved_url = base_url or os.environ.get("DEEPSEEK_BASE_URL") or os.environ.get("OPENAI_BASE_URL", "https://api.deepseek.com")
+        resolved_key = api_key or os.environ.get("MIMO_API_KEY") or os.environ.get("DEEPSEEK_API_KEY") or os.environ.get("OPENAI_API_KEY", "")
+        resolved_url = (
+            base_url
+            or os.environ.get("MIMO_BASE_URL")
+            or os.environ.get("DEEPSEEK_BASE_URL")
+            or os.environ.get("OPENAI_BASE_URL")
+            or "https://api.deepseek.com"
+        )
+        if self.provider == "auto":
+            low = " ".join([str(model or ""), str(resolved_url or "")]).lower()
+            if "xiaomimimo" in low or "mimo" in low:
+                self.provider = "mimo"
+            elif "deepseek" in low:
+                self.provider = "deepseek"
+            else:
+                self.provider = "openai_compatible"
+
+        if system_prompt is None and self.provider == "mimo":
+            system_prompt = (
+                "You are MiMo, an AI assistant developed by Xiaomi. "
+                "Follow the user's structured output contract exactly. "
+                "Output only the requested tagged JSON block; do not explain, "
+                "do not use markdown fences, and do not include prose outside the tags."
+            )
+        self.system_prompt = str(system_prompt or "").strip()
+
+        default_headers = {"api-key": resolved_key} if self.provider == "mimo" and resolved_key else None
 
         self.client = OpenAI(
             api_key=resolved_key,
             base_url=resolved_url,
             timeout=float(timeout),
             max_retries=0,  # we handle retries ourselves
+            default_headers=default_headers,
         )
-        print(f"[API] Initialized: model={model}, base_url={resolved_url}, max_tokens={max_tokens}")
+        print(f"[API] Initialized: model={model}, provider={self.provider}, base_url={resolved_url}, max_tokens={max_tokens}")
+
+    def _messages(self, prompt: str) -> List[Dict[str, str]]:
+        if self.system_prompt:
+            return [
+                {"role": "system", "content": self.system_prompt},
+                {"role": "user", "content": prompt},
+            ]
+        return [{"role": "user", "content": prompt}]
+
+    def _completion_kwargs(self, prompt: str) -> Dict[str, Any]:
+        kwargs: Dict[str, Any] = {
+            "model": self.model,
+            "messages": self._messages(prompt),
+            "temperature": self.temperature,
+            "top_p": self.top_p,
+        }
+        # Xiaomi MiMo's OpenAI-compatible docs use max_completion_tokens.
+        # Other providers in this project have been tested with max_tokens.
+        if self.provider == "mimo":
+            kwargs["max_completion_tokens"] = self.max_tokens
+        else:
+            kwargs["max_tokens"] = self.max_tokens
+        return kwargs
+
+    @staticmethod
+    def _content_to_text(content: Any) -> str:
+        if content is None:
+            return ""
+        if isinstance(content, str):
+            return content
+        if isinstance(content, list):
+            parts: List[str] = []
+            for item in content:
+                if isinstance(item, str):
+                    parts.append(item)
+                elif isinstance(item, dict):
+                    parts.append(str(item.get("text") or item.get("content") or item.get("output_text") or ""))
+                else:
+                    text_value = getattr(item, "text", None) or getattr(item, "content", None)
+                    if text_value:
+                        parts.append(str(text_value))
+            return "\n".join(part for part in parts if part)
+        return str(content)
+
+    @classmethod
+    def _message_to_text(cls, message: Any) -> str:
+        for attr in ("content", "reasoning_content", "reasoning", "output_text", "text"):
+            text = cls._content_to_text(getattr(message, attr, None))
+            if text.strip():
+                return text
+        dump: Dict[str, Any] = {}
+        if hasattr(message, "model_dump"):
+            try:
+                dump = message.model_dump()
+            except Exception:
+                dump = {}
+        elif isinstance(message, dict):
+            dump = message
+        for key in ("content", "reasoning_content", "reasoning", "output_text", "text"):
+            text = cls._content_to_text(dump.get(key))
+            if text.strip():
+                return text
+        return ""
 
     def _call_api(self, agent_id: str, prompt: str) -> str:
         """Call the API with retry logic."""
@@ -4086,14 +4695,9 @@ class ApiReviewGenerator:
         last_error = None
         for attempt in range(self.max_retries):
             try:
-                response = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=self.temperature,
-                    top_p=self.top_p,
-                    max_tokens=self.max_tokens,
-                )
-                text = response.choices[0].message.content or ""
+                response = self.client.chat.completions.create(**self._completion_kwargs(prompt))
+                message = response.choices[0].message
+                text = self._message_to_text(message)
                 return text
             except Exception as e:
                 last_error = e
@@ -4122,6 +4726,18 @@ def _parse_jsonish_field(value: Any) -> Any:
             except json.JSONDecodeError:
                 return value
     return value
+
+
+def _infer_model_adapter_mode(requested: str, model_name: Optional[str]) -> str:
+    mode = _normalize_model_adapter_mode(requested)
+    if mode != "auto":
+        return mode
+    name = str(model_name or "").lower()
+    if any(token in name for token in ("deepseek", "gpt", "claude", "qwen-max", "qwen-plus", "qwen-turbo")):
+        return "large_model"
+    if any(token in name for token in ("mimo", "mini", "7b", "8b", "9b", "14b", "small")):
+        return "small_model"
+    return "auto"
 
 
 def _row_to_env_kwargs(row: Dict[str, Any]) -> Dict[str, Any]:
@@ -4171,6 +4787,7 @@ def _row_to_env_kwargs(row: Dict[str, Any]) -> Dict[str, Any]:
         "reference_review": row.get("reference_review") or (extra_info or {}).get("reference_review") or "",
         "reference_ratings": row.get("reference_ratings") or (reward_model or {}).get("rating"),
         "reviewer_comments": row.get("reviewer_comments") or "",
+        "model_adapter_mode": env_kwargs.get("model_adapter_mode") or row.get("model_adapter_mode") or "auto",
     }
 
 
@@ -4246,6 +4863,15 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--output-path", default="outputs/review_infer/results.jsonl")
     parser.add_argument("--log-dir", default=None)
+    parser.add_argument(
+        "--model-adapter-mode",
+        default="auto",
+        choices=["auto", "small_model", "large_model", "off"],
+        help=(
+            "Evidence adapter mode. small_model enables quote-first evidence rewrites for models "
+            "that paraphrase evidence; large_model/off disables rewrites; auto infers from model name."
+        ),
+    )
     # vLLM-specific arguments
     parser.add_argument("--tensor-parallel-size", type=int, default=1)
     parser.add_argument("--gpu-memory-utilization", type=float, default=0.55)
@@ -4266,6 +4892,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--api-model", default=None, help="Model name for API backend (e.g. deepseek-chat, gpt-4o, qwen-max). Defaults to 'deepseek-chat'.")
     parser.add_argument("--api-key", default=None, help="API key. Falls back to DEEPSEEK_API_KEY or OPENAI_API_KEY env var.")
     parser.add_argument("--api-base-url", default=None, help="API base URL. Falls back to DEEPSEEK_BASE_URL or OPENAI_BASE_URL env var. Default: https://api.deepseek.com")
+    parser.add_argument("--api-provider", default="auto", choices=["auto", "mimo", "deepseek", "openai_compatible"], help="Provider-specific API compatibility mode.")
+    parser.add_argument("--api-system-prompt", default=None, help="Optional system message for API backends. MiMo gets a provider default when omitted.")
     parser.add_argument("--api-max-workers", type=int, default=8, help="Max concurrent API calls for batch generation.")
     parser.add_argument("--api-timeout", type=int, default=120, help="API request timeout in seconds.")
     parser.add_argument("--api-max-retries", type=int, default=3, help="Max retries per API request.")
@@ -4277,6 +4905,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     rows = load_review_rows(args.dataset_path, limit=args.limit, split=args.split)
     mode_token_defaults = {"s1": 512, "s2": 512, "s3": 640, "s4": 640}
     selected_max_tokens = args.max_tokens if args.max_tokens is not None else mode_token_defaults.get(args.mode, 640)
+
+    model_name_for_adapter = args.api_model if args.backend == "api" else args.model_path
+    effective_model_adapter_mode = _infer_model_adapter_mode(args.model_adapter_mode, model_name_for_adapter)
 
     if args.backend == "api":
         api_model = args.api_model or "deepseek-chat"
@@ -4292,6 +4923,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             max_workers=args.api_max_workers,
             timeout=args.api_timeout,
             max_retries=args.api_max_retries,
+            provider=args.api_provider,
+            system_prompt=args.api_system_prompt,
         )
         print(f"[MAIN] Using API backend: model={api_model}")
     else:
@@ -4314,10 +4947,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             use_chat_template=selected_use_chat_template,
         )
         print(f"[MAIN] Using vLLM backend: model={args.model_path}")
+    print(f"[MAIN] model_adapter_mode={effective_model_adapter_mode} (requested={args.model_adapter_mode})")
 
     results: List[Dict[str, Any]] = []
     batch_size = max(1, int(args.manager_batch_size or 1))
     extras_rows = [_row_to_env_kwargs(row) for row in rows]
+    for extras in extras_rows:
+        if not extras.get("model_adapter_mode") or extras.get("model_adapter_mode") == "auto":
+            extras["model_adapter_mode"] = effective_model_adapter_mode
     _truncate_output(args.output_path)
     if batch_size == 1:
         for extras in extras_rows:
@@ -4328,6 +4965,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 max_turns=args.max_turns,
                 max_workers_per_turn=args.max_workers_per_turn,
                 log_dir=args.log_dir,
+                model_adapter_mode=effective_model_adapter_mode,
             )
             results.append(result)
             _append_result(args.output_path, result)
@@ -4338,6 +4976,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                         "mode": result["mode"],
                         "reward": result["reward"],
                         "final_decision": result["review_state"].get("final_decision", "undecided"),
+                        "model_adapter_mode": result["review_state"].get("model_adapter_mode", effective_model_adapter_mode),
                     },
                     ensure_ascii=False,
                 ),
@@ -4352,6 +4991,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 max_turns=args.max_turns,
                 max_workers_per_turn=args.max_workers_per_turn,
                 log_dir=args.log_dir,
+                model_adapter_mode=effective_model_adapter_mode,
             )
             for result in batch_results:
                 results.append(result)
@@ -4363,6 +5003,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                             "mode": result["mode"],
                             "reward": result["reward"],
                             "final_decision": result["review_state"].get("final_decision", "undecided"),
+                            "model_adapter_mode": result["review_state"].get("model_adapter_mode", effective_model_adapter_mode),
                         },
                         ensure_ascii=False,
                     ),

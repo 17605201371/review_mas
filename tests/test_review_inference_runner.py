@@ -1,9 +1,12 @@
 import json
 
 from agent_system.inference.review_runner import (
+    ApiReviewGenerator,
+    _apply_small_model_quote_bank_support_augmentation,
     _apply_manager_policy_fallback,
     _enforce_negative_evidence_formation_payload,
     _enforce_recovery_patch_mode_payload,
+    _fallback_claim_items_from_context,
     _infer_action_from_state,
     _is_verified_negative_evidence_for_recovery,
     _resolve_prompt_template,
@@ -175,6 +178,201 @@ Table 1: Accuracy and F1 improve by 12.4% over the strongest baseline.
     assert "[truncated]" in obs
     assert manager_payload["evidence_quote_bank_count"] >= 1
     assert task["_latest_evidence_context_meta"]["evidence_quote_bank_count"] >= 1
+
+
+def test_context_claim_fallback_uses_real_paper_claim_ids():
+    prompt = """# Claim-Relevant Paper Excerpt
+    The paper proposes a retrieval reranker trained with a contrastive objective.
+    Experiments on BenchX show the reranker improves F1 by 12.4% over BM25.
+    # Claim State Slice
+    """
+
+    claims = _fallback_claim_items_from_context(prompt, {"claims": []}, max_claims=2)
+
+    assert claims
+    assert all(not item["claim_id"].startswith("claim-context") for item in claims)
+    assert all(item["claim_id"].startswith("claim-paper-context") for item in claims)
+    assert all(item["claim_kind"] == "paper_extracted" for item in claims)
+    assert all(item["claim_origin_kind"] == "context_synthesized" for item in claims)
+
+
+def test_small_model_quote_bank_augmentation_adds_conservative_support():
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The reranker improves F1 over BM25 baselines.",
+                "claim_type": "empirical",
+                "importance": "high",
+                "claim_kind": "paper_extracted",
+            },
+            {
+                "claim_id": "claim-2",
+                "claim": "The method uses a contrastive objective.",
+                "claim_type": "method",
+                "importance": "high",
+                "claim_kind": "paper_extracted",
+            },
+        ],
+        "evidence_map": [],
+        "evidence_quote_bank": [
+            {
+                "quote_id": "quote-table-1",
+                "source_bucket": "table_or_figure",
+                "source_locator": "Table 1",
+                "raw_quote": "Table 1: The reranker improves F1 by 12.4% over BM25 baselines.",
+                "source_span_start": 100,
+                "source_span_end": 170,
+            },
+            {
+                "quote_id": "quote-method-1",
+                "source_bucket": "method",
+                "source_locator": "Section 2",
+                "raw_quote": "The reranker is trained with a contrastive objective over candidate evidence passages.",
+                "source_span_start": 10,
+                "source_span_end": 90,
+            },
+        ],
+    }
+    payload = {"evidence_map": [], "unresolved_questions": ["Need evidence."]}
+    manager = {
+        "action_type": "verify_evidence",
+        "effective_action_type": "verify_evidence",
+        "target_claim_ids": ["claim-1", "claim-2"],
+        "model_adapter_mode": "small_model",
+    }
+    trace = {}
+
+    updated = _apply_small_model_quote_bank_support_augmentation(
+        "Evidence Agent",
+        payload,
+        state,
+        manager,
+        trace_worker=trace,
+    )
+
+    assert updated["small_model_quote_bank_augmentation_count"] == 2
+    assert trace["small_model_quote_bank_augmentation_count"] == 2
+    assert len(updated["evidence_map"]) == 2
+    assert {item["claim_id"] for item in updated["evidence_map"]} == {"claim-1", "claim-2"}
+    assert all(item["raw_quote"] for item in updated["evidence_map"])
+    assert updated["evidence_map"][0]["binding_status"] == "bound_real_claim"
+
+
+def test_small_model_quote_bank_augmentation_adds_second_independent_support():
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The reranker improves F1 over BM25 baselines.",
+                "claim_type": "empirical",
+                "importance": "high",
+                "claim_kind": "paper_extracted",
+            },
+            {
+                "claim_id": "claim-2",
+                "claim": "The method uses a contrastive objective.",
+                "claim_type": "method",
+                "importance": "medium",
+                "claim_kind": "paper_extracted",
+            },
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "evidence-existing-1",
+                "claim_id": "claim-1",
+                "stance": "supports",
+                "strength": "strong",
+                "quote_id": "quote-table-1",
+                "raw_quote": "Table 1: F1 improves by 12.4% over BM25.",
+                "binding_status": "bound_real_claim",
+            }
+        ],
+        "evidence_quote_bank": [
+            {
+                "quote_id": "quote-table-1",
+                "source_bucket": "table_or_figure",
+                "source_locator": "Table 1",
+                "raw_quote": "Table 1: F1 improves by 12.4% over BM25.",
+                "source_span_start": 100,
+                "source_span_end": 150,
+            },
+            {
+                "quote_id": "quote-table-2",
+                "source_bucket": "table_or_figure",
+                "source_locator": "Table 2",
+                "raw_quote": "Table 2: The reranker also improves accuracy by 9.8% on the held-out set.",
+                "source_span_start": 200,
+                "source_span_end": 280,
+            },
+            {
+                "quote_id": "quote-method-1",
+                "source_bucket": "method",
+                "source_locator": "Section 2",
+                "raw_quote": "The reranker is trained with a contrastive objective over candidate evidence passages.",
+                "source_span_start": 300,
+                "source_span_end": 390,
+            },
+        ],
+    }
+    payload = {"evidence_map": []}
+    manager = {
+        "action_type": "verify_evidence",
+        "effective_action_type": "verify_evidence",
+        "target_claim_ids": ["claim-1", "claim-2"],
+        "model_adapter_mode": "small_model",
+    }
+
+    updated = _apply_small_model_quote_bank_support_augmentation(
+        "Evidence Agent",
+        payload,
+        state,
+        manager,
+        trace_worker={},
+    )
+
+    claim1_quotes = {
+        item.get("quote_id")
+        for item in updated["evidence_map"]
+        if item.get("claim_id") == "claim-1"
+    }
+    assert "quote-table-2" in claim1_quotes
+    assert "quote-table-1" not in claim1_quotes
+
+
+def test_salvaged_claim_gap_is_not_assessable_not_open():
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-paper-fallback-1",
+                "claim": "The paper reports an empirical improvement.",
+                "claim_type": "empirical",
+                "importance": "high",
+                "claim_kind": "paper_extracted",
+                "claim_origin_kind": "raw_salvaged_claim_agent_output",
+                "claim_origin": "malformed_claim_agent_output",
+            }
+        ],
+        "evidence_map": [],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+    }
+
+    merged = merge_review_state(state, {})
+
+    assert merged["evidence_gaps"]
+    assert merged["evidence_gaps"][0]["status"] == "not_assessable"
+    assert merged["evidence_gaps"][0]["resolution"] == "diagnostic_or_salvaged_claim_without_verified_support"
+
+
+def test_api_message_to_text_uses_mimo_reasoning_fallbacks():
+    class Message:
+        content = None
+        reasoning_content = "<json>{\"decision\":\"continue\"}</json>"
+
+    assert ApiReviewGenerator._message_to_text(Message()) == "<json>{\"decision\":\"continue\"}</json>"
+    assert ApiReviewGenerator._content_to_text([{"text": "hello"}, {"content": "world"}]) == "hello\nworld"
 
 
 def test_negative_recheck_worker_observation_keeps_quote_bank_before_clip():
@@ -6230,3 +6428,88 @@ def test_r2_only_one_retry_per_episode():
 def test_r2_unsupported_lists_only_zero_support_real_claims():
     state = _r2_zero_real_state()
     assert _r2_unsupported(state) == ["claim-1"]
+
+
+# --- P2: model adapter for description-only evidence statements ---
+
+from agent_system.inference.review_runner import (
+    _apply_quote_first_evidence_statement_adapter as _p2_quote_first_adapter,
+)
+
+
+def test_p2_quote_first_adapter_rewrites_description_only_evidence():
+    manager_payload = {"action_type": "verify_evidence"}
+    trace = {}
+    payload = {
+        "evidence_map": [
+            {
+                "evidence_id": "evidence-1",
+                "claim_id": "claim-1",
+                "evidence": "A direct, quantitative comparison of CO-MOT performance against a strong baseline.",
+                "raw_quote": "Table 2 reports CO-MOT achieves 83.2 HOTA on DanceTrack.",
+                "source_locator": "Table 2",
+                "strength": "strong",
+                "stance": "supports",
+            }
+        ]
+    }
+
+    out = _p2_quote_first_adapter("Evidence Agent", payload, manager_payload, trace_worker=trace)
+    ev = out["evidence_map"][0]
+
+    assert ev["agent_evidence_statement"].startswith("A direct, quantitative comparison")
+    assert ev["evidence"].startswith("Table 2 reports:")
+    assert "83.2 HOTA" in ev["evidence"]
+    assert ev["model_adapter_quote_first_rewrite"] is True
+    assert out["model_adapter_quote_first_rewrite_count"] == 1
+    assert trace["model_adapter_quote_first_rewrite_count"] == 1
+
+
+def test_p2_quote_first_adapter_preserves_concrete_evidence_statement():
+    manager_payload = {"action_type": "verify_evidence"}
+    payload = {
+        "evidence_map": [
+            {
+                "evidence_id": "evidence-1",
+                "claim_id": "claim-1",
+                "evidence": "Table 2 reports CO-MOT achieves 83.2 HOTA on DanceTrack.",
+                "raw_quote": "Table 2 reports CO-MOT achieves 83.2 HOTA on DanceTrack.",
+                "source_locator": "Table 2",
+                "strength": "strong",
+                "stance": "supports",
+            }
+        ]
+    }
+
+    out = _p2_quote_first_adapter("Evidence Agent", payload, manager_payload)
+    ev = out["evidence_map"][0]
+
+    assert ev["evidence"] == "Table 2 reports CO-MOT achieves 83.2 HOTA on DanceTrack."
+    assert "agent_evidence_statement" not in ev
+    assert "model_adapter_quote_first_rewrite_count" not in out
+
+
+def test_p2_quote_first_adapter_respects_large_model_mode():
+    payload = {
+        "evidence_map": [
+            {
+                "evidence_id": "evidence-1",
+                "claim_id": "claim-1",
+                "evidence": "A direct, quantitative comparison of CO-MOT performance against a strong baseline.",
+                "raw_quote": "Table 2 reports CO-MOT achieves 83.2 HOTA on DanceTrack.",
+                "source_locator": "Table 2",
+                "strength": "strong",
+                "stance": "supports",
+            }
+        ]
+    }
+
+    out = _p2_quote_first_adapter(
+        "Evidence Agent",
+        payload,
+        {"model_adapter_mode": "large_model"},
+    )
+
+    ev = out["evidence_map"][0]
+    assert ev["evidence"].startswith("A direct, quantitative comparison")
+    assert "model_adapter_quote_first_rewrite_count" not in out

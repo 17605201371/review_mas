@@ -2595,6 +2595,31 @@ def _generic_lack_support_flaw_conflicts_with_support(flaw: Dict[str, Any], supp
     return any(support_counts.get(claim_id, 0) > 0 for claim_id in related_claim_ids)
 
 
+def _claim_gap_should_be_not_assessable(claim: Dict[str, Any]) -> bool:
+    """Route low-provenance claim gaps away from paper-negative burden.
+
+    Small-model claim salvage and context-synthesized claims are useful
+    diagnostic coverage scaffolds, but an unsupported scaffold claim should not
+    become an open paper flaw.  The claim remains in ReviewState for follow-up;
+    its lack of support is represented as an assessment limitation instead of
+    an actionable evidence gap.
+    """
+    claim_id = str(claim.get("claim_id") or "").strip().lower()
+    origin_kind = str(claim.get("claim_origin_kind") or "").strip().lower()
+    origin = " ".join(
+        str(claim.get(key) or "")
+        for key in ("claim_origin", "claim_source", "source_stage", "provenance")
+    ).lower()
+    return (
+        claim_id.startswith("claim-paper-context-")
+        or claim_id.startswith("claim-paper-fallback-")
+        or origin_kind in {"context_synthesized", "raw_salvaged_claim_agent_output"}
+        or "context_derived" in origin
+        or "raw_salvage" in origin
+        or "malformed_claim_agent_output" in origin
+    )
+
+
 def _refresh_state_consistency(state: Dict[str, Any]) -> tuple[Dict[str, Any], List[Dict[str, Any]], List[Dict[str, Any]]]:
     refreshed = copy.deepcopy(state)
     derived_revisions: List[Dict[str, Any]] = []
@@ -2690,9 +2715,23 @@ def _refresh_state_consistency(state: Dict[str, Any]) -> tuple[Dict[str, Any], L
             )
         else:
             gap_text = f"Claim {claim_id or claim.get('claim', '')[:40]} lacks grounded supporting evidence."
+            gap_status = "not_assessable" if _claim_gap_should_be_not_assessable(claim) else "open"
+            gap_resolution = (
+                "diagnostic_or_salvaged_claim_without_verified_support"
+                if gap_status == "not_assessable"
+                else ""
+            )
             derived_gaps = _merge_evidence_gaps(
                 derived_gaps,
-                [{"gap": gap_text, "claim_id": claim_id, "status": "open", "source": "state_consistency"}],
+                [
+                    {
+                        "gap": gap_text,
+                        "claim_id": claim_id,
+                        "status": gap_status,
+                        "source": "state_consistency",
+                        "resolution": gap_resolution,
+                    }
+                ],
                 max_items=20,
             )
             if current_status == "supported":
@@ -3333,6 +3372,7 @@ def _filter_decision_gaps(
     gaps: Sequence[Any],
     support_counts: Dict[str, int],
     negative_burden_claim_ids: Optional[set] = None,
+    claim_lookup: Optional[Dict[str, Dict[str, Any]]] = None,
 ) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     """Route evidence gaps through the R6 lifecycle.
 
@@ -3344,6 +3384,7 @@ def _filter_decision_gaps(
     evidence.
     """
     negative_burden_claim_ids = negative_burden_claim_ids or set()
+    claim_lookup = claim_lookup or {}
     kept: List[Dict[str, Any]] = []
     stale: List[Dict[str, Any]] = []
     for gap in _normalize_evidence_gaps(gaps, max_items=20):
@@ -3357,6 +3398,10 @@ def _filter_decision_gaps(
             continue
         if "claim-fallback" in text:
             stale.append({**gap, "status": "superseded", "gap_lifecycle_state": "stale_or_internal", "resolution": gap.get("resolution") or "fallback_gap_not_paper_grounded"})
+            continue
+        claim_record = claim_lookup.get(claim_id) if claim_id else None
+        if claim_record and _claim_gap_should_be_not_assessable(claim_record):
+            stale.append({**gap, "status": "not_assessable", "gap_lifecycle_state": "assessment_limitation", "resolution": gap.get("resolution") or "diagnostic_or_salvaged_claim_without_verified_support"})
             continue
         if re.search(r"\bflaw\s+[A-Za-z0-9_.:-]+\s+lacks\s+anchored\s+evidence", text, re.I):
             stale.append({**gap, "status": "superseded", "gap_lifecycle_state": "stale_or_internal", "resolution": gap.get("resolution") or "flaw_anchor_gap_hidden_from_decision_view"})
@@ -4224,7 +4269,17 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
     context_support_diagnostics = _context_verified_support_diagnostics(view)
     support_counts = _decision_real_strong_support_counts(view)
     _r6_negative_burden_claim_ids = _negative_burden_claim_ids(view)
-    kept_gaps, stale_gaps = _filter_decision_gaps(view.get("evidence_gaps", []), support_counts, _r6_negative_burden_claim_ids)
+    claim_lookup_for_gaps = {
+        str(item.get("claim_id") or ""): item
+        for item in view.get("claims", []) or []
+        if isinstance(item, dict) and str(item.get("claim_id") or "")
+    }
+    kept_gaps, stale_gaps = _filter_decision_gaps(
+        view.get("evidence_gaps", []),
+        support_counts,
+        _r6_negative_burden_claim_ids,
+        claim_lookup_for_gaps,
+    )
     kept_conflicts, stale_conflicts = _filter_decision_conflicts(view.get("conflict_notes", []), support_counts)
     view["evidence_gaps"] = _normalize_evidence_gaps(kept_gaps, max_items=10)
     view["conflict_notes"] = kept_conflicts[:12]
@@ -5366,7 +5421,11 @@ def build_review_task(extras: Dict[str, Any], mode: str, max_turns: int) -> Dict
     )
     review_state = create_initial_review_state(mode=mode)
     paper_id = _normalize_text(extras.get("paper_id"), default="unknown-paper", max_length=120)
+    model_adapter_mode = _normalize_text(extras.get("model_adapter_mode"), default="auto", max_length=40).lower()
+    if model_adapter_mode not in {"auto", "small_model", "large_model", "off"}:
+        model_adapter_mode = "auto"
     review_state["paper_id"] = paper_id
+    review_state["model_adapter_mode"] = model_adapter_mode
     paper_body, _ = _clean_paper_body(paper_text)
     review_state["evidence_quote_bank"] = _build_evidence_quote_bank(paper_body, max_quotes=12)
     review_state["recovery_relevant"] = bool(extras.get("recovery_relevant", False))
@@ -5382,6 +5441,7 @@ def build_review_task(extras: Dict[str, Any], mode: str, max_turns: int) -> Dict
         "reviewer_comments": _normalize_text(extras.get("reviewer_comments"), max_length=8000),
         "recovery_relevant": bool(extras.get("recovery_relevant", False)),
         "historical_sentinel": bool(extras.get("historical_sentinel", False)),
+        "model_adapter_mode": model_adapter_mode,
         "max_turns": max(1, int(max_turns)),
         "mode": mode,
         "review_state": review_state,
