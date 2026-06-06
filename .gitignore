@@ -2,7 +2,6 @@
 .env
 
 # Experiment outputs
-*.jsonl
 *.log
 *.parquet
 local_deepseek_v3_logs/
@@ -24,5 +23,13 @@ local_deepseek_v3_*
 p0fix3_audit_output/
 r2_baseline_deepseek_v3_logs/
 mimo_v25_smoke8_logs/
+
+# --- Allow specific experiment results ---
+!mimo_v25_p2adapter_fulltest39_20260606.jsonl
+!MIMO_V25_P2ADAPTER_FULL39_20260606_DASHBOARD.json
+!MIMO_V25_P2ADAPTER_FULL39_20260606_DASHBOARD.md
+!local_deepseek_v3_full8.jsonl
+!local_deepseek_v3_full8_dashboard.json
+!local_deepseek_v3_full8_dashboard.md
 extract_rewards.py
 scripts/extract_process_metrics.py
