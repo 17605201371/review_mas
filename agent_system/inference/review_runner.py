@@ -1593,6 +1593,7 @@ def build_worker_observation(task: Dict[str, Any], manager_payload: Dict[str, An
     if turn_mode == "recovery_patch":
         mode_block += (
             "Patch Mode Requirement: Output exactly one strict JSON object with either `action=apply_recovery_patch` or `action=blocked`. "
+            "Supported target_type values are `claim`, `flaw`, `hypothesis`, `gap`, and `evidence_link`; use `gap` to close stale evidence gaps and `evidence_link` to unbind invalid evidence-to-claim links. "
             "Do not return normal evidence prose, critique paragraphs, or generic review text. System salvage remains internal and will be logged as `system_salvaged`.\n\n"
         )
     else:

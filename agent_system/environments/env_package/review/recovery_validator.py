@@ -17,6 +17,16 @@ RECOVERY_STATUS_TRANSITIONS = {
         "active": {"challenged"},
         "challenged": {"weakened", "overturned"},
     },
+    "gap": {
+        "open": {"resolved", "superseded", "converted", "not_assessable"},
+    },
+    "evidence_link": {
+        "bound": {"unbound", "invalid_claim_id"},
+        "bound_real_claim": {"unbound", "invalid_claim_id"},
+        "unchecked": {"unbound", "invalid_claim_id"},
+        "invalid_claim_id": {"unbound"},
+        "unbound": {"invalid_claim_id"},
+    },
 }
 VERIFIED_RECOVERY_GROUNDING_LABELS = {"paper_grounded_exact", "paper_grounded_normalized"}
 VERIFIED_RECOVERY_SEMANTIC_LABELS = {"semantic_support_verified", "semantic_negative_verified"}
@@ -128,6 +138,29 @@ def _locate_target(state: Dict[str, Any], target_type: str, target_id: str) -> O
                     "current_status": _extract_hypothesis_status(text),
                     "target_item": text,
                 }
+    elif target_type == "gap":
+        for idx, item in enumerate(state.get("evidence_gaps", []) or []):
+            gap_id = str(item.get("gap_id") or "")
+            claim_id = str(item.get("claim_id") or "")
+            if gap_id == target_id or (claim_id and claim_id == target_id):
+                return {
+                    "target_field": "evidence_gaps",
+                    "target_index": idx,
+                    "current_status": str(item.get("status") or "open").lower(),
+                    "target_item": item,
+                }
+    elif target_type == "evidence_link":
+        for idx, item in enumerate(state.get("evidence_map", []) or []):
+            if item.get("evidence_id") == target_id:
+                binding_status = str(item.get("binding_status") or "").lower()
+                if not binding_status:
+                    binding_status = "bound" if str(item.get("claim_id") or "") else "unbound"
+                return {
+                    "target_field": "evidence_map",
+                    "target_index": idx,
+                    "current_status": binding_status,
+                    "target_item": item,
+                }
     return None
 
 
@@ -176,6 +209,17 @@ def _validate_evidence_alignment(state: Dict[str, Any], target_type: str, target
         )
         if allowed_ids and not (evidence_id_set & allowed_ids):
             return "Supporting evidence does not align with the target flaw or its related claims."
+    elif target_type == "gap":
+        target_claim_id = str(target.get("claim_id") or "")
+        target_evidence_id = str(target.get("evidence_id") or "")
+        if target_evidence_id and target_evidence_id not in evidence_id_set:
+            return "Supporting evidence does not match the target gap evidence id."
+        if target_claim_id and not any(str(known_evidence[eid].get("claim_id") or "") == target_claim_id for eid in evidence_id_set):
+            return "Supporting evidence does not align with the target gap claim."
+    elif target_type == "evidence_link":
+        target_evidence_id = str(target.get("evidence_id") or "")
+        if evidence_ids and target_evidence_id not in evidence_id_set:
+            return "Evidence-link patches may only cite the target evidence id as supporting evidence."
     return None
 
 
@@ -254,7 +298,7 @@ def _validate_claim_unsupported_evidence_semantics(state: Dict[str, Any], eviden
         source = str(item.get("source") or "").strip().lower()
         evidence_text = str(item.get("evidence") or "")
         text = " ".join(str(item.get(key) or "") for key in ("evidence", "source", "rationale", "binding_rationale"))
-        if _is_verified_recovery_evidence(item):
+        if _is_verified_negative_recovery_evidence(item):
             negative_ids.append(str(evidence_id))
             continue
         is_system_missing_marker = (
@@ -323,7 +367,7 @@ def validate_recovery_patch(state: Dict[str, Any], patch: Dict[str, Any]) -> Dic
                 validation,
                 "UNKNOWN_TARGET",
                 f"Unsupported recovery target_type: {target_type or 'missing'}.",
-                "Use one of: claim, flaw, hypothesis.",
+                "Use one of: claim, flaw, hypothesis, gap, evidence_link.",
                 validated=False,
             )
 
@@ -403,11 +447,15 @@ def validate_recovery_patch(state: Dict[str, Any], patch: Dict[str, Any]) -> Dic
         if not evidence_ids:
             if target_type == "flaw" and _is_safe_flaw_downgrade_without_evidence(state, located.get("target_item", {}), new_status):
                 return _success(validation, [])
+            if target_type == "evidence_link" and new_status in {"unbound", "invalid_claim_id"}:
+                return _success(validation, [])
+            if target_type == "gap" and new_status in {"superseded", "converted", "not_assessable"}:
+                return _success(validation, [])
             return _failure(
                 validation,
                 "INSUFFICIENT_EVIDENCE",
-                "A recovery commit requires at least one supporting_evidence_id already grounded in ReviewState. Flaw downgrades are allowed without evidence only when the target lacks verified negative grounding.",
-                "Reference concrete evidence ids already present in ReviewState, or downgrade only unverified flaw candidates.",
+                "A recovery commit requires at least one supporting_evidence_id already grounded in ReviewState. Flaw downgrades, evidence-link unbinding, and non-assessable gap closure have narrow evidence-free paths.",
+                "Reference concrete evidence ids already present in ReviewState, or use a narrow evidence-free lifecycle operation.",
                 validated=True,
             )
 

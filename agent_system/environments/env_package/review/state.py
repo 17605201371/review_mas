@@ -5533,6 +5533,12 @@ def _recovery_patch_operation(parsed_patch: Dict[str, Any], validation: Dict[str
     target_type = str(validation.get("target_type") or parsed_patch.get("target_type") or "")
     old_status = str(validation.get("old_status") or parsed_patch.get("old_status") or "").lower()
     new_status = str(validation.get("new_status") or parsed_patch.get("new_status") or "").lower()
+    if target_type == "evidence_link" and new_status in {"unbound", "invalid_claim_id"}:
+        return "rebind_evidence"
+    if target_type == "gap" and new_status == "resolved":
+        return "resolve_stale_gap"
+    if target_type == "gap" and new_status in {"converted", "not_assessable", "superseded"}:
+        return "convert_negative_to_gap"
     if target_type == "flaw" and old_status == "confirmed" and new_status == "candidate":
         return "downgrade_final_to_candidate"
     if target_type == "flaw" and new_status in {"downgraded", "retracted"}:
@@ -5719,6 +5725,18 @@ def _apply_recovery_update(state: Dict[str, Any], payload: Dict[str, Any]) -> Di
         except (IndexError, TypeError, ValueError):
             pre_status_value = ""
         target_entity_id = str(validation.get("target_id") or parsed_patch.get("target_id") or "")
+    elif target_field in {"evidence_map", "evidence_gaps"}:
+        target_entity_type = "evidence_link" if target_field == "evidence_map" else "gap"
+        try:
+            items_pre = list(merged.get(target_field, []) or [])
+            pre_item = items_pre[int(target_index)] if target_index is not None else {}
+            if target_field == "evidence_map":
+                pre_status_value = str(pre_item.get("binding_status") or ("bound" if pre_item.get("claim_id") else "unbound"))
+            else:
+                pre_status_value = str(pre_item.get("status") or "open")
+        except (IndexError, TypeError, ValueError):
+            pre_status_value = ""
+        target_entity_id = str(validation.get("target_id") or parsed_patch.get("target_id") or "")
 
     try:
         if target_field == "current_hypotheses":
@@ -5736,6 +5754,27 @@ def _apply_recovery_update(state: Dict[str, Any], payload: Dict[str, Any]) -> Di
             elif target_field == "flaw_candidates":
                 _set_transient_status_lock(merged, "flaw", target_id, new_status)
                 _set_persistent_status_guard(merged, "flaw", target_id, new_status)
+        elif target_field == "evidence_map":
+            items = list(merged.get("evidence_map", []) or [])
+            item = dict(items[int(target_index)])
+            item["binding_status"] = new_status
+            item["recovery_binding_resolution"] = parsed_patch.get("reason_for_change") or "recovery_patch_committed"
+            if new_status in {"unbound", "invalid_claim_id"}:
+                previous_claim_id = str(item.get("claim_id") or "")
+                if previous_claim_id and not item.get("original_claim_id"):
+                    item["original_claim_id"] = previous_claim_id
+                item["claim_id"] = ""
+            items[int(target_index)] = item
+            merged["evidence_map"] = items
+        elif target_field == "evidence_gaps":
+            items = list(merged.get("evidence_gaps", []) or [])
+            item = dict(items[int(target_index)])
+            item["status"] = new_status
+            if parsed_patch.get("supporting_evidence_ids"):
+                item["evidence_id"] = str((parsed_patch.get("supporting_evidence_ids") or [""])[0] or "")
+            item["resolution"] = parsed_patch.get("reason_for_change") or "recovery_patch_committed"
+            items[int(target_index)] = item
+            merged["evidence_gaps"] = _normalize_evidence_gaps(items, max_items=10)
         else:
             merged["_latest_patch_log"]["recovery_committed"] = False
             merged["_latest_patch_log"]["recovery_failure_code"] = "CHECKER_TOO_STRICT"
