@@ -23,4 +23,4 @@ packaging>=20.0
 uvicorn
 fastapi
 qwen-vl-utils[decord]
-openai>=1.0.0
+openai>=2.41.0
