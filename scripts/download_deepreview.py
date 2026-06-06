@@ -72,8 +72,9 @@ def download_deepreview(dataset_name="WestLakeNLP/DeepReview-13K", output_dir="d
     return output_path / "deepreview.json"
 
 if __name__ == "__main__":
-    # 示例: 直接设置HF_TOKEN
-    os.environ['HF_TOKEN'] = 'HF_TOKEN_REMOVED'
+    # 示例: 请通过环境变量设置HF_TOKEN
+    if "HF_TOKEN" not in os.environ:
+        print("Warning: HF_TOKEN not set. Please set it via environment variable.")
     
     # 下载数据集
     output_file = download_deepreview()

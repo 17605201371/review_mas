@@ -12,8 +12,7 @@ def process_deepreview(dataset_name="WestLakeNLP/DeepReview-13K", output_dir="da
     
     # 检查HF_TOKEN
     if "HF_TOKEN" not in os.environ:
-        # 使用硬编码的token
-        os.environ['HF_TOKEN'] = 'HF_TOKEN_REMOVED'
+        print("Warning: HF_TOKEN not set. Please set it via environment variable.")
     
     # 加载数据集
     try:
