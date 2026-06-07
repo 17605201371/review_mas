@@ -148,6 +148,59 @@ def test_claim_patch_from_partially_supported_to_unsupported_commits(mock_state)
 
 
 
+def test_claim_positive_recovery_with_verified_support_commits(mock_state):
+    state = copy.deepcopy(mock_state)
+    for evidence in state["evidence_map"]:
+        if evidence["evidence_id"] == "e2":
+            evidence["verified_grounding_label"] = "paper_grounded_exact"
+            evidence["semantic_grounding_label"] = "semantic_support_verified"
+
+    new_state = merge_review_state(
+        state,
+        {
+            "action": "apply_recovery_patch",
+            "target_type": "claim",
+            "target_id": "c2",
+            "old_status": "partially_supported",
+            "new_status": "supported",
+            "supporting_evidence_ids": ["e2"],
+            "resolution_expectation": "partially_resolved",
+        },
+    )
+
+    assert new_state["claims"][1]["status"] == "supported"
+    assert new_state["_latest_patch_log"]["recovery_committed"] is True
+    assert new_state["_latest_patch_log"]["recovery_failure_code"] == "SUCCESS"
+    assert new_state["_latest_patch_log"]["recovery_patch_operation"] == "resolve_stale_gap"
+
+
+def test_claim_positive_recovery_normalizes_negative_evidence_to_downgrade(mock_state):
+    state = copy.deepcopy(mock_state)
+    for evidence in state["evidence_map"]:
+        if evidence["evidence_id"] == "e3":
+            evidence["verified_grounding_label"] = "paper_grounded_exact"
+            evidence["semantic_grounding_label"] = "semantic_negative_verified"
+
+    new_state = merge_review_state(
+        state,
+        {
+            "action": "apply_recovery_patch",
+            "target_type": "claim",
+            "target_id": "c2",
+            "old_status": "partially_supported",
+            "new_status": "supported",
+            "supporting_evidence_ids": ["e3"],
+            "resolution_expectation": "partially_resolved",
+        },
+    )
+
+    assert new_state["claims"][1]["status"] == "unsupported"
+    assert new_state["_latest_patch_log"]["recovery_committed"] is True
+    assert new_state["_latest_patch_log"]["recovery_failure_code"] == "SUCCESS"
+    assert new_state["_latest_patch_log"]["status_normalized_from"] == "supported"
+    assert new_state["_latest_patch_log"]["status_normalized_to"] == "unsupported"
+
+
 def test_claim_unsupported_patch_rejects_support_only_evidence(mock_state):
     payload = {
         "action": "apply_recovery_patch",

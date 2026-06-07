@@ -339,9 +339,10 @@ def _is_non_real_review_claim_id(claim_id: str) -> bool:
     return (
         not value
         or _is_fallback_claim_id(value)
-        or value.startswith("claim-context")
         or value.startswith("context")
         or value.startswith("claim-recovery")
+        or value.startswith("claim-paper-context")
+        or value.startswith("claim-paper-fallback")
         or value.startswith("recovery")
     )
 
@@ -620,12 +621,15 @@ def _claim_ids_by_status(
     include: Optional[set[str]] = None,
     exclude: Optional[set[str]] = None,
     limit: int = 2,
+    require_real: bool = False,
 ) -> List[str]:
     selected: List[str] = []
     for item in claims:
         claim_id = str(item.get("claim_id") or "").strip()
         status = str(item.get("status") or "").strip().lower()
         if not claim_id:
+            continue
+        if require_real and _is_non_real_review_claim_id(claim_id):
             continue
         if include is not None and status not in include:
             continue
@@ -636,6 +640,67 @@ def _claim_ids_by_status(
         if len(selected) >= limit:
             break
     return selected
+
+
+def _claim_has_verified_negative_recovery_evidence(state: Dict[str, Any], claim_id: str) -> bool:
+    claim_id = str(claim_id or "").strip()
+    if not claim_id or _is_non_real_review_claim_id(claim_id):
+        return False
+    actionable_types = {
+        "direct_contradiction",
+        "negative_result",
+        "missing_ablation",
+        "missing_baseline",
+        "insufficient_evaluation",
+    }
+    for item in state.get("evidence_map", []) or []:
+        if not isinstance(item, dict):
+            continue
+        if str(item.get("claim_id") or "").strip() != claim_id:
+            continue
+        if not _is_grounded_paper_negative_evidence_record(item, state):
+            continue
+        stance = str(item.get("stance") or "").strip().lower()
+        strength = str(item.get("strength") or "").strip().lower()
+        negative_type = str(item.get("negative_evidence_type") or "").strip()
+        actionability = str(item.get("negative_evidence_actionability") or "").strip()
+        if stance in {"contradicts", "refutes", "weakens", "does_not_support", "unsupported"}:
+            return True
+        if strength in {"missing", "insufficient"} and (
+            negative_type in actionable_types or actionability == "actionable_candidate"
+        ):
+            return True
+    return False
+
+
+def _recovery_ready_claim_ids(state: Dict[str, Any], claim_ids: Sequence[str], *, limit: int = 2) -> List[str]:
+    claim_status = {
+        str(item.get("claim_id") or "").strip(): str(item.get("status") or "uncertain").strip().lower()
+        for item in state.get("claims", []) or []
+        if isinstance(item, dict) and str(item.get("claim_id") or "").strip()
+    }
+    selected: List[str] = []
+    for claim_id in _normalize_target_claim_ids(claim_ids):
+        if _is_non_real_review_claim_id(claim_id):
+            continue
+        if claim_status.get(claim_id) not in _RECOVERY_ELIGIBLE_CLAIM_STATUSES:
+            continue
+        if not _claim_has_verified_negative_recovery_evidence(state, claim_id):
+            continue
+        if claim_id not in selected:
+            selected.append(claim_id)
+        if len(selected) >= limit:
+            break
+    return selected
+
+
+def _verified_negative_recovery_claim_ids(state: Dict[str, Any], *, limit: int = 2) -> List[str]:
+    claim_ids = [
+        str(item.get("claim_id") or "").strip()
+        for item in state.get("claims", []) or []
+        if isinstance(item, dict) and str(item.get("claim_id") or "").strip()
+    ]
+    return _recovery_ready_claim_ids(state, claim_ids, limit=limit)
 
 
 def _flaw_ids_by_status(
@@ -701,16 +766,9 @@ def _sanitize_targets_for_action(
     target_flaw_ids = list(payload.get("target_flaw_ids") or inferred.get("target_flaw_ids") or [])
 
     if action_type == "challenge_previous_hypothesis":
-        target_claim_ids = [
-            cid for cid in target_claim_ids
-            if claim_lookup.get(cid) in _RECOVERY_ELIGIBLE_CLAIM_STATUSES
-        ]
+        target_claim_ids = _recovery_ready_claim_ids(state, target_claim_ids, limit=2)
         if not target_claim_ids:
-            target_claim_ids = _claim_ids_by_status(
-                claims,
-                include=_RECOVERY_ELIGIBLE_CLAIM_STATUSES,
-                limit=2,
-            )
+            target_claim_ids = _verified_negative_recovery_claim_ids(state, limit=2)
 
         target_flaw_ids = [
             fid for fid in target_flaw_ids
@@ -726,15 +784,18 @@ def _sanitize_targets_for_action(
                 limit=2,
             )
     elif action_type in {"verify_evidence", "request_evidence_recheck", "analyze_flaws"}:
+        require_real_claim = action_type in {"request_evidence_recheck", "analyze_flaws"}
         target_claim_ids = [
             cid for cid in target_claim_ids
             if claim_lookup.get(cid) not in _INACTIVE_CLAIM_STATUSES
+            and not (require_real_claim and _is_non_real_review_claim_id(cid))
         ]
         if not target_claim_ids:
             target_claim_ids = _claim_ids_by_status(
                 claims,
                 exclude=_INACTIVE_CLAIM_STATUSES,
                 limit=3 if action_type != "request_evidence_recheck" else 2,
+                require_real=require_real_claim,
             )
 
     payload["target_claim_ids"] = target_claim_ids
@@ -959,7 +1020,12 @@ def _apply_sticky_target_bias(
     return normalized_targets, False, False
 
 
-_FALLBACK_CLAIM_PREFIX = "claim-fallback-"
+_FALLBACK_CLAIM_PREFIXES = (
+    "claim-fallback-",
+    "claim-context-",
+    "claim-paper-fallback-",
+    "claim-paper-context-",
+)
 _PROMPT_LEAK_MARKERS = (
     "do not output",
     "json block",
@@ -971,7 +1037,7 @@ _PROMPT_LEAK_MARKERS = (
 
 
 def _is_fallback_claim_id(claim_id: str) -> bool:
-    return str(claim_id or "").strip().startswith(_FALLBACK_CLAIM_PREFIX)
+    return str(claim_id or "").strip().lower().startswith(_FALLBACK_CLAIM_PREFIXES)
 
 
 def _is_fallback_evidence_id(evidence_id: str) -> bool:
@@ -2253,6 +2319,66 @@ def apply_manager_policy_fallback(
     payload = _apply_target_sticky_payload(state, payload, recent_turn_logs)
     payload = _sanitize_targets_for_action(state, action_type, payload, inferred)
     post_sanitize_target_claim_ids = _normalize_target_claim_ids(payload.get("target_claim_ids", []))
+    if (
+        action_type == "challenge_previous_hypothesis"
+        and not post_sanitize_target_claim_ids
+        and not payload.get("target_flaw_ids")
+    ):
+        refinement_targets = _unverified_flaw_negative_evidence_targets(state, recent_turn_logs)
+        if refinement_targets["target_flaw_ids"] and "request_evidence_recheck" in allowed_actions:
+            action_type = "request_evidence_recheck"
+            payload["action_type"] = action_type
+            payload["effective_action_type"] = action_type
+            payload["target_flaw_ids"] = refinement_targets["target_flaw_ids"]
+            payload["target_claim_ids"] = refinement_targets["target_claim_ids"]
+            payload["target_evidence_ids"] = refinement_targets["target_evidence_ids"]
+            payload["negative_evidence_formation_required"] = True
+            payload["selected_agents"] = pick_workers_for_action(action_type, worker_ids, worker_limit)
+            policy_source = "recovery_target_refinement_override"
+            payload["policy_source"] = policy_source
+            policy_notes.append("Recovery challenge target was empty/fallback after sanitization, so policy routed to evidence recheck for real negative-evidence formation.")
+            post_sanitize_target_claim_ids = _normalize_target_claim_ids(payload.get("target_claim_ids", []))
+        elif not state.get("claims") and "request_evidence_recheck" in allowed_actions:
+            bootstrap_claim_ids = [
+                claim_id
+                for claim_id in post_fallback_target_claim_ids
+                if not _is_non_real_review_claim_id(claim_id)
+            ][:2]
+            if bootstrap_claim_ids:
+                action_type = "request_evidence_recheck"
+                payload["action_type"] = action_type
+                payload["effective_action_type"] = action_type
+                payload["target_claim_ids"] = bootstrap_claim_ids
+                payload["target_flaw_ids"] = []
+                payload["selected_agents"] = pick_workers_for_action(action_type, worker_ids, worker_limit)
+                policy_source = "recovery_target_bootstrap_recheck_override"
+                payload["policy_source"] = policy_source
+                policy_notes.append("Recovery challenge target was not yet present in ReviewState, so policy routed to evidence recheck before patch mode.")
+                post_sanitize_target_claim_ids = bootstrap_claim_ids
+            else:
+                action_type = "summarize_progress"
+                payload["action_type"] = action_type
+                payload["effective_action_type"] = action_type
+                payload["selected_agents"] = []
+                payload["target_hypotheses"] = []
+                policy_source = "recovery_target_exhausted_override"
+                payload["policy_source"] = policy_source
+                policy_notes.append("Recovery challenge target was empty/fallback after sanitization, so policy summarized the blockage instead of issuing another weak patch.")
+                payload["focus"] = "Summarize the blocked recovery state after exhausting corrective targets."
+                payload["rationale"] = "No verified-negative real claim or active flaw target remains for corrective challenge."
+                post_sanitize_target_claim_ids = []
+        else:
+            action_type = "summarize_progress"
+            payload["action_type"] = action_type
+            payload["effective_action_type"] = action_type
+            payload["selected_agents"] = []
+            payload["target_hypotheses"] = []
+            policy_source = "recovery_target_exhausted_override"
+            payload["policy_source"] = policy_source
+            policy_notes.append("Recovery challenge target was empty/fallback after sanitization, so policy summarized the blockage instead of issuing another weak patch.")
+            payload["focus"] = "Summarize the blocked recovery state after exhausting corrective targets."
+            payload["rationale"] = "No verified-negative real claim or active flaw target remains for corrective challenge."
+            post_sanitize_target_claim_ids = []
     raw_target_set = set(raw_target_claim_ids)
     post_fallback_set = set(post_fallback_target_claim_ids)
     payload["post_sanitize_target_claim_ids"] = list(post_sanitize_target_claim_ids)

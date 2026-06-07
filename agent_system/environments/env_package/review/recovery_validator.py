@@ -6,8 +6,8 @@ from typing import Any, Dict, List, Optional
 RECOVERY_STATUS_TRANSITIONS = {
     "claim": {
         "supported": {"unsupported", "superseded"},
-        "partially_supported": {"unsupported"},
-        "uncertain": {"unsupported"},
+        "partially_supported": {"supported", "unsupported"},
+        "uncertain": {"supported", "partially_supported", "unsupported"},
     },
     "flaw": {
         "candidate": {"downgraded", "retracted"},
@@ -331,6 +331,33 @@ def _validate_claim_unsupported_evidence_semantics(state: Dict[str, Any], eviden
     return "Claim downgrade to unsupported requires verified paper-negative evidence, not system missing-evidence markers."
 
 
+def _validate_claim_positive_recovery_evidence_semantics(state: Dict[str, Any], evidence_ids: List[str]) -> Optional[str]:
+    known_evidence = {
+        str(item.get("evidence_id") or ""): item
+        for item in state.get("evidence_map", []) or []
+        if item.get("evidence_id")
+    }
+    positive_ids: List[str] = []
+    negative_ids: List[str] = []
+    unverified_ids: List[str] = []
+    for evidence_id in evidence_ids:
+        item = known_evidence.get(str(evidence_id)) or {}
+        stance = str(item.get("stance") or "").strip().lower()
+        if stance in {"supports", "partially_supports"} and _is_verified_recovery_evidence(item):
+            positive_ids.append(str(evidence_id))
+        elif stance in {"contradicts", "refutes", "weakens", "does_not_support", "missing", "unsupported", "insufficient"}:
+            negative_ids.append(str(evidence_id))
+        else:
+            unverified_ids.append(str(evidence_id))
+    if positive_ids:
+        return None
+    if negative_ids:
+        return "Claim upgrade to supported/partially_supported cannot be justified by negative or missing evidence."
+    if unverified_ids:
+        return "Claim upgrade to supported/partially_supported requires verified paper-grounded positive support evidence."
+    return "Claim upgrade to supported/partially_supported requires verified positive support evidence."
+
+
 def _can_normalize_claim_patch_to_unsupported(state: Dict[str, Any], old_status: str, evidence_ids: List[str]) -> bool:
     if not evidence_ids:
         return False
@@ -477,6 +504,16 @@ def validate_recovery_patch(state: Dict[str, Any], patch: Dict[str, Any]) -> Dic
                     "EVIDENCE_SEMANTIC_MISMATCH",
                     semantic_mismatch,
                     "Use contradiction, missing-evidence, or negative grounding evidence for unsupported claim recovery.",
+                    validated=True,
+                )
+        if target_type == "claim" and new_status in {"supported", "partially_supported"}:
+            semantic_mismatch = _validate_claim_positive_recovery_evidence_semantics(state, evidence_ids)
+            if semantic_mismatch:
+                return _failure(
+                    validation,
+                    "EVIDENCE_SEMANTIC_MISMATCH",
+                    semantic_mismatch,
+                    "Use verified support/partially-support evidence for positive claim recovery.",
                     validated=True,
                 )
 

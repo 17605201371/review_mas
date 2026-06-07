@@ -11,6 +11,7 @@ from agent_system.inference.review_runner import (
     _is_verified_negative_evidence_for_recovery,
     _resolve_prompt_template,
     build_worker_observation,
+    _recovery_candidate_claim_ids,
     _resolve_use_chat_template,
     _synthesize_summary_update,
     extract_tagged_json,
@@ -851,8 +852,8 @@ No claims yet.
 
     assert payload is not None
     assert len(payload["claims"]) == 2
-    assert all(claim["claim_id"].startswith("claim-context") for claim in payload["claims"])
-    assert all(claim["claim_kind"] == "context_synthesized" for claim in payload["claims"])
+    assert all(claim["claim_id"].startswith("claim-paper-context") for claim in payload["claims"])
+    assert all(claim["claim_kind"] == "paper_extracted" for claim in payload["claims"])
     assert all(claim["claim_origin_kind"] == "context_synthesized" for claim in payload["claims"])
     assert all(claim["claim_origin"] == "context_derived_paper_excerpt" for claim in payload["claims"])
 
@@ -1344,6 +1345,81 @@ def test_fallback_recovery_patch_blocks_system_missing_marker_claim_downgrade():
 
     assert payload["action"] == "blocked"
     assert "No grounded contradictory evidence" in payload["blocked_reason"]
+
+
+def test_recovery_candidate_claim_ids_exclude_context_salvage_claims():
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-paper-context-1",
+                "status": "partially_supported",
+                "claim_kind": "paper_extracted",
+                "claim_origin_kind": "context_synthesized",
+            },
+            {"claim_id": "claim-main", "status": "partially_supported", "claim_kind": "paper_extracted"},
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "evidence-context-neg",
+                "claim_id": "claim-paper-context-1",
+                "stance": "contradicts",
+                "strength": "strong",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_negative_verified",
+            },
+            {
+                "evidence_id": "evidence-main-neg",
+                "claim_id": "claim-main",
+                "stance": "contradicts",
+                "strength": "strong",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_negative_verified",
+            },
+        ],
+    }
+
+    assert _recovery_candidate_claim_ids(state, "challenge_previous_hypothesis") == ["claim-main"]
+
+
+def test_fallback_recovery_patch_rebinds_weak_manager_target_to_real_claim():
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-paper-context-1",
+                "status": "partially_supported",
+                "claim_kind": "paper_extracted",
+                "claim_origin_kind": "context_synthesized",
+            },
+            {"claim_id": "claim-main", "status": "partially_supported", "claim_kind": "paper_extracted"},
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "evidence-main-neg",
+                "claim_id": "claim-main",
+                "stance": "contradicts",
+                "strength": "strong",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_negative_verified",
+                "source": "results",
+            }
+        ],
+        "flaw_candidates": [],
+    }
+
+    payload = _fallback_recovery_patch_payload(
+        state,
+        {
+            "action_type": "challenge_previous_hypothesis",
+            "effective_action_type": "challenge_previous_hypothesis",
+            "target_claim_ids": ["claim-paper-context-1"],
+            "target_evidence_ids": [],
+        },
+    )
+
+    assert payload["action"] == "apply_recovery_patch"
+    assert payload["target_type"] == "claim"
+    assert payload["target_id"] == "claim-main"
+    assert payload["supporting_evidence_ids"] == ["evidence-main-neg"]
 
 
 def _build_pattern_a_state(*, extra_negative_evidence=None, flaw_extra_evidence_ids=None):
@@ -2060,6 +2136,113 @@ def test_apply_manager_policy_fallback_filters_unsupported_claim_targets_for_cha
     assert normalized["action_type"] == "challenge_previous_hypothesis"
     assert normalized["target_claim_ids"] == ["claim-live"]
     assert "claim-stale" not in normalized["target_claim_ids"]
+
+
+def test_apply_manager_policy_fallback_routes_context_challenge_to_negative_recheck():
+    normalized = _apply_manager_policy_fallback(
+        manager_payload={
+            "decision": "continue",
+            "action_type": "challenge_previous_hypothesis",
+            "target_claim_ids": ["claim-paper-context-1"],
+            "target_flaw_ids": [],
+            "selected_agents": ["Critique Agent", "Evidence Agent"],
+        },
+        state={
+            "claims": [
+                {
+                    "claim_id": "claim-paper-context-1",
+                    "status": "uncertain",
+                    "claim_kind": "paper_extracted",
+                    "claim_origin_kind": "context_synthesized",
+                },
+                {"claim_id": "claim-main", "status": "supported", "claim_kind": "paper_extracted"},
+            ],
+            "flaw_candidates": [{"flaw_id": "flaw-main", "status": "candidate", "related_claim_ids": ["claim-main"]}],
+            "risk_profile": {"conflict_count": 1, "open_question_count": 0, "readiness": "not_ready"},
+            "conflict_notes": [{"conflict_id": "c1"}],
+            "evidence_map": [{"evidence_id": "e1", "claim_id": "claim-main", "stance": "supports", "strength": "strong"}],
+        },
+        mode="s4",
+        worker_ids=["Claim Agent", "Evidence Agent", "Critique Agent"],
+        worker_limit=2,
+        recent_turn_logs=[],
+    )
+
+    assert normalized["action_type"] == "request_evidence_recheck"
+    assert normalized["policy_source"] in {"negative_evidence_formation_override", "recovery_target_refinement_override"}
+    assert "claim-paper-context-1" not in normalized["target_claim_ids"]
+    assert normalized["target_flaw_ids"] == ["flaw-main"]
+    assert normalized["selected_agents"] == ["Evidence Agent"]
+
+
+def test_apply_manager_policy_fallback_filters_context_recheck_to_real_claim():
+    normalized = _apply_manager_policy_fallback(
+        manager_payload={
+            "decision": "continue",
+            "action_type": "request_evidence_recheck",
+            "target_claim_ids": ["claim-paper-context-1"],
+            "selected_agents": ["Evidence Agent"],
+        },
+        state={
+            "claims": [
+                {
+                    "claim_id": "claim-paper-context-1",
+                    "status": "uncertain",
+                    "claim_kind": "paper_extracted",
+                    "claim_origin_kind": "context_synthesized",
+                },
+                {"claim_id": "claim-main", "status": "supported", "claim_kind": "paper_extracted"},
+            ],
+            "flaw_candidates": [],
+            "risk_profile": {"conflict_count": 1, "open_question_count": 0, "readiness": "not_ready"},
+            "conflict_notes": [{"conflict_id": "c1"}],
+            "evidence_map": [{"evidence_id": "e1", "claim_id": "claim-main", "stance": "supports", "strength": "strong"}],
+        },
+        mode="s4",
+        worker_ids=["Claim Agent", "Evidence Agent", "Critique Agent"],
+        worker_limit=2,
+        recent_turn_logs=[],
+    )
+
+    assert normalized["action_type"] == "request_evidence_recheck"
+    assert normalized["target_claim_ids"] == ["claim-main"]
+    assert "claim-paper-context-1" not in normalized["target_claim_ids"]
+
+
+def test_apply_manager_policy_fallback_summarizes_context_challenge_without_real_target():
+    normalized = _apply_manager_policy_fallback(
+        manager_payload={
+            "decision": "continue",
+            "action_type": "challenge_previous_hypothesis",
+            "target_claim_ids": ["claim-paper-fallback-1"],
+            "target_flaw_ids": [],
+            "selected_agents": ["Critique Agent", "Evidence Agent"],
+        },
+        state={
+            "claims": [
+                {
+                    "claim_id": "claim-paper-fallback-1",
+                    "status": "uncertain",
+                    "claim_kind": "paper_extracted",
+                    "claim_origin_kind": "raw_salvaged_claim_agent_output",
+                }
+            ],
+            "flaw_candidates": [],
+            "risk_profile": {"conflict_count": 1, "open_question_count": 0, "readiness": "not_ready"},
+            "conflict_notes": [{"conflict_id": "c1"}],
+            "current_hypotheses": ["Claim claim-paper-fallback-1 may be weak."],
+            "evidence_map": [],
+        },
+        mode="s4",
+        worker_ids=["Claim Agent", "Evidence Agent", "Critique Agent"],
+        worker_limit=2,
+        recent_turn_logs=[],
+    )
+
+    assert normalized["action_type"] == "summarize_progress"
+    assert normalized["policy_source"] == "recovery_target_exhausted_override"
+    assert normalized["target_claim_ids"] == []
+    assert normalized["selected_agents"] == []
 
 
 def test_apply_manager_policy_fallback_summarizes_when_recovery_targets_are_exhausted():
@@ -2974,9 +3157,9 @@ def test_run_review_episode_routes_challenge_action_to_relevant_workers():
         max_workers_per_turn=2,
     )
 
-    assert result["runner_trace"][0]["manager_action_type"] == "challenge_previous_hypothesis"
-    assert set(result["runner_trace"][0]["selected_workers"]) == {"Evidence Agent", "Critique Agent"}
-    assert result["turn_logs"][0]["action_type"] == "challenge_previous_hypothesis"
+    assert result["runner_trace"][0]["manager_action_type"] == "request_evidence_recheck"
+    assert result["runner_trace"][0]["selected_workers"] == ["Evidence Agent"]
+    assert result["turn_logs"][0]["action_type"] == "request_evidence_recheck"
 
 
 def test_infer_action_from_state_prefers_recheck_over_summary_when_focus_stalls_with_weak_evidence():
@@ -3850,6 +4033,7 @@ def test_build_turn_log_uses_patch_log_as_single_recovery_truth_source():
                 "old_status": "supported",
                 "new_status": "unsupported",
                 "recovery_patch_source": "model_generated",
+                "recovery_state_delta": {"consistency_improved": True},
             },
         },
         revision_events=[],
@@ -3926,6 +4110,7 @@ def test_build_turn_log_recovery_layer_marks_effective_repair_when_state_mutates
                 "old_status": "supported",
                 "new_status": "unsupported",
                 "recovery_patch_source": "model_generated",
+                "recovery_state_delta": {"consistency_improved": True},
             },
         },
         revision_events=[
@@ -4007,6 +4192,7 @@ def test_build_turn_log_recovery_layer_recognises_partially_supported_to_unsuppo
                 "old_status": "partially_supported",
                 "new_status": "unsupported",
                 "recovery_patch_source": "system_salvaged",
+                "recovery_state_delta": {"consistency_improved": True},
             },
         },
         revision_events=[
@@ -4251,6 +4437,18 @@ def test_apply_recovery_phase_protocol_blocks_early_finalize_until_recovery_is_t
         state={
             "phase": "recovery",
             "phase_turn_index": 1,
+            "claims": [{"claim_id": "claim-main", "status": "supported"}],
+            "evidence_map": [
+                {
+                    "evidence_id": "e-neg",
+                    "claim_id": "claim-main",
+                    "stance": "missing",
+                    "strength": "missing",
+                    "verified_grounding_label": "paper_grounded_exact",
+                    "semantic_grounding_label": "semantic_negative_verified",
+                }
+            ],
+            "flaw_candidates": [],
             "conflict_notes": [{"conflict_id": "c1", "status": "open"}],
             "_latest_patch_log": {
                 "recovery_attempted": True,
@@ -4275,12 +4473,173 @@ def test_apply_recovery_phase_protocol_blocks_early_finalize_until_recovery_is_t
     )
 
     assert payload["phase"] == "recovery"
-    assert payload["turn_mode"] == "recovery_patch"
+    assert payload["turn_mode"] in {"normal_evidence", "recovery_patch"}
     assert payload["decision"] == "continue"
     assert payload["action_type"] in {"challenge_previous_hypothesis", "request_evidence_recheck"}
     assert payload["finalize_blocked_by_phase"] is True
     assert payload["early_finalize_attempted"] is True
     assert payload["phase_hold_reason"]
+
+
+def test_apply_recovery_phase_protocol_respects_exhausted_recovery_target_summary():
+    from agent_system.inference.review_runner import _apply_recovery_phase_protocol
+
+    payload = _apply_recovery_phase_protocol(
+        manager_payload={
+            "decision": "continue",
+            "action_type": "summarize_progress",
+            "effective_action_type": "summarize_progress",
+            "policy_source": "recovery_target_exhausted_override",
+            "target_claim_ids": [],
+            "selected_agents": [],
+        },
+        state={
+            "phase": "recovery",
+            "phase_turn_index": 1,
+            "conflict_notes": [{"conflict_id": "c1", "status": "open"}],
+            "_latest_patch_log": {
+                "recovery_attempted": True,
+                "recovery_validated": False,
+                "recovery_committed": False,
+                "recovery_failure_code": "",
+            },
+        },
+        mode="s4",
+        worker_ids=["Claim Agent", "Evidence Agent", "Critique Agent"],
+        worker_limit=2,
+        recent_turn_logs=[
+            {
+                "turn_id": 4,
+                "phase_after_action": "recovery",
+                "recovery_patch_mode_entered": True,
+                "action_type": "challenge_previous_hypothesis",
+                "effective_action_type": "challenge_previous_hypothesis",
+            }
+        ],
+    )
+
+    assert payload["phase"] == "normal_review"
+    assert payload["action_type"] == "summarize_progress"
+    assert payload["turn_mode"] == "normal_evidence"
+    assert payload["recovery_patch_mode_entered"] is False
+    assert payload["selected_agents"] == []
+    assert payload["finalize_blocked_by_phase"] is False
+
+
+def test_apply_recovery_phase_protocol_recheck_drops_context_targets_and_rehydrates_real_claims():
+    from agent_system.inference.review_runner import _apply_recovery_phase_protocol
+
+    payload = _apply_recovery_phase_protocol(
+        manager_payload={
+            "decision": "continue",
+            "action_type": "request_evidence_recheck",
+            "effective_action_type": "request_evidence_recheck",
+            "policy_source": "evidence_progress_override",
+            "target_claim_ids": ["claim-paper-context-1"],
+            "selected_agents": ["Evidence Agent"],
+        },
+        state={
+            "phase": "normal_review",
+            "claims": [
+                {"claim_id": "claim-paper-context-1", "status": "uncertain", "claim_origin_kind": "context_synthesized"},
+                {"claim_id": "claim-main", "status": "supported"},
+            ],
+            "evidence_map": [{"evidence_id": "e1", "claim_id": "claim-main", "stance": "supports", "strength": "strong"}],
+            "flaw_candidates": [],
+            "conflict_notes": [{"conflict_id": "c1", "status": "open"}],
+        },
+        mode="s4",
+        worker_ids=["Claim Agent", "Evidence Agent", "Critique Agent"],
+        worker_limit=2,
+        recent_turn_logs=[],
+    )
+
+    assert payload["action_type"] == "request_evidence_recheck"
+    assert payload["target_claim_ids"] == ["claim-main"]
+    assert "claim-paper-context-1" not in payload["target_claim_ids"]
+
+
+def test_apply_recovery_phase_protocol_does_not_upgrade_recheck_without_patch_ready_target():
+    from agent_system.inference.review_runner import _apply_recovery_phase_protocol
+
+    payload = _apply_recovery_phase_protocol(
+        manager_payload={
+            "decision": "continue",
+            "action_type": "request_evidence_recheck",
+            "effective_action_type": "request_evidence_recheck",
+            "policy_source": "evidence_progress_override",
+            "target_claim_ids": ["claim-main"],
+            "selected_agents": ["Evidence Agent"],
+        },
+        state={
+            "phase": "recovery",
+            "phase_turn_index": 1,
+            "claims": [{"claim_id": "claim-main", "status": "supported"}],
+            "evidence_map": [{"evidence_id": "e1", "claim_id": "claim-main", "stance": "supports", "strength": "strong"}],
+            "flaw_candidates": [],
+            "conflict_notes": [{"conflict_id": "c1", "status": "open"}],
+        },
+        mode="s4",
+        worker_ids=["Claim Agent", "Evidence Agent", "Critique Agent"],
+        worker_limit=2,
+        recent_turn_logs=[
+            {
+                "turn_id": 4,
+                "phase_after_action": "recovery",
+                "turn_mode": "normal_evidence",
+                "action_type": "request_evidence_recheck",
+                "effective_action_type": "request_evidence_recheck",
+            }
+        ],
+    )
+
+    assert payload["action_type"] == "request_evidence_recheck"
+    assert payload["turn_mode"] == "normal_evidence"
+    assert payload["recovery_patch_mode_entered"] is False
+    assert any("did not upgrade recheck to patch" in note for note in payload.get("policy_notes", []))
+
+
+def test_apply_recovery_phase_protocol_cancels_context_claim_patch_even_with_real_evidence():
+    from agent_system.inference.review_runner import _apply_recovery_phase_protocol
+
+    payload = _apply_recovery_phase_protocol(
+        manager_payload={
+            "decision": "continue",
+            "action_type": "challenge_previous_hypothesis",
+            "effective_action_type": "challenge_previous_hypothesis",
+            "policy_source": "evidence_progress_override",
+            "target_claim_ids": ["claim-paper-context-1"],
+            "selected_agents": ["Critique Agent", "Evidence Agent"],
+        },
+        state={
+            "phase": "recovery",
+            "phase_turn_index": 1,
+            "claims": [
+                {"claim_id": "claim-paper-context-1", "status": "supported", "claim_origin_kind": "context_synthesized"}
+            ],
+            "evidence_map": [
+                {
+                    "evidence_id": "e-context",
+                    "claim_id": "claim-paper-context-1",
+                    "stance": "supports",
+                    "strength": "strong",
+                    "source": "quote-bank",
+                }
+            ],
+            "flaw_candidates": [],
+            "conflict_notes": [{"conflict_id": "c1", "status": "open"}],
+        },
+        mode="s4",
+        worker_ids=["Claim Agent", "Evidence Agent", "Critique Agent"],
+        worker_limit=2,
+        recent_turn_logs=[],
+    )
+
+    assert payload["action_type"] == "summarize_progress"
+    assert payload["phase"] == "normal_review"
+    assert payload["recovery_patch_mode_entered"] is False
+    assert payload["target_claim_ids"] == []
+    assert payload["policy_source"] == "recovery_target_exhausted_override"
 
 
 def test_apply_recovery_phase_protocol_allows_terminal_entry_for_recovery_relevant_gap():
@@ -4614,7 +4973,7 @@ def test_manager_policy_fallback_creates_sticky_on_multi_target_challenge_after_
                 {"claim_id": "claim-alt", "status": "supported", "claim": "An alternate claim."},
             ],
             "evidence_map": [
-                {"claim_id": "claim-main", "evidence_id": "e-main", "stance": "missing", "strength": "strong"},
+                {"claim_id": "claim-main", "evidence_id": "e-main", "stance": "contradicts", "strength": "strong"},
                 {"claim_id": "claim-alt", "evidence_id": "e-alt", "stance": "supports", "strength": "weak"},
             ],
             "flaw_candidates": [],
@@ -4639,7 +4998,7 @@ def test_manager_policy_fallback_creates_sticky_on_multi_target_challenge_after_
 
     assert payload["sticky_target_applied"] is True
     assert payload["sticky_target_id"] == "claim-main"
-    assert payload["target_claim_ids"] == ["claim-main", "claim-alt"]
+    assert payload["target_claim_ids"] == ["claim-main"]
 
 
 def test_manager_policy_fallback_does_not_create_sticky_for_fallback_claim_targets():
@@ -4816,7 +5175,7 @@ def test_manager_policy_fallback_applies_sticky_target_before_sanitize():
         recent_turn_logs=[],
     )
 
-    assert payload["target_claim_ids"] == ["claim-main", "claim-alt"]
+    assert payload["target_claim_ids"] == ["claim-main"]
     assert payload["sticky_target_id"] == "claim-main"
     assert payload["sticky_target_reused"] is True
     assert payload["target_switch_blocked_by_sticky"] is True
@@ -6275,6 +6634,83 @@ def test_ghost_evidence_patch_rebinds_to_real_verified_negative():
     cited = out.get("supporting_evidence_ids") or []
     assert cited and all(c in known for c in cited)
     assert out.get("ghost_evidence_rebind_used") is True
+
+
+def test_model_generated_hypothesis_patch_rebinds_to_real_verified_negative():
+    from agent_system.inference import review_runner as _rr
+    state = {
+        "claims": [{"claim_id": "claim-1", "status": "partially_supported"}],
+        "current_hypotheses": ["Claim claim-1 may be overstated."],
+        "evidence_map": [
+            {
+                "evidence_id": "evidence-neg-1",
+                "claim_id": "claim-1",
+                "stance": "contradicts",
+                "strength": "strong",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_negative_verified",
+                "source": "results",
+            }
+        ],
+    }
+    manager_payload = {
+        "effective_action_type": "challenge_previous_hypothesis",
+        "target_claim_ids": ["claim-1"],
+        "target_evidence_ids": ["evidence-neg-1"],
+    }
+    worker_payload = {
+        "action": "apply_recovery_patch",
+        "_recovery_patch_source": "model_generated",
+        "target_type": "hypothesis",
+        "target_id": "Claim claim-1 may be overstated.",
+        "old_status": "active",
+        "new_status": "challenged",
+        "supporting_evidence_ids": ["evidence-neg-1"],
+    }
+
+    out = _rr._maybe_salvage_recovery_payload("Critique Agent", dict(worker_payload), state, manager_payload)
+
+    assert out.get("action") == "apply_recovery_patch"
+    assert out.get("target_type") == "claim"
+    assert out.get("target_id") == "claim-1"
+    assert out.get("supporting_evidence_ids") == ["evidence-neg-1"]
+    assert out.get("weak_recovery_target_rebind_used") is True
+
+
+def test_model_generated_context_claim_patch_blocks_without_real_rebind_target():
+    from agent_system.inference import review_runner as _rr
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-paper-context-1",
+                "status": "partially_supported",
+                "claim_kind": "paper_extracted",
+                "claim_origin_kind": "context_synthesized",
+            }
+        ],
+        "evidence_map": [
+            {"evidence_id": "evidence-pos-1", "claim_id": "claim-paper-context-1", "stance": "supports", "strength": "strong"}
+        ],
+    }
+    manager_payload = {
+        "effective_action_type": "challenge_previous_hypothesis",
+        "target_claim_ids": ["claim-paper-context-1"],
+    }
+    worker_payload = {
+        "action": "apply_recovery_patch",
+        "_recovery_patch_source": "model_generated",
+        "target_type": "claim",
+        "target_id": "claim-paper-context-1",
+        "old_status": "partially_supported",
+        "new_status": "unsupported",
+        "supporting_evidence_ids": ["evidence-pos-1"],
+    }
+
+    out = _rr._maybe_salvage_recovery_payload("Critique Agent", dict(worker_payload), state, manager_payload)
+
+    assert out.get("action") == "blocked"
+    assert out.get("weak_recovery_target_rebind_used") is True
+    assert out.get("target_id") == "claim-paper-context-1"
 
 
 def test_ghost_evidence_patch_blocks_when_no_real_negative():

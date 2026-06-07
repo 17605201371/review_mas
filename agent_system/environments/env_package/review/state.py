@@ -4129,7 +4129,16 @@ def _recovery_target_gate_label(
     repairability = str(repairability or "").strip()
     if not target_id:
         return "empty_target"
-    if target_id.startswith(("claim-fallback", "claim-context", "flaw-fallback", "evidence-fallback")):
+    if target_id.startswith(
+        (
+            "claim-fallback",
+            "claim-context",
+            "claim-paper-fallback",
+            "claim-paper-context",
+            "flaw-fallback",
+            "evidence-fallback",
+        )
+    ):
         return "fallback_target"
     if target_type not in {"claim", "flaw", "evidence_link", "gap", "final_item", "state"}:
         return "weak_target"
@@ -4436,6 +4445,8 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
     }
     verified_negative_flaw_ids: List[str] = []
     actionable_negative_flaw_ids: List[str] = []
+    verified_potential_concern_ids: List[str] = []
+    negative_flaw_not_upgraded_reasons: Counter[str] = Counter()
     limitation_negative_flaw_ids: List[str] = []
     negative_evidence_type_counts: Counter[str] = Counter()
     for flaw in view.get("flaw_candidates", []) or []:
@@ -4462,7 +4473,11 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
             if eid in negative_evidence_ids:
                 linked_negative_evidence_ids.add(eid)
 
-        has_evidence = bool(flaw.get("evidence_ids"))
+        # Negative-evidence-only flaws are valid anchored critique candidates.
+        # Earlier logic only looked at ``evidence_ids`` and downgraded flaws
+        # that correctly stored anchors in ``negative_evidence_ids`` before
+        # they could enter the potential-concern lifecycle.
+        has_evidence = bool(flaw.get("evidence_ids") or _flaw_valid_negative_evidence_ids(flaw, view))
         evidence_conflict = _generic_lack_support_flaw_conflicts_with_support(flaw, support_counts)
         original_status = flaw.get("status", "candidate")
         if original_status in {"candidate", "confirmed"} and (not has_evidence or _is_fallback_or_meta_flaw(flaw) or evidence_conflict):
@@ -4486,6 +4501,18 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
                 negative_evidence_type_counts.update(flaw_type_counts)
             if _verified_actionable_negative_evidence_ids_for_flaw(flaw, view):
                 actionable_negative_flaw_ids.append(str(flaw.get("flaw_id") or ""))
+                if str(flaw.get("status") or "candidate") != "confirmed":
+                    flaw_id = str(flaw.get("flaw_id") or "")
+                    if flaw_id:
+                        verified_potential_concern_ids.append(flaw_id)
+                    if any(neg_type in {"scope_limitation", "missing_ablation", "missing_baseline", "insufficient_evaluation", "reproducibility_gap"} for neg_type in flaw_type_counts):
+                        reason = "limitation_type_stays_potential_concern"
+                    elif any(neg_type in {"direct_contradiction", "negative_result"} for neg_type in flaw_type_counts):
+                        reason = "not_confirmed_stays_potential_concern"
+                    else:
+                        reason = "verified_candidate_stays_potential_concern"
+                    flaw["negative_flaw_not_upgraded_reason"] = reason
+                    negative_flaw_not_upgraded_reasons[reason] += 1
             elif any(neg_type in LIMITATION_NEGATIVE_EVIDENCE_TYPES for neg_type in flaw_type_counts):
                 limitation_negative_flaw_ids.append(str(flaw.get("flaw_id") or ""))
         layer = _classify_flaw_final_view_layer(flaw, view)
@@ -4589,13 +4616,14 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
         "candidate_to_potential_concern_downgrade_count": len(downgraded_flaws),
         "flaw_layer_counts": flaw_layer_counts,
         "grounded_weakness_count": flaw_layer_counts.get("grounded_weakness", 0),
-        "verified_potential_concern_count": flaw_layer_counts.get("verified_potential_concern", 0),
+        "verified_potential_concern_count": len(set(fid for fid in verified_potential_concern_ids if fid)),
         "potential_concern_count": flaw_layer_counts.get("potential_concern", 0),
         "assessment_limitation_flaw_count": flaw_layer_counts.get("assessment_limitation", 0),
         "verified_negative_flaw_count": len(set(fid for fid in verified_negative_flaw_ids if fid)),
         "verified_actionable_negative_flaw_count": len(set(fid for fid in actionable_negative_flaw_ids if fid)),
         "verified_limitation_negative_flaw_count": len(set(fid for fid in limitation_negative_flaw_ids if fid)),
         "negative_evidence_type_counts": dict(negative_evidence_type_counts),
+        "negative_flaw_not_upgraded_reason_counts": dict(negative_flaw_not_upgraded_reasons),
         "state_contamination_count": len(contamination_targets),
         "state_contamination_count_legacy": len(contamination_targets),
         "harmful_state_contamination_count": 0,
@@ -8302,7 +8330,15 @@ def _classify_flaw_final_view_layer(flaw: Dict[str, Any], state: Dict[str, Any])
     if verified_negative_ids:
         actionable_ids = _verified_actionable_negative_evidence_ids_for_flaw(flaw, state)
         if actionable_ids:
-            return "grounded_weakness" if status == "confirmed" else "verified_potential_concern"
+            if status == "confirmed":
+                return "grounded_weakness"
+            # A verified, actionable negative candidate should surface in the
+            # final diagnostic chain as a potential concern.  The separate
+            # ``verified_potential_concern_count`` metric tracks verification
+            # status, so the final-view layer can stay report-oriented instead
+            # of using an exclusive intermediate layer that never reaches
+            # ``potential_concern_count``.
+            return "potential_concern"
         return "assessment_limitation"
     if _is_system_assessment_limitation_flaw(flaw, state):
         return "assessment_limitation"

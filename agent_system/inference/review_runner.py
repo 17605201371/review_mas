@@ -254,10 +254,15 @@ def _recovery_candidate_claim_ids(state: Dict[str, Any], recovery_action: str) -
     claims = state.get("claims", []) or []
     evidence = state.get("evidence_map", []) or []
     allowed_statuses = {"supported", "partially_supported", "uncertain"} if recovery_action == "challenge_previous_hypothesis" else {"supported", "partially_supported", "uncertain", "new"}
+    strong_claim_ids = {
+        str(item.get("claim_id") or "").strip()
+        for item in claims
+        if isinstance(item, dict) and _is_recovery_strong_claim_target(item)
+    }
     claim_status = {
         str(item.get("claim_id") or ""): str(item.get("status") or "uncertain").strip().lower()
         for item in claims
-        if item.get("claim_id")
+        if item.get("claim_id") and str(item.get("claim_id") or "").strip() in strong_claim_ids
     }
     negative_claim_ids: List[str] = []
     for item in evidence:
@@ -269,7 +274,11 @@ def _recovery_candidate_claim_ids(state: Dict[str, Any], recovery_action: str) -
     fallback_claim_ids = [
         str(item.get("claim_id") or "").strip()
         for item in claims
-        if item.get("claim_id") and str(item.get("status") or "uncertain").strip().lower() in allowed_statuses
+        if (
+            item.get("claim_id")
+            and str(item.get("claim_id") or "").strip() in strong_claim_ids
+            and str(item.get("status") or "uncertain").strip().lower() in allowed_statuses
+        )
     ]
     limit = 2 if recovery_action == "challenge_previous_hypothesis" else 3
     if recovery_action == "challenge_previous_hypothesis":
@@ -288,6 +297,35 @@ def _recovery_candidate_evidence_ids(state: Dict[str, Any], target_claim_ids: Se
         if _allows_claim_status_downgrade_from_recovery(item):
             evidence_ids.append(evidence_id)
     return list(dict.fromkeys(evidence_ids))[:4]
+
+
+def _is_recovery_weak_claim_id(claim_id: str) -> bool:
+    value = str(claim_id or "").strip().lower()
+    return value.startswith(
+        (
+            "claim-context",
+            "claim-fallback",
+            "claim-recovery",
+            "claim-paper-context",
+            "claim-paper-fallback",
+        )
+    )
+
+
+def _is_recovery_strong_claim_target(claim: Dict[str, Any]) -> bool:
+    claim_id = str((claim or {}).get("claim_id") or "").strip()
+    if not claim_id or _is_recovery_weak_claim_id(claim_id):
+        return False
+    origin_kind = str((claim or {}).get("claim_origin_kind") or "").strip().lower()
+    origin = " ".join(
+        str((claim or {}).get(key) or "")
+        for key in ("claim_origin", "claim_source", "source_stage", "provenance")
+    ).lower()
+    if origin_kind in {"context_synthesized", "raw_salvaged_claim_agent_output"}:
+        return False
+    if any(marker in origin for marker in ("context_derived", "raw_salvage", "malformed_claim_agent_output")):
+        return False
+    return True
 
 
 _VERIFIED_RECOVERY_LABELS = {"paper_grounded_exact", "paper_grounded_normalized"}
@@ -681,6 +719,19 @@ def _ensure_recovery_targets(
 ) -> Dict[str, Any]:
     normalized = manager_payload
     inferred_payload = _infer_action_from_state(mode, state, recent_turn_logs) or {}
+    claim_lookup = {
+        str(item.get("claim_id") or "").strip(): item
+        for item in state.get("claims", []) or []
+        if isinstance(item, dict) and str(item.get("claim_id") or "").strip()
+    }
+    if recovery_action == "request_evidence_recheck":
+        current_claim_ids = [str(item).strip() for item in normalized.get("target_claim_ids", []) or [] if str(item).strip()]
+        filtered_claim_ids = [
+            claim_id
+            for claim_id in current_claim_ids
+            if _is_recovery_strong_claim_target(claim_lookup.get(claim_id, {}))
+        ]
+        normalized["target_claim_ids"] = filtered_claim_ids[:3]
     if recovery_action == "challenge_previous_hypothesis":
         viable_claim_ids = set(_recovery_candidate_claim_ids(state, recovery_action))
         current_claim_ids = [str(item).strip() for item in normalized.get("target_claim_ids", []) or [] if str(item).strip()]
@@ -699,11 +750,18 @@ def _ensure_recovery_targets(
                 with_real_evidence = [
                     claim_id
                     for claim_id in current_claim_ids
+                    if _is_recovery_strong_claim_target(claim_lookup.get(claim_id, {}))
                     if _claim_has_real_evidence_for_recovery(state, claim_id)
                 ]
                 normalized["target_claim_ids"] = with_real_evidence
     if not normalized.get("target_claim_ids"):
         target_claim_ids = list(inferred_payload.get("target_claim_ids", []) or [])
+        if recovery_action == "request_evidence_recheck":
+            target_claim_ids = [
+                claim_id
+                for claim_id in target_claim_ids
+                if _is_recovery_strong_claim_target(claim_lookup.get(str(claim_id).strip(), {}))
+            ]
         if recovery_action == "challenge_previous_hypothesis":
             viable_claim_ids = set(_recovery_candidate_claim_ids(state, recovery_action))
             target_claim_ids = [claim_id for claim_id in target_claim_ids if claim_id in viable_claim_ids]
@@ -788,6 +846,25 @@ def _apply_recovery_phase_protocol(
         normalized["policy_notes"] = list(dict.fromkeys(notes))[:8]
         if normalized.get("policy_source") in {"", "manager_model"}:
             normalized["policy_source"] = "mode_action_guard"
+
+    if str(normalized.get("policy_source") or "") == "recovery_target_exhausted_override":
+        normalized["phase"] = "normal_review"
+        normalized["phase_enter_reason"] = ""
+        normalized["phase_hold_reason"] = ""
+        normalized["phase_exit_reason"] = normalized.get("phase_exit_reason") or "Recovery phase exited because no verified-negative real target remains."
+        normalized["decision"] = "continue"
+        normalized["action_type"] = "summarize_progress"
+        normalized["effective_action_type"] = "summarize_progress"
+        normalized["turn_mode"] = "normal_evidence"
+        normalized["recovery_patch_mode_entered"] = False
+        normalized["finalize_blocked_by_phase"] = False
+        normalized["selected_agents"] = []
+        normalized["target_claim_ids"] = []
+        normalized["target_flaw_ids"] = []
+        normalized["target_hypotheses"] = []
+        if not int(normalized.get("phase_turn_index") or 0):
+            normalized["phase_turn_index"] = max(1, int(state.get("phase_turn_index", 0) or 0))
+        return _apply_turn_mode(normalized)
 
     outcome, outcome_reason = _latest_recovery_outcome(state, recent_turn_logs)
     recovery_relevant_fn = getattr(review_policy, "_state_is_recovery_relevant", None)
@@ -952,12 +1029,20 @@ def _apply_recovery_phase_protocol(
         and _latest_turn_completed_normal_recheck(recent_turn_logs)
         and "challenge_previous_hypothesis" in allowed_actions
     ):
-        recovery_action = "challenge_previous_hypothesis"
+        patch_ready = bool(
+            _recovery_candidate_claim_ids(state, "challenge_previous_hypothesis")
+            or _recovery_candidate_flaw_ids(state)
+        )
         notes = list(normalized.get("policy_notes", []))
-        notes.append("Recovery phase upgraded from evidence recheck to challenge patch after one normal recheck turn completed.")
-        normalized["policy_notes"] = list(dict.fromkeys(notes))[:8]
-        if normalized.get("policy_source") in {"", "manager_model", "recovery_phase_override"}:
-            normalized["policy_source"] = "recovery_recheck_to_patch_override"
+        if patch_ready:
+            recovery_action = "challenge_previous_hypothesis"
+            notes.append("Recovery phase upgraded from evidence recheck to challenge patch after one normal recheck turn completed.")
+            normalized["policy_notes"] = list(dict.fromkeys(notes))[:8]
+            if normalized.get("policy_source") in {"", "manager_model", "recovery_phase_override"}:
+                normalized["policy_source"] = "recovery_recheck_to_patch_override"
+        else:
+            notes.append("Recovery phase did not upgrade recheck to patch because no verified-negative claim or downgradeable flaw target is available.")
+            normalized["policy_notes"] = list(dict.fromkeys(notes))[:8]
 
     if (
         normalized.get("decision") == "finalize"
@@ -976,6 +1061,29 @@ def _apply_recovery_phase_protocol(
             normalized["policy_source"] = "recovery_phase_override"
         normalized["rationale"] = (((normalized.get("rationale") or "").strip() + " ").strip() + "Recovery phase kept the turn on a repair-oriented action until the current recovery target reaches a terminal committed/blocked result.")[:600]
     normalized = _ensure_recovery_targets(normalized, state, mode, recovery_action, recent_turn_logs)
+    if (
+        recovery_action == "challenge_previous_hypothesis"
+        and not normalized.get("target_claim_ids")
+        and not normalized.get("target_flaw_ids")
+    ):
+        normalized["phase"] = "normal_review"
+        normalized["phase_enter_reason"] = ""
+        normalized["phase_hold_reason"] = ""
+        normalized["phase_exit_reason"] = normalized.get("phase_exit_reason") or "Recovery phase exited because patch target selection found no real corrective target."
+        normalized["decision"] = "continue"
+        normalized["action_type"] = "summarize_progress"
+        normalized["effective_action_type"] = "summarize_progress"
+        normalized["turn_mode"] = "normal_evidence"
+        normalized["recovery_patch_mode_entered"] = False
+        normalized["finalize_blocked_by_phase"] = False
+        normalized["selected_agents"] = []
+        normalized["target_hypotheses"] = []
+        notes = list(normalized.get("policy_notes", []))
+        notes.append("Recovery patch routing was cancelled because no real claim or flaw target survived final target selection.")
+        normalized["policy_notes"] = list(dict.fromkeys(notes))[:8]
+        if normalized.get("policy_source") in {"", "manager_model", "recovery_phase_override", "evidence_progress_override"}:
+            normalized["policy_source"] = "recovery_target_exhausted_override"
+        return _apply_turn_mode(normalized)
     if str(normalized.get("policy_source") or "").strip() in {"negative_evidence_formation_override", "hard_negative_discovery_override"}:
         normalized["negative_evidence_formation_required"] = True
     if worker_ids:
@@ -2585,13 +2693,20 @@ def _fallback_recovery_patch_payload(state: Dict[str, Any], manager_payload: Dic
             }
         )
 
-    ordered_claim_ids = list(target_claim_ids)
+    ordered_claim_ids = [
+        str(claim_id).strip()
+        for claim_id in list(target_claim_ids or [])
+        if str(claim_id).strip()
+        and _is_recovery_strong_claim_target(claim_lookup.get(str(claim_id).strip(), {}))
+    ]
+    if not ordered_claim_ids:
+        ordered_claim_ids = _recovery_candidate_claim_ids(state, "challenge_previous_hypothesis")
     if not ordered_claim_ids:
         return normalize_review_update_payload(
             {
                 "action": "blocked",
-                "blocked_reason": "No active manager-selected recovery target remained for a corrective patch.",
-                "missing_requirements": ["manager-selected recovery target claim"],
+                "blocked_reason": "No strong real recovery target remained for a corrective patch.",
+                "missing_requirements": ["real paper claim with verified contradictory or recovery evidence"],
             }
         )
     for claim_id in ordered_claim_ids:
@@ -2786,6 +2901,45 @@ def _recovery_patch_cites_only_real_evidence(
     return all(eid in known_ids for eid in cited)
 
 
+def _recovery_patch_has_weak_target(worker_payload: Dict[str, Any], state: Dict[str, Any]) -> bool:
+    if worker_payload.get("action") != "apply_recovery_patch":
+        return False
+    target_type = str(worker_payload.get("target_type") or "").strip().lower()
+    target_id = str(worker_payload.get("target_id") or "").strip()
+    if not target_id:
+        return True
+    if target_type == "hypothesis":
+        return True
+    if target_type == "claim":
+        claim_lookup = {
+            str(item.get("claim_id") or "").strip(): item
+            for item in state.get("claims", []) or []
+            if isinstance(item, dict) and str(item.get("claim_id") or "").strip()
+        }
+        return not _is_recovery_strong_claim_target(claim_lookup.get(target_id, {}))
+    if target_type in {"flaw", "gap", "evidence_link"}:
+        return False
+    return True
+
+
+def _blocked_weak_recovery_target_payload(worker_payload: Dict[str, Any]) -> Dict[str, Any]:
+    blocked = normalize_review_update_payload(
+        {
+            "action": "blocked",
+            "target_type": str(worker_payload.get("target_type") or ""),
+            "target_id": str(worker_payload.get("target_id") or ""),
+            "blocked_reason": (
+                "Recovery patch targeted a hypothesis, fallback/context claim, empty id, "
+                "or unsupported target type instead of a real claim/flaw/gap/evidence link."
+            ),
+            "missing_requirements": ["real recovery target with verified grounding"],
+        }
+    )
+    blocked["_recovery_patch_source"] = "weak_target_blocked"
+    blocked["weak_recovery_target_rebind_used"] = True
+    return blocked
+
+
 def _rebind_ghost_evidence_recovery_patch(
     worker_payload: Dict[str, Any],
     state: Dict[str, Any],
@@ -2836,8 +2990,18 @@ def _maybe_salvage_recovery_payload(
 ) -> Dict[str, Any]:
     manager_payload = manager_payload or {}
     action_type = manager_payload.get("effective_action_type") or manager_payload.get("action_type") or ""
-    if worker_payload.get("action") == "apply_recovery_patch" and not worker_payload.get("_recovery_patch_source"):
-        worker_payload["_recovery_patch_source"] = "model_generated"
+    if worker_payload.get("action") == "apply_recovery_patch":
+        if not worker_payload.get("_recovery_patch_source"):
+            worker_payload["_recovery_patch_source"] = "model_generated"
+        if _recovery_patch_has_weak_target(worker_payload, state):
+            rebuilt = _build_verified_negative_claim_recovery_patch(state, manager_payload)
+            if rebuilt is None:
+                rebuilt = _fallback_recovery_patch_payload(state, manager_payload)
+            if rebuilt.get("action") == "apply_recovery_patch" and _recovery_patch_cites_only_real_evidence(rebuilt, state):
+                rebuilt["_recovery_patch_source"] = rebuilt.get("_recovery_patch_source") or "weak_target_rebind"
+                rebuilt["weak_recovery_target_rebind_used"] = True
+                return rebuilt
+            return _blocked_weak_recovery_target_payload(worker_payload)
         worker_payload = _rebind_ghost_evidence_recovery_patch(worker_payload, state, manager_payload)
         return worker_payload
     if agent_id != "Critique Agent" or action_type != "challenge_previous_hypothesis":

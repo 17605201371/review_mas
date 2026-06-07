@@ -1,0 +1,270 @@
+{
+  "summary": {
+    "paper_count": 8,
+    "metrics_subset": {
+      "hygiene_delta_or_safe_block_or_clean_state": 8,
+      "recovery_safe_resolution_or_clean_state": 8,
+      "recovery_patch_committed": 0,
+      "recovery_effective_repair": 0,
+      "hygiene_delta_improved": 0,
+      "contamination_evidence_misbinding": 0,
+      "evidence_gap_resolved_count": 26,
+      "evidence_gap_superseded_count": 0,
+      "evidence_gap_not_assessable_count": 5,
+      "recovery_no_effect_commit": 0,
+      "recovery_harmful_commit_risk": 0
+    },
+    "protection_failures": [],
+    "hygiene_case_reason_counts": {
+      "clean_state_recognized": 8
+    }
+  },
+  "lists": {
+    "hygiene_fail_case_list": [],
+    "evidence_misbinding_case_list": [],
+    "no_effect_patch_case_list": [],
+    "harmful_commit_risk_case_list": [],
+    "not_assessable_gap_case_list": [
+      "WNxlJJIEVj",
+      "WLgbjzKJkk",
+      "LebzzClHYw",
+      "KOUAayk5Kx"
+    ],
+    "negative_semantic_rejected_case_list": [],
+    "recovery_committed_but_ineffective_case_list": [],
+    "validator_blocked_without_final_safe_state_case_list": [],
+    "recovery_unknown_target_case_list": [],
+    "recovery_invalid_status_transition_case_list": [],
+    "recovery_evidence_target_mismatch_case_list": []
+  },
+  "cases": [
+    {
+      "paper_id": "mHv6wcBb0z",
+      "final_decision": "accept",
+      "reward": 0.6395844090272021,
+      "counted_for_hygiene_delta_or_safe_block_or_clean_state": true,
+      "hygiene_case_reasons": [
+        "clean_state_recognized"
+      ],
+      "state_contamination_count": 0,
+      "harmful_state_contamination_count": 0,
+      "contamination_type_counts": {},
+      "gap_status_counts": {
+        "resolved": 4
+      },
+      "unresolved_reason_counts": {
+        "missing_reason": 3
+      },
+      "recovery_attempted_turns": 0,
+      "recovery_committed_turns": 0,
+      "recovery_effective_repair_turns": 0,
+      "safe_block_turns": 0,
+      "no_effect_commit_turns": 0,
+      "harmful_commit_risk_turns": 0,
+      "recovery_unknown_target_turns": 0,
+      "recovery_invalid_status_transition_turns": 0,
+      "recovery_evidence_target_mismatch_turns": 0,
+      "recovery_turns": []
+    },
+    {
+      "paper_id": "jVEoydFOl9",
+      "final_decision": "accept",
+      "reward": 0.6324398400630863,
+      "counted_for_hygiene_delta_or_safe_block_or_clean_state": true,
+      "hygiene_case_reasons": [
+        "clean_state_recognized"
+      ],
+      "state_contamination_count": 0,
+      "harmful_state_contamination_count": 0,
+      "contamination_type_counts": {},
+      "gap_status_counts": {
+        "resolved": 3
+      },
+      "unresolved_reason_counts": {
+        "missing_reason": 2
+      },
+      "recovery_attempted_turns": 0,
+      "recovery_committed_turns": 0,
+      "recovery_effective_repair_turns": 0,
+      "safe_block_turns": 0,
+      "no_effect_commit_turns": 0,
+      "harmful_commit_risk_turns": 0,
+      "recovery_unknown_target_turns": 0,
+      "recovery_invalid_status_transition_turns": 0,
+      "recovery_evidence_target_mismatch_turns": 0,
+      "recovery_turns": []
+    },
+    {
+      "paper_id": "fGXyvmWpw6",
+      "final_decision": "accept",
+      "reward": 0.6634578636002274,
+      "counted_for_hygiene_delta_or_safe_block_or_clean_state": true,
+      "hygiene_case_reasons": [
+        "clean_state_recognized"
+      ],
+      "state_contamination_count": 0,
+      "harmful_state_contamination_count": 0,
+      "contamination_type_counts": {},
+      "gap_status_counts": {
+        "resolved": 4
+      },
+      "unresolved_reason_counts": {
+        "missing_reason": 2
+      },
+      "recovery_attempted_turns": 0,
+      "recovery_committed_turns": 0,
+      "recovery_effective_repair_turns": 0,
+      "safe_block_turns": 0,
+      "no_effect_commit_turns": 0,
+      "harmful_commit_risk_turns": 0,
+      "recovery_unknown_target_turns": 0,
+      "recovery_invalid_status_transition_turns": 0,
+      "recovery_evidence_target_mismatch_turns": 0,
+      "recovery_turns": []
+    },
+    {
+      "paper_id": "XyB4VvF01X",
+      "final_decision": "accept",
+      "reward": 0.7073762574049288,
+      "counted_for_hygiene_delta_or_safe_block_or_clean_state": true,
+      "hygiene_case_reasons": [
+        "clean_state_recognized"
+      ],
+      "state_contamination_count": 0,
+      "harmful_state_contamination_count": 0,
+      "contamination_type_counts": {},
+      "gap_status_counts": {
+        "resolved": 4
+      },
+      "unresolved_reason_counts": {
+        "missing_reason": 3
+      },
+      "recovery_attempted_turns": 0,
+      "recovery_committed_turns": 0,
+      "recovery_effective_repair_turns": 0,
+      "safe_block_turns": 0,
+      "no_effect_commit_turns": 0,
+      "harmful_commit_risk_turns": 0,
+      "recovery_unknown_target_turns": 0,
+      "recovery_invalid_status_transition_turns": 0,
+      "recovery_evidence_target_mismatch_turns": 0,
+      "recovery_turns": []
+    },
+    {
+      "paper_id": "WNxlJJIEVj",
+      "final_decision": "accept",
+      "reward": 0.5663703833985683,
+      "counted_for_hygiene_delta_or_safe_block_or_clean_state": true,
+      "hygiene_case_reasons": [
+        "clean_state_recognized"
+      ],
+      "state_contamination_count": 0,
+      "harmful_state_contamination_count": 0,
+      "contamination_type_counts": {},
+      "gap_status_counts": {
+        "resolved": 4,
+        "not_assessable": 1
+      },
+      "unresolved_reason_counts": {
+        "missing_reason": 6
+      },
+      "recovery_attempted_turns": 0,
+      "recovery_committed_turns": 0,
+      "recovery_effective_repair_turns": 0,
+      "safe_block_turns": 0,
+      "no_effect_commit_turns": 0,
+      "harmful_commit_risk_turns": 0,
+      "recovery_unknown_target_turns": 0,
+      "recovery_invalid_status_transition_turns": 0,
+      "recovery_evidence_target_mismatch_turns": 0,
+      "recovery_turns": []
+    },
+    {
+      "paper_id": "WLgbjzKJkk",
+      "final_decision": "reject",
+      "reward": 0.41528566166903286,
+      "counted_for_hygiene_delta_or_safe_block_or_clean_state": true,
+      "hygiene_case_reasons": [
+        "clean_state_recognized"
+      ],
+      "state_contamination_count": 0,
+      "harmful_state_contamination_count": 0,
+      "contamination_type_counts": {},
+      "gap_status_counts": {
+        "resolved": 2,
+        "not_assessable": 1
+      },
+      "unresolved_reason_counts": {
+        "missing_reason": 4
+      },
+      "recovery_attempted_turns": 0,
+      "recovery_committed_turns": 0,
+      "recovery_effective_repair_turns": 0,
+      "safe_block_turns": 0,
+      "no_effect_commit_turns": 0,
+      "harmful_commit_risk_turns": 0,
+      "recovery_unknown_target_turns": 0,
+      "recovery_invalid_status_transition_turns": 0,
+      "recovery_evidence_target_mismatch_turns": 0,
+      "recovery_turns": []
+    },
+    {
+      "paper_id": "LebzzClHYw",
+      "final_decision": "accept",
+      "reward": 0.6129003942103571,
+      "counted_for_hygiene_delta_or_safe_block_or_clean_state": true,
+      "hygiene_case_reasons": [
+        "clean_state_recognized"
+      ],
+      "state_contamination_count": 0,
+      "harmful_state_contamination_count": 0,
+      "contamination_type_counts": {},
+      "gap_status_counts": {
+        "resolved": 4,
+        "not_assessable": 1
+      },
+      "unresolved_reason_counts": {
+        "missing_reason": 2
+      },
+      "recovery_attempted_turns": 0,
+      "recovery_committed_turns": 0,
+      "recovery_effective_repair_turns": 0,
+      "safe_block_turns": 0,
+      "no_effect_commit_turns": 0,
+      "harmful_commit_risk_turns": 0,
+      "recovery_unknown_target_turns": 0,
+      "recovery_invalid_status_transition_turns": 0,
+      "recovery_evidence_target_mismatch_turns": 0,
+      "recovery_turns": []
+    },
+    {
+      "paper_id": "KOUAayk5Kx",
+      "final_decision": "reject",
+      "reward": 0.4515728935339316,
+      "counted_for_hygiene_delta_or_safe_block_or_clean_state": true,
+      "hygiene_case_reasons": [
+        "clean_state_recognized"
+      ],
+      "state_contamination_count": 0,
+      "harmful_state_contamination_count": 0,
+      "contamination_type_counts": {},
+      "gap_status_counts": {
+        "not_assessable": 2,
+        "resolved": 1
+      },
+      "unresolved_reason_counts": {
+        "missing_reason": 2
+      },
+      "recovery_attempted_turns": 0,
+      "recovery_committed_turns": 0,
+      "recovery_effective_repair_turns": 0,
+      "safe_block_turns": 0,
+      "no_effect_commit_turns": 0,
+      "harmful_commit_risk_turns": 0,
+      "recovery_unknown_target_turns": 0,
+      "recovery_invalid_status_transition_turns": 0,
+      "recovery_evidence_target_mismatch_turns": 0,
+      "recovery_turns": []
+    }
+  ]
+}

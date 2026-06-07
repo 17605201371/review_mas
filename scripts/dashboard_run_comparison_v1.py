@@ -893,6 +893,9 @@ def _case_audit(rows: List[Dict[str, Any]], metrics: Dict[str, Any], issues: Lis
         "negative_semantic_rejected_case_list": [],
         "recovery_committed_but_ineffective_case_list": [],
         "validator_blocked_without_final_safe_state_case_list": [],
+        "recovery_unknown_target_case_list": [],
+        "recovery_invalid_status_transition_case_list": [],
+        "recovery_evidence_target_mismatch_case_list": [],
     }
     reason_counts: Counter[str] = Counter()
 
@@ -922,6 +925,9 @@ def _case_audit(rows: List[Dict[str, Any]], metrics: Dict[str, Any], issues: Lis
         no_effect_turns = [tl for tl in turns if _turn_has_no_effect_commit(tl)]
         harmful_turns = [tl for tl in turns if _turn_has_harmful_commit_risk(tl)]
         blocked_turns = [tl for tl in turns if tl.get("recovery_attempted") and not tl.get("recovery_patch_committed")]
+        unknown_target_turns = [tl for tl in turns if tl.get("recovery_failure_code") == "UNKNOWN_TARGET"]
+        invalid_transition_turns = [tl for tl in turns if tl.get("recovery_failure_code") == "INVALID_STATUS_TRANSITION"]
+        evidence_target_mismatch_turns = [tl for tl in turns if tl.get("recovery_failure_code") == "EVIDENCE_TARGET_MISMATCH"]
 
         gap_status_counts = Counter(
             str(g.get("status") or "open")
@@ -981,6 +987,12 @@ def _case_audit(rows: List[Dict[str, Any]], metrics: Dict[str, Any], issues: Lis
             lists["recovery_committed_but_ineffective_case_list"].append(pid)
         if "validator_blocked_without_final_safe_state" in reasons:
             lists["validator_blocked_without_final_safe_state_case_list"].append(pid)
+        if unknown_target_turns:
+            lists["recovery_unknown_target_case_list"].append(pid)
+        if invalid_transition_turns:
+            lists["recovery_invalid_status_transition_case_list"].append(pid)
+        if evidence_target_mismatch_turns:
+            lists["recovery_evidence_target_mismatch_case_list"].append(pid)
 
         cases.append({
             "paper_id": pid,
@@ -999,6 +1011,9 @@ def _case_audit(rows: List[Dict[str, Any]], metrics: Dict[str, Any], issues: Lis
             "safe_block_turns": len(safe_block_turns),
             "no_effect_commit_turns": len(no_effect_turns),
             "harmful_commit_risk_turns": len(harmful_turns),
+            "recovery_unknown_target_turns": len(unknown_target_turns),
+            "recovery_invalid_status_transition_turns": len(invalid_transition_turns),
+            "recovery_evidence_target_mismatch_turns": len(evidence_target_mismatch_turns),
             "recovery_turns": [
                 {
                     "turn_id": tl.get("turn_id"),

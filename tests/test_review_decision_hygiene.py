@@ -2998,9 +2998,11 @@ def test_final_view_classifies_verified_negative_flaw_layers():
     hygiene = view["decision_hygiene"]
 
     assert flaws["flaw-confirmed"]["final_view_flaw_layer"] == "grounded_weakness"
-    assert flaws["flaw-candidate"]["final_view_flaw_layer"] == "verified_potential_concern"
+    assert flaws["flaw-candidate"]["final_view_flaw_layer"] == "potential_concern"
+    assert flaws["flaw-candidate"]["negative_flaw_not_upgraded_reason"] == "not_confirmed_stays_potential_concern"
     assert hygiene["grounded_weakness_count"] == 1
     assert hygiene["verified_potential_concern_count"] == 1
+    assert hygiene["potential_concern_count"] == 1
     assert hygiene["verified_negative_flaw_count"] == 2
     assert any("Baseline failure" in line for line in _render_weaknesses(view))
 
@@ -4708,9 +4710,12 @@ def test_final_view_routes_actionable_negative_candidate_to_potential_concern():
     flaw = view["flaw_candidates"][0]
     dh = view["decision_hygiene"]
 
-    assert flaw["final_view_flaw_layer"] == "verified_potential_concern"
+    assert flaw["final_view_flaw_layer"] == "potential_concern"
+    assert flaw["negative_flaw_not_upgraded_reason"] == "not_confirmed_stays_potential_concern"
     assert dh["verified_negative_flaw_count"] == 1
     assert dh["verified_actionable_negative_flaw_count"] == 1
+    assert dh["verified_potential_concern_count"] == 1
+    assert dh["potential_concern_count"] == 1
     assert dh["negative_evidence_type_counts"] == {"negative_result": 1}
 
 
@@ -5066,5 +5071,7 @@ def test_actionable_negative_evidence_can_anchor_flaw():
     view = build_decision_hygiene_view(state)
     hygiene = view["decision_hygiene"]
     assert hygiene["verified_actionable_negative_flaw_count"] == 1
+    assert hygiene["verified_potential_concern_count"] == 1
+    assert hygiene["potential_concern_count"] == 1
+    assert hygiene["negative_flaw_not_upgraded_reason_counts"] == {"limitation_type_stays_potential_concern": 1}
     assert hygiene["negative_evidence_type_counts"]["missing_ablation"] == 1
-
