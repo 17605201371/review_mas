@@ -1528,10 +1528,9 @@ def test_fallback_recovery_patch_pattern_a_skipped_when_direct_negative_present(
     assert "evidence-direct-contradiction" in payload["supporting_evidence_ids"]
 
 
-def test_fallback_recovery_patch_pattern_a_does_not_downgrade_actionable_quote_bank_negative():
-    """Quote-bank negatives with actionable types should remain open for
-    critique/recovery confirmation instead of being auto-closed as a generic
-    assessment limitation."""
+def test_fallback_recovery_patch_pattern_a_downgrades_actionable_quote_bank_negative_conservatively():
+    """Actionable quote-bank negatives should complete the flaw lifecycle
+    without downgrading the claim itself."""
     state = _build_pattern_a_state()
     state["evidence_map"][1]["negative_evidence_type"] = "negative_result"
     state["evidence_map"][1]["raw_quote"] = "The proposed model performs worse than the baseline on the main benchmark."
@@ -1547,8 +1546,11 @@ def test_fallback_recovery_patch_pattern_a_does_not_downgrade_actionable_quote_b
         },
     )
 
-    assert payload["action"] == "blocked"
-    assert "No grounded contradictory evidence" in payload["blocked_reason"]
+    assert payload["action"] == "apply_recovery_patch"
+    assert payload["target_type"] == "flaw"
+    assert payload["target_id"] == "flaw-quote-bank-1"
+    assert payload["new_status"] == "downgraded"
+    assert payload["supporting_evidence_ids"] == ["evidence-negative-quote-bank-quote-1-1"]
 
 
 def test_fallback_recovery_patch_pattern_a_skipped_when_flaw_target_already_set():

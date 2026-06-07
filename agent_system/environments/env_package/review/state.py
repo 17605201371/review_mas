@@ -145,14 +145,18 @@ def _normalize_choice(value: Any, allowed: Iterable[str], default: str) -> str:
     return text if text in allowed_set else default
 
 
-# P0-5: synthetic recovery markers (ids that start with
-# ``evidence-recovery-missing-``) and "system recovery salvage"-sourced
-# evidence are diagnostic placeholders generated when no real paper-negative
-# evidence could be found.  They must never be cited as
-# ``supporting_evidence_ids`` for a claim or recovery patch — the downstream
-# `recovery_validator` already rejects such patches, but we strip them at
-# every write site so the saved state never carries the contradiction.
-_SYNTHETIC_RECOVERY_MARKER_PREFIXES = ("evidence-recovery-missing",)
+# P0-5: synthetic recovery markers and parser fallback evidence are
+# diagnostic placeholders generated when no real paper-grounded evidence could
+# be found. They must never be cited as ``supporting_evidence_ids`` for a claim
+# or recovery patch. The downstream `recovery_validator` rejects these patches,
+# and this helper also keeps turn logs/dashboard inputs clean.
+_SYNTHETIC_RECOVERY_MARKER_PREFIXES = (
+    "evidence-recovery-missing",
+    "evidence-context-",
+    "evidence-fallback-",
+    "evidence-placeholder-",
+    "evidence-synthetic-",
+)
 
 
 def _is_synthetic_recovery_marker_evidence_id(evidence_id: Any) -> bool:
@@ -6447,7 +6451,7 @@ _NEG_TYPE_DIRECT_CONTRADICTION_RE = re.compile(
 )
 _NEG_TYPE_NEGATIVE_RESULT_RE = re.compile(
     r"\b(worse|underperform(?:s|ed)?|lower than|insufficient|no improvement|degrad(?:e|es|ed|ation)|"
-    r"deteriorat(?:e|es|ed|ion)|poor performance|less accurate|drop in|"
+    r"deteriorat(?:e|es|ed|ion)|declin(?:e|es|ed|ing)|poor performance|less accurate|drop in|"
     r"negative result|no significant|not significant)\b",
     re.IGNORECASE,
 )

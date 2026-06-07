@@ -1,3 +1,62 @@
+## 2026-06-06 - MiMo v2.5 Full39 Rerun (p2adapter, mt=768)
+
+- **背景**: 在 smoke8 验证 mt=768 优于 mt=2048 后，扩展到完整 39 样本测试集，使用 MiMo v2.5 API + small_model adapter 模式。
+- **实验配置**:
+  - 数据集: `fulltest39_20260606.parquet`（从 HF 缓存 `WestLakeNLP/deep_review-13_k` test 集的 1286 条中按 gold39 IDs 截取）
+  - 参数: `--backend api --api-provider mimo --api-model mimo-v2.5 --mode s4 --max-tokens 768 --model-adapter-mode small_model --manager-batch-size 4 --api-max-workers 4 --api-timeout 300 --temperature 1.0 --top-p 0.95`
+  - 结果文件: `mimo_v25_p2adapter_fulltest39_20260606.jsonl` + `.log`
+- **Reward 结果**:
+  - 平均 reward: **0.5032**（range [0.3559, 0.6065]）
+  - Reward 分解（平均）: summary_align=0.4013, strength_align=0.2957, weakness_align=0.1570, suggestion_align=0.2993, global_align=0.2361, critique=0.6247, stance_align=0.8722, evidence_support_score=0.4406
+- **过程指标**:
+  - Claims: 143 (avg 3.7/paper), supported=68, uncertain=70, partially_supported=4, unsupported=1
+  - Evidence: 216 (avg 5.5/paper), 主要来源: fallback-extraction=67, Table/Figure=39, Claim-matched=26, Method=15, Results=15, Theory=8, quote-bank-negative=4
+  - Flaws: 4 (avg 0.1/paper), neg_flaws=0
+  - Evidence gaps: 143 total, resolved=3, open=8, not_assessable=132
+- **运行稳定性**: 39 篇全部完成，16 次 429 限流重试均成功恢复，无致命错误。
+- **结论**: Full39 reward 0.5032 与 smoke8 mt=768 的 0.5304 接近，evidence gap 绝大多数为 not_assessable（132/143），仅 3 个被 resolve，说明 gap recovery 在 full39 上效果有限（smoke8 的 gapresolved 跑了 16 个 resolved，但那是 mt=7 的新代码）。
+
+## 2026-06-06 - MiMo v2.5 Gap/Evidence_link Recovery 迭代 (smoke8, mt=7)
+
+- **背景**: 另一个 AI 在 commit `1e5f7d4` 中新增了 `gap` 和 `evidence_link` 两种 recovery target type，让 recovery 可以修复 stale evidence gap 和解绑无效 evidence-to-claim 链接。使用 smoke8 跑了 3 轮迭代验证。
+- **代码改动** (commit `1e5f7d4`):
+  1. `review_runner.py`: worker prompt 增加 gap/evidence_link target_type 说明
+  2. `recovery_validator.py`: 新增 gap 和 evidence_link 的状态转换规则、_locate_target 分支、_validate_evidence_alignment 分支；`_is_verified_recovery_evidence` 收窄为 `_is_verified_negative_recovery_evidence`
+  3. `state.py`: 新增 `rebind_evidence`、`resolve_stale_gap`、`convert_negative_to_gap` 操作类型和 apply 逻辑
+- **启动参数**: `--max-tokens 768 --max-turns 7 --model-adapter-mode small_model --temperature 1.0 --top-p 0.95`（与之前 smoke8 一致，仅 max-turns 从 5 改为 7）
+- **3 轮实验对比**:
+
+| 指标 | gaplink | caseaudit | gapresolved |
+|---|---|---|---|
+| 文件 | `mimo_v25_gaplink_mt7_smoke8_20260606.jsonl` | `mimo_v25_caseaudit_mt7_smoke8_20260606.jsonl` | `mimo_v25_gapresolved_mt7_smoke8_20260606.jsonl` |
+| 平均 reward | 0.4818 | **0.5218** | 0.5003 |
+| evidence_support | 0.4167 | **0.4743** | 0.4178 |
+| critique | 0.5267 | **0.6645** | 0.6636 |
+| summary_align | 0.3680 | 0.4193 | **0.4423** |
+| stance_align | **0.8999** | 0.8973 | 0.8888 |
+| Claims (total) | 30 (3.8/p) | 29 (3.6/p) | 33 (4.1/p) |
+| Claims supported | 14 | 16 | 15 |
+| Claims uncertain | 15 | 13 | 17 |
+| Evidence (total) | 49 (6.1/p) | **63 (7.9/p)** | 59 (7.4/p) |
+| Fallback extraction | 18 | 27 | 25 |
+| Table/Figure | 7 | 5 | 5 |
+| Quote-bank-negative | 1 | 2 | 1 |
+| Flaws | 1 | 2 | 1 |
+| Neg flaws | 0 | 0 | 0 |
+| Gaps total | 30 | 29 | 33 |
+| Gaps resolved | 0 | 0 | **16** |
+| Gaps not_assessable | 30 | 29 | **17** |
+
+- **迭代演进**:
+  1. **gaplink**: 首次引入 gap/evidence_link recovery，recovery 活跃但引入 state contamination，dashboard protection FAIL
+  2. **caseaudit**: 同代码复跑验证稳定性，contamination 清零，evidence 数量最多（63），reward 最高（0.5218），dashboard PASS
+  3. **gapresolved**: 16 个 evidence gap 从 not_assessable 被 resolve，contested support 清零，状态最干净
+- **结论**:
+  1. gap/evidence_link recovery 机制有效：gapresolved 成功将 48% 的 not_assessable gaps 转为 resolved
+  2. caseaudit 在 reward 维度最优（0.5218），evidence_support 也最高（0.4743），说明 evidence 数量与 reward 正相关
+  3. gapresolved 虽然 reward 略低（0.5003），但状态最干净（contamination=0, contested=0），适合作为后续实验的稳定基线
+  4. max-turns=7 比 mt=5 产出更多 evidence（6-8/paper vs 5-6/paper），但 reward 提升不大
+
 ## 2026-06-06 - MiMo v2.5 max_tokens=768 vs 2048 对比实验
 
 - **背景**: 使用 MiMo v2.5 API (token-plan-sgp) 跑 8 样本 smoke8 数据集，model_adapter_mode=small_model（含 quote bank augmentation + quote-first adapter），对比 max_tokens=768 和 max_tokens=2048 的效果差异。

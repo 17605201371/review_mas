@@ -347,6 +347,53 @@ def _is_non_real_review_claim_id(claim_id: str) -> bool:
     )
 
 
+def _claim_item_has_prompt_leakage(item: Dict[str, Any]) -> bool:
+    claim_text = str((item or {}).get("claim") or "").strip().lower()
+    if not claim_text:
+        return False
+    return any(marker in claim_text for marker in _PROMPT_LEAK_MARKERS)
+
+
+def _claim_item_is_recovery_usable(item: Dict[str, Any], *, require_claim_text: bool = False) -> bool:
+    claim_text = str((item or {}).get("claim") or "").strip()
+    if require_claim_text and not claim_text:
+        return False
+    claim_id = str((item or {}).get("claim_id") or "").strip().lower()
+    if not claim_id:
+        return False
+    if _claim_item_has_prompt_leakage(item):
+        return False
+    origin_kind = str((item or {}).get("claim_origin_kind") or "").strip().lower()
+    claim_kind = str((item or {}).get("claim_kind") or "").strip().lower()
+    origin = " ".join(
+        str((item or {}).get(key) or "")
+        for key in ("claim_origin", "claim_source", "source_stage", "provenance")
+    ).lower()
+    if claim_id.startswith(("claim-context", "claim-paper-context", "claim-recovery", "recovery")):
+        return False
+    if claim_id.startswith("claim-fallback"):
+        return False
+    if claim_id.startswith("claim-paper-fallback"):
+        return (
+            claim_kind == "paper_extracted"
+            and origin_kind == "raw_salvaged_claim_agent_output"
+            and "context_derived" not in origin
+        )
+    if origin_kind == "context_synthesized" or "context_derived" in origin:
+        return False
+    return not _is_non_real_review_claim_id(claim_id)
+
+
+def _claim_is_recovery_usable(state: Dict[str, Any], claim_id: str) -> bool:
+    claim_id = str(claim_id or "").strip()
+    if not claim_id:
+        return False
+    for item in state.get("claims", []) or []:
+        if isinstance(item, dict) and str(item.get("claim_id") or "").strip() == claim_id:
+            return _claim_item_is_recovery_usable(item)
+    return False
+
+
 def _fallback_negative_evidence_claim_ids(state: Dict[str, Any], *, limit: int = 2) -> List[str]:
     selected: List[str] = []
     preferred_status = {"supported", "partially_supported", "uncertain"}
@@ -354,7 +401,7 @@ def _fallback_negative_evidence_claim_ids(state: Dict[str, Any], *, limit: int =
     for pass_preferred in (True, False):
         for item in claims:
             claim_id = str(item.get("claim_id") or "").strip()
-            if _is_non_real_review_claim_id(claim_id) or _claim_has_prompt_leakage(state, claim_id):
+            if not _claim_item_is_recovery_usable(item, require_claim_text=True):
                 continue
             status = str(item.get("status") or "").strip().lower()
             if pass_preferred and status not in preferred_status:
@@ -629,7 +676,7 @@ def _claim_ids_by_status(
         status = str(item.get("status") or "").strip().lower()
         if not claim_id:
             continue
-        if require_real and _is_non_real_review_claim_id(claim_id):
+        if require_real and not _claim_item_is_recovery_usable(item):
             continue
         if include is not None and status not in include:
             continue
@@ -644,7 +691,7 @@ def _claim_ids_by_status(
 
 def _claim_has_verified_negative_recovery_evidence(state: Dict[str, Any], claim_id: str) -> bool:
     claim_id = str(claim_id or "").strip()
-    if not claim_id or _is_non_real_review_claim_id(claim_id):
+    if not claim_id or not _claim_is_recovery_usable(state, claim_id):
         return False
     actionable_types = {
         "direct_contradiction",
@@ -681,7 +728,7 @@ def _recovery_ready_claim_ids(state: Dict[str, Any], claim_ids: Sequence[str], *
     }
     selected: List[str] = []
     for claim_id in _normalize_target_claim_ids(claim_ids):
-        if _is_non_real_review_claim_id(claim_id):
+        if not _claim_is_recovery_usable(state, claim_id):
             continue
         if claim_status.get(claim_id) not in _RECOVERY_ELIGIBLE_CLAIM_STATUSES:
             continue
@@ -788,7 +835,7 @@ def _sanitize_targets_for_action(
         target_claim_ids = [
             cid for cid in target_claim_ids
             if claim_lookup.get(cid) not in _INACTIVE_CLAIM_STATUSES
-            and not (require_real_claim and _is_non_real_review_claim_id(cid))
+            and not (require_real_claim and not _claim_is_recovery_usable(state, cid))
         ]
         if not target_claim_ids:
             target_claim_ids = _claim_ids_by_status(
@@ -2138,7 +2185,7 @@ def apply_manager_policy_fallback(
         and hard_negative_claim_ids
         and not _has_recent_negative_evidence_formation_turn(recent_turn_logs)
         and "request_evidence_recheck" in allowed_actions
-        and action_type in {"extract_claims", "verify_evidence", "analyze_flaws", "summarize_progress", "finalize"}
+        and action_type in {"extract_claims", "verify_evidence", "request_evidence_recheck", "analyze_flaws", "summarize_progress", "finalize"}
         and not budget_aware_skip
     ):
         policy_source = "hard_negative_discovery_override"

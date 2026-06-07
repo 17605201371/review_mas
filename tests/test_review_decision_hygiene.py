@@ -4110,6 +4110,7 @@ def test_render_user_report_filters_machine_audit_terms():
 def test_synthetic_recovery_marker_helpers():
     assert _is_synthetic_recovery_marker_evidence_id("evidence-recovery-missing-claim-1") is True
     assert _is_synthetic_recovery_marker_evidence_id("EVIDENCE-RECOVERY-MISSING-Claim-2") is True
+    assert _is_synthetic_recovery_marker_evidence_id("evidence-fallback-5-turn-5") is True
     assert _is_synthetic_recovery_marker_evidence_id("evidence-1-turn-3") is False
     assert _is_synthetic_recovery_marker_evidence_id("") is False
     assert _is_synthetic_recovery_marker_evidence_id(None) is False
@@ -4119,6 +4120,7 @@ def test_synthetic_recovery_marker_helpers():
         "evidence-1",
         "",
         "evidence-recovery-missing-claim-x",
+        "evidence-fallback-5-turn-5",
         "evidence-2",
     ])
     assert cleaned == ["evidence-1", "evidence-2"]
@@ -4568,6 +4570,12 @@ def test_classify_negative_evidence_type_strict_cue_order():
     assert (
         _classify_negative_evidence_type(
             "The model underperforms baselines despite these limitations."
+        )
+        == "negative_result"
+    )
+    assert (
+        _classify_negative_evidence_type(
+            "The OE task shows a slight performance decline, hinting at architectural limitations."
         )
         == "negative_result"
     )
