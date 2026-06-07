@@ -310,7 +310,13 @@ def _set_evidence_gap_status(
         flaw_matches = bool(flaw_id and (gap_flaw_id == flaw_id or flaw_id in text))
         if not claim_matches and not flaw_matches:
             continue
-        if gap.get("status") == "open":
+        current_gap_status = str(gap.get("status") or "open")
+        can_resolve_assessment_limitation = (
+            resolved_status == "resolved"
+            and current_gap_status == "not_assessable"
+            and bool(evidence_id)
+        )
+        if current_gap_status == "open" or can_resolve_assessment_limitation:
             gap["status"] = resolved_status
             if evidence_id:
                 gap["evidence_id"] = evidence_id
@@ -748,7 +754,10 @@ _GENERIC_LOCATOR_RE = re.compile(
 _SPECIFIC_LOCATOR_RE = re.compile(
     r"(?:section\s+\d|section\s*:\s*[a-z][a-z0-9 /_-]{2,}|"
     r"\btable\s+[a-z]?\d|\bfigure\s+[a-z]?\d|\bfig\.\s*[a-z]?\d|"
+    r"\b(?:table|figure|fig\.)\s*:\s*[a-z0-9][a-z0-9 /_.:-]{2,}|"
+    r"\b(?:table|figure|fig\.)\s+caption\s*:\s*[a-z0-9][a-z0-9 /_.:-]{2,}|"
     r"\balgorithm\s+[a-z]?\d|\b(?:theorem|lemma|proposition|corollary)\s+[a-z]?\d|"
+    r"\b(?:algorithm|theorem|lemma|proposition|corollary)\s*:\s*[a-z0-9][a-z0-9 /_.:-]{2,}|"
     r"\bsec\.\s*\d+|\b\d+\.\d+)",
     re.IGNORECASE,
 )
@@ -1720,6 +1729,18 @@ _LOCATOR_LATEX_SECTION_RE = re.compile(
     r"\\(?:sub)*section\*?\{([^{}]{2,96})\}",
     re.IGNORECASE,
 )
+_LOCATOR_LATEX_REF_RE = re.compile(
+    r"\\(?:c|C)?ref\{([^{}]{2,120})\}|\\autoref\{([^{}]{2,120})\}",
+    re.IGNORECASE,
+)
+_LOCATOR_LATEX_CAPTION_RE = re.compile(
+    r"\\caption\{([^{}]{8,180})\}",
+    re.IGNORECASE,
+)
+_LOCATOR_SECTION_REF_RE = re.compile(
+    r"\b(?:Sec\.|Section)\s*(\d+(?:\.\d+){0,3})\b",
+    re.IGNORECASE,
+)
 _LOCATOR_NUMBERED_SECTION_RE = re.compile(
     r"(?:^|\n)\s*(\d+(?:\.\d+){0,3})\s+([A-Z][^\n]{2,96})"
 )
@@ -1748,12 +1769,52 @@ def _locator_type_from_anchor(anchor: str) -> str:
     return "generic"
 
 
+def _latex_label_locator(label: str) -> str:
+    first = str(label or "").split(",", 1)[0].strip()
+    if not first:
+        return ""
+    prefix, _, raw_name = first.partition(":")
+    prefix_l = prefix.strip().lower()
+    name = raw_name.strip() or first
+    name = re.sub(r"[_-]+", " ", name)
+    name = re.sub(r"\s+", " ", name).strip()
+    if prefix_l in {"fig", "figure"}:
+        return f"Figure: {name[:72]}"
+    if prefix_l in {"tab", "table"}:
+        return f"Table: {name[:72]}"
+    if prefix_l in {"sec", "section"}:
+        return f"Section: {name[:72]}"
+    if prefix_l in {"alg", "algorithm"}:
+        return f"Algorithm: {name[:72]}"
+    if prefix_l in {"thm", "theorem", "lem", "lemma", "prop", "proposition", "cor", "corollary"}:
+        return f"Theorem: {name[:72]}"
+    return ""
+
+
 def _locator_anchor_details_from_text(text: str) -> Dict[str, Any]:
     value = str(text or "")
     named = _LOCATOR_NAMED_ANCHOR_RE.search(value)
     if named:
         locator = _format_locator_anchor(named)
         return {"locator": locator, "locator_type": _locator_type_from_anchor(locator), "locator_confidence": 0.9}
+    section_ref = _LOCATOR_SECTION_REF_RE.search(value)
+    if section_ref:
+        locator = f"Section {section_ref.group(1)}"
+        return {"locator": locator, "locator_type": "section", "locator_confidence": 0.85}
+    latex_ref = _LOCATOR_LATEX_REF_RE.search(value)
+    if latex_ref:
+        locator = _latex_label_locator(latex_ref.group(1) or latex_ref.group(2) or "")
+        if locator:
+            return {"locator": locator, "locator_type": _locator_type_from_anchor(locator), "locator_confidence": 0.82}
+    caption = _LOCATOR_LATEX_CAPTION_RE.search(value)
+    if caption:
+        caption_text = re.sub(r"\s+", " ", caption.group(1)).strip()
+        if caption_text:
+            return {
+                "locator": f"Table/Figure caption: {caption_text[:72]}",
+                "locator_type": "table",
+                "locator_confidence": 0.78,
+            }
     latex = _LOCATOR_LATEX_SECTION_RE.search(value)
     if latex:
         title = re.sub(r"\s+", " ", latex.group(1)).strip()
@@ -8018,6 +8079,8 @@ def _flaw_valid_explicit_negative_evidence_ids(flaw: Dict[str, Any], state: Dict
 
 
 def _flaw_negative_grounding_conflicts(flaw: Dict[str, Any], state: Dict[str, Any]) -> List[Dict[str, Any]]:
+    if str(flaw.get("status") or "") in {"downgraded", "retracted"}:
+        return []
     explicit_ids = _flaw_explicit_negative_evidence_ids(flaw)
     if not explicit_ids:
         return []
@@ -9490,11 +9553,11 @@ def _compute_recovery_layer_fields(
        (``revision_meta['commit_applied']``).  This matches the legacy
        ``recovery_success`` / ``recovery_commit_applied`` semantics.
     4. ``hygiene_delta_improved``  — a state mutation that materially
-       reduces ReviewState inconsistency.  In the current implementation
-       ``COMMIT_TRANSITIONS`` are by construction inconsistency-reducing,
-       so this matches layer 3, but the dedicated field is reserved for
-       future stricter definitions (e.g. counter-checked drops in
-       ``unsupported_with_strong_support`` / stale gap counts).
+       reduces ReviewState inconsistency according to the before/after
+       recovery quality snapshot.  This deliberately does not count every
+       status transition as an effective repair: a committed patch can be
+       syntactically valid but still leave all tracked hygiene burdens
+       unchanged.
 
     Returns a dict that callers can splat into the turn log so the new
     fields are emitted alongside (and not replacing) the legacy ones.  The
@@ -9513,12 +9576,16 @@ def _compute_recovery_layer_fields(
         bool(str((entry or {}).get("new_status") or "").strip())
         for entry in commit_details
     )
-    hygiene_delta_improved = bool(state_mutation_applied and has_status_transition)
+    state_delta = turn_patch_log.get("recovery_state_delta") or {}
+    consistency_improved = bool(state_delta.get("consistency_improved", False))
+    negative_recovery_commit = bool(state_delta.get("negative_recovery_commit", False))
+    hygiene_delta_improved = bool(state_mutation_applied and consistency_improved and not negative_recovery_commit)
+    no_effect_commit = bool(state_mutation_applied and has_status_transition and not consistency_improved and not negative_recovery_commit)
 
     if hygiene_delta_improved:
         layer = "hygiene_delta_improved"
     elif state_mutation_applied:
-        layer = "state_mutation_applied"
+        layer = "state_mutation_applied_no_hygiene_delta" if no_effect_commit else "state_mutation_applied"
     elif committed:
         layer = "patch_committed"
     elif validated:
@@ -9535,6 +9602,8 @@ def _compute_recovery_layer_fields(
         "recovery_layer_state_mutation_applied": state_mutation_applied,
         "recovery_layer_hygiene_delta_improved": hygiene_delta_improved,
         "recovery_effective_repair": hygiene_delta_improved,
+        "recovery_no_effect_commit": no_effect_commit,
+        "recovery_harmful_commit_risk": bool(state_mutation_applied and negative_recovery_commit),
     }
 
 
@@ -9858,6 +9927,9 @@ def build_turn_log(
         "recovery_target_commit_allowed": bool(turn_patch_log.get("recovery_target_commit_allowed", False)),
         "old_status": turn_patch_log.get("old_status", ""),
         "new_status": turn_patch_log.get("new_status", ""),
+        "recovery_state_delta": copy.deepcopy(turn_patch_log.get("recovery_state_delta", {})),
+        "recovery_consistency_improved": bool(turn_patch_log.get("recovery_consistency_improved", False)),
+        "negative_recovery_commit": bool(turn_patch_log.get("negative_recovery_commit", False)),
         "supporting_evidence_ids": _strip_synthetic_recovery_markers(
             turn_patch_log.get("supporting_evidence_ids", [])
         ),

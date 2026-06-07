@@ -169,6 +169,64 @@ def _paper_has_hygiene_positive(row: Dict[str, Any], key: str) -> bool:
         return False
 
 
+def _paper_id(row: Dict[str, Any]) -> str:
+    return str(row.get("paper_id") or row.get("id") or (row.get("review_state") or {}).get("paper_id") or "")
+
+
+def _recovery_turn_delta(tl: Dict[str, Any]) -> Dict[str, Any]:
+    delta = tl.get("recovery_state_delta") or {}
+    return delta if isinstance(delta, dict) else {}
+
+
+def _turn_has_no_effect_commit(tl: Dict[str, Any]) -> bool:
+    if tl.get("recovery_no_effect_commit"):
+        return True
+    if not (tl.get("recovery_patch_committed") and tl.get("recovery_commit_applied")):
+        return False
+    delta = _recovery_turn_delta(tl)
+    if not delta:
+        return False
+    return not bool(delta.get("consistency_improved")) and not bool(delta.get("negative_recovery_commit"))
+
+
+def _turn_has_harmful_commit_risk(tl: Dict[str, Any]) -> bool:
+    if tl.get("recovery_harmful_commit_risk") or tl.get("negative_recovery_commit"):
+        return True
+    return bool(_recovery_turn_delta(tl).get("negative_recovery_commit"))
+
+
+def _row_has_clean_state(row: Dict[str, Any]) -> bool:
+    hygiene = _hygiene(row)
+    return int(hygiene.get("state_contamination_count") or 0) == 0 and int(hygiene.get("harmful_state_contamination_count") or 0) == 0
+
+
+def _row_has_safe_block(row: Dict[str, Any]) -> bool:
+    for tl in row.get("turn_logs") or []:
+        if not isinstance(tl, dict):
+            continue
+        if (
+            tl.get("recovery_failure_code") in {"BLOCKED_BY_POLICY", "INSUFFICIENT_EVIDENCE", "SEMANTIC_MISMATCH", "EVIDENCE_SEMANTIC_MISMATCH"}
+            and tl.get("recovery_target_gate_label") == "weak_target"
+            and tl.get("recovery_patch_operation") == "reject_patch"
+        ):
+            return True
+    return False
+
+
+def _row_has_recovery_success(row: Dict[str, Any]) -> bool:
+    return any(
+        isinstance(tl, dict) and (tl.get("recovery_failure_code") == "SUCCESS" or tl.get("recovery_success"))
+        for tl in row.get("turn_logs") or []
+    )
+
+
+def _row_has_hygiene_delta(row: Dict[str, Any]) -> bool:
+    return any(
+        isinstance(tl, dict) and (tl.get("recovery_layer_hygiene_delta_improved") or tl.get("recovery_effective_repair"))
+        for tl in row.get("turn_logs") or []
+    )
+
+
 def _gap_status_counts(rows: Iterable[Dict[str, Any]]) -> Counter[str]:
     counts: Counter[str] = Counter()
     for row in rows:
@@ -710,6 +768,10 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
                 rec["hygiene_delta_improved"] += 1
             if tl.get("recovery_effective_repair"):
                 rec["recovery_effective_repair"] += 1
+            if _turn_has_no_effect_commit(tl):
+                rec["recovery_no_effect_commit"] += 1
+            if _turn_has_harmful_commit_risk(tl):
+                rec["recovery_harmful_commit_risk"] += 1
             if tl.get("recovery_committed"):
                 rec["recovery_committed"] += 1
             gate_label = str(tl.get("recovery_target_gate_label") or "")
@@ -742,12 +804,23 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     out["recovery_success"] = rec["recovery_success"]
     out["hygiene_delta_improved"] = rec["hygiene_delta_improved"]
     out["recovery_effective_repair"] = rec["recovery_effective_repair"]
+    out["recovery_no_effect_commit"] = rec["recovery_no_effect_commit"]
+    out["recovery_harmful_commit_risk"] = rec["recovery_harmful_commit_risk"]
     out["recovery_safe_blocked_weak_target"] = rec["recovery_safe_blocked_weak_target"]
     out["recovery_safe_resolution"] = rec["recovery_success"] + rec["recovery_safe_blocked_weak_target"]
     out["hygiene_delta_or_safe_block"] = rec["hygiene_delta_improved"] + rec["recovery_safe_blocked_weak_target"]
-    clean_state_credit = len(rows) if int(out.get("state_contamination_count") or 0) == 0 and int(out.get("harmful_state_contamination_count") or 0) == 0 else 0
-    out["recovery_safe_resolution_or_clean_state"] = max(out["recovery_safe_resolution"], clean_state_credit)
-    out["hygiene_delta_or_safe_block_or_clean_state"] = max(out["hygiene_delta_or_safe_block"], clean_state_credit)
+    # Protection thresholds are paper-scaled, so clean/safe/hygiene credit must
+    # be case-level rather than turn-level.  The old aggregate only granted
+    # clean-state credit when the entire run had zero contamination, which made
+    # one contaminated paper erase clean-state credit for all other papers.
+    out["recovery_safe_resolution_or_clean_state"] = sum(
+        1 for row in rows
+        if _row_has_clean_state(row) or _row_has_recovery_success(row) or _row_has_safe_block(row)
+    )
+    out["hygiene_delta_or_safe_block_or_clean_state"] = sum(
+        1 for row in rows
+        if _row_has_clean_state(row) or _row_has_hygiene_delta(row) or _row_has_safe_block(row)
+    )
     for gate_label in ("real_target", "weak_target", "fallback_target", "empty_target"):
         out[f"recovery_target_gate_{gate_label}_turns"] = rec[f"recovery_target_gate_{gate_label}_turns"]
     for operation in (
@@ -806,6 +879,170 @@ def _count_low_score_promoted_strong(rows: List[Dict[str, Any]]) -> int:
             if promoted:
                 count += 1
     return count
+
+
+def _case_audit(rows: List[Dict[str, Any]], metrics: Dict[str, Any], issues: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Return per-paper attribution for recovery and hygiene protection lines."""
+    cases: List[Dict[str, Any]] = []
+    lists: Dict[str, List[str]] = {
+        "hygiene_fail_case_list": [],
+        "evidence_misbinding_case_list": [],
+        "no_effect_patch_case_list": [],
+        "harmful_commit_risk_case_list": [],
+        "not_assessable_gap_case_list": [],
+        "negative_semantic_rejected_case_list": [],
+        "recovery_committed_but_ineffective_case_list": [],
+        "validator_blocked_without_final_safe_state_case_list": [],
+    }
+    reason_counts: Counter[str] = Counter()
+
+    for row in rows:
+        pid = _paper_id(row)
+        hygiene = _hygiene(row)
+        turns = [tl for tl in (row.get("turn_logs") or []) if isinstance(tl, dict)]
+        contamination_counts = hygiene.get("state_contamination_type_counts") or {}
+        if not isinstance(contamination_counts, dict):
+            contamination_counts = {}
+
+        state_contamination_count = int(hygiene.get("state_contamination_count") or 0)
+        harmful_state_contamination_count = int(hygiene.get("harmful_state_contamination_count") or 0)
+        clean_state = state_contamination_count == 0 and harmful_state_contamination_count == 0
+
+        safe_block_turns = [
+            tl for tl in turns
+            if tl.get("recovery_failure_code") in {"BLOCKED_BY_POLICY", "INSUFFICIENT_EVIDENCE", "SEMANTIC_MISMATCH", "EVIDENCE_SEMANTIC_MISMATCH"}
+            and tl.get("recovery_target_gate_label") == "weak_target"
+            and tl.get("recovery_patch_operation") == "reject_patch"
+        ]
+        improved_turns = [
+            tl for tl in turns
+            if tl.get("recovery_layer_hygiene_delta_improved") or tl.get("recovery_effective_repair")
+        ]
+        committed_turns = [tl for tl in turns if tl.get("recovery_patch_committed")]
+        no_effect_turns = [tl for tl in turns if _turn_has_no_effect_commit(tl)]
+        harmful_turns = [tl for tl in turns if _turn_has_harmful_commit_risk(tl)]
+        blocked_turns = [tl for tl in turns if tl.get("recovery_attempted") and not tl.get("recovery_patch_committed")]
+
+        gap_status_counts = Counter(
+            str(g.get("status") or "open")
+            for g in ((row.get("review_state") or {}).get("evidence_gaps") or [])
+            if isinstance(g, dict)
+        )
+        unresolved_reason_counts = Counter(
+            str(q.get("defer_reason") or q.get("reason") or q.get("status_reason") or "missing_reason")
+            for q in ((row.get("review_state") or {}).get("unresolved_questions") or [])
+            if isinstance(q, dict) and str(q.get("status") or "open") in {"deferred", "open"}
+        )
+
+        counted_for_hygiene_line = bool(clean_state or improved_turns or safe_block_turns)
+        reasons: List[str] = []
+        if clean_state:
+            reasons.append("clean_state_recognized")
+        if improved_turns:
+            reasons.append("hygiene_delta_improved")
+        if safe_block_turns:
+            reasons.append("safe_block_counted")
+        if not counted_for_hygiene_line:
+            if not contamination_counts and state_contamination_count == 0:
+                reasons.append("no_contamination_detected_but_clean_state_not_recognized")
+            if committed_turns and not improved_turns:
+                reasons.append("patch_committed_but_no_hygiene_delta")
+            if no_effect_turns:
+                reasons.append("no_effect_patch")
+            if gap_status_counts.get("not_assessable", 0):
+                reasons.append("gap_routed_to_not_assessable_but_not_counted")
+            if int(contamination_counts.get("evidence_misbinding", 0) or 0):
+                reasons.append("evidence_misbinding_present")
+            if blocked_turns and not clean_state and not safe_block_turns:
+                reasons.append("validator_blocked_without_final_safe_state")
+            if not reasons:
+                reasons.append("unattributed_hygiene_line_miss")
+        if harmful_turns:
+            reasons.append("harmful_commit_risk")
+        if int(hygiene.get("negative_evidence_semantic_rejected_count") or 0) or int(hygiene.get("generic_gap_semantic_rejected_count") or 0):
+            reasons.append("negative_semantic_rejected")
+
+        for reason in reasons:
+            reason_counts[reason] += 1
+
+        if not counted_for_hygiene_line:
+            lists["hygiene_fail_case_list"].append(pid)
+        if int(contamination_counts.get("evidence_misbinding", 0) or 0):
+            lists["evidence_misbinding_case_list"].append(pid)
+        if no_effect_turns:
+            lists["no_effect_patch_case_list"].append(pid)
+        if harmful_turns:
+            lists["harmful_commit_risk_case_list"].append(pid)
+        if gap_status_counts.get("not_assessable", 0):
+            lists["not_assessable_gap_case_list"].append(pid)
+        if "negative_semantic_rejected" in reasons:
+            lists["negative_semantic_rejected_case_list"].append(pid)
+        if committed_turns and not improved_turns:
+            lists["recovery_committed_but_ineffective_case_list"].append(pid)
+        if "validator_blocked_without_final_safe_state" in reasons:
+            lists["validator_blocked_without_final_safe_state_case_list"].append(pid)
+
+        cases.append({
+            "paper_id": pid,
+            "final_decision": str((row.get("review_state") or {}).get("final_decision") or row.get("final_decision") or ""),
+            "reward": row.get("reward"),
+            "counted_for_hygiene_delta_or_safe_block_or_clean_state": counted_for_hygiene_line,
+            "hygiene_case_reasons": reasons,
+            "state_contamination_count": state_contamination_count,
+            "harmful_state_contamination_count": harmful_state_contamination_count,
+            "contamination_type_counts": contamination_counts,
+            "gap_status_counts": dict(gap_status_counts),
+            "unresolved_reason_counts": dict(unresolved_reason_counts),
+            "recovery_attempted_turns": sum(1 for tl in turns if tl.get("recovery_attempted")),
+            "recovery_committed_turns": len(committed_turns),
+            "recovery_effective_repair_turns": len(improved_turns),
+            "safe_block_turns": len(safe_block_turns),
+            "no_effect_commit_turns": len(no_effect_turns),
+            "harmful_commit_risk_turns": len(harmful_turns),
+            "recovery_turns": [
+                {
+                    "turn_id": tl.get("turn_id"),
+                    "operation": tl.get("recovery_patch_operation", ""),
+                    "target_type": tl.get("recovery_target_type", ""),
+                    "target_id": tl.get("recovery_target_id", ""),
+                    "gate": tl.get("recovery_target_gate_label", ""),
+                    "failure_code": tl.get("recovery_failure_code", ""),
+                    "committed": bool(tl.get("recovery_patch_committed")),
+                    "effective_repair": bool(tl.get("recovery_effective_repair")),
+                    "no_effect_commit": bool(_turn_has_no_effect_commit(tl)),
+                    "harmful_commit_risk": bool(_turn_has_harmful_commit_risk(tl)),
+                    "state_delta": _recovery_turn_delta(tl),
+                }
+                for tl in turns
+                if tl.get("recovery_attempted") or tl.get("recovery_patch_committed")
+            ],
+        })
+
+    return {
+        "summary": {
+            "paper_count": len(rows),
+            "metrics_subset": {
+                key: metrics.get(key)
+                for key in (
+                    "hygiene_delta_or_safe_block_or_clean_state",
+                    "recovery_safe_resolution_or_clean_state",
+                    "recovery_patch_committed",
+                    "recovery_effective_repair",
+                    "hygiene_delta_improved",
+                    "contamination_evidence_misbinding",
+                    "evidence_gap_resolved_count",
+                    "evidence_gap_superseded_count",
+                    "evidence_gap_not_assessable_count",
+                    "recovery_no_effect_commit",
+                    "recovery_harmful_commit_risk",
+                )
+            },
+            "protection_failures": [it for it in issues if not it.get("passed")],
+            "hygiene_case_reason_counts": dict(sorted(reason_counts.items())),
+        },
+        "lists": lists,
+        "cases": cases,
+    }
 
 
 # ---------- protection-line eval ----------------------------------------
@@ -1010,6 +1247,8 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "recovery_success",
         "hygiene_delta_improved",
         "recovery_effective_repair",
+        "recovery_no_effect_commit",
+        "recovery_harmful_commit_risk",
         "recovery_safe_resolution",
         "recovery_safe_resolution_or_clean_state",
         "hygiene_delta_or_safe_block",
@@ -1161,6 +1400,8 @@ def main() -> int:
     p.add_argument("--label-baseline", default="baseline")
     p.add_argument("--output-md", required=True)
     p.add_argument("--output-json", default=None)
+    p.add_argument("--output-audit-json", default=None,
+                   help="Optional case-level audit JSON with hygiene/recovery attribution")
     p.add_argument("--mode", choices=["auto", "smoke", "full39"], default="auto",
                    help="Protection threshold mode. auto uses smoke for <39 papers and full39 otherwise.")
     p.add_argument("--fail-on-violation", action="store_true",
@@ -1194,6 +1435,9 @@ def main() -> int:
             "protection_passed": passed,
         }
         Path(args.output_json).write_text(json.dumps(bundle, ensure_ascii=False, indent=2), encoding="utf-8")
+    if args.output_audit_json:
+        audit = _case_audit(candidate_rows, m_c, issues)
+        Path(args.output_audit_json).write_text(json.dumps(audit, ensure_ascii=False, indent=2), encoding="utf-8")
 
     if args.fail_on_violation and not passed:
         return 1

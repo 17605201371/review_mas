@@ -3,7 +3,7 @@ import pytest
 
 from agent_system.environments.env_package.review.recovery_patch import parse_recovery_payload
 from agent_system.environments.env_package.review.recovery_validator import validate_recovery_patch
-from agent_system.environments.env_package.review.state import merge_review_state
+from agent_system.environments.env_package.review.state import build_decision_hygiene_view, merge_review_state
 
 
 @pytest.fixture
@@ -518,6 +518,86 @@ def test_claim_patch_with_verified_negative_normalizes_mistaken_positive_status(
     assert patch_log["status_normalized_from"] == "partially_supported"
     assert patch_log["status_normalized_to"] == "unsupported"
     assert patch_log["recovery_patch_operation"] == "mark_contested"
+
+
+def test_not_assessable_gap_resolves_when_later_real_support_binds():
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-paper-fallback-1",
+                "claim": "The method improves planning performance.",
+                "status": "uncertain",
+                "claim_origin_kind": "context_synthesized",
+                "supporting_evidence_ids": [],
+            }
+        ],
+        "evidence_map": [],
+        "flaw_candidates": [],
+        "evidence_gaps": [
+            {
+                "gap_id": "gap-fallback-1",
+                "gap": "Claim claim-paper-fallback-1 lacks grounded supporting evidence.",
+                "claim_id": "claim-paper-fallback-1",
+                "status": "not_assessable",
+                "source": "state_consistency",
+                "resolution": "diagnostic_or_salvaged_claim_without_verified_support",
+            }
+        ],
+    }
+
+    new_state = merge_review_state(
+        state,
+        {
+            "evidence_map": [
+                {
+                    "evidence_id": "e-real-support",
+                    "claim_id": "claim-paper-fallback-1",
+                    "evidence": "The method improves planning performance in the reported experiments.",
+                    "stance": "supports",
+                    "strength": "strong",
+                    "verified_grounding_label": "paper_grounded_exact",
+                    "semantic_grounding_label": "semantic_support_verified",
+                    "raw_quote": "The method improves planning performance in the reported experiments.",
+                    "source_locator": "Results section",
+                }
+            ]
+        },
+    )
+
+    gap = next(item for item in new_state["evidence_gaps"] if item["claim_id"] == "claim-paper-fallback-1")
+    assert gap["status"] == "resolved"
+    assert gap["evidence_id"] == "e-real-support"
+    assert gap["resolution"] == "supporting_evidence_bound"
+
+
+def test_downgraded_flaw_negative_ids_do_not_report_active_misbinding():
+    state = {
+        "claims": [{"claim_id": "c1", "claim": "The method improves results.", "status": "supported"}],
+        "evidence_map": [
+            {
+                "evidence_id": "e-neutral",
+                "claim_id": "c1",
+                "evidence": "Table 2 reports comparison results.",
+                "stance": "missing",
+                "strength": "missing",
+                "verified_grounding_label": "",
+            }
+        ],
+        "flaw_candidates": [
+            {
+                "flaw_id": "f-archived",
+                "status": "downgraded",
+                "related_claim_ids": ["c1"],
+                "evidence_ids": ["e-neutral"],
+                "negative_evidence_ids": ["e-neutral"],
+            }
+        ],
+    }
+
+    view = build_decision_hygiene_view(state)
+    hygiene = view["decision_hygiene"]
+    assert hygiene["negative_grounding_conflict_count"] == 0
+    assert hygiene["state_contamination_type_counts"].get("evidence_misbinding", 0) == 0
 
 
 def test_claim_unsupported_patch_rejects_unverified_negative_when_grounding_present(mock_state):

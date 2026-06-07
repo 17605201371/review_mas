@@ -73,3 +73,31 @@ def test_programmatic_locator_derives_theorem_type_from_text_anchor():
     assert evidence["locator_type"] == "theorem"
     assert evidence["source_locator_specific"] is True
     assert evidence["locator_confidence"] >= 0.8
+
+
+def test_programmatic_locator_derives_figure_label_from_latex_ref():
+    evidence = {
+        "source_locator": "Table/Figure excerpt #1",
+        "raw_quote": "As illustrated in \\cref{fig:framework}, the model has two stages.",
+    }
+
+    _apply_programmatic_source_locator({}, evidence)
+
+    assert evidence["source_locator"] == "Figure: framework"
+    assert evidence["locator_type"] == "figure"
+    assert evidence["source_locator_specific"] is True
+    assert evidence["locator_confidence"] >= 0.8
+
+
+def test_programmatic_locator_derives_caption_anchor_from_latex_caption():
+    evidence = {
+        "source_locator": "Table/Figure excerpt #2",
+        "raw_quote": "\\caption{Comparison of averaged D4RL scores on MuJoCo tasks.}",
+    }
+
+    _apply_programmatic_source_locator({}, evidence)
+
+    assert evidence["source_locator"].startswith("Table/Figure caption: Comparison")
+    assert evidence["locator_type"] == "table"
+    assert evidence["source_locator_specific"] is True
+    assert evidence["locator_confidence"] >= 0.75
