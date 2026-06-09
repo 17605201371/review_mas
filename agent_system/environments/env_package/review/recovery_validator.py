@@ -11,7 +11,7 @@ RECOVERY_STATUS_TRANSITIONS = {
     },
     "flaw": {
         "candidate": {"downgraded", "retracted"},
-        "confirmed": {"downgraded", "retracted"},
+        "confirmed": {"candidate", "downgraded", "retracted"},
     },
     "hypothesis": {
         "active": {"challenged"},
@@ -30,6 +30,13 @@ RECOVERY_STATUS_TRANSITIONS = {
 }
 VERIFIED_RECOVERY_GROUNDING_LABELS = {"paper_grounded_exact", "paper_grounded_normalized"}
 VERIFIED_RECOVERY_SEMANTIC_LABELS = {"semantic_support_verified", "semantic_negative_verified"}
+ACTIONABLE_RECOVERY_NEGATIVE_TYPES = {
+    "direct_contradiction",
+    "negative_result",
+    "missing_ablation",
+    "missing_baseline",
+    "insufficient_evaluation",
+}
 
 _HYPOTHESIS_STATUS_RE = re.compile(r"^\[([A-Z_]+)\]\s*")
 
@@ -164,6 +171,17 @@ def _locate_target(state: Dict[str, Any], target_type: str, target_id: str) -> O
     return None
 
 
+def _is_fallback_recovery_claim(target_id: str, target: Dict[str, Any]) -> bool:
+    claim_id = str(target_id or target.get("claim_id") or "").strip()
+    if claim_id.startswith(("claim-fallback", "claim-context", "claim-paper-fallback", "claim-paper-context")):
+        return True
+    return str(target.get("claim_origin_kind") or "").strip().lower() in {
+        "context_synthesized",
+        "fallback_synthesized",
+        "paper_context_synthesized",
+    }
+
+
 def _collect_related_conflict_ids(state: Dict[str, Any], target_type: str, target_id: str) -> List[str]:
     related: List[str] = []
     for note in state.get("conflict_notes", []) or []:
@@ -246,6 +264,47 @@ def _is_verified_negative_recovery_evidence(item: Dict[str, Any]) -> bool:
     stance = str(item.get("stance") or "").strip().lower()
     strength = str(item.get("strength") or "").strip().lower()
     return stance in {"contradicts", "refutes", "weakens", "does_not_support", "missing", "unsupported", "insufficient"} or strength in {"missing", "insufficient"}
+
+
+def _negative_recovery_evidence_type(item: Dict[str, Any]) -> str:
+    explicit = str(item.get("negative_evidence_type") or "").strip()
+    if explicit:
+        return explicit
+    text = " ".join(str(item.get(key) or "") for key in ("raw_quote", "evidence", "rationale")).lower()
+    if any(term in text for term in ("worse", "underperform", "decline", "degrad", "negative result")):
+        return "negative_result"
+    if "ablation" in text:
+        return "missing_ablation"
+    if "baseline" in text:
+        return "missing_baseline"
+    if any(term in text for term in ("evaluation", "benchmark", "experiment")):
+        return "insufficient_evaluation"
+    stance = str(item.get("stance") or "").strip().lower()
+    if stance in {"contradicts", "refutes", "does_not_support", "unsupported"}:
+        return "direct_contradiction"
+    return "generic_gap"
+
+
+def _flaw_verified_actionable_negative_recovery_ids(state: Dict[str, Any], flaw: Dict[str, Any]) -> List[str]:
+    evidence_lookup = {
+        str(item.get("evidence_id") or ""): item
+        for item in state.get("evidence_map", []) or []
+        if isinstance(item, dict) and item.get("evidence_id")
+    }
+    ids: List[str] = []
+    for key in ("negative_evidence_ids", "hard_negative_evidence_ids", "contradicting_evidence_ids", "evidence_ids"):
+        raw = flaw.get(key) or []
+        if isinstance(raw, str):
+            raw = [raw]
+        ids.extend(str(item) for item in raw if str(item).strip())
+    actionable_ids: List[str] = []
+    for evidence_id in dict.fromkeys(ids):
+        item = evidence_lookup.get(evidence_id)
+        if not isinstance(item, dict) or not _is_verified_negative_recovery_evidence(item):
+            continue
+        if _negative_recovery_evidence_type(item) in ACTIONABLE_RECOVERY_NEGATIVE_TYPES:
+            actionable_ids.append(evidence_id)
+    return actionable_ids
 
 
 def _flaw_has_verified_negative_recovery_grounding(state: Dict[str, Any], flaw: Dict[str, Any]) -> bool:
@@ -431,6 +490,36 @@ def validate_recovery_patch(state: Dict[str, Any], patch: Dict[str, Any]) -> Dic
         old_status = str(patch.get("old_status") or "").lower()
         new_status = str(patch.get("new_status") or "").lower()
         evidence_ids = list(patch.get("supporting_evidence_ids", []) or [])
+
+        if target_type == "claim" and _is_fallback_recovery_claim(patch["target_id"], located.get("target_item", {})):
+            return _failure(
+                validation,
+                "BLOCKED_BY_POLICY",
+                "Recovery cannot commit a claim-status lifecycle patch against a synthetic fallback/context claim.",
+                "Target a real paper claim for mark_contested, or keep the verified negative issue as a flaw/assessment limitation.",
+                validated=True,
+            )
+
+        if target_type == "flaw" and new_status in {"downgraded", "retracted"} and evidence_ids:
+            actionable_negative_ids = _flaw_verified_actionable_negative_recovery_ids(
+                state,
+                located.get("target_item", {}),
+            )
+            if actionable_negative_ids:
+                if old_status == "confirmed":
+                    validation["status_normalized_from"] = new_status
+                    validation["status_normalized_to"] = "candidate"
+                    validation["normalization_reason"] = "verified_actionable_negative_flaw_stays_potential_concern"
+                    new_status = "candidate"
+                    validation["new_status"] = new_status
+                else:
+                    return _failure(
+                        validation,
+                        "ACTIONABLE_CONCERN_PRESERVED",
+                        "Verified actionable negative evidence must remain a potential concern; recovery cannot route it to an assessment limitation.",
+                        "Keep the candidate flaw active, or use confirmed->candidate for an over-escalated grounded weakness.",
+                        validated=True,
+                    )
 
         if (
             target_type == "claim"

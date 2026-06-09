@@ -646,6 +646,11 @@ def _normalize_evidence_item(item: Any, fallback_index: int) -> Optional[Dict[st
     negative_actionability = _normalize_text(item.get("negative_evidence_actionability"), max_length=80)
     if negative_actionability:
         normalized["negative_evidence_actionability"] = negative_actionability
+    verified_source_bucket = _normalize_text(item.get("verified_source_bucket"), max_length=80)
+    if verified_source_bucket:
+        normalized["verified_source_bucket"] = verified_source_bucket
+    if "claim_status_downgrade_allowed" in item:
+        normalized["claim_status_downgrade_allowed"] = bool(item.get("claim_status_downgrade_allowed"))
     normalized["support_source_bucket"] = _normalize_text(
         item.get("support_source_bucket") or _evidence_source_bucket(normalized),
         default="other_or_unspecified",
@@ -4402,6 +4407,7 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
 
     deferred_questions = []
     targetless_questions = []
+    targetless_questions_raw = []
     limitation_classifications: Dict[str, int] = {
         "actionable_limitation": 0,
         "context_limitation": 0,
@@ -4426,9 +4432,19 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
             if reason:
                 question["status"] = "deferred"
                 question["hygiene_status_reason"] = reason
+                if reason == "decision_view_targetless_uncertainty":
+                    question.setdefault("target_type", "state")
+                    question.setdefault("target_classification", "context_limitation")
+                    question["final_diagnostic_visible"] = False
                 question_ref = question.get("question_id") or question.get("question", "")
                 deferred_questions.append(question_ref)
                 if reason == "decision_view_targetless_uncertainty":
+                    targetless_questions_raw.append(question_ref)
+                if (
+                    reason == "decision_view_targetless_uncertainty"
+                    and not question.get("target_type")
+                    and not question.get("target_classification")
+                ):
                     targetless_questions.append(question_ref)
         classification = _classify_unresolved_limitation(question, support_counts)
         question["limitation_classification"] = classification
@@ -4481,10 +4497,15 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
         # Earlier logic only looked at ``evidence_ids`` and downgraded flaws
         # that correctly stored anchors in ``negative_evidence_ids`` before
         # they could enter the potential-concern lifecycle.
+        pre_verified_negative_ids = _verified_negative_evidence_ids_for_flaw(flaw, view)
         has_evidence = bool(flaw.get("evidence_ids") or _flaw_valid_negative_evidence_ids(flaw, view))
         evidence_conflict = _generic_lack_support_flaw_conflicts_with_support(flaw, support_counts)
         original_status = flaw.get("status", "candidate")
-        if original_status in {"candidate", "confirmed"} and (not has_evidence or _is_fallback_or_meta_flaw(flaw) or evidence_conflict):
+        if (
+            original_status in {"candidate", "confirmed"}
+            and not pre_verified_negative_ids
+            and (not has_evidence or _is_fallback_or_meta_flaw(flaw) or evidence_conflict)
+        ):
             flaw["status"] = "downgraded"
             flaw["hygiene_status_reason"] = "decision_view_evidence_aware_lack_flaw_conflict" if evidence_conflict else "decision_view_ungrounded_or_fallback_flaw"
             downgraded_flaws.append(str(flaw.get("flaw_id") or ""))
@@ -4612,6 +4633,7 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
         "deferred_context_or_meta_unresolved_count": len(deferred_questions) - len(targetless_questions),
         "deferred_unresolved_count": len(deferred_questions),
         "targetless_unresolved_deferred_count": len(targetless_questions),
+        "targetless_unresolved_deferred_raw_count": len(targetless_questions_raw),
         "open_conflict_count": len(kept_conflicts),
         "stale_conflict_count": len(stale_conflicts),
         "downgraded_flaw_count": len(downgraded_flaws),
@@ -4722,7 +4744,10 @@ def infer_final_recommendation_view(state: Dict[str, Any], manager_payload: Opti
         hygiene,
         {"method_or_approach", "method_or_design", "method", "theory_or_proof", "proof", "theory"},
     )
-    targetless_uncertainty = int(hygiene.get("targetless_unresolved_deferred_count", 0) or 0)
+    targetless_uncertainty = max(
+        int(hygiene.get("targetless_unresolved_deferred_count", 0) or 0),
+        int(hygiene.get("targetless_unresolved_deferred_raw_count", 0) or 0),
+    )
     context_or_meta_uncertainty = int(hygiene.get("deferred_context_or_meta_unresolved_count", 0) or 0)
     open_gap_count = int(hygiene.get("open_evidence_gap_count", 0) or 0)
     stale_gap_count = int(hygiene.get("stale_evidence_gap_count", 0) or 0)
@@ -5565,7 +5590,7 @@ _RECOVERY_BURDEN_DELTA_KEYS = {
     "open_evidence_gap_count",
     "stale_evidence_gap_count",
     "claims_reconciled_with_strong_support_count",
-    "potential_concern_count",
+    "assessment_limitation_flaw_count",
     "negative_grounding_conflict_count",
     "confirmed_flaw_without_verified_negative_count",
     "meta_or_fallback_flaw_count",
@@ -5983,7 +6008,7 @@ def merge_review_state(state: Dict[str, Any], payload: Dict[str, Any]) -> Dict[s
         normalized_payload.get("evidence_map", []),
         key="evidence_id",
         entity_type="evidence",
-        tracked_fields=("claim_id", "evidence", "source", "source_locator", "raw_quote", "agent_raw_quote", "quote_id", "quote_bank_canonicalized", "quote_bank_claim_overlap_fallback_used", "quote_bank_claim_overlap_fallback_quote_id", "quote_bank_claim_overlap_fallback_source_bucket", "quote_bank_claim_overlap_fallback_score", "source_span_start", "source_span_end", "strength", "stance", "binding_status", "binding_confidence", "binding_rationale", "grounded_judge_label", "grounded_judge_reason", "verified_grounding_label", "verified_grounding_reason", "verified_source_span_start", "verified_source_span_end", "verified_quote_match_type", "verified_locator_quality", "verified_source_bucket", "verified_claim_overlap_score", "semantic_grounding_label", "semantic_grounding_reasons", "semantic_alignment_score", "semantic_grounding_checked", "quote_evidence_semantic_mismatch", "semantic_weak_promotion_used", "semantic_weak_promotion_reason", "support_source_bucket", "support_quality", "support_quality_reason", "support_quality_adjustment", "strength_promotion_from_medium_used", "strength_promotion_reason", "original_evidence_id", "evidence_id_collision_preserved", "evidence_id_collision_reason"),
+        tracked_fields=("claim_id", "evidence", "source", "source_locator", "raw_quote", "agent_raw_quote", "quote_id", "quote_bank_canonicalized", "quote_bank_claim_overlap_fallback_used", "quote_bank_claim_overlap_fallback_quote_id", "quote_bank_claim_overlap_fallback_source_bucket", "quote_bank_claim_overlap_fallback_score", "source_span_start", "source_span_end", "strength", "stance", "binding_status", "binding_confidence", "binding_rationale", "grounded_judge_label", "grounded_judge_reason", "verified_grounding_label", "verified_grounding_reason", "verified_source_span_start", "verified_source_span_end", "verified_quote_match_type", "verified_locator_quality", "verified_source_bucket", "verified_claim_overlap_score", "semantic_grounding_label", "semantic_grounding_reasons", "semantic_alignment_score", "semantic_grounding_checked", "quote_evidence_semantic_mismatch", "semantic_weak_promotion_used", "semantic_weak_promotion_reason", "support_source_bucket", "negative_evidence_type", "negative_evidence_actionability", "claim_status_downgrade_allowed", "support_quality", "support_quality_reason", "support_quality_adjustment", "strength_promotion_from_medium_used", "strength_promotion_reason", "original_evidence_id", "evidence_id_collision_preserved", "evidence_id_collision_reason"),
         max_items=64,
     )
     merged["evidence_map"] = _retain_evidence_items(merged.get("evidence_map", []), max_items=12)
@@ -8328,8 +8353,6 @@ def _classify_flaw_final_view_layer(flaw: Dict[str, Any], state: Dict[str, Any])
     status = str(flaw.get("status") or "candidate")
     if status in {"downgraded", "retracted"}:
         return "assessment_limitation"
-    if _is_fallback_or_meta_flaw(flaw):
-        return "assessment_limitation"
     verified_negative_ids = _verified_negative_evidence_ids_for_flaw(flaw, state)
     if verified_negative_ids:
         actionable_ids = _verified_actionable_negative_evidence_ids_for_flaw(flaw, state)
@@ -8343,6 +8366,8 @@ def _classify_flaw_final_view_layer(flaw: Dict[str, Any], state: Dict[str, Any])
             # of using an exclusive intermediate layer that never reaches
             # ``potential_concern_count``.
             return "potential_concern"
+        return "assessment_limitation"
+    if _is_fallback_or_meta_flaw(flaw):
         return "assessment_limitation"
     if _is_system_assessment_limitation_flaw(flaw, state):
         return "assessment_limitation"
@@ -8414,7 +8439,7 @@ def _render_weaknesses(state: Dict[str, Any]) -> List[str]:
             continue
         if flaw.get("status") in {"downgraded", "retracted"}:
             continue
-        if _is_fallback_or_meta_flaw(flaw):
+        if _is_fallback_or_meta_flaw(flaw) and not _verified_actionable_negative_evidence_ids_for_flaw(flaw, state):
             continue
         if flaw.get("status") != "confirmed":
             continue
@@ -8423,7 +8448,10 @@ def _render_weaknesses(state: Dict[str, Any]) -> List[str]:
         if not _flaw_has_negative_grounding(flaw, state):
             continue
         title = _normalize_text(flaw.get("title"), max_length=160)
-        description = _normalize_text(flaw.get("description"), max_length=400)
+        description = _normalize_text(
+            flaw.get("description") or flaw.get("flaw") or flaw.get("weakness"),
+            max_length=400,
+        )
         if not title and not description:
             continue
         weaknesses.append(f"{title}: {description}".strip())
@@ -8505,7 +8533,8 @@ def _render_potential_concerns(state: Dict[str, Any]) -> List[str]:
         flaw_status = flaw.get("status", "candidate")
         if flaw_status in {"downgraded", "retracted"}:
             continue
-        if _is_fallback_or_meta_flaw(flaw):
+        verified_actionable_negative = bool(_verified_actionable_negative_evidence_ids_for_flaw(flaw, state))
+        if _is_fallback_or_meta_flaw(flaw) and not verified_actionable_negative:
             continue
         if flaw_status == "confirmed" and _flaw_has_negative_grounding(flaw, state):
             continue
@@ -8514,7 +8543,10 @@ def _render_potential_concerns(state: Dict[str, Any]) -> List[str]:
         if _is_system_assessment_limitation_flaw(flaw, state):
             continue
         title = _normalize_text(flaw.get("title"), max_length=160)
-        description = _normalize_text(flaw.get("description"), max_length=400)
+        description = _normalize_text(
+            flaw.get("description") or flaw.get("flaw") or flaw.get("weakness"),
+            max_length=400,
+        )
         if not title and not description:
             continue
         line = f"[{flaw_status}] {title}: {description}".strip()
@@ -8533,13 +8565,14 @@ def _render_assessment_limitations(state: Dict[str, Any]) -> List[str]:
     for item in state.get("unresolved_questions", []) or []:
         if not isinstance(item, dict) or item.get("status") == "resolved":
             continue
+        if item.get("final_diagnostic_visible") is False:
+            continue
         reason = str(item.get("hygiene_status_reason") or "")
         question = _normalize_text(item.get("question"), max_length=300)
         if not question:
             continue
         is_limitation = question.lower().startswith("assessment limitation") or reason in {
             "decision_view_meta_uncertainty",
-            "decision_view_targetless_uncertainty",
         }
         if not is_limitation:
             continue
@@ -8822,6 +8855,8 @@ def _classified_limitation_questions(state: Dict[str, Any]) -> Dict[str, List[st
     seen: set[str] = set()
     for question in state.get("unresolved_questions", []) or []:
         if not isinstance(question, dict):
+            continue
+        if question.get("final_diagnostic_visible") is False:
             continue
         text = _normalize_text(question.get("question"), max_length=260)
         if not text:

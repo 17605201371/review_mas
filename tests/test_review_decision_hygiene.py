@@ -523,8 +523,11 @@ def test_targetless_unresolved_is_deferred_in_decision_view():
     question = view["unresolved_questions"][0]
     assert question["status"] == "deferred"
     assert question["hygiene_status_reason"] == "decision_view_targetless_uncertainty"
-    assert view["decision_hygiene"]["targetless_unresolved_deferred_count"] == 1
-    assert infer_final_decision(state, {}) == "reject"
+    assert question["target_type"] == "state"
+    assert question["target_classification"] == "context_limitation"
+    assert question["final_diagnostic_visible"] is False
+    assert view["decision_hygiene"]["targetless_unresolved_deferred_count"] == 0
+    assert "What is the full methodology" not in render_final_review(state, {})
 
 
 def test_fallback_extraction_flaw_with_evidence_is_downgraded_in_decision_view():
@@ -4689,6 +4692,7 @@ def _negative_type_flaw_state(negative_type: str, *, status: str = "candidate", 
         "flaw_candidates": [
             {
                 "flaw_id": "flaw-neg-1",
+                "flaw": "The paper reports a negative result relevant to the main benchmark.",
                 "status": status,
                 "severity": severity,
                 "related_claim_ids": ["claim-main"],
@@ -4725,6 +4729,22 @@ def test_final_view_routes_actionable_negative_candidate_to_potential_concern():
     assert dh["verified_potential_concern_count"] == 1
     assert dh["potential_concern_count"] == 1
     assert dh["negative_evidence_type_counts"] == {"negative_result": 1}
+
+
+def test_final_view_does_not_hide_verified_actionable_fallback_flaw():
+    state = _negative_type_flaw_state("negative_result", status="candidate", severity="major")
+    state["flaw_candidates"][0]["source"] = "fallback-extraction"
+    state["flaw_candidates"][0]["grounding_status"] = "verified_actionable_candidate"
+
+    view = build_decision_hygiene_view(state)
+    flaw = view["flaw_candidates"][0]
+    dh = view["decision_hygiene"]
+
+    assert flaw["status"] == "candidate"
+    assert flaw["final_view_flaw_layer"] == "potential_concern"
+    assert dh["verified_potential_concern_count"] == 1
+    assert dh["potential_concern_count"] == 1
+    assert _render_potential_concerns(view)
 
 
 def test_final_view_allows_confirmed_actionable_negative_as_grounded_weakness():

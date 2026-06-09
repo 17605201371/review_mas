@@ -21,6 +21,7 @@ from agent_system.inference.review_runner import (
     _ensure_recovery_targets,
     _maybe_salvage_recovery_payload,
     _maybe_salvage_turn_level_recovery_patch,
+    _negative_quote_bank_salvage_payload,
     _quote_bank_from_state_or_meta,
     _scope_evidence_ids_for_turn,
 )
@@ -1528,9 +1529,9 @@ def test_fallback_recovery_patch_pattern_a_skipped_when_direct_negative_present(
     assert "evidence-direct-contradiction" in payload["supporting_evidence_ids"]
 
 
-def test_fallback_recovery_patch_pattern_a_downgrades_actionable_quote_bank_negative_conservatively():
-    """Actionable quote-bank negatives should complete the flaw lifecycle
-    without downgrading the claim itself."""
+def test_fallback_recovery_patch_pattern_a_preserves_actionable_quote_bank_candidate():
+    """Actionable quote-bank candidate flaws should remain final potential concerns
+    instead of being collapsed into assessment limitations."""
     state = _build_pattern_a_state()
     state["evidence_map"][1]["negative_evidence_type"] = "negative_result"
     state["evidence_map"][1]["raw_quote"] = "The proposed model performs worse than the baseline on the main benchmark."
@@ -1546,10 +1547,89 @@ def test_fallback_recovery_patch_pattern_a_downgrades_actionable_quote_bank_nega
         },
     )
 
+    assert payload["action"] == "blocked"
+    assert "No grounded contradictory evidence" in payload["blocked_reason"]
+
+
+def test_fallback_recovery_patch_marks_real_claim_contested_from_allowed_actionable_negative():
+    state = _build_pattern_a_state()
+    state["evidence_map"][1]["negative_evidence_type"] = "negative_result"
+    state["evidence_map"][1]["raw_quote"] = "The proposed model performs worse than the baseline on the main benchmark."
+    state["evidence_map"][1]["claim_status_downgrade_allowed"] = True
+
+    payload = _fallback_recovery_patch_payload(
+        state,
+        {
+            "action_type": "challenge_previous_hypothesis",
+            "effective_action_type": "challenge_previous_hypothesis",
+            "target_claim_ids": ["claim-main"],
+            "target_flaw_ids": [],
+            "target_evidence_ids": [],
+        },
+    )
+
+    assert payload["action"] == "apply_recovery_patch"
+    assert payload["target_type"] == "claim"
+    assert payload["target_id"] == "claim-main"
+    assert payload["new_status"] == "unsupported"
+    assert payload["supporting_evidence_ids"] == ["evidence-negative-quote-bank-quote-1-1"]
+
+
+def test_fallback_recovery_patch_does_not_contest_paper_fallback_claim():
+    state = _build_pattern_a_state()
+    state["claims"] = [
+        {
+            "claim_id": "claim-paper-fallback-1",
+            "claim": "Paper-salvaged fallback claim.",
+            "status": "supported",
+            "claim_kind": "paper_extracted",
+            "claim_origin_kind": "raw_salvaged_claim_agent_output",
+        }
+    ]
+    state["evidence_map"][1]["claim_id"] = "claim-paper-fallback-1"
+    state["evidence_map"][1]["negative_evidence_type"] = "negative_result"
+    state["evidence_map"][1]["claim_status_downgrade_allowed"] = True
+    state["flaw_candidates"][0]["related_claim_ids"] = ["claim-paper-fallback-1"]
+
+    payload = _fallback_recovery_patch_payload(
+        state,
+        {
+            "action_type": "challenge_previous_hypothesis",
+            "effective_action_type": "challenge_previous_hypothesis",
+            "target_claim_ids": ["claim-paper-fallback-1"],
+            "target_flaw_ids": [],
+            "target_evidence_ids": [],
+        },
+    )
+
+    assert payload["action"] == "blocked"
+    assert payload.get("target_type") != "claim"
+
+
+def test_fallback_recovery_patch_downgrades_confirmed_actionable_flaw_to_candidate():
+    """A confirmed actionable negative flaw gets de-escalated to potential concern,
+    giving recovery a non-limitation operation without invalidating the claim."""
+    state = _build_pattern_a_state()
+    state["flaw_candidates"][0]["status"] = "confirmed"
+    state["evidence_map"][1]["negative_evidence_type"] = "negative_result"
+    state["evidence_map"][1]["raw_quote"] = "The proposed model performs worse than the baseline on the main benchmark."
+
+    payload = _fallback_recovery_patch_payload(
+        state,
+        {
+            "action_type": "challenge_previous_hypothesis",
+            "effective_action_type": "challenge_previous_hypothesis",
+            "target_claim_ids": ["claim-main"],
+            "target_flaw_ids": ["flaw-quote-bank-1"],
+            "target_evidence_ids": [],
+        },
+    )
+
     assert payload["action"] == "apply_recovery_patch"
     assert payload["target_type"] == "flaw"
     assert payload["target_id"] == "flaw-quote-bank-1"
-    assert payload["new_status"] == "downgraded"
+    assert payload["old_status"] == "confirmed"
+    assert payload["new_status"] == "candidate"
     assert payload["supporting_evidence_ids"] == ["evidence-negative-quote-bank-quote-1-1"]
 
 
@@ -4561,6 +4641,86 @@ def test_apply_recovery_phase_protocol_recheck_drops_context_targets_and_rehydra
     assert "claim-paper-context-1" not in payload["target_claim_ids"]
 
 
+def test_recovery_candidate_flaw_ids_keeps_actionable_verified_negative_flaw():
+    from agent_system.inference.review_runner import _recovery_candidate_flaw_ids
+
+    state = {
+        "evidence_map": [
+            {
+                "evidence_id": "e-negative",
+                "claim_id": "claim-main",
+                "stance": "contradicts",
+                "strength": "strong",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_negative_verified",
+                "negative_evidence_type": "direct_contradiction",
+            }
+        ],
+        "flaw_candidates": [
+            {
+                "flaw_id": "flaw-actionable",
+                "status": "candidate",
+                "related_claim_ids": ["claim-main"],
+                "negative_evidence_ids": ["e-negative"],
+            }
+        ],
+    }
+
+    assert _recovery_candidate_flaw_ids(state) == ["flaw-actionable"]
+
+
+def test_apply_recovery_phase_protocol_upgrades_recheck_when_verified_negative_flaw_ready():
+    from agent_system.inference.review_runner import _apply_recovery_phase_protocol
+
+    payload = _apply_recovery_phase_protocol(
+        manager_payload={
+            "decision": "continue",
+            "action_type": "request_evidence_recheck",
+            "effective_action_type": "request_evidence_recheck",
+            "policy_source": "evidence_progress_override",
+            "target_claim_ids": ["claim-main"],
+            "selected_agents": ["Evidence Agent"],
+        },
+        state={
+            "phase": "recovery",
+            "phase_turn_index": 1,
+            "claims": [{"claim_id": "claim-main", "status": "supported"}],
+            "evidence_map": [
+                {
+                    "evidence_id": "e-negative",
+                    "claim_id": "claim-main",
+                    "stance": "contradicts",
+                    "strength": "strong",
+                    "verified_grounding_label": "paper_grounded_exact",
+                    "semantic_grounding_label": "semantic_negative_verified",
+                    "negative_evidence_type": "direct_contradiction",
+                }
+            ],
+            "flaw_candidates": [
+                {
+                    "flaw_id": "flaw-actionable",
+                    "status": "candidate",
+                    "related_claim_ids": ["claim-main"],
+                    "negative_evidence_ids": ["e-negative"],
+                }
+            ],
+            "conflict_notes": [{"conflict_id": "c1", "status": "open"}],
+        },
+        mode="s4",
+        worker_ids=["Claim Agent", "Evidence Agent", "Critique Agent"],
+        worker_limit=2,
+        recent_turn_logs=[],
+    )
+
+    assert payload["action_type"] == "challenge_previous_hypothesis"
+    assert payload["turn_mode"] == "recovery_patch"
+    assert payload["recovery_patch_mode_entered"] is True
+    assert payload["policy_source"] == "recovery_recheck_to_patch_override"
+    assert payload["target_flaw_ids"] == ["flaw-actionable"]
+    assert payload["target_evidence_ids"] == ["e-negative"]
+    assert any("verified negative flaw target" in note for note in payload.get("policy_notes", []))
+
+
 def test_apply_recovery_phase_protocol_does_not_upgrade_recheck_without_patch_ready_target():
     from agent_system.inference.review_runner import _apply_recovery_phase_protocol
 
@@ -6071,6 +6231,7 @@ def test_negative_evidence_formation_salvages_negative_quote_bank_when_model_ret
     assert salvaged["claim_id"] == "claim-1"
     assert salvaged["negative_evidence_type"] == "missing_ablation"
     assert salvaged["negative_evidence_actionability"] == "actionable_candidate"
+    assert salvaged["claim_status_downgrade_allowed"] is False
     assert filtered["flaw_candidates"][0]["flaw_id"] == "flaw-1"
     assert filtered["flaw_candidates"][0]["negative_evidence_type"] == "missing_ablation"
     assert filtered["flaw_candidates"][0]["severity"] == "major"
@@ -6082,6 +6243,39 @@ def test_negative_evidence_formation_salvages_negative_quote_bank_when_model_ret
     assert evidence["semantic_grounding_label"] == "semantic_negative_verified"
     flaw = next(item for item in merged["flaw_candidates"] if item["flaw_id"] == "flaw-1")
     assert evidence["evidence_id"] in flaw.get("negative_evidence_ids", [])
+
+
+def test_negative_quote_bank_salvage_allows_claim_downgrade_for_negative_result_only():
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The method improves under heterogeneous federated settings.",
+                "status": "supported",
+            }
+        ],
+        "evidence_quote_bank": [
+            {
+                "quote_id": "quote-negative-result",
+                "source_bucket": "negative_or_gap",
+                "source_locator": "Figure 4 discussion",
+                "raw_quote": "Worse yet, accuracy declines under heterogeneous client data.",
+                "negative_evidence_type": "negative_result",
+            }
+        ],
+    }
+
+    salvaged = _negative_quote_bank_salvage_payload(
+        state,
+        {"target_claim_ids": ["claim-1"], "target_flaw_ids": []},
+        0,
+    )
+
+    assert salvaged is not None
+    assert salvaged["negative_evidence_type"] == "negative_result"
+    assert salvaged["negative_evidence_actionability"] == "actionable_candidate"
+    assert salvaged["verified_source_bucket"] == "negative_or_gap"
+    assert salvaged["claim_status_downgrade_allowed"] is True
 
 
 def test_negative_evidence_formation_adds_quote_bank_when_negative_item_lacks_negative_anchor():

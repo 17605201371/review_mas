@@ -623,6 +623,55 @@ def test_not_assessable_gap_resolves_when_later_real_support_binds():
     assert gap["resolution"] == "supporting_evidence_bound"
 
 
+def test_fallback_claim_status_patch_is_blocked_even_with_verified_negative_evidence():
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-paper-fallback-1",
+                "claim": "Broad contribution claim from the abstract.",
+                "status": "supported",
+                "claim_origin_kind": "context_synthesized",
+                "supporting_evidence_ids": ["e-support"],
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "e-negative",
+                "claim_id": "claim-paper-fallback-1",
+                "evidence": "The reported result is worse than the strongest baseline.",
+                "stance": "contradicts",
+                "strength": "strong",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_negative_verified",
+                "negative_evidence_type": "negative_result",
+            }
+        ],
+        "flaw_candidates": [],
+        "conflict_notes": [],
+    }
+
+    new_state = merge_review_state(
+        state,
+        {
+            "action": "apply_recovery_patch",
+            "target_type": "claim",
+            "target_id": "claim-paper-fallback-1",
+            "old_status": "supported",
+            "new_status": "unsupported",
+            "supporting_evidence_ids": ["e-negative"],
+            "resolution_expectation": "partially_resolved",
+        },
+    )
+
+    claim = new_state["claims"][0]
+    patch_log = new_state["_latest_patch_log"]
+    assert claim["status"] == "supported"
+    assert patch_log["recovery_committed"] is False
+    assert patch_log["recovery_failure_code"] == "BLOCKED_BY_POLICY"
+    assert patch_log["recovery_patch_operation"] == "reject_patch"
+    assert patch_log["recovery_target_gate_label"] == "fallback_target"
+
+
 def test_downgraded_flaw_negative_ids_do_not_report_active_misbinding():
     state = {
         "claims": [{"claim_id": "c1", "claim": "The method improves results.", "status": "supported"}],
@@ -851,3 +900,84 @@ def test_recovery_patch_revision_log_supports_flaw_downgrade(mock_state):
         and event.get("reason") == "recovery_patch_committed"
         for event in new_events
     ), f"missing recovery revision event: {new_events!r}"
+
+
+def test_recovery_patch_can_deescalate_confirmed_flaw_to_candidate(mock_state):
+    mock_state["flaw_candidates"][0]["status"] = "confirmed"
+
+    new_state = merge_review_state(
+        mock_state,
+        {
+            "action": "apply_recovery_patch",
+            "target_type": "flaw",
+            "target_id": "f1",
+            "old_status": "confirmed",
+            "new_status": "candidate",
+            "supporting_evidence_ids": ["e1"],
+            "resolution_expectation": "partially_resolved",
+        },
+    )
+
+    assert new_state["_latest_patch_log"]["recovery_committed"] is True
+    assert new_state["flaw_candidates"][0]["status"] == "candidate"
+    assert new_state["_latest_patch_log"]["recovery_patch_operation"] == "downgrade_final_to_candidate"
+
+
+def test_recovery_patch_blocks_actionable_candidate_to_assessment_limitation(mock_state):
+    mock_state["evidence_map"][0].update(
+        {
+            "verified_grounding_label": "paper_grounded_exact",
+            "semantic_grounding_label": "semantic_negative_verified",
+            "negative_evidence_type": "negative_result",
+            "raw_quote": "The method performs worse than the baseline.",
+        }
+    )
+    mock_state["flaw_candidates"][0]["negative_evidence_ids"] = ["e1"]
+
+    new_state = merge_review_state(
+        mock_state,
+        {
+            "action": "apply_recovery_patch",
+            "target_type": "flaw",
+            "target_id": "f1",
+            "old_status": "candidate",
+            "new_status": "downgraded",
+            "supporting_evidence_ids": ["e1"],
+            "resolution_expectation": "partially_resolved",
+        },
+    )
+
+    assert new_state["_latest_patch_log"]["recovery_committed"] is False
+    assert new_state["_latest_patch_log"]["recovery_failure_code"] == "ACTIONABLE_CONCERN_PRESERVED"
+    assert new_state["flaw_candidates"][0]["status"] == "candidate"
+
+
+def test_recovery_patch_normalizes_confirmed_actionable_downgrade_to_candidate(mock_state):
+    mock_state["evidence_map"][0].update(
+        {
+            "verified_grounding_label": "paper_grounded_exact",
+            "semantic_grounding_label": "semantic_negative_verified",
+            "negative_evidence_type": "negative_result",
+            "raw_quote": "The method performs worse than the baseline.",
+        }
+    )
+    mock_state["flaw_candidates"][0]["status"] = "confirmed"
+    mock_state["flaw_candidates"][0]["negative_evidence_ids"] = ["e1"]
+
+    new_state = merge_review_state(
+        mock_state,
+        {
+            "action": "apply_recovery_patch",
+            "target_type": "flaw",
+            "target_id": "f1",
+            "old_status": "confirmed",
+            "new_status": "downgraded",
+            "supporting_evidence_ids": ["e1"],
+            "resolution_expectation": "partially_resolved",
+        },
+    )
+
+    assert new_state["_latest_patch_log"]["recovery_committed"] is True
+    assert new_state["flaw_candidates"][0]["status"] == "candidate"
+    assert new_state["_latest_patch_log"]["recovery_patch_operation"] == "downgrade_final_to_candidate"
+    assert new_state["_latest_patch_log"]["new_status"] == "candidate"
