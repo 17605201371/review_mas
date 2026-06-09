@@ -1,0 +1,2277 @@
+{
+  "schema_version": "case_audit_v1_20260602",
+  "paper_count": 8,
+  "case_counts": {
+    "positive_strong": 47,
+    "empirical_support": 32,
+    "verified_moderate": 0,
+    "negative_concern": 3,
+    "contested_support": 5,
+    "recovery_success": 1,
+    "recovery_blocked": 3,
+    "dropped_support": 0
+  },
+  "bundles": {
+    "positive_strong": [
+      {
+        "case_type": "positive_strong",
+        "paper_id": "mHv6wcBb0z",
+        "claim": "The comparison sections mention baselines and show that DCCA-based methods encounter model collapse, and the proposed NR-DCCA (Noise Regularization DCCA) is compared. This suggests an empirical claim that the proposed method prevents model…",
+        "quote": "overview of the NR-DCCA framework is presented in Figure~\\ref{fig:framework}. \\begin{figure}[h] \\centering \\includegraphics[width=0.7\\linewidth]{figures/framework.png} \\caption {Illustration of NR-DCCA. We take the CUB d",
+        "locator": {
+          "source_locator": "Figure: framework",
+          "locator_type": "figure",
+          "locator_confidence": 0.82
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-2-turn-2",
+          "quote": "overview of the NR-DCCA framework is presented in Figure~\\ref{fig:framework}. \\begin{figure}[h] \\centering \\includegraphics[width=0.7\\linewidth]{figures/framework.png} \\caption {Illustration of NR-DCCA. We take the CUB d"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "moderate",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. The comparison sections mention baselines and show that DCCA-based methods encounter model collapse, and the proposed NR-DCCA (Noise Regularization DCCA) is compared. This suggests an empirical claim that the proposed method prevents model collapse and improves stabili…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "mHv6wcBb0z",
+        "claim": "The results sections describe the representation learning and CCA, but note that DCCA-based methods encounter model collapse during training.",
+        "quote": "Figure \\ref{fig: eignvalue_in_training} illustrates that during the initial training phase (100th epoch), the eigenvalues decay slowly for both DCCA and NR-DCCA.",
+        "locator": {
+          "source_locator": "Figure: eignvalue in training",
+          "locator_type": "figure",
+          "locator_confidence": 0.82
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-3-turn-2",
+          "quote": "Figure \\ref{fig: eignvalue_in_training} illustrates that during the initial training phase (100th epoch), the eigenvalues decay slowly for both DCCA and NR-DCCA."
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. The comparison sections mention baselines and show that DCCA-based methods encounter model collapse, and the proposed NR-DCCA (Noise Regularization DCCA) is compared. This suggests an empirical claim that the proposed method prevents model collapse and improves stabili…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "mHv6wcBb0z",
+        "claim": "The results sections describe the representation learning and CCA, but note that DCCA-based methods encounter model collapse during training.",
+        "quote": "Despite exhibiting promising performance, DCCA shows a significant decline in performance as the training proceeds. We define this decline-in-performance phenomenon as the model collapse of DCCA.",
+        "locator": {
+          "source_locator": "Section: Model Collapse of DCCA",
+          "locator_type": "section",
+          "locator_confidence": 0.9
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-5-turn-4",
+          "quote": "Despite exhibiting promising performance, DCCA shows a significant decline in performance as the training proceeds. We define this decline-in-performance phenomenon as the model collapse of DCCA."
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "moderate",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. The comparison sections mention baselines and show that DCCA-based methods encounter model collapse, and the proposed NR-DCCA (Noise Regularization DCCA) is compared. This suggests an empirical claim that the proposed method prevents model collapse and improves stabili…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "mHv6wcBb0z",
+        "claim": "The comparison sections mention baselines and show that DCCA-based methods encounter model collapse, and the proposed NR-DCCA (Noise Regularization DCCA) is compared. This suggests an empirical claim that the proposed method prevents model…",
+        "quote": "The developed NR-DCCA outperforms baselines stably and consistently in both synthetic and real-world datasets, and the proposed noise regularization approach can also be generalized to other DCCA-based methods such as DG",
+        "locator": {
+          "source_locator": "Comparison / Robustness excerpt #1",
+          "locator_type": "generic",
+          "locator_confidence": 0.0
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-6-turn-4",
+          "quote": "The developed NR-DCCA outperforms baselines stably and consistently in both synthetic and real-world datasets, and the proposed noise regularization approach can also be generalized to other DCCA-based methods such as DG"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. The comparison sections mention baselines and show that DCCA-based methods encounter model collapse, and the proposed NR-DCCA (Noise Regularization DCCA) is compared. This suggests an empirical claim that the proposed method prevents model collapse and improves stabili…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "jVEoydFOl9",
+        "claim": "uses contrastive objective with negative sampling (as per Eqn 1).",
+        "quote": "To evaluate the qualities of \\method as a foundation model for KG reasoning, we explore the following questions: (1) Is pre-trained \\method able to inductively generalize to unseen KGs in the zero-shot manner?",
+        "locator": {
+          "source_locator": "Section: Experiments",
+          "locator_type": "section",
+          "locator_confidence": 0.9
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-2-turn-2",
+          "quote": "To evaluate the qualities of \\method as a foundation model for KG reasoning, we explore the following questions: (1) Is pre-trained \\method able to inductively generalize to unseen KGs in the zero-shot manner?"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "moderate",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. paper proposes a foundation model (KGRM) for KG reasoning. uses contrastive objective with negative sampling (as per Eqn 1). evaluates across 57 KGs in multiple settings (zero-shot, fine-tuning, scratch). 2. Key Strengths - Support coverage: 4 real strong support items…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "jVEoydFOl9",
+        "claim": "uses contrastive objective with negative sampling (as per Eqn 1).",
+        "quote": "In \\method, we generalize KG reasoning to both new entities and relations (where $\\rtrain \\neq \\rinf $) by",
+        "locator": {
+          "source_locator": "Claim-matched evidence excerpt #2",
+          "locator_type": "generic",
+          "locator_confidence": 0.0
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-3-turn-2",
+          "quote": "In \\method, we generalize KG reasoning to both new entities and relations (where $\\rtrain \\neq \\rinf $) by"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "moderate",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. paper proposes a foundation model (KGRM) for KG reasoning. uses contrastive objective with negative sampling (as per Eqn 1). evaluates across 57 KGs in multiple settings (zero-shot, fine-tuning, scratch). 2. Key Strengths - Support coverage: 4 real strong support items…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "jVEoydFOl9",
+        "claim": "paper proposes a foundation model (KGRM) for KG reasoning.",
+        "quote": "standard unconditional GNN encoders. \\section{Method} \\label{sec:method} \\begin{figure}[t] \\centering \\includegraphics[width=\\textwidth]{figures/method_new_large.pdf} \\caption{(a) relative \\textbf{entity} representations",
+        "locator": {
+          "source_locator": "Section: Method",
+          "locator_type": "section",
+          "locator_confidence": 0.75
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-first-support-5-turn-4",
+          "quote": "standard unconditional GNN encoders. \\section{Method} \\label{sec:method} \\begin{figure}[t] \\centering \\includegraphics[width=\\textwidth]{figures/method_new_large.pdf} \\caption{(a) relative \\textbf{entity} representations"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. paper proposes a foundation model (KGRM) for KG reasoning. uses contrastive objective with negative sampling (as per Eqn 1). evaluates across 57 KGs in multiple settings (zero-shot, fine-tuning, scratch). 2. Key Strengths - Support coverage: 4 real strong support items…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "jVEoydFOl9",
+        "claim": "paper proposes a foundation model (KGRM) for KG reasoning.",
+        "quote": "Conditional representations were shown to be provably more expressive theoretically~\\citep{huang2023theory} and practically effective~\\citep{gnn_qe,inductive_qe} than standard unconditional GNN encoders.",
+        "locator": {
+          "source_locator": "Section: Method",
+          "locator_type": "section",
+          "locator_confidence": 0.9
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-6-turn-4",
+          "quote": "Conditional representations were shown to be provably more expressive theoretically~\\citep{huang2023theory} and practically effective~\\citep{gnn_qe,inductive_qe} than standard unconditional GNN encoders."
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "moderate",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. paper proposes a foundation model (KGRM) for KG reasoning. uses contrastive objective with negative sampling (as per Eqn 1). evaluates across 57 KGs in multiple settings (zero-shot, fine-tuning, scratch). 2. Key Strengths - Support coverage: 4 real strong support items…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "fGXyvmWpw6",
+        "claim": "**Contribution Claim**: The paper proposes a new framework for federated learning to handle heterogeneous data using local-global distillation.",
+        "quote": "\\caption{\\small Overview pipeline for \\ours{}. We assume $T$ FL rounds will be performed, among which we will define the selected distillation rounds as $\\tau \\in [T]$ for local-global iteration.",
+        "locator": {
+          "source_locator": "Section: Method",
+          "locator_type": "section",
+          "locator_confidence": 0.9
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-first-support-1-turn-2",
+          "quote": "\\caption{\\small Overview pipeline for \\ours{}. We assume $T$ FL rounds will be performed, among which we will define the selected distillation rounds as $\\tau \\in [T]$ for local-global iteration."
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. **Contribution Claim**: The paper proposes a new framework for federated learning to handle heterogeneous data using local-global distillation. **Method Claim**: The method uses iterative local distillation to align feature distributions across clients. **Empirical Cla…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "fGXyvmWpw6",
+        "claim": "**Contribution Claim**: The paper proposes a new framework for federated learning to handle heterogeneous data using local-global distillation.",
+        "quote": "Furthermore, none of the existing work has addressed the heterogeneity issue. \\section{Method} \\begin{figure*}[t] \\centering \\includegraphics[width=0.95\\linewidth]{img/FedLGD.pdf} \\caption{\\small Overview pipeline for \\o",
+        "locator": {
+          "source_locator": "Section: Method",
+          "locator_type": "section",
+          "locator_confidence": 0.75
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-2-turn-2",
+          "quote": "Furthermore, none of the existing work has addressed the heterogeneity issue. \\section{Method} \\begin{figure*}[t] \\centering \\includegraphics[width=0.95\\linewidth]{img/FedLGD.pdf} \\caption{\\small Overview pipeline for \\o"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "moderate",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. **Contribution Claim**: The paper proposes a new framework for federated learning to handle heterogeneous data using local-global distillation. **Method Claim**: The method uses iterative local distillation to align feature distributions across clients. **Empirical Cla…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "fGXyvmWpw6",
+        "claim": "**Empirical Claim**: Experiments on the DIGITS dataset show improved test accuracy compared to baselines.",
+        "quote": "privacy~\\cite{abadi2016deep}, but this is not the main focus of our work. \\section{Experiment} \\begin{table}[t] \\centering \\caption{\\small Test accuracy for \\texttt{DIGITS} under different images per class (IPC) and mode",
+        "locator": {
+          "source_locator": "Section: Experiment",
+          "locator_type": "section",
+          "locator_confidence": 0.75
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-4-turn-4",
+          "quote": "privacy~\\cite{abadi2016deep}, but this is not the main focus of our work. \\section{Experiment} \\begin{table}[t] \\centering \\caption{\\small Test accuracy for \\texttt{DIGITS} under different images per class (IPC) and mode"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. **Contribution Claim**: The paper proposes a new framework for federated learning to handle heterogeneous data using local-global distillation. **Method Claim**: The method uses iterative local distillation to align feature distributions across clients. **Empirical Cla…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "fGXyvmWpw6",
+        "claim": "**Empirical Claim**: Experiments on the DIGITS dataset show improved test accuracy compared to baselines.",
+        "quote": "\\subsection{FL with Local-Global Dataset Distillation}\\label{method:dc}",
+        "locator": {
+          "source_locator": "Section: FL with Local-Global Dataset Distillation",
+          "locator_type": "section",
+          "locator_confidence": 0.75
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-5-turn-5",
+          "quote": "\\subsection{FL with Local-Global Dataset Distillation}\\label{method:dc}"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. **Contribution Claim**: The paper proposes a new framework for federated learning to handle heterogeneous data using local-global distillation. **Method Claim**: The method uses iterative local distillation to align feature distributions across clients. **Empirical Cla…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "fGXyvmWpw6",
+        "claim": "**Method Claim**: The method uses iterative local distillation to align feature distributions across clients.",
+        "quote": "For selected rounds ($t \\in \\tau$), clients will update local models (d) and refine the local virtual data with the latest network parameters (c), while the server uses aggregated gradients from cross-entropy loss ($\\mat",
+        "locator": {
+          "source_locator": "Section: Method",
+          "locator_type": "section",
+          "locator_confidence": 0.699
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-7-turn-6",
+          "quote": "For selected rounds ($t \\in \\tau$), clients will update local models (d) and refine the local virtual data with the latest network parameters (c), while the server uses aggregated gradients from cross-entropy loss ($\\mat"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "moderate",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. **Contribution Claim**: The paper proposes a new framework for federated learning to handle heterogeneous data using local-global distillation. **Method Claim**: The method uses iterative local distillation to align feature distributions across clients. **Empirical Cla…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "fGXyvmWpw6",
+        "claim": "**Method Claim**: The method uses iterative local distillation to align feature distributions across clients.",
+        "quote": "\\emph{Approach 1} aims to minimize the difference between the local and global model parameters to improve convergence~\\cite{li2020federated,karimireddy2020scaffold,wang2020tackling}.",
+        "locator": {
+          "source_locator": "Theory / Proof excerpt #1",
+          "locator_type": "generic",
+          "locator_confidence": 0.0
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-8-turn-6",
+          "quote": "\\emph{Approach 1} aims to minimize the difference between the local and global model parameters to improve convergence~\\cite{li2020federated,karimireddy2020scaffold,wang2020tackling}."
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "moderate",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. **Contribution Claim**: The paper proposes a new framework for federated learning to handle heterogeneous data using local-global distillation. **Method Claim**: The method uses iterative local distillation to align feature distributions across clients. **Empirical Cla…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "fGXyvmWpw6",
+        "claim": "Furthermore, note that only requires a few hundreds of local distillations steps using the local model's feature distribution, which is more computationally efficient than other bi-level dataset distillation ...",
+        "quote": "Our method outperforms \\textit{state-of-the-art} heterogeneous FL algorithms under various settings with a very limited amount of distilled virtual data.",
+        "locator": {
+          "source_locator": "Comparison / Robustness excerpt #1",
+          "locator_type": "generic",
+          "locator_confidence": 0.0
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-9-turn-7",
+          "quote": "Our method outperforms \\textit{state-of-the-art} heterogeneous FL algorithms under various settings with a very limited amount of distilled virtual data."
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. **Contribution Claim**: The paper proposes a new framework for federated learning to handle heterogeneous data using local-global distillation. **Method Claim**: The method uses iterative local distillation to align feature distributions across clients. **Empirical Cla…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "XyB4VvF01X",
+        "claim": "**Method Claim**: The paper introduces specific models like G2T-NoDef and G2T-Anon-Update, and compares with baselines such as firstorder auto, CoqHammer, and a transformer baseline.",
+        "quote": "except our transformer models are trained from scratch only on Coq proof data. \\section{4 EVALUATION } Experimental setup To evaluate the performance of the solvers described above, we randomly choose 2000 theorems from",
+        "locator": {
+          "source_locator": "Results / Evaluation excerpt #1",
+          "locator_type": "generic",
+          "locator_confidence": 0.0
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-2-turn-2",
+          "quote": "except our transformer models are trained from scratch only on Coq proof data. \\section{4 EVALUATION } Experimental setup To evaluate the performance of the solvers described above, we randomly choose 2000 theorems from"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The manager summarized the current review progress before the next step. **Contribution Claim**: The paper proposes a new framework (Graph2Tac) for learning hierarchical representations of math concepts in theorem proving. This is likely the core contribution. **Method Claim**: The paper introduces specific models like G2T-NoDef and G2T-Anon-Update,…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "XyB4VvF01X",
+        "claim": "**Method Claim**: The paper introduces specific models like G2T-NoDef and G2T-Anon-Update, and compares with baselines such as firstorder auto, CoqHammer, and a transformer baseline.",
+        "quote": "(4) We demonstrate that the $k$ -NN solver, despite its simplicity, is one of the most powerful available solvers, solving $25.8\\%$ of test theorems, out-performing both CoqHammer and our transformer baseline. (6) We sho",
+        "locator": {
+          "source_locator": "Comparison / Robustness excerpt #2",
+          "locator_type": "generic",
+          "locator_confidence": 0.0
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-3-turn-2",
+          "quote": "(4) We demonstrate that the $k$ -NN solver, despite its simplicity, is one of the most powerful available solvers, solving $25.8\\%$ of test theorems, out-performing both CoqHammer and our transformer baseline. (6) We sho"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The manager summarized the current review progress before the next step. **Contribution Claim**: The paper proposes a new framework (Graph2Tac) for learning hierarchical representations of math concepts in theorem proving. This is likely the core contribution. **Method Claim**: The paper introduces specific models like G2T-NoDef and G2T-Anon-Update,…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "XyB4VvF01X",
+        "claim": "**Empirical Claim**: The paper evaluates the performance of these solvers on 2000 theorems with a time limit, comparing them against baselines. There's mention of package-specific results.",
+        "quote": "Figure 5: Percentage of theorems each system proved over time and per number calls to the model.",
+        "locator": {
+          "source_locator": "Figure 5",
+          "locator_type": "figure",
+          "locator_confidence": 0.9
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-6-turn-4",
+          "quote": "Figure 5: Percentage of theorems each system proved over time and per number calls to the model."
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The manager summarized the current review progress before the next step. **Contribution Claim**: The paper proposes a new framework (Graph2Tac) for learning hierarchical representations of math concepts in theorem proving. This is likely the core contribution. **Method Claim**: The paper introduces specific models like G2T-NoDef and G2T-Anon-Update,…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "XyB4VvF01X",
+        "claim": "**Empirical Claim**: The paper evaluates the performance of these solvers on 2000 theorems with a time limit, comparing them against baselines. There's mention of package-specific results.",
+        "quote": "Graph2Tac primarily consists of two parts, a definition task and a prediction task, shown in Figure 4. The input to each of these is a directed graph with labeled nodes and edges representing either a definition for the",
+        "locator": {
+          "source_locator": "Figure 4",
+          "locator_type": "figure",
+          "locator_confidence": 0.9
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-7-turn-4",
+          "quote": "Graph2Tac primarily consists of two parts, a definition task and a prediction task, shown in Figure 4. The input to each of these is a directed graph with labeled nodes and edges representing either a definition for the"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The manager summarized the current review progress before the next step. **Contribution Claim**: The paper proposes a new framework (Graph2Tac) for learning hierarchical representations of math concepts in theorem proving. This is likely the core contribution. **Method Claim**: The paper introduces specific models like G2T-NoDef and G2T-Anon-Update,…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "XyB4VvF01X",
+        "claim": "Proof State Text-based Transformer We implement a decoder-only transformer baseline that operates on the ...",
+        "quote": "Proof State Text-based Transformer We implement a decoder-only transformer baseline that operates on the textual representations of the proof states, and predicts a textual representation of the tactic.",
+        "locator": {
+          "source_locator": "Comparison / Robustness excerpt #1",
+          "locator_type": "generic",
+          "locator_confidence": 0.0
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-9-turn-5",
+          "quote": "Proof State Text-based Transformer We implement a decoder-only transformer baseline that operates on the textual representations of the proof states, and predicts a textual representation of the tactic."
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The manager summarized the current review progress before the next step. **Contribution Claim**: The paper proposes a new framework (Graph2Tac) for learning hierarchical representations of math concepts in theorem proving. This is likely the core contribution. **Method Claim**: The paper introduces specific models like G2T-NoDef and G2T-Anon-Update,…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "XyB4VvF01X",
+        "claim": "Proof State Text-based Transformer We implement a decoder-only transformer baseline that operates on the ...",
+        "quote": "Despite its simplicity, the $k$ -NN solver is the strongest baseline because, like Graph2Tac, it is able to adapt in real-time to the changing Coq environment.",
+        "locator": {
+          "source_locator": "Comparison / Robustness excerpt #3",
+          "locator_type": "generic",
+          "locator_confidence": 0.0
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-10-turn-5",
+          "quote": "Despite its simplicity, the $k$ -NN solver is the strongest baseline because, like Graph2Tac, it is able to adapt in real-time to the changing Coq environment."
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The manager summarized the current review progress before the next step. **Contribution Claim**: The paper proposes a new framework (Graph2Tac) for learning hierarchical representations of math concepts in theorem proving. This is likely the core contribution. **Method Claim**: The paper introduces specific models like G2T-NoDef and G2T-Anon-Update,…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "XyB4VvF01X",
+        "claim": "**Contribution Claim**: The paper proposes a new framework (Graph2Tac) for learning hierarchical representations of math concepts in theorem proving. This is likely the core contribution.",
+        "quote": "We present a graph neural network (GNN) model, Graph2Tac (G2T), that in addition to training on existing works, can adapt to new definitions and theorems (which in Coq are special cases of definitions) in the environment",
+        "locator": {
+          "source_locator": "Method / Approach excerpt #1",
+          "locator_type": "generic",
+          "locator_confidence": 0.0
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-12-turn-6",
+          "quote": "We present a graph neural network (GNN) model, Graph2Tac (G2T), that in addition to training on existing works, can adapt to new definitions and theorems (which in Coq are special cases of definitions) in the environment"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "moderate",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The manager summarized the current review progress before the next step. **Contribution Claim**: The paper proposes a new framework (Graph2Tac) for learning hierarchical representations of math concepts in theorem proving. This is likely the core contribution. **Method Claim**: The paper introduces specific models like G2T-NoDef and G2T-Anon-Update,…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "XyB4VvF01X",
+        "claim": "**Contribution Claim**: The paper proposes a new framework (Graph2Tac) for learning hierarchical representations of math concepts in theorem proving. This is likely the core contribution.",
+        "quote": "There are many formats in the literature for representing the proof state and definitions in the environment, both for training a model and for communication between the model and Coq. In this work, we use a new",
+        "locator": {
+          "source_locator": "Claim-matched evidence excerpt #2",
+          "locator_type": "generic",
+          "locator_confidence": 0.0
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-13-turn-6",
+          "quote": "There are many formats in the literature for representing the proof state and definitions in the environment, both for training a model and for communication between the model and Coq. In this work, we use a new"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "moderate",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The manager summarized the current review progress before the next step. **Contribution Claim**: The paper proposes a new framework (Graph2Tac) for learning hierarchical representations of math concepts in theorem proving. This is likely the core contribution. **Method Claim**: The paper introduces specific models like G2T-NoDef and G2T-Anon-Update,…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "WNxlJJIEVj",
+        "claim": "A core contribution claim about the proposed method (CDiffuser).",
+        "quote": "outstanding performance of CDiffuser. \\section{Preliminaries} \\subsection{Denoising Probabilistic Models} Denoising Probabilistic Models (Diffusion Models)~\\citep{sohl2015deep,songdenoising,ho2020denoising} are a group o",
+        "locator": {
+          "source_locator": "Section: Preliminaries",
+          "locator_type": "section",
+          "locator_confidence": 0.75
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-2-turn-2",
+          "quote": "outstanding performance of CDiffuser. \\section{Preliminaries} \\subsection{Denoising Probabilistic Models} Denoising Probabilistic Models (Diffusion Models)~\\citep{sohl2015deep,songdenoising,ho2020denoising} are a group o"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "moderate",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The manager summarized the current review progress before the next step. A core contribution claim about the proposed method (CDiffuser). A methodological claim about contrastive learning being used to extract expert information. An empirical claim about performance on D4RL and high-variance datasets. 2. Key Strengths - Support coverage: 6 real stron…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "WNxlJJIEVj",
+        "claim": "A core contribution claim about the proposed method (CDiffuser).",
+        "quote": "As is illustrated in \\cref{fig:framework}, Our CDiffuser is composed of two modules: (1) the Planning Module, which aims to generate subsequent trajectories; (2) the Contrastive Module, which is designed to constrain the",
+        "locator": {
+          "source_locator": "Figure: framework",
+          "locator_type": "figure",
+          "locator_confidence": 0.82
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-3-turn-2",
+          "quote": "As is illustrated in \\cref{fig:framework}, Our CDiffuser is composed of two modules: (1) the Planning Module, which aims to generate subsequent trajectories; (2) the Contrastive Module, which is designed to constrain the"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "moderate",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The manager summarized the current review progress before the next step. A core contribution claim about the proposed method (CDiffuser). A methodological claim about contrastive learning being used to extract expert information. An empirical claim about performance on D4RL and high-variance datasets. 2. Key Strengths - Support coverage: 6 real stron…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "WNxlJJIEVj",
+        "claim": "A methodological claim about contrastive learning being used to extract expert information.",
+        "quote": "\\centering \\includegraphics[width=0.9\\textwidth]{figs/framework_updated.pdf} \\caption{The overall framework of CDiffuser. CDiffuser is composed of two modules: the Planning Module and the Contrastive Module. The Planning",
+        "locator": {
+          "source_locator": "Figure: framework",
+          "locator_type": "figure",
+          "locator_confidence": 0.707
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-5-turn-4",
+          "quote": "\\centering \\includegraphics[width=0.9\\textwidth]{figs/framework_updated.pdf} \\caption{The overall framework of CDiffuser. CDiffuser is composed of two modules: the Planning Module and the Contrastive Module. The Planning"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "moderate",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The manager summarized the current review progress before the next step. A core contribution claim about the proposed method (CDiffuser). A methodological claim about contrastive learning being used to extract expert information. An empirical claim about performance on D4RL and high-variance datasets. 2. Key Strengths - Support coverage: 6 real stron…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "WNxlJJIEVj",
+        "claim": "A methodological claim about contrastive learning being used to extract expert information.",
+        "quote": "To make use of low-return trajectories, we propose a contrastive mechanism to improve the performance by constraining the states in a subsequent trajectory toward the high-return states and away from the low-return state",
+        "locator": {
+          "source_locator": "Results / Evaluation excerpt #1",
+          "locator_type": "generic",
+          "locator_confidence": 0.0
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-6-turn-4",
+          "quote": "To make use of low-return trajectories, we propose a contrastive mechanism to improve the performance by constraining the states in a subsequent trajectory toward the high-return states and away from the low-return state"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The manager summarized the current review progress before the next step. A core contribution claim about the proposed method (CDiffuser). A methodological claim about contrastive learning being used to extract expert information. An empirical claim about performance on D4RL and high-variance datasets. 2. Key Strengths - Support coverage: 6 real stron…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "WNxlJJIEVj",
+        "claim": "An empirical claim about performance on D4RL and high-variance datasets.",
+        "quote": "\\caption{The average normalized score of CDiffuser and baseline methods on various datasets of Halfcheetah mixed with different ratios of expert data, with $\\pm$ denoting the standard deviation.",
+        "locator": {
+          "source_locator": "Table/Figure excerpt #1",
+          "locator_type": "generic",
+          "locator_confidence": 0.0
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-first-support-7-turn-5",
+          "quote": "\\caption{The average normalized score of CDiffuser and baseline methods on various datasets of Halfcheetah mixed with different ratios of expert data, with $\\pm$ denoting the standard deviation."
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The manager summarized the current review progress before the next step. A core contribution claim about the proposed method (CDiffuser). A methodological claim about contrastive learning being used to extract expert information. An empirical claim about performance on D4RL and high-variance datasets. 2. Key Strengths - Support coverage: 6 real stron…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "WNxlJJIEVj",
+        "claim": "An empirical claim about performance on D4RL and high-variance datasets.",
+        "quote": "In this section, we evaluate the performance of CDiffuser across a wide variety of tasks. We first demonstrate the advantages of CDiffuser on 14 standard D4RL datasets.",
+        "locator": {
+          "source_locator": "Claim-matched evidence excerpt #1",
+          "locator_type": "generic",
+          "locator_confidence": 0.0
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-8-turn-5",
+          "quote": "In this section, we evaluate the performance of CDiffuser across a wide variety of tasks. We first demonstrate the advantages of CDiffuser on 14 standard D4RL datasets."
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The manager summarized the current review progress before the next step. A core contribution claim about the proposed method (CDiffuser). A methodological claim about contrastive learning being used to extract expert information. An empirical claim about performance on D4RL and high-variance datasets. 2. Key Strengths - Support coverage: 6 real stron…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "WLgbjzKJkk",
+        "claim": "Based on the results shown in Table3a, we examine the impact of different components of the CO-MOT framework on tracking performance, as evaluated on the DanceTrack validation set.",
+        "quote": "We further provide quantitative results of how the queries affect each other in Table 1. All the decoded boxes of both tracking and detection queries are treated as detection boxes so that they can be evaluated by the",
+        "locator": {
+          "source_locator": "Table 1",
+          "locator_type": "table",
+          "locator_confidence": 0.9
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-2-turn-3",
+          "quote": "We further provide quantitative results of how the queries affect each other in Table 1. All the decoded boxes of both tracking and detection queries are treated as detection boxes so that they can be evaluated by the"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. As components are added, the tracking performance improves gradually. Based on the results shown in Table3a, we examine the impact of different components of the CO-MOT framework on tracking performance, as evaluated on the DanceTrack validation set. claim-paper-contex…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "WLgbjzKJkk",
+        "claim": "Based on the results shown in Table3a, we examine the impact of different components of the CO-MOT framework on tracking performance, as evaluated on the DanceTrack validation set.",
+        "quote": "subsequent tracking. Sets that do not capture any object will be discarded. \\section{4 EXPERIMENT } Table 2: Comparison to state-of-the-art methods on different dataset. Please pay more attention to the metrics with blue",
+        "locator": {
+          "source_locator": "Table 2",
+          "locator_type": "table",
+          "locator_confidence": 0.9
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-3-turn-3",
+          "quote": "subsequent tracking. Sets that do not capture any object will be discarded. \\section{4 EXPERIMENT } Table 2: Comparison to state-of-the-art methods on different dataset. Please pay more attention to the metrics with blue"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. As components are added, the tracking performance improves gradually. Based on the results shown in Table3a, we examine the impact of different components of the CO-MOT framework on tracking performance, as evaluated on the DanceTrack validation set. claim-paper-contex…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "WLgbjzKJkk",
+        "claim": "As components are added, the tracking performance improves gradually.",
+        "quote": "We also observe an excellent detection performance $(70.7\\%)$ for MOTRv2, which introduces a pretrained YOLOX detector.",
+        "locator": {
+          "source_locator": "Claim-matched evidence excerpt #2",
+          "locator_type": "generic",
+          "locator_confidence": 0.0
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-6-turn-5",
+          "quote": "We also observe an excellent detection performance $(70.7\\%)$ for MOTRv2, which introduces a pretrained YOLOX detector."
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. As components are added, the tracking performance improves gradually. Based on the results shown in Table3a, we examine the impact of different components of the CO-MOT framework on tracking performance, as evaluated on the DanceTrack validation set. claim-paper-contex…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "WLgbjzKJkk",
+        "claim": "claim-paper-context-2: \"Based on the results shown in Table3a, we examine the impact of different components of the CO-MOT framework on tracking performance, as evaluated on the DanceTrack validation set.\" (medium importance, uncertain sta…",
+        "quote": "subsequent tracking. Sets that do not capture any object will be discarded. \\section{4 EXPERIMENT } Table 2: Comparison to state-of-the-art methods on different dataset. Please pay more attention to the metrics with blue",
+        "locator": {
+          "source_locator": "Table 2",
+          "locator_type": "table",
+          "locator_confidence": 0.9
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-first-support-7-turn-6",
+          "quote": "subsequent tracking. Sets that do not capture any object will be discarded. \\section{4 EXPERIMENT } Table 2: Comparison to state-of-the-art methods on different dataset. Please pay more attention to the metrics with blue"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. As components are added, the tracking performance improves gradually. Based on the results shown in Table3a, we examine the impact of different components of the CO-MOT framework on tracking performance, as evaluated on the DanceTrack validation set. claim-paper-contex…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "WLgbjzKJkk",
+        "claim": "claim-paper-context-1: \"As components are added, the tracking performance improves gradually.\" (high importance, uncertain status, empirical type)",
+        "quote": "subsequent tracking. Sets that do not capture any object will be discarded. \\section{4 EXPERIMENT } Table 2: Comparison to state-of-the-art methods on different dataset. Please pay more attention to the metrics with blue",
+        "locator": {
+          "source_locator": "Table 2",
+          "locator_type": "table",
+          "locator_confidence": 0.9
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-first-support-9-turn-7",
+          "quote": "subsequent tracking. Sets that do not capture any object will be discarded. \\section{4 EXPERIMENT } Table 2: Comparison to state-of-the-art methods on different dataset. Please pay more attention to the metrics with blue"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. As components are added, the tracking performance improves gradually. Based on the results shown in Table3a, we examine the impact of different components of the CO-MOT framework on tracking performance, as evaluated on the DanceTrack validation set. claim-paper-contex…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "WLgbjzKJkk",
+        "claim": "claim-paper-context-1: \"As components are added, the tracking performance improves gradually.\" (high importance, uncertain status, empirical type)",
+        "quote": "Table 3: Ablation studies of our proposed CO-MOT on the DanceTrack validation set. Please pay more attention to the metrics with blue.",
+        "locator": {
+          "source_locator": "Table 3",
+          "locator_type": "table",
+          "locator_confidence": 0.9
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-10-turn-7",
+          "quote": "Table 3: Ablation studies of our proposed CO-MOT on the DanceTrack validation set. Please pay more attention to the metrics with blue."
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. As components are added, the tracking performance improves gradually. Based on the results shown in Table3a, we examine the impact of different components of the CO-MOT framework on tracking performance, as evaluated on the DanceTrack validation set. claim-paper-contex…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "LebzzClHYw",
+        "claim": "From comparison: ID consistently outperforms baselines across all types of noisy instructions. This is an empirical claim.",
+        "quote": "\\caption{(a) Correlation between performance degradation with noisy instructions and improvement with those used in ID; (b) comparative winning rates of Base vs.",
+        "locator": {
+          "source_locator": "Table/Figure excerpt #1",
+          "locator_type": "generic",
+          "locator_confidence": 0.0
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-2-turn-2",
+          "quote": "\\caption{(a) Correlation between performance degradation with noisy instructions and improvement with those used in ID; (b) comparative winning rates of Base vs."
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. From comparison: ID consistently outperforms baselines across all types of noisy instructions. This is an empirical claim. From ablation: The method has generalization capabilities as shown by cross-evaluations. This could be a method or empirical claim. There might be…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "LebzzClHYw",
+        "claim": "From comparison: ID consistently outperforms baselines across all types of noisy instructions. This is an empirical claim.",
+        "quote": "\\subsection{Performance on Unseen Task Generalization} \\paragraph{Result Overview}",
+        "locator": {
+          "source_locator": "Section: Performance on Unseen Task Generalization",
+          "locator_type": "section",
+          "locator_confidence": 0.75
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-3-turn-2",
+          "quote": "\\subsection{Performance on Unseen Task Generalization} \\paragraph{Result Overview}"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. From comparison: ID consistently outperforms baselines across all types of noisy instructions. This is an empirical claim. From ablation: The method has generalization capabilities as shown by cross-evaluations. This could be a method or empirical claim. There might be…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "LebzzClHYw",
+        "claim": "From ablation: The method has generalization capabilities as shown by cross-evaluations. This could be a method or empirical claim.",
+        "quote": "We attempt to unveil the relationship between such degradation and its enhancement with ID (\\autoref{fig:task_results}\\,\\textcolor{red}{(a)}).",
+        "locator": {
+          "source_locator": "Figure: task results",
+          "locator_type": "figure",
+          "locator_confidence": 0.82
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-6-turn-4",
+          "quote": "We attempt to unveil the relationship between such degradation and its enhancement with ID (\\autoref{fig:task_results}\\,\\textcolor{red}{(a)})."
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. From comparison: ID consistently outperforms baselines across all types of noisy instructions. This is an empirical claim. From ablation: The method has generalization capabilities as shown by cross-evaluations. This could be a method or empirical claim. There might be…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "LebzzClHYw",
+        "claim": "From ablation: The method has generalization capabilities as shown by cross-evaluations. This could be a method or empirical claim.",
+        "quote": "Task performance is measured using the Rouge-L score\\,\\citep{rouge}, which measures the overlap between generated and reference sequences, and is often used for open-ended tasks as \\,\\citet{sni_dataset}.",
+        "locator": {
+          "source_locator": "Results / Evaluation excerpt #1",
+          "locator_type": "generic",
+          "locator_confidence": 0.0
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-7-turn-5",
+          "quote": "Task performance is measured using the Rouge-L score\\,\\citep{rouge}, which measures the overlap between generated and reference sequences, and is often used for open-ended tasks as \\,\\citet{sni_dataset}."
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. From comparison: ID consistently outperforms baselines across all types of noisy instructions. This is an empirical claim. From ablation: The method has generalization capabilities as shown by cross-evaluations. This could be a method or empirical claim. There might be…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "LebzzClHYw",
+        "claim": "There might be limitations or scope issues, but not explicitly stated in the excerpts. However, the results mention that improvements are not uniformly distributed across tasks, which could imply a limitation.",
+        "quote": "54.51& 37.55\\\\ \\bottomrule \\end{tabular} \\endgroup \\end{minipage} \\end{figure} \\subsection{Ablation Study} \\paragraph{Generalization Capabilities of ID} To further assess the adaptability and effectiveness of ID, we cros",
+        "locator": {
+          "source_locator": "Section: Ablation Study",
+          "locator_type": "section",
+          "locator_confidence": 0.75
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-9-turn-7",
+          "quote": "54.51& 37.55\\\\ \\bottomrule \\end{tabular} \\endgroup \\end{minipage} \\end{figure} \\subsection{Ablation Study} \\paragraph{Generalization Capabilities of ID} To further assess the adaptability and effectiveness of ID, we cros"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. From comparison: ID consistently outperforms baselines across all types of noisy instructions. This is an empirical claim. From ablation: The method has generalization capabilities as shown by cross-evaluations. This could be a method or empirical claim. There might be…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "KOUAayk5Kx",
+        "claim": "cell searched by(d) Reduction cell searched RandomNAS-OGL by RandomNAS-OGL GDAS-OGL by GDAS-OGL 4 EXPERIMENT .",
+        "quote": "Table 1: Comparision results in terms of test error on CIFAR-10 and CIFAR-100. “\\*” indicates that the results are reported in the Zhang et al. (2020a). “†” indicates that the results are reported in the Dong & Yang",
+        "locator": {
+          "source_locator": "Table 1",
+          "locator_type": "table",
+          "locator_confidence": 0.9
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-first-support-1-turn-3",
+          "quote": "Table 1: Comparision results in terms of test error on CIFAR-10 and CIFAR-100. “\\*” indicates that the results are reported in the Zhang et al. (2020a). “†” indicates that the results are reported in the Dong & Yang"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. cell searched by(d) Reduction cell searched RandomNAS-OGL by RandomNAS-OGL GDAS-OGL by GDAS-OGL 4 EXPERIMENT . In the experiments, we compare our methods with ... OGL to address multi-model forgetting in one-shot NAS. 2. Key Strengths - Support coverage: 7 real strong…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "KOUAayk5Kx",
+        "claim": "cell searched by(d) Reduction cell searched RandomNAS-OGL by RandomNAS-OGL GDAS-OGL by GDAS-OGL 4 EXPERIMENT .",
+        "quote": "\\section{4 EXPERIMENT } \\section{4.1 ONE-SHOT NAS WITH OGL }",
+        "locator": {
+          "source_locator": "Claim-matched evidence excerpt #2",
+          "locator_type": "generic",
+          "locator_confidence": 0.0
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-2-turn-3",
+          "quote": "\\section{4 EXPERIMENT } \\section{4.1 ONE-SHOT NAS WITH OGL }"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. cell searched by(d) Reduction cell searched RandomNAS-OGL by RandomNAS-OGL GDAS-OGL by GDAS-OGL 4 EXPERIMENT . In the experiments, we compare our methods with ... OGL to address multi-model forgetting in one-shot NAS. 2. Key Strengths - Support coverage: 7 real strong…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "KOUAayk5Kx",
+        "claim": "In the experiments, we compare our methods with ...",
+        "quote": "In order to handle the multi-model forgetting, we design an effective orthogonal gradient learning (OGL) for supernet training and meanwhile avoid the projector attenuation. The main idea is to design a gradient space",
+        "locator": {
+          "source_locator": "Table/Figure excerpt #1",
+          "locator_type": "generic",
+          "locator_confidence": 0.0
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-5-turn-5",
+          "quote": "In order to handle the multi-model forgetting, we design an effective orthogonal gradient learning (OGL) for supernet training and meanwhile avoid the projector attenuation. The main idea is to design a gradient space"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. cell searched by(d) Reduction cell searched RandomNAS-OGL by RandomNAS-OGL GDAS-OGL by GDAS-OGL 4 EXPERIMENT . In the experiments, we compare our methods with ... OGL to address multi-model forgetting in one-shot NAS. 2. Key Strengths - Support coverage: 7 real strong…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "KOUAayk5Kx",
+        "claim": "OGL is applied to baselines like RandomNAS and GDAS, resulting in RandomNAS-OGL and GDAS-OGL.",
+        "quote": "In this study, we apply OGL to two popular single-path one-shot NAS baselines, including the RandomNAS Li & Talwalkar (2020) and GDAS Dong & Yang (2019b), where RandomNAS and GDAS are random- and gradient-based sampling",
+        "locator": {
+          "source_locator": "Comparison / Robustness excerpt #1",
+          "locator_type": "generic",
+          "locator_confidence": 0.0
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-7-turn-6",
+          "quote": "In this study, we apply OGL to two popular single-path one-shot NAS baselines, including the RandomNAS Li & Talwalkar (2020) and GDAS Dong & Yang (2019b), where RandomNAS and GDAS are random- and gradient-based sampling"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. cell searched by(d) Reduction cell searched RandomNAS-OGL by RandomNAS-OGL GDAS-OGL by GDAS-OGL 4 EXPERIMENT . In the experiments, we compare our methods with ... OGL to address multi-model forgetting in one-shot NAS. 2. Key Strengths - Support coverage: 7 real strong…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "KOUAayk5Kx",
+        "claim": "OGL to address multi-model forgetting in one-shot NAS.",
+        "quote": "Lemma 1. The OGL guided training paradigm enables the training of the current architecture to largely eliminate the impact to the performance of all previously trained architectures.",
+        "locator": {
+          "source_locator": "Lemma 1",
+          "locator_type": "theorem",
+          "locator_confidence": 0.9
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-8-turn-6",
+          "quote": "Lemma 1. The OGL guided training paradigm enables the training of the current architecture to largely eliminate the impact to the performance of all previously trained architectures."
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "moderate",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. cell searched by(d) Reduction cell searched RandomNAS-OGL by RandomNAS-OGL GDAS-OGL by GDAS-OGL 4 EXPERIMENT . In the experiments, we compare our methods with ... OGL to address multi-model forgetting in one-shot NAS. 2. Key Strengths - Support coverage: 7 real strong…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "KOUAayk5Kx",
+        "claim": "OGL is applied to baselines like RandomNAS and GDAS, resulting in RandomNAS-OGL and GDAS-OGL.",
+        "quote": "In this study, we apply OGL to two popular single-path one-shot NAS baselines, including the RandomNAS Li & Talwalkar (2020) and GDAS Dong & Yang (2019b), where RandomNAS and GDAS are random- and gradient-based sampling",
+        "locator": {
+          "source_locator": "Comparison / Robustness excerpt #2",
+          "locator_type": "generic",
+          "locator_confidence": 0.0
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-9-turn-7",
+          "quote": "In this study, we apply OGL to two popular single-path one-shot NAS baselines, including the RandomNAS Li & Talwalkar (2020) and GDAS Dong & Yang (2019b), where RandomNAS and GDAS are random- and gradient-based sampling"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. cell searched by(d) Reduction cell searched RandomNAS-OGL by RandomNAS-OGL GDAS-OGL by GDAS-OGL 4 EXPERIMENT . In the experiments, we compare our methods with ... OGL to address multi-model forgetting in one-shot NAS. 2. Key Strengths - Support coverage: 7 real strong…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "positive_strong",
+        "paper_id": "KOUAayk5Kx",
+        "claim": "In the experiments, we compare our methods with ...",
+        "quote": "\\section{2.1 ONE-SHOT NAS AND ISSUE OF MULTI-MODEL FORGETTING }",
+        "locator": {
+          "source_locator": "Section: 2.1 ONE-SHOT NAS AND ISSUE OF MULTI-MODEL FORGETTING",
+          "locator_type": "section",
+          "locator_confidence": 0.75
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-10-turn-7",
+          "quote": "\\section{2.1 ONE-SHOT NAS AND ISSUE OF MULTI-MODEL FORGETTING }"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "moderate",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. cell searched by(d) Reduction cell searched RandomNAS-OGL by RandomNAS-OGL GDAS-OGL by GDAS-OGL 4 EXPERIMENT . In the experiments, we compare our methods with ... OGL to address multi-model forgetting in one-shot NAS. 2. Key Strengths - Support coverage: 7 real strong…",
+        "audit_flags": [],
+        "manual_label": ""
+      }
+    ],
+    "empirical_support": [
+      {
+        "case_type": "empirical_support",
+        "paper_id": "mHv6wcBb0z",
+        "claim": "The results sections describe the representation learning and CCA, but note that DCCA-based methods encounter model collapse during training.",
+        "quote": "Figure \\ref{fig: eignvalue_in_training} illustrates that during the initial training phase (100th epoch), the eigenvalues decay slowly for both DCCA and NR-DCCA.",
+        "locator": {
+          "source_locator": "Figure: eignvalue in training",
+          "locator_type": "figure",
+          "locator_confidence": 0.82
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-3-turn-2",
+          "quote": "Figure \\ref{fig: eignvalue_in_training} illustrates that during the initial training phase (100th epoch), the eigenvalues decay slowly for both DCCA and NR-DCCA."
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. The comparison sections mention baselines and show that DCCA-based methods encounter model collapse, and the proposed NR-DCCA (Noise Regularization DCCA) is compared. This suggests an empirical claim that the proposed method prevents model collapse and improves stabili…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "empirical_support",
+        "paper_id": "mHv6wcBb0z",
+        "claim": "The comparison sections mention baselines and show that DCCA-based methods encounter model collapse, and the proposed NR-DCCA (Noise Regularization DCCA) is compared. This suggests an empirical claim that the proposed method prevents model…",
+        "quote": "The developed NR-DCCA outperforms baselines stably and consistently in both synthetic and real-world datasets, and the proposed noise regularization approach can also be generalized to other DCCA-based methods such as DG",
+        "locator": {
+          "source_locator": "Comparison / Robustness excerpt #1",
+          "locator_type": "generic",
+          "locator_confidence": 0.0
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-6-turn-4",
+          "quote": "The developed NR-DCCA outperforms baselines stably and consistently in both synthetic and real-world datasets, and the proposed noise regularization approach can also be generalized to other DCCA-based methods such as DG"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. The comparison sections mention baselines and show that DCCA-based methods encounter model collapse, and the proposed NR-DCCA (Noise Regularization DCCA) is compared. This suggests an empirical claim that the proposed method prevents model collapse and improves stabili…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "empirical_support",
+        "paper_id": "jVEoydFOl9",
+        "claim": "paper proposes a foundation model (KGRM) for KG reasoning.",
+        "quote": "standard unconditional GNN encoders. \\section{Method} \\label{sec:method} \\begin{figure}[t] \\centering \\includegraphics[width=\\textwidth]{figures/method_new_large.pdf} \\caption{(a) relative \\textbf{entity} representations",
+        "locator": {
+          "source_locator": "Section: Method",
+          "locator_type": "section",
+          "locator_confidence": 0.75
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-first-support-5-turn-4",
+          "quote": "standard unconditional GNN encoders. \\section{Method} \\label{sec:method} \\begin{figure}[t] \\centering \\includegraphics[width=\\textwidth]{figures/method_new_large.pdf} \\caption{(a) relative \\textbf{entity} representations"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. paper proposes a foundation model (KGRM) for KG reasoning. uses contrastive objective with negative sampling (as per Eqn 1). evaluates across 57 KGs in multiple settings (zero-shot, fine-tuning, scratch). 2. Key Strengths - Support coverage: 4 real strong support items…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "empirical_support",
+        "paper_id": "fGXyvmWpw6",
+        "claim": "**Contribution Claim**: The paper proposes a new framework for federated learning to handle heterogeneous data using local-global distillation.",
+        "quote": "\\caption{\\small Overview pipeline for \\ours{}. We assume $T$ FL rounds will be performed, among which we will define the selected distillation rounds as $\\tau \\in [T]$ for local-global iteration.",
+        "locator": {
+          "source_locator": "Section: Method",
+          "locator_type": "section",
+          "locator_confidence": 0.9
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-first-support-1-turn-2",
+          "quote": "\\caption{\\small Overview pipeline for \\ours{}. We assume $T$ FL rounds will be performed, among which we will define the selected distillation rounds as $\\tau \\in [T]$ for local-global iteration."
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. **Contribution Claim**: The paper proposes a new framework for federated learning to handle heterogeneous data using local-global distillation. **Method Claim**: The method uses iterative local distillation to align feature distributions across clients. **Empirical Cla…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "empirical_support",
+        "paper_id": "fGXyvmWpw6",
+        "claim": "**Empirical Claim**: Experiments on the DIGITS dataset show improved test accuracy compared to baselines.",
+        "quote": "privacy~\\cite{abadi2016deep}, but this is not the main focus of our work. \\section{Experiment} \\begin{table}[t] \\centering \\caption{\\small Test accuracy for \\texttt{DIGITS} under different images per class (IPC) and mode",
+        "locator": {
+          "source_locator": "Section: Experiment",
+          "locator_type": "section",
+          "locator_confidence": 0.75
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-4-turn-4",
+          "quote": "privacy~\\cite{abadi2016deep}, but this is not the main focus of our work. \\section{Experiment} \\begin{table}[t] \\centering \\caption{\\small Test accuracy for \\texttt{DIGITS} under different images per class (IPC) and mode"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. **Contribution Claim**: The paper proposes a new framework for federated learning to handle heterogeneous data using local-global distillation. **Method Claim**: The method uses iterative local distillation to align feature distributions across clients. **Empirical Cla…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "empirical_support",
+        "paper_id": "fGXyvmWpw6",
+        "claim": "**Empirical Claim**: Experiments on the DIGITS dataset show improved test accuracy compared to baselines.",
+        "quote": "\\subsection{FL with Local-Global Dataset Distillation}\\label{method:dc}",
+        "locator": {
+          "source_locator": "Section: FL with Local-Global Dataset Distillation",
+          "locator_type": "section",
+          "locator_confidence": 0.75
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-5-turn-5",
+          "quote": "\\subsection{FL with Local-Global Dataset Distillation}\\label{method:dc}"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. **Contribution Claim**: The paper proposes a new framework for federated learning to handle heterogeneous data using local-global distillation. **Method Claim**: The method uses iterative local distillation to align feature distributions across clients. **Empirical Cla…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "empirical_support",
+        "paper_id": "fGXyvmWpw6",
+        "claim": "Furthermore, note that only requires a few hundreds of local distillations steps using the local model's feature distribution, which is more computationally efficient than other bi-level dataset distillation ...",
+        "quote": "Our method outperforms \\textit{state-of-the-art} heterogeneous FL algorithms under various settings with a very limited amount of distilled virtual data.",
+        "locator": {
+          "source_locator": "Comparison / Robustness excerpt #1",
+          "locator_type": "generic",
+          "locator_confidence": 0.0
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-9-turn-7",
+          "quote": "Our method outperforms \\textit{state-of-the-art} heterogeneous FL algorithms under various settings with a very limited amount of distilled virtual data."
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. **Contribution Claim**: The paper proposes a new framework for federated learning to handle heterogeneous data using local-global distillation. **Method Claim**: The method uses iterative local distillation to align feature distributions across clients. **Empirical Cla…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "empirical_support",
+        "paper_id": "XyB4VvF01X",
+        "claim": "**Method Claim**: The paper introduces specific models like G2T-NoDef and G2T-Anon-Update, and compares with baselines such as firstorder auto, CoqHammer, and a transformer baseline.",
+        "quote": "except our transformer models are trained from scratch only on Coq proof data. \\section{4 EVALUATION } Experimental setup To evaluate the performance of the solvers described above, we randomly choose 2000 theorems from",
+        "locator": {
+          "source_locator": "Results / Evaluation excerpt #1",
+          "locator_type": "generic",
+          "locator_confidence": 0.0
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-2-turn-2",
+          "quote": "except our transformer models are trained from scratch only on Coq proof data. \\section{4 EVALUATION } Experimental setup To evaluate the performance of the solvers described above, we randomly choose 2000 theorems from"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The manager summarized the current review progress before the next step. **Contribution Claim**: The paper proposes a new framework (Graph2Tac) for learning hierarchical representations of math concepts in theorem proving. This is likely the core contribution. **Method Claim**: The paper introduces specific models like G2T-NoDef and G2T-Anon-Update,…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "empirical_support",
+        "paper_id": "XyB4VvF01X",
+        "claim": "**Method Claim**: The paper introduces specific models like G2T-NoDef and G2T-Anon-Update, and compares with baselines such as firstorder auto, CoqHammer, and a transformer baseline.",
+        "quote": "(4) We demonstrate that the $k$ -NN solver, despite its simplicity, is one of the most powerful available solvers, solving $25.8\\%$ of test theorems, out-performing both CoqHammer and our transformer baseline. (6) We sho",
+        "locator": {
+          "source_locator": "Comparison / Robustness excerpt #2",
+          "locator_type": "generic",
+          "locator_confidence": 0.0
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-3-turn-2",
+          "quote": "(4) We demonstrate that the $k$ -NN solver, despite its simplicity, is one of the most powerful available solvers, solving $25.8\\%$ of test theorems, out-performing both CoqHammer and our transformer baseline. (6) We sho"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The manager summarized the current review progress before the next step. **Contribution Claim**: The paper proposes a new framework (Graph2Tac) for learning hierarchical representations of math concepts in theorem proving. This is likely the core contribution. **Method Claim**: The paper introduces specific models like G2T-NoDef and G2T-Anon-Update,…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "empirical_support",
+        "paper_id": "XyB4VvF01X",
+        "claim": "**Empirical Claim**: The paper evaluates the performance of these solvers on 2000 theorems with a time limit, comparing them against baselines. There's mention of package-specific results.",
+        "quote": "Figure 5: Percentage of theorems each system proved over time and per number calls to the model.",
+        "locator": {
+          "source_locator": "Figure 5",
+          "locator_type": "figure",
+          "locator_confidence": 0.9
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-6-turn-4",
+          "quote": "Figure 5: Percentage of theorems each system proved over time and per number calls to the model."
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The manager summarized the current review progress before the next step. **Contribution Claim**: The paper proposes a new framework (Graph2Tac) for learning hierarchical representations of math concepts in theorem proving. This is likely the core contribution. **Method Claim**: The paper introduces specific models like G2T-NoDef and G2T-Anon-Update,…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "empirical_support",
+        "paper_id": "XyB4VvF01X",
+        "claim": "**Empirical Claim**: The paper evaluates the performance of these solvers on 2000 theorems with a time limit, comparing them against baselines. There's mention of package-specific results.",
+        "quote": "Graph2Tac primarily consists of two parts, a definition task and a prediction task, shown in Figure 4. The input to each of these is a directed graph with labeled nodes and edges representing either a definition for the",
+        "locator": {
+          "source_locator": "Figure 4",
+          "locator_type": "figure",
+          "locator_confidence": 0.9
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-7-turn-4",
+          "quote": "Graph2Tac primarily consists of two parts, a definition task and a prediction task, shown in Figure 4. The input to each of these is a directed graph with labeled nodes and edges representing either a definition for the"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The manager summarized the current review progress before the next step. **Contribution Claim**: The paper proposes a new framework (Graph2Tac) for learning hierarchical representations of math concepts in theorem proving. This is likely the core contribution. **Method Claim**: The paper introduces specific models like G2T-NoDef and G2T-Anon-Update,…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "empirical_support",
+        "paper_id": "XyB4VvF01X",
+        "claim": "Proof State Text-based Transformer We implement a decoder-only transformer baseline that operates on the ...",
+        "quote": "Proof State Text-based Transformer We implement a decoder-only transformer baseline that operates on the textual representations of the proof states, and predicts a textual representation of the tactic.",
+        "locator": {
+          "source_locator": "Comparison / Robustness excerpt #1",
+          "locator_type": "generic",
+          "locator_confidence": 0.0
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-9-turn-5",
+          "quote": "Proof State Text-based Transformer We implement a decoder-only transformer baseline that operates on the textual representations of the proof states, and predicts a textual representation of the tactic."
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The manager summarized the current review progress before the next step. **Contribution Claim**: The paper proposes a new framework (Graph2Tac) for learning hierarchical representations of math concepts in theorem proving. This is likely the core contribution. **Method Claim**: The paper introduces specific models like G2T-NoDef and G2T-Anon-Update,…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "empirical_support",
+        "paper_id": "XyB4VvF01X",
+        "claim": "Proof State Text-based Transformer We implement a decoder-only transformer baseline that operates on the ...",
+        "quote": "Despite its simplicity, the $k$ -NN solver is the strongest baseline because, like Graph2Tac, it is able to adapt in real-time to the changing Coq environment.",
+        "locator": {
+          "source_locator": "Comparison / Robustness excerpt #3",
+          "locator_type": "generic",
+          "locator_confidence": 0.0
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-10-turn-5",
+          "quote": "Despite its simplicity, the $k$ -NN solver is the strongest baseline because, like Graph2Tac, it is able to adapt in real-time to the changing Coq environment."
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The manager summarized the current review progress before the next step. **Contribution Claim**: The paper proposes a new framework (Graph2Tac) for learning hierarchical representations of math concepts in theorem proving. This is likely the core contribution. **Method Claim**: The paper introduces specific models like G2T-NoDef and G2T-Anon-Update,…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "empirical_support",
+        "paper_id": "WNxlJJIEVj",
+        "claim": "A methodological claim about contrastive learning being used to extract expert information.",
+        "quote": "To make use of low-return trajectories, we propose a contrastive mechanism to improve the performance by constraining the states in a subsequent trajectory toward the high-return states and away from the low-return state",
+        "locator": {
+          "source_locator": "Results / Evaluation excerpt #1",
+          "locator_type": "generic",
+          "locator_confidence": 0.0
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-6-turn-4",
+          "quote": "To make use of low-return trajectories, we propose a contrastive mechanism to improve the performance by constraining the states in a subsequent trajectory toward the high-return states and away from the low-return state"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The manager summarized the current review progress before the next step. A core contribution claim about the proposed method (CDiffuser). A methodological claim about contrastive learning being used to extract expert information. An empirical claim about performance on D4RL and high-variance datasets. 2. Key Strengths - Support coverage: 6 real stron…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "empirical_support",
+        "paper_id": "WNxlJJIEVj",
+        "claim": "An empirical claim about performance on D4RL and high-variance datasets.",
+        "quote": "\\caption{The average normalized score of CDiffuser and baseline methods on various datasets of Halfcheetah mixed with different ratios of expert data, with $\\pm$ denoting the standard deviation.",
+        "locator": {
+          "source_locator": "Table/Figure excerpt #1",
+          "locator_type": "generic",
+          "locator_confidence": 0.0
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-first-support-7-turn-5",
+          "quote": "\\caption{The average normalized score of CDiffuser and baseline methods on various datasets of Halfcheetah mixed with different ratios of expert data, with $\\pm$ denoting the standard deviation."
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The manager summarized the current review progress before the next step. A core contribution claim about the proposed method (CDiffuser). A methodological claim about contrastive learning being used to extract expert information. An empirical claim about performance on D4RL and high-variance datasets. 2. Key Strengths - Support coverage: 6 real stron…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "empirical_support",
+        "paper_id": "WNxlJJIEVj",
+        "claim": "An empirical claim about performance on D4RL and high-variance datasets.",
+        "quote": "In this section, we evaluate the performance of CDiffuser across a wide variety of tasks. We first demonstrate the advantages of CDiffuser on 14 standard D4RL datasets.",
+        "locator": {
+          "source_locator": "Claim-matched evidence excerpt #1",
+          "locator_type": "generic",
+          "locator_confidence": 0.0
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-8-turn-5",
+          "quote": "In this section, we evaluate the performance of CDiffuser across a wide variety of tasks. We first demonstrate the advantages of CDiffuser on 14 standard D4RL datasets."
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The manager summarized the current review progress before the next step. A core contribution claim about the proposed method (CDiffuser). A methodological claim about contrastive learning being used to extract expert information. An empirical claim about performance on D4RL and high-variance datasets. 2. Key Strengths - Support coverage: 6 real stron…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "empirical_support",
+        "paper_id": "WLgbjzKJkk",
+        "claim": "Based on the results shown in Table3a, we examine the impact of different components of the CO-MOT framework on tracking performance, as evaluated on the DanceTrack validation set.",
+        "quote": "We further provide quantitative results of how the queries affect each other in Table 1. All the decoded boxes of both tracking and detection queries are treated as detection boxes so that they can be evaluated by the",
+        "locator": {
+          "source_locator": "Table 1",
+          "locator_type": "table",
+          "locator_confidence": 0.9
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-2-turn-3",
+          "quote": "We further provide quantitative results of how the queries affect each other in Table 1. All the decoded boxes of both tracking and detection queries are treated as detection boxes so that they can be evaluated by the"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. As components are added, the tracking performance improves gradually. Based on the results shown in Table3a, we examine the impact of different components of the CO-MOT framework on tracking performance, as evaluated on the DanceTrack validation set. claim-paper-contex…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "empirical_support",
+        "paper_id": "WLgbjzKJkk",
+        "claim": "Based on the results shown in Table3a, we examine the impact of different components of the CO-MOT framework on tracking performance, as evaluated on the DanceTrack validation set.",
+        "quote": "subsequent tracking. Sets that do not capture any object will be discarded. \\section{4 EXPERIMENT } Table 2: Comparison to state-of-the-art methods on different dataset. Please pay more attention to the metrics with blue",
+        "locator": {
+          "source_locator": "Table 2",
+          "locator_type": "table",
+          "locator_confidence": 0.9
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-3-turn-3",
+          "quote": "subsequent tracking. Sets that do not capture any object will be discarded. \\section{4 EXPERIMENT } Table 2: Comparison to state-of-the-art methods on different dataset. Please pay more attention to the metrics with blue"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. As components are added, the tracking performance improves gradually. Based on the results shown in Table3a, we examine the impact of different components of the CO-MOT framework on tracking performance, as evaluated on the DanceTrack validation set. claim-paper-contex…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "empirical_support",
+        "paper_id": "WLgbjzKJkk",
+        "claim": "As components are added, the tracking performance improves gradually.",
+        "quote": "We also observe an excellent detection performance $(70.7\\%)$ for MOTRv2, which introduces a pretrained YOLOX detector.",
+        "locator": {
+          "source_locator": "Claim-matched evidence excerpt #2",
+          "locator_type": "generic",
+          "locator_confidence": 0.0
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-6-turn-5",
+          "quote": "We also observe an excellent detection performance $(70.7\\%)$ for MOTRv2, which introduces a pretrained YOLOX detector."
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. As components are added, the tracking performance improves gradually. Based on the results shown in Table3a, we examine the impact of different components of the CO-MOT framework on tracking performance, as evaluated on the DanceTrack validation set. claim-paper-contex…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "empirical_support",
+        "paper_id": "WLgbjzKJkk",
+        "claim": "claim-paper-context-2: \"Based on the results shown in Table3a, we examine the impact of different components of the CO-MOT framework on tracking performance, as evaluated on the DanceTrack validation set.\" (medium importance, uncertain sta…",
+        "quote": "subsequent tracking. Sets that do not capture any object will be discarded. \\section{4 EXPERIMENT } Table 2: Comparison to state-of-the-art methods on different dataset. Please pay more attention to the metrics with blue",
+        "locator": {
+          "source_locator": "Table 2",
+          "locator_type": "table",
+          "locator_confidence": 0.9
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-first-support-7-turn-6",
+          "quote": "subsequent tracking. Sets that do not capture any object will be discarded. \\section{4 EXPERIMENT } Table 2: Comparison to state-of-the-art methods on different dataset. Please pay more attention to the metrics with blue"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. As components are added, the tracking performance improves gradually. Based on the results shown in Table3a, we examine the impact of different components of the CO-MOT framework on tracking performance, as evaluated on the DanceTrack validation set. claim-paper-contex…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "empirical_support",
+        "paper_id": "WLgbjzKJkk",
+        "claim": "claim-paper-context-1: \"As components are added, the tracking performance improves gradually.\" (high importance, uncertain status, empirical type)",
+        "quote": "subsequent tracking. Sets that do not capture any object will be discarded. \\section{4 EXPERIMENT } Table 2: Comparison to state-of-the-art methods on different dataset. Please pay more attention to the metrics with blue",
+        "locator": {
+          "source_locator": "Table 2",
+          "locator_type": "table",
+          "locator_confidence": 0.9
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-first-support-9-turn-7",
+          "quote": "subsequent tracking. Sets that do not capture any object will be discarded. \\section{4 EXPERIMENT } Table 2: Comparison to state-of-the-art methods on different dataset. Please pay more attention to the metrics with blue"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. As components are added, the tracking performance improves gradually. Based on the results shown in Table3a, we examine the impact of different components of the CO-MOT framework on tracking performance, as evaluated on the DanceTrack validation set. claim-paper-contex…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "empirical_support",
+        "paper_id": "WLgbjzKJkk",
+        "claim": "claim-paper-context-1: \"As components are added, the tracking performance improves gradually.\" (high importance, uncertain status, empirical type)",
+        "quote": "Table 3: Ablation studies of our proposed CO-MOT on the DanceTrack validation set. Please pay more attention to the metrics with blue.",
+        "locator": {
+          "source_locator": "Table 3",
+          "locator_type": "table",
+          "locator_confidence": 0.9
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-10-turn-7",
+          "quote": "Table 3: Ablation studies of our proposed CO-MOT on the DanceTrack validation set. Please pay more attention to the metrics with blue."
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. As components are added, the tracking performance improves gradually. Based on the results shown in Table3a, we examine the impact of different components of the CO-MOT framework on tracking performance, as evaluated on the DanceTrack validation set. claim-paper-contex…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "empirical_support",
+        "paper_id": "LebzzClHYw",
+        "claim": "From comparison: ID consistently outperforms baselines across all types of noisy instructions. This is an empirical claim.",
+        "quote": "\\caption{(a) Correlation between performance degradation with noisy instructions and improvement with those used in ID; (b) comparative winning rates of Base vs.",
+        "locator": {
+          "source_locator": "Table/Figure excerpt #1",
+          "locator_type": "generic",
+          "locator_confidence": 0.0
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-2-turn-2",
+          "quote": "\\caption{(a) Correlation between performance degradation with noisy instructions and improvement with those used in ID; (b) comparative winning rates of Base vs."
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. From comparison: ID consistently outperforms baselines across all types of noisy instructions. This is an empirical claim. From ablation: The method has generalization capabilities as shown by cross-evaluations. This could be a method or empirical claim. There might be…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "empirical_support",
+        "paper_id": "LebzzClHYw",
+        "claim": "From comparison: ID consistently outperforms baselines across all types of noisy instructions. This is an empirical claim.",
+        "quote": "\\subsection{Performance on Unseen Task Generalization} \\paragraph{Result Overview}",
+        "locator": {
+          "source_locator": "Section: Performance on Unseen Task Generalization",
+          "locator_type": "section",
+          "locator_confidence": 0.75
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-3-turn-2",
+          "quote": "\\subsection{Performance on Unseen Task Generalization} \\paragraph{Result Overview}"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. From comparison: ID consistently outperforms baselines across all types of noisy instructions. This is an empirical claim. From ablation: The method has generalization capabilities as shown by cross-evaluations. This could be a method or empirical claim. There might be…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "empirical_support",
+        "paper_id": "LebzzClHYw",
+        "claim": "From ablation: The method has generalization capabilities as shown by cross-evaluations. This could be a method or empirical claim.",
+        "quote": "We attempt to unveil the relationship between such degradation and its enhancement with ID (\\autoref{fig:task_results}\\,\\textcolor{red}{(a)}).",
+        "locator": {
+          "source_locator": "Figure: task results",
+          "locator_type": "figure",
+          "locator_confidence": 0.82
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-6-turn-4",
+          "quote": "We attempt to unveil the relationship between such degradation and its enhancement with ID (\\autoref{fig:task_results}\\,\\textcolor{red}{(a)})."
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. From comparison: ID consistently outperforms baselines across all types of noisy instructions. This is an empirical claim. From ablation: The method has generalization capabilities as shown by cross-evaluations. This could be a method or empirical claim. There might be…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "empirical_support",
+        "paper_id": "LebzzClHYw",
+        "claim": "From ablation: The method has generalization capabilities as shown by cross-evaluations. This could be a method or empirical claim.",
+        "quote": "Task performance is measured using the Rouge-L score\\,\\citep{rouge}, which measures the overlap between generated and reference sequences, and is often used for open-ended tasks as \\,\\citet{sni_dataset}.",
+        "locator": {
+          "source_locator": "Results / Evaluation excerpt #1",
+          "locator_type": "generic",
+          "locator_confidence": 0.0
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-7-turn-5",
+          "quote": "Task performance is measured using the Rouge-L score\\,\\citep{rouge}, which measures the overlap between generated and reference sequences, and is often used for open-ended tasks as \\,\\citet{sni_dataset}."
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. From comparison: ID consistently outperforms baselines across all types of noisy instructions. This is an empirical claim. From ablation: The method has generalization capabilities as shown by cross-evaluations. This could be a method or empirical claim. There might be…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "empirical_support",
+        "paper_id": "LebzzClHYw",
+        "claim": "There might be limitations or scope issues, but not explicitly stated in the excerpts. However, the results mention that improvements are not uniformly distributed across tasks, which could imply a limitation.",
+        "quote": "54.51& 37.55\\\\ \\bottomrule \\end{tabular} \\endgroup \\end{minipage} \\end{figure} \\subsection{Ablation Study} \\paragraph{Generalization Capabilities of ID} To further assess the adaptability and effectiveness of ID, we cros",
+        "locator": {
+          "source_locator": "Section: Ablation Study",
+          "locator_type": "section",
+          "locator_confidence": 0.75
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-9-turn-7",
+          "quote": "54.51& 37.55\\\\ \\bottomrule \\end{tabular} \\endgroup \\end{minipage} \\end{figure} \\subsection{Ablation Study} \\paragraph{Generalization Capabilities of ID} To further assess the adaptability and effectiveness of ID, we cros"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. From comparison: ID consistently outperforms baselines across all types of noisy instructions. This is an empirical claim. From ablation: The method has generalization capabilities as shown by cross-evaluations. This could be a method or empirical claim. There might be…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "empirical_support",
+        "paper_id": "KOUAayk5Kx",
+        "claim": "cell searched by(d) Reduction cell searched RandomNAS-OGL by RandomNAS-OGL GDAS-OGL by GDAS-OGL 4 EXPERIMENT .",
+        "quote": "Table 1: Comparision results in terms of test error on CIFAR-10 and CIFAR-100. “\\*” indicates that the results are reported in the Zhang et al. (2020a). “†” indicates that the results are reported in the Dong & Yang",
+        "locator": {
+          "source_locator": "Table 1",
+          "locator_type": "table",
+          "locator_confidence": 0.9
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-first-support-1-turn-3",
+          "quote": "Table 1: Comparision results in terms of test error on CIFAR-10 and CIFAR-100. “\\*” indicates that the results are reported in the Zhang et al. (2020a). “†” indicates that the results are reported in the Dong & Yang"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. cell searched by(d) Reduction cell searched RandomNAS-OGL by RandomNAS-OGL GDAS-OGL by GDAS-OGL 4 EXPERIMENT . In the experiments, we compare our methods with ... OGL to address multi-model forgetting in one-shot NAS. 2. Key Strengths - Support coverage: 7 real strong…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "empirical_support",
+        "paper_id": "KOUAayk5Kx",
+        "claim": "cell searched by(d) Reduction cell searched RandomNAS-OGL by RandomNAS-OGL GDAS-OGL by GDAS-OGL 4 EXPERIMENT .",
+        "quote": "\\section{4 EXPERIMENT } \\section{4.1 ONE-SHOT NAS WITH OGL }",
+        "locator": {
+          "source_locator": "Claim-matched evidence excerpt #2",
+          "locator_type": "generic",
+          "locator_confidence": 0.0
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-2-turn-3",
+          "quote": "\\section{4 EXPERIMENT } \\section{4.1 ONE-SHOT NAS WITH OGL }"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. cell searched by(d) Reduction cell searched RandomNAS-OGL by RandomNAS-OGL GDAS-OGL by GDAS-OGL 4 EXPERIMENT . In the experiments, we compare our methods with ... OGL to address multi-model forgetting in one-shot NAS. 2. Key Strengths - Support coverage: 7 real strong…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "empirical_support",
+        "paper_id": "KOUAayk5Kx",
+        "claim": "In the experiments, we compare our methods with ...",
+        "quote": "In order to handle the multi-model forgetting, we design an effective orthogonal gradient learning (OGL) for supernet training and meanwhile avoid the projector attenuation. The main idea is to design a gradient space",
+        "locator": {
+          "source_locator": "Table/Figure excerpt #1",
+          "locator_type": "generic",
+          "locator_confidence": 0.0
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-5-turn-5",
+          "quote": "In order to handle the multi-model forgetting, we design an effective orthogonal gradient learning (OGL) for supernet training and meanwhile avoid the projector attenuation. The main idea is to design a gradient space"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. cell searched by(d) Reduction cell searched RandomNAS-OGL by RandomNAS-OGL GDAS-OGL by GDAS-OGL 4 EXPERIMENT . In the experiments, we compare our methods with ... OGL to address multi-model forgetting in one-shot NAS. 2. Key Strengths - Support coverage: 7 real strong…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "empirical_support",
+        "paper_id": "KOUAayk5Kx",
+        "claim": "OGL is applied to baselines like RandomNAS and GDAS, resulting in RandomNAS-OGL and GDAS-OGL.",
+        "quote": "In this study, we apply OGL to two popular single-path one-shot NAS baselines, including the RandomNAS Li & Talwalkar (2020) and GDAS Dong & Yang (2019b), where RandomNAS and GDAS are random- and gradient-based sampling",
+        "locator": {
+          "source_locator": "Comparison / Robustness excerpt #1",
+          "locator_type": "generic",
+          "locator_confidence": 0.0
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-7-turn-6",
+          "quote": "In this study, we apply OGL to two popular single-path one-shot NAS baselines, including the RandomNAS Li & Talwalkar (2020) and GDAS Dong & Yang (2019b), where RandomNAS and GDAS are random- and gradient-based sampling"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. cell searched by(d) Reduction cell searched RandomNAS-OGL by RandomNAS-OGL GDAS-OGL by GDAS-OGL 4 EXPERIMENT . In the experiments, we compare our methods with ... OGL to address multi-model forgetting in one-shot NAS. 2. Key Strengths - Support coverage: 7 real strong…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "empirical_support",
+        "paper_id": "KOUAayk5Kx",
+        "claim": "OGL is applied to baselines like RandomNAS and GDAS, resulting in RandomNAS-OGL and GDAS-OGL.",
+        "quote": "In this study, we apply OGL to two popular single-path one-shot NAS baselines, including the RandomNAS Li & Talwalkar (2020) and GDAS Dong & Yang (2019b), where RandomNAS and GDAS are random- and gradient-based sampling",
+        "locator": {
+          "source_locator": "Comparison / Robustness excerpt #2",
+          "locator_type": "generic",
+          "locator_confidence": 0.0
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-9-turn-7",
+          "quote": "In this study, we apply OGL to two popular single-path one-shot NAS baselines, including the RandomNAS Li & Talwalkar (2020) and GDAS Dong & Yang (2019b), where RandomNAS and GDAS are random- and gradient-based sampling"
+        },
+        "negative_evidence": null,
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. cell searched by(d) Reduction cell searched RandomNAS-OGL by RandomNAS-OGL GDAS-OGL by GDAS-OGL 4 EXPERIMENT . In the experiments, we compare our methods with ... OGL to address multi-model forgetting in one-shot NAS. 2. Key Strengths - Support coverage: 7 real strong…",
+        "audit_flags": [],
+        "manual_label": ""
+      }
+    ],
+    "verified_moderate": [],
+    "negative_concern": [
+      {
+        "case_type": "negative_concern",
+        "paper_id": "fGXyvmWpw6",
+        "claim": "**Method Claim**: The method uses iterative local distillation to align feature distributions across clients.",
+        "quote": "",
+        "locator": {},
+        "positive_evidence": null,
+        "negative_evidence": {
+          "claim_id": "claim-paper-fallback-2",
+          "verified_negative_concern": true
+        },
+        "state_transition": {},
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. **Contribution Claim**: The paper proposes a new framework for federated learning to handle heterogeneous data using local-global distillation. **Method Claim**: The method uses iterative local distillation to align feature distributions across clients. **Empirical Cla…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "negative_concern",
+        "paper_id": "LebzzClHYw",
+        "claim": "From comparison: ID consistently outperforms baselines across all types of noisy instructions. This is an empirical claim.",
+        "quote": "",
+        "locator": {},
+        "positive_evidence": null,
+        "negative_evidence": {
+          "claim_id": "claim-paper-fallback-1",
+          "verified_negative_concern": true
+        },
+        "state_transition": {},
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. From comparison: ID consistently outperforms baselines across all types of noisy instructions. This is an empirical claim. From ablation: The method has generalization capabilities as shown by cross-evaluations. This could be a method or empirical claim. There might be…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "negative_concern",
+        "paper_id": "KOUAayk5Kx",
+        "claim": "OGL to address multi-model forgetting in one-shot NAS.",
+        "quote": "",
+        "locator": {},
+        "positive_evidence": null,
+        "negative_evidence": {
+          "claim_id": "claim-paper-fallback-3",
+          "verified_negative_concern": true
+        },
+        "state_transition": {},
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. cell searched by(d) Reduction cell searched RandomNAS-OGL by RandomNAS-OGL GDAS-OGL by GDAS-OGL 4 EXPERIMENT . In the experiments, we compare our methods with ... OGL to address multi-model forgetting in one-shot NAS. 2. Key Strengths - Support coverage: 7 real strong…",
+        "audit_flags": [],
+        "manual_label": ""
+      }
+    ],
+    "contested_support": [
+      {
+        "case_type": "contested_support",
+        "paper_id": "fGXyvmWpw6",
+        "claim": "**Method Claim**: The method uses iterative local distillation to align feature distributions across clients.",
+        "quote": "For selected rounds ($t \\in \\tau$), clients will update local models (d) and refine the local virtual data with the latest network parameters (c), while the server uses aggregated gradients from cross-entropy loss ($\\mat",
+        "locator": {
+          "source_locator": "Section: Method",
+          "locator_type": "section",
+          "locator_confidence": 0.699
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-7-turn-6",
+          "quote": "For selected rounds ($t \\in \\tau$), clients will update local models (d) and refine the local virtual data with the latest network parameters (c), while the server uses aggregated gradients from cross-entropy loss ($\\mat"
+        },
+        "negative_evidence": {
+          "negative_burden_claim": true
+        },
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "moderate",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. **Contribution Claim**: The paper proposes a new framework for federated learning to handle heterogeneous data using local-global distillation. **Method Claim**: The method uses iterative local distillation to align feature distributions across clients. **Empirical Cla…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "contested_support",
+        "paper_id": "fGXyvmWpw6",
+        "claim": "**Method Claim**: The method uses iterative local distillation to align feature distributions across clients.",
+        "quote": "\\emph{Approach 1} aims to minimize the difference between the local and global model parameters to improve convergence~\\cite{li2020federated,karimireddy2020scaffold,wang2020tackling}.",
+        "locator": {
+          "source_locator": "Theory / Proof excerpt #1",
+          "locator_type": "generic",
+          "locator_confidence": 0.0
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-8-turn-6",
+          "quote": "\\emph{Approach 1} aims to minimize the difference between the local and global model parameters to improve convergence~\\cite{li2020federated,karimireddy2020scaffold,wang2020tackling}."
+        },
+        "negative_evidence": {
+          "negative_burden_claim": true
+        },
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "moderate",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. **Contribution Claim**: The paper proposes a new framework for federated learning to handle heterogeneous data using local-global distillation. **Method Claim**: The method uses iterative local distillation to align feature distributions across clients. **Empirical Cla…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "contested_support",
+        "paper_id": "LebzzClHYw",
+        "claim": "From comparison: ID consistently outperforms baselines across all types of noisy instructions. This is an empirical claim.",
+        "quote": "\\caption{(a) Correlation between performance degradation with noisy instructions and improvement with those used in ID; (b) comparative winning rates of Base vs.",
+        "locator": {
+          "source_locator": "Table/Figure excerpt #1",
+          "locator_type": "generic",
+          "locator_confidence": 0.0
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-2-turn-2",
+          "quote": "\\caption{(a) Correlation between performance degradation with noisy instructions and improvement with those used in ID; (b) comparative winning rates of Base vs."
+        },
+        "negative_evidence": {
+          "negative_burden_claim": true
+        },
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. From comparison: ID consistently outperforms baselines across all types of noisy instructions. This is an empirical claim. From ablation: The method has generalization capabilities as shown by cross-evaluations. This could be a method or empirical claim. There might be…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "contested_support",
+        "paper_id": "LebzzClHYw",
+        "claim": "From comparison: ID consistently outperforms baselines across all types of noisy instructions. This is an empirical claim.",
+        "quote": "\\subsection{Performance on Unseen Task Generalization} \\paragraph{Result Overview}",
+        "locator": {
+          "source_locator": "Section: Performance on Unseen Task Generalization",
+          "locator_type": "section",
+          "locator_confidence": 0.75
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-3-turn-2",
+          "quote": "\\subsection{Performance on Unseen Task Generalization} \\paragraph{Result Overview}"
+        },
+        "negative_evidence": {
+          "negative_burden_claim": true
+        },
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "deep",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. From comparison: ID consistently outperforms baselines across all types of noisy instructions. This is an empirical claim. From ablation: The method has generalization capabilities as shown by cross-evaluations. This could be a method or empirical claim. There might be…",
+        "audit_flags": [],
+        "manual_label": ""
+      },
+      {
+        "case_type": "contested_support",
+        "paper_id": "KOUAayk5Kx",
+        "claim": "OGL to address multi-model forgetting in one-shot NAS.",
+        "quote": "Lemma 1. The OGL guided training paradigm enables the training of the current architecture to largely eliminate the impact to the performance of all previously trained architectures.",
+        "locator": {
+          "source_locator": "Lemma 1",
+          "locator_type": "theorem",
+          "locator_confidence": 0.9
+        },
+        "positive_evidence": {
+          "evidence_id": "evidence-small-model-quote-bank-8-turn-6",
+          "quote": "Lemma 1. The OGL guided training paradigm enables the training of the current architecture to largely eliminate the impact to the performance of all previously trained architectures."
+        },
+        "negative_evidence": {
+          "negative_burden_claim": true
+        },
+        "state_transition": {
+          "support_admission_tier": "verified_strong",
+          "included_in_final_view": true,
+          "final_support_depth": "moderate",
+          "support_drop_reason": ""
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. cell searched by(d) Reduction cell searched RandomNAS-OGL by RandomNAS-OGL GDAS-OGL by GDAS-OGL 4 EXPERIMENT . In the experiments, we compare our methods with ... OGL to address multi-model forgetting in one-shot NAS. 2. Key Strengths - Support coverage: 7 real strong…",
+        "audit_flags": [],
+        "manual_label": ""
+      }
+    ],
+    "recovery_success": [
+      {
+        "case_type": "recovery_success",
+        "paper_id": "WLgbjzKJkk",
+        "claim": "",
+        "quote": "",
+        "locator": {},
+        "positive_evidence": null,
+        "negative_evidence": {
+          "target_type": "flaw",
+          "target_id": "flaw-negative-quote-bank-quote-table-or-figure-1"
+        },
+        "state_transition": {
+          "old_status": "candidate",
+          "new_status": "downgraded",
+          "failure_code": "SUCCESS"
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. As components are added, the tracking performance improves gradually. Based on the results shown in Table3a, we examine the impact of different components of the CO-MOT framework on tracking performance, as evaluated on the DanceTrack validation set. claim-paper-contex…",
+        "audit_flags": [
+          "SUCCESS"
+        ],
+        "manual_label": ""
+      }
+    ],
+    "recovery_blocked": [
+      {
+        "case_type": "recovery_blocked",
+        "paper_id": "fGXyvmWpw6",
+        "claim": "",
+        "quote": "",
+        "locator": {},
+        "positive_evidence": null,
+        "negative_evidence": {
+          "target_type": "flaw",
+          "target_id": "flaw-negative-quote-bank-quote-negative-or-gap-1"
+        },
+        "state_transition": {
+          "old_status": "",
+          "new_status": "",
+          "failure_code": "BLOCKED_BY_POLICY"
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. **Contribution Claim**: The paper proposes a new framework for federated learning to handle heterogeneous data using local-global distillation. **Method Claim**: The method uses iterative local distillation to align feature distributions across clients. **Empirical Cla…",
+        "audit_flags": [
+          "BLOCKED_BY_POLICY"
+        ],
+        "manual_label": ""
+      },
+      {
+        "case_type": "recovery_blocked",
+        "paper_id": "LebzzClHYw",
+        "claim": "",
+        "quote": "",
+        "locator": {},
+        "positive_evidence": null,
+        "negative_evidence": {
+          "target_type": "flaw",
+          "target_id": "flaw-negative-quote-bank-quote-negative-or-gap-1"
+        },
+        "state_transition": {
+          "old_status": "",
+          "new_status": "",
+          "failure_code": "BLOCKED_BY_POLICY"
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. From comparison: ID consistently outperforms baselines across all types of noisy instructions. This is an empirical claim. From ablation: The method has generalization capabilities as shown by cross-evaluations. This could be a method or empirical claim. There might be…",
+        "audit_flags": [
+          "BLOCKED_BY_POLICY"
+        ],
+        "manual_label": ""
+      },
+      {
+        "case_type": "recovery_blocked",
+        "paper_id": "KOUAayk5Kx",
+        "claim": "",
+        "quote": "",
+        "locator": {},
+        "positive_evidence": null,
+        "negative_evidence": {
+          "target_type": "flaw",
+          "target_id": "flaw-negative-quote-bank-quote-table-or-figure-2"
+        },
+        "state_transition": {
+          "old_status": "",
+          "new_status": "",
+          "failure_code": "BLOCKED_BY_POLICY"
+        },
+        "final_report_snippet": "Review Diagnostic Report 1. Summary of Reviews The dialogue tracked the paper's main claims, supporting evidence, and open risks. cell searched by(d) Reduction cell searched RandomNAS-OGL by RandomNAS-OGL GDAS-OGL by GDAS-OGL 4 EXPERIMENT . In the experiments, we compare our methods with ... OGL to address multi-model forgetting in one-shot NAS. 2. Key Strengths - Support coverage: 7 real strong…",
+        "audit_flags": [
+          "BLOCKED_BY_POLICY"
+        ],
+        "manual_label": ""
+      }
+    ],
+    "dropped_support": []
+  },
+  "errors": []
+}

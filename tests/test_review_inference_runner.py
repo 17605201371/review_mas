@@ -1491,6 +1491,99 @@ def test_fallback_recovery_patch_pattern_a_downgrades_quote_bank_only_flaw():
     assert "limitation" in payload["reason_for_change"].lower()
 
 
+def test_fallback_recovery_patch_blocks_quote_bank_limitation_no_effect_downgrade():
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-paper-fallback-2",
+                "claim": "Paper-salvaged fallback claim.",
+                "status": "supported",
+                "claim_kind": "paper_extracted",
+                "claim_origin_kind": "raw_salvaged_claim_agent_output",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "evidence-negative-scope",
+                "claim_id": "claim-paper-fallback-2",
+                "evidence": "The paper only evaluates this setting in a limited scope.",
+                "raw_quote": "The paper only evaluates this setting in a limited scope.",
+                "stance": "missing",
+                "strength": "missing",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_negative_verified",
+                "support_source_bucket": "limitation_or_gap",
+                "source": "quote-bank-negative-grounding",
+                "negative_evidence_type": "scope_limitation",
+            }
+        ],
+        "flaw_candidates": [
+            {
+                "flaw_id": "flaw-negative-scope",
+                "status": "candidate",
+                "title": "Scope limitation",
+                "description": "Scope limitation",
+                "severity": "minor",
+                "related_claim_ids": ["claim-paper-fallback-2"],
+                "evidence_ids": ["evidence-negative-scope"],
+                "negative_evidence_ids": ["evidence-negative-scope"],
+                "source": "quote-bank-negative-grounding",
+                "negative_evidence_type": "scope_limitation",
+                "grounding_status": "grounded_candidate",
+            }
+        ],
+        "evidence_gaps": [],
+        "unresolved_questions": [],
+        "conflict_notes": [],
+    }
+
+    payload = _fallback_recovery_patch_payload(
+        state,
+        {
+            "action_type": "challenge_previous_hypothesis",
+            "effective_action_type": "challenge_previous_hypothesis",
+            "target_claim_ids": [],
+            "target_flaw_ids": ["flaw-negative-scope"],
+            "target_evidence_ids": [],
+        },
+    )
+
+    assert payload["action"] == "blocked"
+    assert payload["target_type"] == "flaw"
+    assert payload["target_id"] == "flaw-negative-scope"
+    assert "no-effect recovery patch" in payload["blocked_reason"]
+
+
+def test_recovery_payload_salvages_critique_emission_failure_to_patch():
+    state = _build_pattern_a_state()
+    state["evidence_map"][1]["semantic_grounding_label"] = "semantic_mismatch"
+    state["evidence_map"][1]["negative_evidence_type"] = "scope_limitation"
+
+    payload = _maybe_salvage_recovery_payload(
+        "Critique Agent",
+        {
+            "action": "",
+            "_emission_failure_code": "PATCH_MODE_PROMPT_IGNORED",
+            "_emission_failure_message": "Recovery patch mode expected strict JSON patch output.",
+        },
+        state,
+        manager_payload={
+            "action_type": "challenge_previous_hypothesis",
+            "effective_action_type": "challenge_previous_hypothesis",
+            "turn_mode": "recovery_patch",
+            "target_claim_ids": [],
+            "target_flaw_ids": ["flaw-quote-bank-1"],
+            "target_evidence_ids": ["evidence-negative-quote-bank-quote-1-1"],
+        },
+    )
+
+    assert payload["action"] == "apply_recovery_patch"
+    assert payload["target_type"] == "flaw"
+    assert payload["target_id"] == "flaw-quote-bank-1"
+    assert payload["new_status"] == "downgraded"
+    assert payload["_recovery_patch_source"] == "system_salvaged"
+
+
 def test_fallback_recovery_patch_pattern_a_skipped_when_direct_negative_present():
     """P0-1a: should NOT downgrade if the flaw also has a direct (non-quote-bank)
     verified-negative — that case must remain handled by the claim branch."""
@@ -4608,6 +4701,79 @@ def test_apply_recovery_phase_protocol_respects_exhausted_recovery_target_summar
     assert payload["finalize_blocked_by_phase"] is False
 
 
+def test_apply_recovery_phase_protocol_routes_exhausted_recovery_to_support_recheck():
+    from agent_system.inference.review_runner import _apply_recovery_phase_protocol
+
+    payload = _apply_recovery_phase_protocol(
+        manager_payload={
+            "decision": "continue",
+            "action_type": "summarize_progress",
+            "effective_action_type": "summarize_progress",
+            "policy_source": "recovery_target_exhausted_override",
+            "target_claim_ids": [],
+            "selected_agents": [],
+        },
+        state={
+            "phase": "recovery",
+            "phase_turn_index": 1,
+            "claims": [
+                {
+                    "claim_id": "claim-main",
+                    "claim": "The method improves benchmark performance.",
+                    "status": "uncertain",
+                    "claim_kind": "paper_extracted",
+                },
+                {
+                    "claim_id": "claim-supported",
+                    "claim": "The method uses a transformer encoder.",
+                    "status": "supported",
+                    "claim_kind": "paper_extracted",
+                },
+            ],
+            "evidence_map": [
+                {
+                    "evidence_id": "e-supported",
+                    "claim_id": "claim-supported",
+                    "stance": "supports",
+                    "strength": "strong",
+                    "raw_quote": "The method uses a transformer encoder.",
+                    "verified_grounding_label": "paper_grounded_exact",
+                    "semantic_grounding_label": "semantic_support_verified",
+                    "binding_status": "bound_real_claim",
+                }
+            ],
+            "flaw_candidates": [],
+            "conflict_notes": [{"conflict_id": "c1", "status": "open"}],
+            "_latest_patch_log": {
+                "recovery_attempted": True,
+                "recovery_validated": False,
+                "recovery_committed": False,
+                "recovery_failure_code": "BLOCKED_BY_POLICY",
+            },
+        },
+        mode="s4",
+        worker_ids=["Claim Agent", "Evidence Agent", "Critique Agent"],
+        worker_limit=2,
+        recent_turn_logs=[
+            {
+                "turn_id": 4,
+                "phase_after_action": "recovery",
+                "recovery_patch_mode_entered": True,
+                "action_type": "challenge_previous_hypothesis",
+                "effective_action_type": "challenge_previous_hypothesis",
+            }
+        ],
+    )
+
+    assert payload["phase"] == "normal_review"
+    assert payload["action_type"] == "request_evidence_recheck"
+    assert payload["turn_mode"] == "normal_evidence"
+    assert payload["recovery_patch_mode_entered"] is False
+    assert payload["selected_agents"] == ["Evidence Agent"]
+    assert payload["target_claim_ids"] == ["claim-main"]
+    assert payload["policy_source"] == "recovery_target_exhausted_evidence_recheck_override"
+
+
 def test_apply_recovery_phase_protocol_recheck_drops_context_targets_and_rehydrates_real_claims():
     from agent_system.inference.review_runner import _apply_recovery_phase_protocol
 
@@ -6907,6 +7073,46 @@ def test_model_generated_context_claim_patch_blocks_without_real_rebind_target()
     assert out.get("action") == "blocked"
     assert out.get("weak_recovery_target_rebind_used") is True
     assert out.get("target_id") == "claim-paper-context-1"
+
+
+def test_verified_negative_claim_salvage_skips_paper_fallback_claim():
+    from agent_system.inference import review_runner as _rr
+
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-paper-fallback-1",
+                "claim": "Paper-salvaged fallback claim.",
+                "status": "supported",
+                "claim_kind": "paper_extracted",
+                "claim_origin_kind": "raw_salvaged_claim_agent_output",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "evidence-neg-fallback",
+                "claim_id": "claim-paper-fallback-1",
+                "stance": "contradicts",
+                "strength": "strong",
+                "source": "quote-bank-negative-grounding",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_negative_verified",
+                "negative_evidence_type": "negative_result",
+                "claim_status_downgrade_allowed": True,
+            }
+        ],
+    }
+
+    out = _rr._build_verified_negative_claim_recovery_patch(
+        state,
+        {
+            "effective_action_type": "challenge_previous_hypothesis",
+            "target_claim_ids": ["claim-paper-fallback-1"],
+            "target_evidence_ids": ["evidence-neg-fallback"],
+        },
+    )
+
+    assert out is None
 
 
 def test_ghost_evidence_patch_blocks_when_no_real_negative():

@@ -4273,7 +4273,18 @@ def _state_contamination_targets(
                 confidence=0.85,
                 repairability="full",
             ))
-        if valid_negative_ids and not actionable_negative_ids and status in {"confirmed", "candidate"}:
+        severity = str(flaw.get("severity") or "").strip().lower()
+        minor_assessment_limitation = (
+            layer == "assessment_limitation"
+            and status == "candidate"
+            and severity in {"", "minor", "low"}
+        )
+        if (
+            valid_negative_ids
+            and not actionable_negative_ids
+            and status in {"confirmed", "candidate"}
+            and not minor_assessment_limitation
+        ):
             records.append(_contamination_record(
                 "flaw",
                 flaw_id,
@@ -5634,12 +5645,21 @@ def _build_recovery_state_delta(before: Dict[str, Any], after: Dict[str, Any]) -
     }
     improved_keys = [key for key in _RECOVERY_BURDEN_DELTA_KEYS if delta.get(key, 0) < 0]
     worsened_keys = [key for key in _RECOVERY_BURDEN_DELTA_KEYS if delta.get(key, 0) > 0]
+    tolerated_worsened_keys: List[str] = []
+    if delta.get("negative_grounding_conflict_count", 0) < 0 and "assessment_limitation_flaw_count" in worsened_keys:
+        # A route-to-limitation patch can legitimately repair an invalid
+        # negative-evidence binding by moving a non-actionable flaw out of the
+        # concern path. Count that as repair while still keeping pure
+        # concern->limitation moves from becoming effective repairs.
+        worsened_keys = [key for key in worsened_keys if key != "assessment_limitation_flaw_count"]
+        tolerated_worsened_keys.append("assessment_limitation_flaw_count")
     return {
         "before": before_snapshot,
         "after": after_snapshot,
         "delta": delta,
         "improved_keys": sorted(improved_keys),
         "worsened_keys": sorted(worsened_keys),
+        "tolerated_worsened_keys": sorted(tolerated_worsened_keys),
         "consistency_improved": bool(improved_keys and not worsened_keys),
         "negative_recovery_commit": bool(worsened_keys and not improved_keys),
     }
@@ -5802,6 +5822,31 @@ def _refresh_stale_claim_downgrade_old_status(state: Dict[str, Any], parsed_patc
     parsed_patch["old_status_refreshed_from"] = old_status
 
 
+def _flaw_limitation_patch_is_no_effect(state: Dict[str, Any], validation: Dict[str, Any], new_status: str) -> bool:
+    if str(validation.get("target_type") or "") != "flaw":
+        return False
+    if str(new_status or "").strip().lower() not in {"downgraded", "retracted"}:
+        return False
+    if not list(validation.get("supporting_evidence_ids", []) or []):
+        return False
+    target_id = str(validation.get("target_id") or "").strip()
+    if not target_id:
+        return False
+    try:
+        view_state = copy.deepcopy(state or {})
+        view_state.pop("decision_hygiene", None)
+        view = build_decision_hygiene_view(view_state)
+    except Exception:  # pragma: no cover - commit guard must not crash recovery
+        return False
+    for flaw in view.get("flaw_candidates", []) or []:
+        if not isinstance(flaw, dict) or str(flaw.get("flaw_id") or "").strip() != target_id:
+            continue
+        layer = str(flaw.get("final_view_flaw_layer") or "").strip()
+        conflicts = flaw.get("hygiene_negative_grounding_conflicts") or []
+        return layer == "assessment_limitation" and not bool(conflicts)
+    return False
+
+
 def _apply_recovery_update(state: Dict[str, Any], payload: Dict[str, Any]) -> Dict[str, Any]:
     parsed_patch = parse_recovery_payload(payload)
     _refresh_stale_claim_downgrade_old_status(state, parsed_patch)
@@ -5815,6 +5860,23 @@ def _apply_recovery_update(state: Dict[str, Any], payload: Dict[str, Any]) -> Di
     target_field = validation.get("target_field")
     target_index = validation.get("target_index")
     new_status = str(validation.get("new_status") or parsed_patch.get("new_status") or "").lower()
+    if _flaw_limitation_patch_is_no_effect(state, validation, new_status):
+        merged["_latest_patch_log"].update(
+            {
+                "recovery_validated": False,
+                "recovery_blocked": True,
+                "recovery_committed": False,
+                "recovery_patch_operation": "reject_patch",
+                "recovery_failure_code": "BLOCKED_BY_POLICY",
+                "recovery_failure_message": (
+                    "Recovery patch was blocked because the target flaw is already an assessment limitation "
+                    "with no remaining negative-grounding conflict; committing it would be a no-effect lifecycle change."
+                ),
+                "required_fix": "Choose a target with a remaining grounding conflict or an over-escalated confirmed concern.",
+                "recovery_target_commit_allowed": False,
+            }
+        )
+        return merged
     # Capture the pre-mutation status so we can emit a structured revision
     # event after a successful commit.  Without this, the env-level
     # ``revision_log`` diff-tracker treats every recovery commit as a

@@ -3,7 +3,11 @@ import pytest
 
 from agent_system.environments.env_package.review.recovery_patch import parse_recovery_payload
 from agent_system.environments.env_package.review.recovery_validator import validate_recovery_patch
-from agent_system.environments.env_package.review.state import build_decision_hygiene_view, merge_review_state
+from agent_system.environments.env_package.review.state import (
+    _build_recovery_state_delta,
+    build_decision_hygiene_view,
+    merge_review_state,
+)
 
 
 @pytest.fixture
@@ -900,6 +904,114 @@ def test_recovery_patch_revision_log_supports_flaw_downgrade(mock_state):
         and event.get("reason") == "recovery_patch_committed"
         for event in new_events
     ), f"missing recovery revision event: {new_events!r}"
+
+
+def test_recovery_delta_counts_negative_grounding_cleanup_as_effective_route_to_limitation():
+    before = {
+        "claims": [{"claim_id": "c1", "claim": "The method improves accuracy.", "status": "supported"}],
+        "evidence_map": [
+            {
+                "evidence_id": "e-negative",
+                "claim_id": "c1",
+                "evidence": "A limitation quote.",
+                "raw_quote": "A limitation quote.",
+                "stance": "missing",
+                "strength": "missing",
+                "source": "quote-bank-negative-grounding",
+                "negative_evidence_type": "scope_limitation",
+            }
+        ],
+        "flaw_candidates": [
+            {
+                "flaw_id": "f1",
+                "status": "candidate",
+                "flaw": "Potential limitation.",
+                "severity": "minor",
+                "related_claim_ids": ["c1"],
+                "evidence_ids": ["e-negative"],
+                "negative_evidence_ids": ["e-negative"],
+                "source": "quote-bank-negative-grounding",
+                "negative_evidence_type": "scope_limitation",
+            }
+        ],
+        "evidence_gaps": [],
+        "unresolved_questions": [],
+        "conflict_notes": [],
+    }
+    after = copy.deepcopy(before)
+    after["flaw_candidates"][0]["status"] = "downgraded"
+
+    delta = _build_recovery_state_delta(before, after)
+
+    assert delta["delta"]["negative_grounding_conflict_count"] == -1
+    assert delta["delta"]["assessment_limitation_flaw_count"] == 1
+    assert delta["tolerated_worsened_keys"] == ["assessment_limitation_flaw_count"]
+    assert delta["worsened_keys"] == []
+    assert delta["consistency_improved"] is True
+
+
+def test_recovery_patch_blocks_no_effect_assessment_limitation_downgrade():
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-paper-fallback-1",
+                "claim": "Paper-salvaged fallback claim.",
+                "status": "supported",
+                "claim_kind": "paper_extracted",
+                "claim_origin_kind": "raw_salvaged_claim_agent_output",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "e-negative-scope",
+                "claim_id": "claim-paper-fallback-1",
+                "evidence": "The comparison table is only contextual and does not contest a real claim.",
+                "raw_quote": "The comparison table is only contextual and does not contest a real claim.",
+                "stance": "missing",
+                "strength": "missing",
+                "source": "quote-bank-negative-grounding",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_negative_verified",
+                "negative_evidence_type": "scope_limitation",
+            }
+        ],
+        "flaw_candidates": [
+            {
+                "flaw_id": "f-scope",
+                "status": "candidate",
+                "title": "Scope limitation",
+                "description": "Scope limitation",
+                "severity": "minor",
+                "related_claim_ids": ["claim-paper-fallback-1"],
+                "evidence_ids": ["e-negative-scope"],
+                "negative_evidence_ids": ["e-negative-scope"],
+                "source": "quote-bank-negative-grounding",
+                "negative_evidence_type": "scope_limitation",
+                "grounding_status": "grounded_candidate",
+            }
+        ],
+        "evidence_gaps": [],
+        "unresolved_questions": [],
+        "conflict_notes": [],
+    }
+
+    new_state = merge_review_state(
+        state,
+        {
+            "action": "apply_recovery_patch",
+            "target_type": "flaw",
+            "target_id": "f-scope",
+            "old_status": "candidate",
+            "new_status": "downgraded",
+            "supporting_evidence_ids": ["e-negative-scope"],
+        },
+    )
+
+    patch_log = new_state["_latest_patch_log"]
+    assert new_state["flaw_candidates"][0]["status"] == "candidate"
+    assert patch_log["recovery_committed"] is False
+    assert patch_log["recovery_failure_code"] == "BLOCKED_BY_POLICY"
+    assert patch_log["recovery_patch_operation"] == "reject_patch"
 
 
 def test_recovery_patch_can_deescalate_confirmed_flaw_to_candidate(mock_state):

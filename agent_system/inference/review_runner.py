@@ -1000,6 +1000,35 @@ def _apply_recovery_phase_protocol(
             normalized["policy_source"] = "mode_action_guard"
 
     if str(normalized.get("policy_source") or "") == "recovery_target_exhausted_override":
+        support_recheck_claim_ids: List[str] = []
+        try:
+            support_recheck_claim_ids = _claims_without_real_strong_support(state)[:2]
+        except Exception:
+            support_recheck_claim_ids = []
+        if support_recheck_claim_ids and "request_evidence_recheck" in allowed_actions:
+            normalized["phase"] = "normal_review"
+            normalized["phase_enter_reason"] = ""
+            normalized["phase_hold_reason"] = ""
+            normalized["phase_exit_reason"] = normalized.get("phase_exit_reason") or "Recovery phase exited because no verified-negative real target remains."
+            normalized["decision"] = "continue"
+            normalized["action_type"] = "request_evidence_recheck"
+            normalized["effective_action_type"] = "request_evidence_recheck"
+            normalized["turn_mode"] = "normal_evidence"
+            normalized["recovery_patch_mode_entered"] = False
+            normalized["finalize_blocked_by_phase"] = False
+            normalized["selected_agents"] = [agent for agent in ["Evidence Agent"] if agent in worker_ids][:worker_limit] or list(worker_ids[:1])
+            normalized["target_claim_ids"] = support_recheck_claim_ids
+            normalized["target_flaw_ids"] = []
+            normalized["target_hypotheses"] = []
+            normalized["policy_source"] = "recovery_target_exhausted_evidence_recheck_override"
+            notes = list(normalized.get("policy_notes", []))
+            notes.append("Recovery target was exhausted, so the remaining turn was routed to evidence recheck for claims without real-strong support instead of an empty summary.")
+            normalized["policy_notes"] = list(dict.fromkeys(notes))[:8]
+            if not normalized.get("focus"):
+                normalized["focus"] = "Ground claims that still lack real-strong paper support after recovery target exhaustion."
+            if not int(normalized.get("phase_turn_index") or 0):
+                normalized["phase_turn_index"] = max(1, int(state.get("phase_turn_index", 0) or 0))
+            return _apply_turn_mode(normalized)
         normalized["phase"] = "normal_review"
         normalized["phase_enter_reason"] = ""
         normalized["phase_hold_reason"] = ""
@@ -2801,6 +2830,27 @@ def _fallback_critique_blocked_payload(reason: str) -> Dict[str, Any]:
     )
 
 
+def _decision_view_flaw_layer_and_conflict(state: Dict[str, Any], flaw_id: str) -> tuple[str, bool]:
+    target = str(flaw_id or "").strip()
+    if not target:
+        return "", False
+    try:
+        import copy as _copy
+
+        view_state = _copy.deepcopy(state or {})
+        view_state.pop("decision_hygiene", None)
+        view = build_decision_hygiene_view(view_state)
+    except Exception:
+        return "", False
+    for flaw in view.get("flaw_candidates", []) or []:
+        if not isinstance(flaw, dict) or str(flaw.get("flaw_id") or "").strip() != target:
+            continue
+        layer = str(flaw.get("final_view_flaw_layer") or "").strip()
+        conflicts = flaw.get("hygiene_negative_grounding_conflicts") or []
+        return layer, bool(conflicts)
+    return "", False
+
+
 def _fallback_recovery_patch_payload(state: Dict[str, Any], manager_payload: Dict[str, Any]) -> Dict[str, Any]:
     target_claim_ids = manager_payload.get("target_claim_ids", [])
     target_flaw_ids = manager_payload.get("target_flaw_ids", [])
@@ -2878,6 +2928,20 @@ def _fallback_recovery_patch_payload(state: Dict[str, Any], manager_payload: Dic
             quote_bank_only=True,
         )
         if verified_quote_bank_negative_ids:
+            layer, has_negative_grounding_conflict = _decision_view_flaw_layer_and_conflict(state, flaw_id)
+            if layer == "assessment_limitation" and not has_negative_grounding_conflict:
+                return normalize_review_update_payload(
+                    {
+                        "action": "blocked",
+                        "target_type": "flaw",
+                        "target_id": flaw_id,
+                        "blocked_reason": (
+                            "Target flaw is already represented as an assessment limitation in the decision view; "
+                            "downgrading its raw candidate status would be a no-effect recovery patch."
+                        ),
+                        "missing_requirements": ["remaining negative grounding conflict or over-escalated concern status"],
+                    }
+                )
             return normalize_review_update_payload(
                 {
                     "action": "apply_recovery_patch",
@@ -3246,11 +3310,16 @@ def _maybe_salvage_recovery_payload(
         return worker_payload
     if agent_id != "Critique Agent" or action_type != "challenge_previous_hypothesis":
         return worker_payload
-    if worker_payload.get("action") != "blocked":
+    if worker_payload.get("action") not in {"blocked", ""}:
+        return worker_payload
+    if worker_payload.get("action") == "" and not worker_payload.get("_emission_failure_code"):
         return worker_payload
     salvaged = _fallback_recovery_patch_payload(state, manager_payload)
     if salvaged.get("action") == "apply_recovery_patch":
         salvaged["_recovery_patch_source"] = "system_salvaged"
+        return salvaged
+    if salvaged.get("action") == "blocked":
+        salvaged["_recovery_patch_source"] = salvaged.get("_recovery_patch_source") or "system_salvaged_blocked"
         return salvaged
     return worker_payload
 
@@ -3298,6 +3367,8 @@ def _build_verified_negative_claim_recovery_patch(
     }
     for claim_id, evidence_id in _recovery_verified_negative_claim_pairs(state, manager_payload):
         claim = claim_lookup.get(claim_id)
+        if not _is_recovery_claim_status_target(claim or {}):
+            continue
         old_status = str((claim or {}).get("status") or "uncertain").strip().lower()
         if old_status not in {"supported", "partially_supported", "uncertain"}:
             continue

@@ -3578,6 +3578,71 @@ def test_decision_hygiene_emits_state_contamination_targets_and_gate_counts():
     assert all(item.get("target_gate_label") for item in hygiene["state_contamination_targets"])
 
 
+def test_decision_hygiene_does_not_count_minor_assessment_limitation_as_overclaim():
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The method improves benchmark performance.",
+                "status": "supported",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "e-support",
+                "claim_id": "claim-1",
+                "evidence": "Table 2 reports higher benchmark performance.",
+                "raw_quote": "Table 2 reports higher benchmark performance.",
+                "source": "Table 2",
+                "strength": "strong",
+                "stance": "supports",
+                "binding_status": "bound_real_claim",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_support_verified",
+                "semantic_alignment_score": 0.82,
+            },
+            {
+                "evidence_id": "e-limitation",
+                "claim_id": "claim-1",
+                "evidence": "The authors list a limitation for future broader evaluation.",
+                "raw_quote": "The authors list a limitation for future broader evaluation.",
+                "source": "Limitations",
+                "strength": "missing",
+                "stance": "missing",
+                "binding_status": "bound_real_claim",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_negative_verified",
+                "negative_evidence_type": "scope_limitation",
+            },
+        ],
+        "flaw_candidates": [
+            {
+                "flaw_id": "flaw-limitation",
+                "title": "Scope limitation",
+                "description": "A scoped limitation should remain an assessment limitation.",
+                "severity": "minor",
+                "status": "candidate",
+                "related_claim_ids": ["claim-1"],
+                "evidence_ids": ["e-limitation"],
+                "negative_evidence_ids": ["e-limitation"],
+                "source": "quote-bank-negative-grounding",
+            }
+        ],
+        "evidence_gaps": [],
+        "unresolved_questions": [],
+        "conflict_notes": [],
+    }
+
+    view = build_decision_hygiene_view(state)
+    hygiene = view["decision_hygiene"]
+    flaw = view["flaw_candidates"][0]
+
+    assert flaw["final_view_flaw_layer"] == "assessment_limitation"
+    assert hygiene["assessment_limitation_flaw_count"] == 1
+    assert hygiene["state_contamination_type_counts"].get("negative_evidence_overclaim", 0) == 0
+    assert hygiene["state_contamination_count"] == 0
+
+
 def test_decision_hygiene_localizes_zero_real_support_as_review_target():
     state = {
         "paper_id": "paper-zero-real",
