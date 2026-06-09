@@ -1061,6 +1061,10 @@ def test_recovery_patch_blocks_actionable_candidate_to_assessment_limitation(moc
 
     assert new_state["_latest_patch_log"]["recovery_committed"] is False
     assert new_state["_latest_patch_log"]["recovery_failure_code"] == "ACTIONABLE_CONCERN_PRESERVED"
+    assert new_state["_latest_patch_log"]["recovery_target_gate_label"] == "negative_verified_target"
+    assert new_state["_latest_patch_log"]["recovery_terminal"] is True
+    assert new_state["_latest_patch_log"]["recovery_terminal_reason"] == "verified_actionable_negative_concern_preserved"
+    assert new_state["_latest_patch_log"]["recovery_repeat_allowed"] is False
     assert new_state["flaw_candidates"][0]["status"] == "candidate"
 
 

@@ -4796,6 +4796,23 @@ def test_final_view_routes_actionable_negative_candidate_to_potential_concern():
     assert dh["negative_evidence_type_counts"] == {"negative_result": 1}
 
 
+def test_potential_concern_text_includes_verified_negative_context():
+    state = _negative_type_flaw_state("negative_result", status="candidate", severity="major")
+    state["claims"][0]["claim"] = "The method improves the main benchmark over all baselines."
+    state["evidence_map"][0]["source_locator"] = "Table 2"
+    state["evidence_map"][0]["raw_quote"] = "The method underperforms the strongest baseline on the main benchmark."
+
+    view = build_decision_hygiene_view(state)
+    concerns = _render_potential_concerns(view)
+
+    assert concerns
+    line = concerns[0]
+    assert "The method improves the main benchmark over all baselines." in line
+    assert "The method underperforms the strongest baseline" in line
+    assert "negative type: negative result" in line
+    assert "review implication" in line
+
+
 def test_final_view_does_not_hide_verified_actionable_fallback_flaw():
     state = _negative_type_flaw_state("negative_result", status="candidate", severity="major")
     state["flaw_candidates"][0]["source"] = "fallback-extraction"

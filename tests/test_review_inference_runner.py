@@ -1644,6 +1644,65 @@ def test_fallback_recovery_patch_pattern_a_preserves_actionable_quote_bank_candi
     assert "No grounded contradictory evidence" in payload["blocked_reason"]
 
 
+def test_fallback_recovery_patch_marks_targeted_protected_concern_terminal():
+    state = _build_pattern_a_state()
+    state["evidence_map"][1]["negative_evidence_type"] = "negative_result"
+    state["evidence_map"][1]["raw_quote"] = "The proposed model performs worse than the baseline on the main benchmark."
+
+    payload = _fallback_recovery_patch_payload(
+        state,
+        {
+            "action_type": "challenge_previous_hypothesis",
+            "effective_action_type": "challenge_previous_hypothesis",
+            "target_claim_ids": ["claim-main"],
+            "target_flaw_ids": ["flaw-quote-bank-1"],
+            "target_evidence_ids": [],
+        },
+    )
+
+    assert payload["action"] == "blocked"
+    assert payload["target_type"] == "flaw"
+    assert payload["target_id"] == "flaw-quote-bank-1"
+    assert payload["recovery_terminal"] is True
+    assert payload["recovery_terminal_reason"] == "verified_actionable_negative_concern_preserved"
+    assert payload["recovery_repeat_allowed"] is False
+
+
+def test_recovery_targeting_skips_terminal_protected_concern():
+    from agent_system.inference import review_runner as _rr
+
+    state = _build_pattern_a_state()
+    state["evidence_map"][1]["negative_evidence_type"] = "negative_result"
+    state["evidence_map"][1]["raw_quote"] = "The proposed model performs worse than the baseline on the main benchmark."
+    recent_turn_logs = [
+        {
+            "effective_action_type": "challenge_previous_hypothesis",
+            "recovery_target_type": "flaw",
+            "recovery_target_id": "flaw-quote-bank-1",
+            "recovery_terminal": True,
+            "recovery_terminal_reason": "verified_actionable_negative_concern_preserved",
+            "recovery_repeat_allowed": False,
+        }
+    ]
+
+    assert _rr._recovery_candidate_flaw_ids(state, recent_turn_logs) == []
+
+    payload = _ensure_recovery_targets(
+        {
+            "action_type": "challenge_previous_hypothesis",
+            "target_claim_ids": [],
+            "target_flaw_ids": ["flaw-quote-bank-1"],
+            "target_evidence_ids": [],
+        },
+        state,
+        "s4",
+        "challenge_previous_hypothesis",
+        recent_turn_logs,
+    )
+
+    assert payload.get("target_flaw_ids", []) == []
+
+
 def test_fallback_recovery_patch_marks_real_claim_contested_from_allowed_actionable_negative():
     state = _build_pattern_a_state()
     state["evidence_map"][1]["negative_evidence_type"] = "negative_result"

@@ -200,15 +200,29 @@ def _row_has_clean_state(row: Dict[str, Any]) -> bool:
     return int(hygiene.get("state_contamination_count") or 0) == 0 and int(hygiene.get("harmful_state_contamination_count") or 0) == 0
 
 
+def _turn_is_safe_terminal_block(tl: Dict[str, Any]) -> bool:
+    return bool(
+        tl.get("recovery_terminal")
+        and tl.get("recovery_repeat_allowed") is False
+        and tl.get("recovery_target_gate_label") == "negative_verified_target"
+        and tl.get("recovery_patch_operation") == "reject_patch"
+        and tl.get("recovery_failure_code") in {"BLOCKED_BY_POLICY", "ACTIONABLE_CONCERN_PRESERVED"}
+    )
+
+
+def _turn_is_safe_weak_block(tl: Dict[str, Any]) -> bool:
+    return bool(
+        tl.get("recovery_failure_code") in {"BLOCKED_BY_POLICY", "INSUFFICIENT_EVIDENCE", "SEMANTIC_MISMATCH", "EVIDENCE_SEMANTIC_MISMATCH"}
+        and tl.get("recovery_target_gate_label") == "weak_target"
+        and tl.get("recovery_patch_operation") == "reject_patch"
+    )
+
+
 def _row_has_safe_block(row: Dict[str, Any]) -> bool:
     for tl in row.get("turn_logs") or []:
         if not isinstance(tl, dict):
             continue
-        if (
-            tl.get("recovery_failure_code") in {"BLOCKED_BY_POLICY", "INSUFFICIENT_EVIDENCE", "SEMANTIC_MISMATCH", "EVIDENCE_SEMANTIC_MISMATCH"}
-            and tl.get("recovery_target_gate_label") == "weak_target"
-            and tl.get("recovery_patch_operation") == "reject_patch"
-        ):
+        if _turn_is_safe_weak_block(tl) or _turn_is_safe_terminal_block(tl):
             return True
     return False
 
@@ -774,6 +788,10 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
                 rec["recovery_harmful_commit_risk"] += 1
             if tl.get("recovery_committed"):
                 rec["recovery_committed"] += 1
+            if tl.get("recovery_terminal"):
+                rec["recovery_terminal_turns"] += 1
+            if tl.get("recovery_repeat_allowed") is False:
+                rec["recovery_repeat_allowed_false_turns"] += 1
             gate_label = str(tl.get("recovery_target_gate_label") or "")
             if gate_label:
                 rec[f"recovery_target_gate_{gate_label}_turns"] += 1
@@ -785,12 +803,10 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
                 failure_codes[code] += 1
                 if code == "SUCCESS":
                     rec["recovery_success"] += 1
-                elif (
-                    code in {"BLOCKED_BY_POLICY", "INSUFFICIENT_EVIDENCE", "SEMANTIC_MISMATCH", "EVIDENCE_SEMANTIC_MISMATCH"}
-                    and gate_label == "weak_target"
-                    and operation == "reject_patch"
-                ):
+                elif _turn_is_safe_weak_block(tl):
                     rec["recovery_safe_blocked_weak_target"] += 1
+                elif _turn_is_safe_terminal_block(tl):
+                    rec["recovery_safe_blocked_terminal_target"] += 1
             # synthetic marker pollution check on patch supporting_evidence_ids
             sup_ids = tl.get("supporting_evidence_ids") or []
             for sid in sup_ids:
@@ -807,8 +823,19 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     out["recovery_no_effect_commit"] = rec["recovery_no_effect_commit"]
     out["recovery_harmful_commit_risk"] = rec["recovery_harmful_commit_risk"]
     out["recovery_safe_blocked_weak_target"] = rec["recovery_safe_blocked_weak_target"]
-    out["recovery_safe_resolution"] = rec["recovery_success"] + rec["recovery_safe_blocked_weak_target"]
-    out["hygiene_delta_or_safe_block"] = rec["hygiene_delta_improved"] + rec["recovery_safe_blocked_weak_target"]
+    out["recovery_safe_blocked_terminal_target"] = rec["recovery_safe_blocked_terminal_target"]
+    out["recovery_terminal_turns"] = rec["recovery_terminal_turns"]
+    out["recovery_repeat_allowed_false_turns"] = rec["recovery_repeat_allowed_false_turns"]
+    out["recovery_safe_resolution"] = (
+        rec["recovery_success"]
+        + rec["recovery_safe_blocked_weak_target"]
+        + rec["recovery_safe_blocked_terminal_target"]
+    )
+    out["hygiene_delta_or_safe_block"] = (
+        rec["hygiene_delta_improved"]
+        + rec["recovery_safe_blocked_weak_target"]
+        + rec["recovery_safe_blocked_terminal_target"]
+    )
     # Protection thresholds are paper-scaled, so clean/safe/hygiene credit must
     # be case-level rather than turn-level.  The old aggregate only granted
     # clean-state credit when the entire run had zero contamination, which made
@@ -821,7 +848,7 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
         1 for row in rows
         if _row_has_clean_state(row) or _row_has_hygiene_delta(row) or _row_has_safe_block(row)
     )
-    for gate_label in ("real_target", "weak_target", "fallback_target", "empty_target"):
+    for gate_label in ("real_target", "negative_verified_target", "weak_target", "fallback_target", "empty_target"):
         out[f"recovery_target_gate_{gate_label}_turns"] = rec[f"recovery_target_gate_{gate_label}_turns"]
     for operation in (
         "reject_patch",
@@ -913,9 +940,7 @@ def _case_audit(rows: List[Dict[str, Any]], metrics: Dict[str, Any], issues: Lis
 
         safe_block_turns = [
             tl for tl in turns
-            if tl.get("recovery_failure_code") in {"BLOCKED_BY_POLICY", "INSUFFICIENT_EVIDENCE", "SEMANTIC_MISMATCH", "EVIDENCE_SEMANTIC_MISMATCH"}
-            and tl.get("recovery_target_gate_label") == "weak_target"
-            and tl.get("recovery_patch_operation") == "reject_patch"
+            if _turn_is_safe_weak_block(tl) or _turn_is_safe_terminal_block(tl)
         ]
         improved_turns = [
             tl for tl in turns
@@ -1269,7 +1294,11 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "hygiene_delta_or_safe_block",
         "hygiene_delta_or_safe_block_or_clean_state",
         "recovery_safe_blocked_weak_target",
+        "recovery_safe_blocked_terminal_target",
+        "recovery_terminal_turns",
+        "recovery_repeat_allowed_false_turns",
         "recovery_target_gate_real_target_turns",
+        "recovery_target_gate_negative_verified_target_turns",
         "recovery_target_gate_weak_target_turns",
         "recovery_target_gate_fallback_target_turns",
         "recovery_target_gate_empty_target_turns",

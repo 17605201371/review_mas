@@ -52,6 +52,7 @@ RECOVERY_ACTION_TYPES = {"challenge_previous_hypothesis", "request_evidence_rech
 RECOVERY_PATCH_ACTION_TYPES = {"challenge_previous_hypothesis"}
 TURN_MODES = {"normal_evidence", "recovery_patch"}
 REVIEW_PHASES = {"normal_review", "recovery"}
+PROTECTED_POTENTIAL_CONCERN_TERMINAL_REASON = "verified_actionable_negative_concern_preserved"
 
 ENABLE_EVIDENCE_ID_COLLISION_PRESERVATION = False
 
@@ -5093,6 +5094,12 @@ def normalize_review_update_payload(payload: Any, required_fields: Optional[Iter
         "blocked_reason": _normalize_text(payload.get("blocked_reason")),
         "missing_requirements": _normalize_list_of_strings(payload.get("missing_requirements")),
         "_recovery_patch_source": _normalize_text(payload.get("_recovery_patch_source"), max_length=40),
+        "recovery_terminal": bool(payload.get("recovery_terminal") or payload.get("terminal_recovery_block")),
+        "recovery_terminal_reason": _normalize_text(
+            payload.get("recovery_terminal_reason") or payload.get("terminal_recovery_reason"),
+            max_length=120,
+        ),
+        "recovery_repeat_allowed": bool(payload.get("recovery_repeat_allowed", True)),
         "_emission_failure_code": _normalize_text(payload.get("_emission_failure_code"), max_length=80),
         "_emission_failure_message": _normalize_text(payload.get("_emission_failure_message"), max_length=240),
         "evidence_id_scope_turn": evidence_id_scope_turn,
@@ -5695,6 +5702,21 @@ def _recovery_patch_target_gate_label(parsed_patch: Dict[str, Any], validation: 
     target_id = str(validation.get("target_id") or parsed_patch.get("target_id") or "")
     if not target_id:
         return "empty_target"
+    raw_payload = parsed_patch.get("raw_payload") or {}
+    terminal_reason = str(
+        parsed_patch.get("recovery_terminal_reason")
+        or raw_payload.get("recovery_terminal_reason")
+        or raw_payload.get("terminal_recovery_reason")
+        or ""
+    ).strip()
+    if (
+        target_type == "flaw"
+        and (
+            validation.get("failure_code") == "ACTIONABLE_CONCERN_PRESERVED"
+            or terminal_reason == PROTECTED_POTENTIAL_CONCERN_TERMINAL_REASON
+        )
+    ):
+        return "negative_verified_target"
     if validation.get("failure_code") in {"UNKNOWN_TARGET", "MISSING_TARGET_ID"}:
         confidence = 0.2
         repairability = "none"
@@ -5718,6 +5740,21 @@ def _build_recovery_patch_log(parsed_patch: Dict[str, Any], validation: Dict[str
     patch_validated = bool(validation.get("validated", False)) and not blocked
     operation = _recovery_patch_operation(parsed_patch, validation)
     target_gate_label = _recovery_patch_target_gate_label(parsed_patch, validation)
+    raw_payload = parsed_patch.get("raw_payload") or {}
+    failure_message = str(validation.get("failure_message") or "")
+    terminal_reason = str(
+        parsed_patch.get("recovery_terminal_reason")
+        or raw_payload.get("recovery_terminal_reason")
+        or raw_payload.get("terminal_recovery_reason")
+        or ""
+    ).strip()
+    recovery_terminal = bool(parsed_patch.get("recovery_terminal") or raw_payload.get("recovery_terminal") or raw_payload.get("terminal_recovery_block"))
+    if failure_code == "ACTIONABLE_CONCERN_PRESERVED" or "final potential concern" in failure_message.lower():
+        recovery_terminal = True
+        terminal_reason = terminal_reason or PROTECTED_POTENTIAL_CONCERN_TERMINAL_REASON
+    repeat_allowed = bool(parsed_patch.get("recovery_repeat_allowed", raw_payload.get("recovery_repeat_allowed", True)))
+    if recovery_terminal:
+        repeat_allowed = False
     return {
         "recovery_attempted": parsed_patch.get("is_recovery_payload", False),
         "recovery_validated": patch_validated,
@@ -5727,7 +5764,7 @@ def _build_recovery_patch_log(parsed_patch: Dict[str, Any], validation: Dict[str
         "recovery_target_gate_label": target_gate_label,
         "recovery_target_commit_allowed": bool(target_gate_label == "real_target" and validation.get("commit_allowed", False)),
         "recovery_failure_code": failure_code,
-        "recovery_failure_message": validation.get("failure_message", ""),
+        "recovery_failure_message": failure_message,
         "recovery_target_type": validation.get("target_type") or parsed_patch.get("target_type", ""),
         "recovery_target_id": validation.get("target_id") or parsed_patch.get("target_id", ""),
         "old_status": validation.get("old_status") or parsed_patch.get("old_status", ""),
@@ -5742,6 +5779,9 @@ def _build_recovery_patch_log(parsed_patch: Dict[str, Any], validation: Dict[str
         "required_fix": validation.get("required_fix", ""),
         "missing_requirements": list(validation.get("missing_requirements", parsed_patch.get("missing_requirements", [])) or []),
         "recovery_patch_source": parsed_patch.get("recovery_patch_source", "none"),
+        "recovery_terminal": recovery_terminal,
+        "recovery_terminal_reason": terminal_reason,
+        "recovery_repeat_allowed": repeat_allowed,
         "recovery_state_delta": {},
         "recovery_consistency_improved": False,
         "negative_recovery_commit": False,
@@ -8575,6 +8615,85 @@ def _render_assessment_limitation_flaws(state: Dict[str, Any]) -> List[str]:
     return items
 
 
+def _claim_text_for_flaw(flaw: Dict[str, Any], state: Dict[str, Any]) -> str:
+    related_ids = [str(item).strip() for item in (flaw or {}).get("related_claim_ids") or [] if str(item).strip()]
+    if not related_ids:
+        return ""
+    for claim in state.get("claims", []) or []:
+        if not isinstance(claim, dict):
+            continue
+        claim_id = str(claim.get("claim_id") or "").strip()
+        if claim_id in related_ids:
+            return _normalize_text(claim.get("claim") or claim.get("text"), max_length=180)
+    return ""
+
+
+def _readable_negative_evidence_type(negative_type: str) -> str:
+    value = str(negative_type or "").strip()
+    if not value:
+        return "negative evidence"
+    return value.replace("_", " ")
+
+
+def _negative_evidence_weakened_dimension(negative_type: str, text: str) -> str:
+    value = str(negative_type or "").strip()
+    if value in {"missing_ablation", "missing_baseline", "insufficient_evaluation", "negative_result"}:
+        return "the empirical support for the claim"
+    if value == "direct_contradiction":
+        return "the claim's stated conclusion"
+    if value == "reproducibility_gap":
+        return "the reproducibility or implementation support"
+    if value == "scope_limitation":
+        return "the scope of the claim"
+    lowered = str(text or "").lower()
+    if any(token in lowered for token in ("table", "figure", "baseline", "ablation", "benchmark", "evaluation", "result")):
+        return "the empirical support for the claim"
+    if any(token in lowered for token in ("method", "algorithm", "architecture", "framework")):
+        return "the method claim"
+    return "the strength or scope of the claim"
+
+
+def _render_verified_negative_concern_line(
+    flaw: Dict[str, Any],
+    state: Dict[str, Any],
+    *,
+    flaw_status: str,
+    fallback_title: str,
+    fallback_description: str,
+) -> str:
+    by_id = _evidence_records_by_id(state)
+    negative_ids = _verified_actionable_negative_evidence_ids_for_flaw(flaw, state)
+    if not negative_ids:
+        return ""
+    record = next((by_id.get(eid) for eid in negative_ids if isinstance(by_id.get(eid), dict)), None)
+    if not isinstance(record, dict):
+        return ""
+    claim_text = _claim_text_for_flaw(flaw, state)
+    if not claim_text:
+        claim_id = str(record.get("claim_id") or "").strip()
+        for claim in state.get("claims", []) or []:
+            if isinstance(claim, dict) and str(claim.get("claim_id") or "").strip() == claim_id:
+                claim_text = _normalize_text(claim.get("claim") or claim.get("text"), max_length=180)
+                break
+    quote = _normalize_text(record.get("raw_quote") or record.get("evidence"), max_length=240)
+    locator = _normalize_text(record.get("source_locator") or record.get("source"), max_length=100)
+    negative_type = _negative_evidence_type_for_record(record)
+    readable_type = _readable_negative_evidence_type(negative_type)
+    dimension = _negative_evidence_weakened_dimension(
+        negative_type,
+        " ".join([quote, fallback_title, fallback_description]),
+    )
+    parts = [f"[{flaw_status}] Verified negative concern"]
+    if claim_text:
+        parts.append(f"targeting claim: {claim_text}")
+    if quote:
+        quote_prefix = f"{locator} reports" if locator else "paper quote reports"
+        parts.append(f"{quote_prefix}: {quote}")
+    parts.append(f"negative type: {readable_type}")
+    parts.append(f"review implication: this weakens {dimension} without by itself invalidating the whole paper")
+    return "; ".join(parts)
+
+
 def _render_potential_concerns(state: Dict[str, Any]) -> List[str]:
     """Return active flaws that did not pass the grounded-weakness bar.
 
@@ -8611,7 +8730,15 @@ def _render_potential_concerns(state: Dict[str, Any]) -> List[str]:
         )
         if not title and not description:
             continue
-        line = f"[{flaw_status}] {title}: {description}".strip()
+        line = _render_verified_negative_concern_line(
+            flaw,
+            state,
+            flaw_status=str(flaw_status),
+            fallback_title=title,
+            fallback_description=description,
+        ) if verified_actionable_negative else ""
+        if not line:
+            line = f"[{flaw_status}] {title}: {description}".strip()
         key = line.lower()
         if key in seen:
             continue
@@ -10072,6 +10199,9 @@ def build_turn_log(
         ),
         "resolved_conflict_count": turn_patch_log.get("resolved_conflict_count", 0),
         "recovery_patch_source": recovery_patch_source,
+        "recovery_terminal": bool(turn_patch_log.get("recovery_terminal", False)),
+        "recovery_terminal_reason": turn_patch_log.get("recovery_terminal_reason", ""),
+        "recovery_repeat_allowed": bool(turn_patch_log.get("recovery_repeat_allowed", True)),
         "sticky_target_id": state.get("sticky_target_id", ""),
         "sticky_target_type": state.get("sticky_target_type", ""),
         "sticky_target_active": bool(state.get("sticky_target_active", False)),

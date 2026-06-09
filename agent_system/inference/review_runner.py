@@ -392,6 +392,11 @@ _NEGATIVE_QUOTE_ANCHOR_RE = re.compile(
 _ACTIONABLE_NEGATIVE_EVIDENCE_TYPES = frozenset(
     {"direct_contradiction", "negative_result", "missing_ablation", "missing_baseline", "insufficient_evaluation"}
 )
+_PROTECTED_POTENTIAL_CONCERN_TERMINAL_REASON = "verified_actionable_negative_concern_preserved"
+_PROTECTED_POTENTIAL_CONCERN_BLOCKED_REASON = (
+    "Target flaw is already a candidate with verified actionable negative evidence; "
+    "leave it as a final potential concern instead of routing it to an assessment limitation."
+)
 
 
 def _negative_quote_entry_type(entry: Dict[str, Any]) -> str:
@@ -414,6 +419,16 @@ def _negative_evidence_record_type(item: Dict[str, Any]) -> str:
 
 def _negative_evidence_record_is_actionable(item: Dict[str, Any]) -> bool:
     return _negative_evidence_record_type(item) in _ACTIONABLE_NEGATIVE_EVIDENCE_TYPES
+
+
+def _readable_negative_type_for_runner(negative_type: str) -> str:
+    value = str(negative_type or "").strip()
+    return value.replace("_", " ") if value else "negative evidence"
+
+
+def _compact_runner_text(value: str, *, max_length: int) -> str:
+    text = re.sub(r"\s+", " ", str(value or "")).strip()
+    return text[:max_length]
 
 
 def _runner_text_tokens(text: str) -> set[str]:
@@ -557,12 +572,27 @@ def _negative_salvage_target_flaw_updates(
     claim_id: str = "",
     quote_id: str = "",
     negative_evidence_type: str = "generic_gap",
+    claim_text: str = "",
+    raw_quote: str = "",
+    source_locator: str = "",
 ) -> List[Dict[str, Any]]:
     updates: List[Dict[str, Any]] = []
     actionable = negative_evidence_type in _ACTIONABLE_NEGATIVE_EVIDENCE_TYPES
     severity = "major" if actionable else "minor"
     grounding_status = "verified_actionable_candidate" if actionable else "grounded_candidate"
-    if negative_evidence_type == "direct_contradiction":
+    readable_type = _readable_negative_type_for_runner(negative_evidence_type)
+    compact_claim = _compact_runner_text(claim_text, max_length=140)
+    compact_quote = _compact_runner_text(raw_quote, max_length=220)
+    compact_locator = _compact_runner_text(source_locator, max_length=80)
+    if "excerpt" in compact_locator.lower():
+        compact_locator = ""
+    if compact_claim and compact_quote:
+        quote_prefix = f"{compact_locator} reports" if compact_locator else "paper quote reports"
+        flaw_text = (
+            f"Verified {readable_type} against claim '{compact_claim}': "
+            f"{quote_prefix} '{compact_quote}'. Keep as a potential concern unless Critique confirms severity."
+        )
+    elif negative_evidence_type == "direct_contradiction":
         flaw_text = "Verified paper quote appears to contradict or invalidate a target claim; keep as an actionable candidate pending critique confirmation."
     elif negative_evidence_type == "negative_result":
         flaw_text = "Verified paper quote reports a negative or weaker result relevant to the target claim; keep as an actionable candidate pending critique confirmation."
@@ -792,7 +822,51 @@ def _claim_downgrade_patch_from_actionable_flaw(
     return None
 
 
-def _recovery_candidate_flaw_ids(state: Dict[str, Any]) -> List[str]:
+def _protected_potential_concern_blocked_payload(flaw_id: str) -> Dict[str, Any]:
+    payload = normalize_review_update_payload(
+        {
+            "action": "blocked",
+            "target_type": "flaw",
+            "target_id": flaw_id,
+            "blocked_reason": _PROTECTED_POTENTIAL_CONCERN_BLOCKED_REASON,
+            "missing_requirements": ["confirmed flaw status or claim-level downgrade evidence"],
+            "recovery_terminal": True,
+            "recovery_terminal_reason": _PROTECTED_POTENTIAL_CONCERN_TERMINAL_REASON,
+            "recovery_repeat_allowed": False,
+        }
+    )
+    payload["recovery_terminal"] = True
+    payload["recovery_terminal_reason"] = _PROTECTED_POTENTIAL_CONCERN_TERMINAL_REASON
+    payload["recovery_repeat_allowed"] = False
+    return payload
+
+
+def _recent_terminal_recovery_flaw_ids(recent_turn_logs: Optional[Sequence[Dict[str, Any]]], *, window: int = 8) -> set[str]:
+    terminal_ids: set[str] = set()
+    for turn in list(recent_turn_logs or [])[-window:]:
+        target_type = str(turn.get("recovery_target_type") or "").strip().lower()
+        target_id = str(turn.get("recovery_target_id") or "").strip()
+        if target_type != "flaw" or not target_id:
+            continue
+        terminal_reason = str(turn.get("recovery_terminal_reason") or "").strip()
+        failure_code = str(turn.get("recovery_failure_code") or "").strip()
+        blocked_message = str(turn.get("recovery_failure_message") or turn.get("recovery_blocked_by") or "").lower()
+        terminal = bool(turn.get("recovery_terminal"))
+        if (
+            terminal
+            or terminal_reason == _PROTECTED_POTENTIAL_CONCERN_TERMINAL_REASON
+            or failure_code == "ACTIONABLE_CONCERN_PRESERVED"
+            or "final potential concern" in blocked_message
+        ):
+            terminal_ids.add(target_id)
+    return terminal_ids
+
+
+def _recovery_candidate_flaw_ids(
+    state: Dict[str, Any],
+    recent_turn_logs: Optional[Sequence[Dict[str, Any]]] = None,
+) -> List[str]:
+    terminal_flaw_ids = _recent_terminal_recovery_flaw_ids(recent_turn_logs)
     evidence_lookup = {
         str(item.get("evidence_id") or ""): item
         for item in state.get("evidence_map", []) or []
@@ -807,6 +881,8 @@ def _recovery_candidate_flaw_ids(state: Dict[str, Any]) -> List[str]:
         flaw_id = str(flaw.get("flaw_id") or "").strip()
         status = str(flaw.get("status") or "candidate").strip().lower()
         if not flaw_id or status not in {"candidate", "confirmed"}:
+            continue
+        if flaw_id in terminal_flaw_ids:
             continue
         verified_evidence_ids = _flaw_verified_negative_evidence_ids_for_recovery(flaw, evidence_lookup)
         if any(_allows_claim_status_downgrade_from_recovery(evidence_lookup.get(evidence_id, {})) for evidence_id in verified_evidence_ids):
@@ -887,6 +963,13 @@ def _ensure_recovery_targets(
     if recovery_action == "challenge_previous_hypothesis":
         viable_claim_ids = set(_recovery_candidate_claim_ids(state, recovery_action))
         current_claim_ids = [str(item).strip() for item in normalized.get("target_claim_ids", []) or [] if str(item).strip()]
+        terminal_flaw_ids = _recent_terminal_recovery_flaw_ids(recent_turn_logs)
+        if terminal_flaw_ids and normalized.get("target_flaw_ids"):
+            normalized["target_flaw_ids"] = [
+                str(item).strip()
+                for item in normalized.get("target_flaw_ids", []) or []
+                if str(item).strip() and str(item).strip() not in terminal_flaw_ids
+            ]
         if current_claim_ids:
             filtered = [claim_id for claim_id in current_claim_ids if claim_id in viable_claim_ids]
             if filtered:
@@ -922,7 +1005,7 @@ def _ensure_recovery_targets(
         if target_claim_ids:
             normalized["target_claim_ids"] = target_claim_ids
     if recovery_action == "challenge_previous_hypothesis" and not normalized.get("target_flaw_ids"):
-        target_flaw_ids = _recovery_candidate_flaw_ids(state)
+        target_flaw_ids = _recovery_candidate_flaw_ids(state, recent_turn_logs)
         if target_flaw_ids:
             normalized["target_flaw_ids"] = target_flaw_ids
     if recovery_action == "challenge_previous_hypothesis" and not normalized.get("target_evidence_ids"):
@@ -1995,6 +2078,9 @@ def _enforce_negative_evidence_formation_payload(
                 str(salvage.get("claim_id") or ""),
                 str(salvage.get("quote_id") or ""),
                 str(salvage.get("negative_evidence_type") or "generic_gap"),
+                _claim_text_lookup(state).get(str(salvage.get("claim_id") or ""), ""),
+                str(salvage.get("raw_quote") or ""),
+                str(salvage.get("source_locator") or ""),
             )
             if flaw_updates:
                 payload["flaw_candidates"] = list(payload.get("flaw_candidates") or []) + flaw_updates
@@ -2910,18 +2996,7 @@ def _fallback_recovery_patch_payload(state: Dict[str, Any], manager_payload: Dic
                         "confidence": 0.62,
                     }
                 )
-            return normalize_review_update_payload(
-                {
-                    "action": "blocked",
-                    "target_type": "flaw",
-                    "target_id": flaw_id,
-                    "blocked_reason": (
-                        "Target flaw is already a candidate with verified actionable negative evidence; "
-                        "leave it as a final potential concern instead of routing it to an assessment limitation."
-                    ),
-                    "missing_requirements": ["confirmed flaw status or claim-level downgrade evidence"],
-                }
-            )
+            return _protected_potential_concern_blocked_payload(flaw_id)
         verified_quote_bank_negative_ids = _flaw_verified_negative_evidence_ids_for_recovery(
             flaw,
             evidence_lookup,

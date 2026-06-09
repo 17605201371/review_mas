@@ -52,6 +52,7 @@ _HARD_NEGATIVE_DISCOVERY_ELIGIBLE_SOURCES = frozenset(
         "s4_evidence_to_flaw_override",
     }
 )
+_PROTECTED_POTENTIAL_CONCERN_TERMINAL_REASON = "verified_actionable_negative_concern_preserved"
 
 ACTION_TO_WORKERS = {
     "extract_claims": ["Claim Agent"],
@@ -219,6 +220,26 @@ def _recent_negative_binding_retry_evidence_ids(recent_turn_logs: Sequence[Dict[
     return retried
 
 
+def _recent_terminal_recovery_flaw_ids(recent_turn_logs: Optional[Sequence[Dict[str, Any]]], *, window: int = 8) -> set[str]:
+    terminal_ids: set[str] = set()
+    for turn in list(recent_turn_logs or [])[-window:]:
+        target_type = str(turn.get("recovery_target_type") or "").strip().lower()
+        target_id = str(turn.get("recovery_target_id") or "").strip()
+        if target_type != "flaw" or not target_id:
+            continue
+        terminal_reason = str(turn.get("recovery_terminal_reason") or "").strip()
+        failure_code = str(turn.get("recovery_failure_code") or "").strip()
+        blocked_message = str(turn.get("recovery_failure_message") or turn.get("recovery_blocked_by") or "").lower()
+        if (
+            turn.get("recovery_terminal")
+            or terminal_reason == _PROTECTED_POTENTIAL_CONCERN_TERMINAL_REASON
+            or failure_code == "ACTIONABLE_CONCERN_PRESERVED"
+            or "final potential concern" in blocked_message
+        ):
+            terminal_ids.add(target_id)
+    return terminal_ids
+
+
 def _verified_negative_flaw_review_targets(
     state: Dict[str, Any],
     recent_turn_logs: Sequence[Dict[str, Any]],
@@ -226,6 +247,7 @@ def _verified_negative_flaw_review_targets(
     limit: int = 2,
 ) -> Dict[str, List[str]]:
     retried_ids = _recent_negative_binding_retry_evidence_ids(recent_turn_logs)
+    terminal_flaw_ids = _recent_terminal_recovery_flaw_ids(recent_turn_logs)
     evidence_by_id = {
         str(item.get("evidence_id") or ""): item
         for item in state.get("evidence_map", []) or []
@@ -236,6 +258,9 @@ def _verified_negative_flaw_review_targets(
     target_claim_ids: List[str] = []
     for flaw in state.get("flaw_candidates", []) or []:
         if not isinstance(flaw, dict):
+            continue
+        flaw_id = str(flaw.get("flaw_id") or "").strip()
+        if not flaw_id or flaw_id in terminal_flaw_ids:
             continue
         status = str(flaw.get("status") or "candidate").strip().lower()
         if status not in {"candidate", "potential_concern"}:
@@ -258,7 +283,6 @@ def _verified_negative_flaw_review_targets(
                 target_claim_ids.append(claim_id)
         if not verified_ids:
             continue
-        flaw_id = str(flaw.get("flaw_id") or "").strip()
         if flaw_id and flaw_id not in target_flaw_ids:
             target_flaw_ids.append(flaw_id)
         for evidence_id in verified_ids:
@@ -421,6 +445,7 @@ def _unverified_flaw_negative_evidence_targets(
     max_retry_per_flaw: int = 1,
 ) -> Dict[str, List[str]]:
     retry_counts = _recent_negative_evidence_formation_flaw_counts(recent_turn_logs)
+    terminal_flaw_ids = _recent_terminal_recovery_flaw_ids(recent_turn_logs)
     evidence_lookup = {
         str(item.get("evidence_id") or "").strip(): item
         for item in state.get("evidence_map", []) or []
@@ -435,6 +460,8 @@ def _unverified_flaw_negative_evidence_targets(
         flaw_id = str(flaw.get("flaw_id") or "").strip()
         status = str(flaw.get("status") or "candidate").strip().lower()
         if not flaw_id or status not in _ACTIVE_FLAW_STATUSES:
+            continue
+        if flaw_id in terminal_flaw_ids:
             continue
         if retry_counts.get(flaw_id, 0) >= max_retry_per_flaw:
             continue
@@ -795,6 +822,7 @@ def _sanitize_targets_for_action(
     action_type: str,
     payload: Dict[str, Any],
     inferred: Dict[str, Any],
+    recent_turn_logs: Optional[Sequence[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     claims = state.get("claims", []) or []
     flaws = state.get("flaw_candidates", []) or []
@@ -813,23 +841,29 @@ def _sanitize_targets_for_action(
     target_flaw_ids = list(payload.get("target_flaw_ids") or inferred.get("target_flaw_ids") or [])
 
     if action_type == "challenge_previous_hypothesis":
+        terminal_flaw_ids = _recent_terminal_recovery_flaw_ids(recent_turn_logs)
         target_claim_ids = _recovery_ready_claim_ids(state, target_claim_ids, limit=2)
         if not target_claim_ids:
             target_claim_ids = _verified_negative_recovery_claim_ids(state, limit=2)
 
         target_flaw_ids = [
             fid for fid in target_flaw_ids
-            if flaw_lookup.get(fid) in _ACTIVE_FLAW_STATUSES
+            if flaw_lookup.get(fid) in _ACTIVE_FLAW_STATUSES and fid not in terminal_flaw_ids
         ]
         for fid in _active_unverified_flaw_ids(state, limit=2):
+            if fid in terminal_flaw_ids:
+                continue
             if fid not in target_flaw_ids:
                 target_flaw_ids.append(fid)
         if not target_claim_ids and not target_flaw_ids:
-            target_flaw_ids = _flaw_ids_by_status(
-                flaws,
-                include=_ACTIVE_FLAW_STATUSES,
-                limit=2,
-            )
+            target_flaw_ids = [
+                fid for fid in _flaw_ids_by_status(
+                    flaws,
+                    include=_ACTIVE_FLAW_STATUSES,
+                    limit=2,
+                )
+                if fid not in terminal_flaw_ids
+            ]
     elif action_type in {"verify_evidence", "request_evidence_recheck", "analyze_flaws"}:
         require_real_claim = action_type in {"request_evidence_recheck", "analyze_flaws"}
         target_claim_ids = [
@@ -2364,7 +2398,7 @@ def apply_manager_policy_fallback(
     payload["fallback_target_present"] = bool(payload["fallback_claim_ids_used"] or payload["fallback_evidence_ids_used"])
     payload.setdefault("fallback_contradiction_emitted", False)
     payload = _apply_target_sticky_payload(state, payload, recent_turn_logs)
-    payload = _sanitize_targets_for_action(state, action_type, payload, inferred)
+    payload = _sanitize_targets_for_action(state, action_type, payload, inferred, recent_turn_logs)
     post_sanitize_target_claim_ids = _normalize_target_claim_ids(payload.get("target_claim_ids", []))
     if (
         action_type == "challenge_previous_hypothesis"
