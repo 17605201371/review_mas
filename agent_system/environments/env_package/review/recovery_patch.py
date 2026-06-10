@@ -20,6 +20,9 @@ RECOVERY_SHAPE_KEYS = {
     "recovery_terminal",
     "recovery_terminal_reason",
     "recovery_repeat_allowed",
+    "recovery_patch_operation",
+    "contested_relation",
+    "mark_contested",
 }
 RESOLUTION_EXPECTATIONS = {"resolved", "partially_resolved", "blocked"}
 RECOVERY_PATCH_SOURCES = {"model_generated", "system_salvaged", "none"}
@@ -112,6 +115,8 @@ def parse_recovery_payload(payload: Any) -> Dict[str, Any]:
         max_length=120,
     )
     recovery_repeat_allowed = bool(raw_payload.get("recovery_repeat_allowed", True))
+    recovery_patch_operation = _normalize_text(raw_payload.get("recovery_patch_operation"), max_length=80).lower()
+    mark_contested = bool(raw_payload.get("mark_contested") or recovery_patch_operation == "mark_contested" or raw_payload.get("contested_relation"))
 
     if action not in RECOVERY_ACTIONS:
         if blocked_reason or missing_requirements:
@@ -156,5 +161,7 @@ def parse_recovery_payload(payload: Any) -> Dict[str, Any]:
         "recovery_terminal": recovery_terminal,
         "recovery_terminal_reason": recovery_terminal_reason,
         "recovery_repeat_allowed": recovery_repeat_allowed,
+        "recovery_patch_operation": recovery_patch_operation,
+        "mark_contested": mark_contested,
         "raw_payload": raw_payload,
     }

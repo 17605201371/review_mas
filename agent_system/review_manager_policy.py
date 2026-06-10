@@ -184,7 +184,15 @@ def _negative_evidence_is_binding_candidate(item: Dict[str, Any], state: Dict[st
         return True
     negative_type = str(item.get("negative_evidence_type") or "").strip()
     actionability = str(item.get("negative_evidence_actionability") or "").strip()
-    return negative_type in {"direct_contradiction", "negative_result", "missing_ablation", "missing_baseline", "insufficient_evaluation"} or actionability == "actionable_candidate"
+    return negative_type in {
+        "direct_contradiction",
+        "negative_result",
+        "missing_ablation",
+        "missing_baseline",
+        "insufficient_evaluation",
+        "scope_overclaim",
+        "result_claim_mismatch",
+    } or actionability == "actionable_candidate"
 
 
 def _unlinked_negative_evidence_candidates(state: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -263,7 +271,7 @@ def _verified_negative_flaw_review_targets(
         if not flaw_id or flaw_id in terminal_flaw_ids:
             continue
         status = str(flaw.get("status") or "candidate").strip().lower()
-        if status not in {"candidate", "potential_concern"}:
+        if status not in {"candidate", "confirmed", "potential_concern"}:
             continue
         candidate_evidence_ids = list(flaw.get("negative_evidence_ids") or []) + list(flaw.get("evidence_ids") or [])
         verified_ids: List[str] = []
@@ -726,6 +734,8 @@ def _claim_has_verified_negative_recovery_evidence(state: Dict[str, Any], claim_
         "missing_ablation",
         "missing_baseline",
         "insufficient_evaluation",
+        "scope_overclaim",
+        "result_claim_mismatch",
     }
     for item in state.get("evidence_map", []) or []:
         if not isinstance(item, dict):

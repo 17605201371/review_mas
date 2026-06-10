@@ -36,6 +36,8 @@ ACTIONABLE_RECOVERY_NEGATIVE_TYPES = {
     "missing_ablation",
     "missing_baseline",
     "insufficient_evaluation",
+    "scope_overclaim",
+    "result_claim_mismatch",
 }
 
 _HYPOTHESIS_STATUS_RE = re.compile(r"^\[([A-Z_]+)\]\s*")
@@ -182,6 +184,23 @@ def _is_fallback_recovery_claim(target_id: str, target: Dict[str, Any]) -> bool:
     }
 
 
+def _allows_mark_contested_on_paper_salvaged_claim(target_id: str, target: Dict[str, Any]) -> bool:
+    claim_id = str(target_id or target.get("claim_id") or "").strip().lower()
+    if not claim_id.startswith("claim-paper-fallback"):
+        return False
+    claim_kind = str(target.get("claim_kind") or "").strip().lower()
+    origin_kind = str(target.get("claim_origin_kind") or "").strip().lower()
+    origin = " ".join(
+        str(target.get(key) or "")
+        for key in ("claim_origin", "claim_source", "source_stage", "provenance")
+    ).lower()
+    return (
+        claim_kind == "paper_extracted"
+        and origin_kind == "raw_salvaged_claim_agent_output"
+        and "context_derived" not in origin
+    )
+
+
 def _collect_related_conflict_ids(state: Dict[str, Any], target_type: str, target_id: str) -> List[str]:
     related: List[str] = []
     for note in state.get("conflict_notes", []) or []:
@@ -273,6 +292,8 @@ def _negative_recovery_evidence_type(item: Dict[str, Any]) -> str:
     text = " ".join(str(item.get(key) or "") for key in ("raw_quote", "evidence", "rationale")).lower()
     if any(term in text for term in ("worse", "underperform", "decline", "degrad", "negative result")):
         return "negative_result"
+    if any(term in text for term in ("overclaim", "over-claim", "future work", "out of scope", "limited scope")):
+        return "scope_overclaim"
     if "ablation" in text:
         return "missing_ablation"
     if "baseline" in text:
@@ -283,6 +304,44 @@ def _negative_recovery_evidence_type(item: Dict[str, Any]) -> str:
     if stance in {"contradicts", "refutes", "does_not_support", "unsupported"}:
         return "direct_contradiction"
     return "generic_gap"
+
+
+def _is_mark_contested_patch(patch: Dict[str, Any], current_status: str = "") -> bool:
+    raw = patch.get("raw_payload") or {}
+    requested = (
+        patch.get("mark_contested")
+        or raw.get("mark_contested")
+        or str(patch.get("recovery_patch_operation") or raw.get("recovery_patch_operation") or "").strip().lower() == "mark_contested"
+        or bool(raw.get("contested_relation"))
+    )
+    if not requested:
+        return False
+    if str(patch.get("target_type") or "").strip().lower() != "claim":
+        return False
+    old_status = str(patch.get("old_status") or "").strip().lower()
+    new_status = str(patch.get("new_status") or "").strip().lower()
+    current = str(current_status or "").strip().lower()
+    return bool(current and old_status == current and new_status == current)
+
+
+def _validate_mark_contested_evidence_semantics(state: Dict[str, Any], target_id: str, evidence_ids: List[str]) -> Optional[str]:
+    if not evidence_ids:
+        return "mark_contested requires at least one verified paper-negative evidence id."
+    known_evidence = {
+        str(item.get("evidence_id") or ""): item
+        for item in state.get("evidence_map", []) or []
+        if item.get("evidence_id")
+    }
+    negative_ids: List[str] = []
+    for evidence_id in evidence_ids:
+        item = known_evidence.get(str(evidence_id)) or {}
+        if str(item.get("claim_id") or "").strip() != str(target_id or "").strip():
+            continue
+        if _is_verified_negative_recovery_evidence(item):
+            negative_ids.append(str(evidence_id))
+    if negative_ids:
+        return None
+    return "mark_contested requires verified paper-negative evidence aligned with the target claim."
 
 
 def _flaw_verified_actionable_negative_recovery_ids(state: Dict[str, Any], flaw: Dict[str, Any]) -> List[str]:
@@ -490,8 +549,19 @@ def validate_recovery_patch(state: Dict[str, Any], patch: Dict[str, Any]) -> Dic
         old_status = str(patch.get("old_status") or "").lower()
         new_status = str(patch.get("new_status") or "").lower()
         evidence_ids = list(patch.get("supporting_evidence_ids", []) or [])
+        mark_contested_patch = _is_mark_contested_patch(patch, current_status)
 
-        if target_type == "claim" and _is_fallback_recovery_claim(patch["target_id"], located.get("target_item", {})):
+        if (
+            target_type == "claim"
+            and _is_fallback_recovery_claim(patch["target_id"], located.get("target_item", {}))
+            and not (
+                mark_contested_patch
+                and _allows_mark_contested_on_paper_salvaged_claim(
+                    patch["target_id"],
+                    located.get("target_item", {}),
+                )
+            )
+        ):
             return _failure(
                 validation,
                 "BLOCKED_BY_POLICY",
@@ -499,6 +569,36 @@ def validate_recovery_patch(state: Dict[str, Any], patch: Dict[str, Any]) -> Dic
                 "Target a real paper claim for mark_contested, or keep the verified negative issue as a flaw/assessment limitation.",
                 validated=True,
             )
+
+        if mark_contested_patch:
+            if not evidence_ids:
+                return _failure(
+                    validation,
+                    "INSUFFICIENT_EVIDENCE",
+                    "mark_contested requires at least one supporting_evidence_id already grounded in ReviewState.",
+                    "Reference verified paper-negative evidence ids already present in ReviewState.",
+                    validated=True,
+                )
+            evidence_mismatch = _validate_evidence_alignment(state, target_type, located.get("target_item", {}), evidence_ids)
+            if evidence_mismatch:
+                return _failure(
+                    validation,
+                    "EVIDENCE_TARGET_MISMATCH",
+                    evidence_mismatch,
+                    "Bind the contested relation to evidence ids aligned with the target claim.",
+                    validated=True,
+                )
+            semantic_mismatch = _validate_mark_contested_evidence_semantics(state, patch["target_id"], evidence_ids)
+            if semantic_mismatch:
+                return _failure(
+                    validation,
+                    "EVIDENCE_SEMANTIC_MISMATCH",
+                    semantic_mismatch,
+                    "Use verified paper-negative evidence for mark_contested recovery.",
+                    validated=True,
+                )
+            validation["mark_contested"] = True
+            return _success(validation, list(patch.get("conflict_note_ids", []) or []))
 
         if target_type == "flaw" and new_status in {"downgraded", "retracted"} and evidence_ids:
             actionable_negative_ids = _flaw_verified_actionable_negative_recovery_ids(

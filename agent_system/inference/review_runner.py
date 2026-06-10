@@ -390,8 +390,17 @@ _NEGATIVE_QUOTE_ANCHOR_RE = re.compile(
 )
 
 _ACTIONABLE_NEGATIVE_EVIDENCE_TYPES = frozenset(
-    {"direct_contradiction", "negative_result", "missing_ablation", "missing_baseline", "insufficient_evaluation"}
+    {
+        "direct_contradiction",
+        "negative_result",
+        "missing_ablation",
+        "missing_baseline",
+        "insufficient_evaluation",
+        "scope_overclaim",
+        "result_claim_mismatch",
+    }
 )
+_LIMITATION_NEGATIVE_EVIDENCE_TYPES = frozenset({"scope_limitation", "reproducibility_gap", "generic_gap"})
 _PROTECTED_POTENTIAL_CONCERN_TERMINAL_REASON = "verified_actionable_negative_concern_preserved"
 _PROTECTED_POTENTIAL_CONCERN_BLOCKED_REASON = (
     "Target flaw is already a candidate with verified actionable negative evidence; "
@@ -419,6 +428,27 @@ def _negative_evidence_record_type(item: Dict[str, Any]) -> str:
 
 def _negative_evidence_record_is_actionable(item: Dict[str, Any]) -> bool:
     return _negative_evidence_record_type(item) in _ACTIONABLE_NEGATIVE_EVIDENCE_TYPES
+
+
+_BROAD_CLAIM_RE = re.compile(
+    r"\b(generaliz(?:e|es|ed|ation)|generalisation|zero-shot|unseen|robust|"
+    r"across|various|diverse|all|any|foundation model|scal(?:e|es|able|ability)|"
+    r"broad|universal|comprehensive|state-of-the-art|sota)\b",
+    re.IGNORECASE,
+)
+_SCOPE_LIMIT_QUOTE_RE = re.compile(
+    r"\b(future work|leave (?:their|our|this|its)? ?exploration|not yet (?:explored|evaluated|validated)|"
+    r"limited to|only evaluated|out of scope|limitation|limitations|restrict(?:ed|ion|ions)?)\b",
+    re.IGNORECASE,
+)
+
+
+def _promote_scope_limitation_for_broad_claim(negative_type: str, claim_text: str, raw_quote: str) -> str:
+    if negative_type != "scope_limitation":
+        return negative_type
+    if _BROAD_CLAIM_RE.search(str(claim_text or "")) and _SCOPE_LIMIT_QUOTE_RE.search(str(raw_quote or "")):
+        return "scope_overclaim"
+    return negative_type
 
 
 def _readable_negative_type_for_runner(negative_type: str) -> str:
@@ -511,12 +541,20 @@ def _select_negative_quote_bank_entry(state: Optional[Dict[str, Any]], manager_p
     for item in quote_bank:
         source_bucket = str(item.get("source_bucket") or "")
         raw_quote = str(item.get("raw_quote") or "").strip()
-        if not raw_quote or not _NEGATIVE_QUOTE_ANCHOR_RE.search(raw_quote):
+        if not raw_quote:
+            continue
+        neg_type = _negative_quote_entry_type(item)
+        explicit_typed_negative = (
+            source_bucket == "negative_or_gap"
+            and neg_type in (_ACTIONABLE_NEGATIVE_EVIDENCE_TYPES | _LIMITATION_NEGATIVE_EVIDENCE_TYPES)
+            and neg_type != "generic_gap"
+        )
+        if not explicit_typed_negative and not _NEGATIVE_QUOTE_ANCHOR_RE.search(raw_quote):
             continue
         if source_bucket == "abstract":
             continue
         explicit_negative_bucket = source_bucket == "negative_or_gap"
-        if not explicit_negative_bucket and _negative_quote_entry_type(item) in {"generic_gap", "neutral_control_context"}:
+        if not explicit_negative_bucket and neg_type in {"generic_gap", "neutral_control_context"}:
             # Non-abstract quotes with negative terms are useful to ground an
             # assessment limitation, but not enough for claim-status downgrade.
             item = dict(item)
@@ -598,6 +636,10 @@ def _negative_salvage_target_flaw_updates(
         flaw_text = "Verified paper quote reports a negative or weaker result relevant to the target claim; keep as an actionable candidate pending critique confirmation."
     elif negative_evidence_type == "missing_ablation":
         flaw_text = "Verified paper quote indicates a missing comparison, baseline, evaluation, or ablation relevant to the target claim."
+    elif negative_evidence_type == "scope_overclaim":
+        flaw_text = "Verified paper quote narrows the scope of a broad target claim; keep as an actionable potential concern pending critique confirmation."
+    elif negative_evidence_type == "result_claim_mismatch":
+        flaw_text = "Verified paper quote suggests the reported result is weaker than the target claim; keep as an actionable potential concern pending critique confirmation."
     else:
         flaw_text = "Target flaw has a verified negative_or_gap quote candidate; keep as candidate until critique confirms severity."
     for raw in (manager_payload or {}).get("target_flaw_ids", []) or []:
@@ -647,6 +689,12 @@ def _negative_quote_bank_salvage_payload(
         return None
     quote_id = str(entry.get("quote_id") or "negative-gap").strip()
     negative_evidence_type = _negative_quote_entry_type(entry)
+    claim_text = _claim_text_lookup(state).get(claim_id, "")
+    negative_evidence_type = _promote_scope_limitation_for_broad_claim(
+        negative_evidence_type,
+        claim_text,
+        raw_quote,
+    )
     source_bucket = str(entry.get("source_bucket") or "").strip()
     claim_status_downgrade_allowed = (
         source_bucket == "negative_or_gap"
@@ -817,6 +865,104 @@ def _claim_downgrade_patch_from_actionable_flaw(
                 ),
                 "resolution_expectation": "partially_resolved",
                 "confidence": 0.58,
+            }
+        )
+    return None
+
+
+def _verified_positive_support_ids_for_claim(
+    claim: Dict[str, Any],
+    evidence_lookup: Dict[str, Dict[str, Any]],
+) -> List[str]:
+    claim_id = str((claim or {}).get("claim_id") or "").strip()
+    if not claim_id:
+        return []
+    candidate_ids: List[str] = [
+        str(item or "").strip()
+        for item in (claim or {}).get("supporting_evidence_ids", []) or []
+        if str(item or "").strip()
+    ]
+    candidate_ids.extend(
+        str(item.get("evidence_id") or "").strip()
+        for item in evidence_lookup.values()
+        if isinstance(item, dict) and str(item.get("claim_id") or "").strip() == claim_id
+    )
+    support_ids: List[str] = []
+    for evidence_id in dict.fromkeys(candidate_ids):
+        item = evidence_lookup.get(evidence_id)
+        if not isinstance(item, dict):
+            continue
+        stance = str(item.get("stance") or "").strip().lower()
+        grounding = str(item.get("verified_grounding_label") or "").strip()
+        semantic = str(item.get("semantic_grounding_label") or "").strip()
+        if (
+            stance in {"supports", "partially_supports"}
+            and grounding in _VERIFIED_RECOVERY_LABELS
+            and semantic == "semantic_support_verified"
+        ):
+            support_ids.append(evidence_id)
+    return support_ids
+
+
+def _mark_contested_patch_from_verified_negative_flaw(
+    flaw: Dict[str, Any],
+    claim_lookup: Dict[str, Dict[str, Any]],
+    evidence_lookup: Dict[str, Dict[str, Any]],
+) -> Optional[Dict[str, Any]]:
+    if not isinstance(flaw, dict):
+        return None
+    verified_negative_ids = _flaw_verified_negative_evidence_ids_for_recovery(flaw, evidence_lookup)
+    if not verified_negative_ids:
+        return None
+    candidate_claim_ids: List[str] = []
+    for evidence_id in verified_negative_ids:
+        claim_id = str((evidence_lookup.get(evidence_id) or {}).get("claim_id") or "").strip()
+        if claim_id:
+            candidate_claim_ids.append(claim_id)
+    candidate_claim_ids.extend(
+        str(item or "").strip()
+        for item in flaw.get("related_claim_ids") or []
+        if str(item or "").strip()
+    )
+    for claim_id in dict.fromkeys(candidate_claim_ids):
+        claim = claim_lookup.get(claim_id)
+        if not _is_recovery_strong_claim_target(claim or {}):
+            continue
+        old_status = str((claim or {}).get("status") or "uncertain").strip().lower()
+        if old_status not in {"supported", "partially_supported", "uncertain"}:
+            continue
+        aligned_negative_ids = [
+            evidence_id
+            for evidence_id in verified_negative_ids
+            if str((evidence_lookup.get(evidence_id) or {}).get("claim_id") or "").strip() == claim_id
+        ]
+        if not aligned_negative_ids:
+            continue
+        support_ids = _verified_positive_support_ids_for_claim(claim or {}, evidence_lookup)
+        if not support_ids:
+            continue
+        return normalize_review_update_payload(
+            {
+                "action": "apply_recovery_patch",
+                "target_type": "claim",
+                "target_id": claim_id,
+                "old_status": old_status,
+                "new_status": old_status,
+                "supporting_evidence_ids": aligned_negative_ids[:2],
+                "reason_for_change": (
+                    "Verified paper-negative evidence contests a claim that also has verified positive support; "
+                    "recovery records a contested relation without downgrading the claim status."
+                ),
+                "resolution_expectation": "partially_resolved",
+                "confidence": 0.6,
+                "recovery_patch_operation": "mark_contested",
+                "mark_contested": True,
+                "contested_relation": {
+                    "claim_id": claim_id,
+                    "support_evidence_ids": support_ids[:4],
+                    "negative_evidence_ids": aligned_negative_ids[:4],
+                    "final_view": "potential_concern",
+                },
             }
         )
     return None
@@ -2996,6 +3142,13 @@ def _fallback_recovery_patch_payload(state: Dict[str, Any], manager_payload: Dic
                         "confidence": 0.62,
                     }
                 )
+            contested_patch = _mark_contested_patch_from_verified_negative_flaw(
+                flaw,
+                claim_lookup,
+                evidence_lookup,
+            )
+            if contested_patch:
+                return contested_patch
             return _protected_potential_concern_blocked_payload(flaw_id)
         verified_quote_bank_negative_ids = _flaw_verified_negative_evidence_ids_for_recovery(
             flaw,
@@ -3003,6 +3156,13 @@ def _fallback_recovery_patch_payload(state: Dict[str, Any], manager_payload: Dic
             quote_bank_only=True,
         )
         if verified_quote_bank_negative_ids:
+            contested_patch = _mark_contested_patch_from_verified_negative_flaw(
+                flaw,
+                claim_lookup,
+                evidence_lookup,
+            )
+            if contested_patch:
+                return contested_patch
             layer, has_negative_grounding_conflict = _decision_view_flaw_layer_and_conflict(state, flaw_id)
             if layer == "assessment_limitation" and not has_negative_grounding_conflict:
                 return normalize_review_update_payload(
@@ -3071,6 +3231,13 @@ def _fallback_recovery_patch_payload(state: Dict[str, Any], manager_payload: Dic
         claim_patch = _claim_downgrade_patch_from_actionable_flaw(flaw, claim_lookup, evidence_lookup)
         if claim_patch:
             return claim_patch
+        contested_patch = _mark_contested_patch_from_verified_negative_flaw(
+            flaw,
+            claim_lookup,
+            evidence_lookup,
+        )
+        if contested_patch:
+            return contested_patch
 
     ordered_claim_ids = [
         str(claim_id).strip()

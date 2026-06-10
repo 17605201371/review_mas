@@ -1,0 +1,16 @@
+prefix=mimo_v25_concern_recovery_contested3_mt7_smoke8_b4w4_api2_20260610_212022
+start=2026-06-10 21:20:22 CST
+output=mimo_v25_concern_recovery_contested3_mt7_smoke8_b4w4_api2_20260610_212022.jsonl
+log=mimo_v25_concern_recovery_contested3_mt7_smoke8_b4w4_api2_20260610_212022.log
+dataset=fulltest39_20260606.parquet
+mode=s4
+max_turns=7
+limit=8
+manager_batch_size=4
+api_max_workers=2
+api_max_retries=3
+api_model=mimo-v2.5
+api_base_url=https://token-plan-sgp.xiaomimimo.com/v1
+api_key=REDACTED
+end=2026-06-10 21:33:42 CST
+status=0

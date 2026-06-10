@@ -873,7 +873,14 @@ def _apply_quote_bank_entry_metadata(item: Dict[str, Any], entry: Dict[str, Any]
     # from the quote-bank entry to the evidence item so offline audits can read
     # it without re-classifying. No flow effect.
     neg_type = str(entry.get("negative_evidence_type") or "").strip()
-    if neg_type:
+    existing_neg_type = str(item.get("negative_evidence_type") or "").strip()
+    if (
+        neg_type
+        and existing_neg_type in ACTIONABLE_NEGATIVE_EVIDENCE_TYPES
+        and neg_type not in ACTIONABLE_NEGATIVE_EVIDENCE_TYPES
+    ):
+        pass
+    elif neg_type:
         item["negative_evidence_type"] = neg_type
     bucket = str(entry.get("source_bucket") or "")
     if not bucket:
@@ -4207,8 +4214,7 @@ def _state_contamination_targets(
     for claim_id, count in sorted((support_counts or {}).items()):
         claim = claims_by_id.get(claim_id, {})
         status = str(claim.get("status") or "")
-        reason = str(claim.get("hygiene_status_reason") or "")
-        if (status in {"unsupported", "uncertain", "new", ""} or reason == "decision_view_unsupported_with_strong_support") and count > 0:
+        if status in {"unsupported", "uncertain", "new", ""} and count > 0:
             records.append(_contamination_record(
                 "claim",
                 claim_id,
@@ -4336,6 +4342,130 @@ def _state_contamination_targets(
     return records[:80]
 
 
+def _auto_bind_unlinked_negative_evidence_flaws(view: Dict[str, Any], negative_evidence_ids: set[str]) -> List[str]:
+    """Add view-only candidate flaws for verified negative evidence left unlinked.
+
+    The live ReviewState is not mutated.  This keeps final diagnostics and
+    protection metrics from treating verified paper-negative evidence as a
+    dangling artifact when the evidence formation turn succeeded but the
+    critique binding turn failed to materialize a flaw row.
+    """
+    if not negative_evidence_ids:
+        return []
+    linked_ids: set[str] = set()
+    for flaw in view.get("flaw_candidates", []) or []:
+        if not isinstance(flaw, dict):
+            continue
+        linked_ids.update(_flaw_valid_negative_evidence_ids(flaw, view))
+    evidence_by_id = {
+        str(item.get("evidence_id") or ""): item
+        for item in view.get("evidence_map", []) or []
+        if isinstance(item, dict) and str(item.get("evidence_id") or "")
+    }
+    added_ids: List[str] = []
+    existing_flaw_count = len(view.get("flaw_candidates", []) or [])
+    for evidence_id in sorted(negative_evidence_ids):
+        if evidence_id in linked_ids:
+            continue
+        record = evidence_by_id.get(evidence_id)
+        if not isinstance(record, dict):
+            continue
+        if not _is_verified_paper_grounded_evidence(record):
+            continue
+        if str(record.get("semantic_grounding_label") or "").strip() != "semantic_negative_verified":
+            continue
+        neg_type = _negative_evidence_type_for_record(record)
+        if neg_type in NOISE_NEGATIVE_TYPES or neg_type in {"neutral_control_context", "generic_gap"}:
+            continue
+        claim_id = str(record.get("claim_id") or "").strip()
+        if not _is_real_paper_claim_id(claim_id):
+            continue
+        claim_text = ""
+        claim_found = False
+        for claim in view.get("claims", []) or []:
+            if isinstance(claim, dict) and str(claim.get("claim_id") or "").strip() == claim_id:
+                claim_found = True
+                claim_text = _normalize_text(claim.get("claim") or claim.get("text"), max_length=140)
+                break
+        if not claim_found:
+            continue
+        raw_quote = _normalize_text(record.get("raw_quote") or record.get("evidence"), max_length=220)
+        readable_type = _readable_negative_evidence_type(neg_type)
+        title = f"Verified {readable_type} evidence requires review"
+        description_parts = []
+        if claim_text:
+            description_parts.append(f"Target claim: {claim_text}.")
+        if raw_quote:
+            description_parts.append(f"Paper quote: {raw_quote}")
+        description = " ".join(description_parts) or title
+        flaw_id = _slugify("flaw-auto-negative-binding", f"{claim_id}:{evidence_id}", existing_flaw_count + len(added_ids) + 1)
+        (view.setdefault("flaw_candidates", [])).append(
+            {
+                "flaw_id": flaw_id,
+                "title": title,
+                "description": description,
+                "flaw": description,
+                "severity": "major" if neg_type in ACTIONABLE_NEGATIVE_EVIDENCE_TYPES else "minor",
+                "status": "candidate",
+                "related_claim_ids": [claim_id] if claim_id else [],
+                "evidence_ids": [evidence_id],
+                "negative_evidence_ids": [evidence_id],
+                "grounding_status": (
+                    "verified_actionable_candidate"
+                    if neg_type in ACTIONABLE_NEGATIVE_EVIDENCE_TYPES
+                    else "grounded_candidate"
+                ),
+                "source": "decision-view-auto-negative-binding",
+                "negative_evidence_type": neg_type,
+            }
+        )
+        added_ids.append(flaw_id)
+        if len(added_ids) >= 4:
+            break
+    return added_ids
+
+
+def _sync_linked_actionable_negative_type_from_flaw(view: Dict[str, Any]) -> List[str]:
+    """Use verified flaw typing to repair view-only limitation/actionable drift."""
+    evidence_by_id = {
+        str(item.get("evidence_id") or ""): item
+        for item in view.get("evidence_map", []) or []
+        if isinstance(item, dict) and str(item.get("evidence_id") or "")
+    }
+    synced_ids: List[str] = []
+    for flaw in view.get("flaw_candidates", []) or []:
+        if not isinstance(flaw, dict):
+            continue
+        flaw_neg_type = str(flaw.get("negative_evidence_type") or "").strip()
+        if flaw_neg_type not in ACTIONABLE_NEGATIVE_EVIDENCE_TYPES:
+            continue
+        linked_ids: List[str] = []
+        for key in ("negative_evidence_ids", "evidence_ids"):
+            value = flaw.get(key)
+            if isinstance(value, list):
+                linked_ids.extend(str(item or "") for item in value)
+            elif isinstance(value, str) and value.strip():
+                linked_ids.append(value.strip())
+        for evidence_id in linked_ids:
+            record = evidence_by_id.get(str(evidence_id or ""))
+            if not isinstance(record, dict):
+                continue
+            current_type = _negative_evidence_type_for_record(record)
+            if current_type not in LIMITATION_NEGATIVE_EVIDENCE_TYPES:
+                continue
+            if not _is_verified_paper_grounded_evidence(record):
+                continue
+            if str(record.get("semantic_grounding_label") or "").strip() != "semantic_negative_verified":
+                continue
+            if str(record.get("negative_evidence_actionability") or "").strip() != "actionable_candidate":
+                continue
+            record.setdefault("negative_evidence_type_original", current_type)
+            record["negative_evidence_type"] = flaw_neg_type
+            record["negative_evidence_type_decision_view_reason"] = "linked_actionable_flaw_type_sync"
+            synced_ids.append(str(evidence_id))
+    return synced_ids
+
+
 def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
     """Build a final-decision/report view without mutating live ReviewState.
 
@@ -4374,11 +4504,13 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
     kept_conflicts, stale_conflicts = _filter_decision_conflicts(view.get("conflict_notes", []), support_counts)
     view["evidence_gaps"] = _normalize_evidence_gaps(kept_gaps, max_items=10)
     view["conflict_notes"] = kept_conflicts[:12]
+    synced_negative_type_ids = _sync_linked_actionable_negative_type_from_flaw(view)
     negative_evidence_ids = {
         str(item.get("evidence_id") or "")
         for item in view.get("evidence_map", []) or []
         if _is_grounded_paper_negative_evidence_record(item, view) and str(item.get("evidence_id") or "")
     }
+    auto_bound_negative_flaws = _auto_bind_unlinked_negative_evidence_flaws(view, negative_evidence_ids)
 
     # Track which evidence_gap rows would have been kept versus marked stale by
     # the view; downstream renderers use the breakdown to expose
@@ -4680,6 +4812,8 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
         "negative_evidence_linked_to_flaw_count": len(linked_negative_evidence_ids),
         "negative_evidence_unlinked_to_flaw_count": max(0, len(negative_evidence_ids) - len(linked_negative_evidence_ids)),
         "negative_evidence_binding_retry_candidate_count": max(0, len(negative_evidence_ids) - len(linked_negative_evidence_ids)),
+        "auto_bound_negative_flaw_count": len(auto_bound_negative_flaws),
+        "synced_actionable_negative_type_count": len(synced_negative_type_ids),
         "negative_grounding_conflict_count": len(negative_grounding_conflicts),
         "invalid_negative_evidence_id_count": len(negative_grounding_conflicts),
         "invalid_negative_evidence_id_count_legacy": len(negative_grounding_conflicts),
@@ -5100,6 +5234,9 @@ def normalize_review_update_payload(payload: Any, required_fields: Optional[Iter
             max_length=120,
         ),
         "recovery_repeat_allowed": bool(payload.get("recovery_repeat_allowed", True)),
+        "recovery_patch_operation": _normalize_text(payload.get("recovery_patch_operation"), max_length=80),
+        "mark_contested": bool(payload.get("mark_contested") or payload.get("contested_relation")),
+        "contested_relation": payload.get("contested_relation") if isinstance(payload.get("contested_relation"), dict) else {},
         "_emission_failure_code": _normalize_text(payload.get("_emission_failure_code"), max_length=80),
         "_emission_failure_message": _normalize_text(payload.get("_emission_failure_message"), max_length=240),
         "evidence_id_scope_turn": evidence_id_scope_turn,
@@ -5650,6 +5787,7 @@ def _build_recovery_state_delta(before: Dict[str, Any], after: Dict[str, Any]) -
         key: int(after_snapshot.get(key, 0) or 0) - int(before_snapshot.get(key, 0) or 0)
         for key in _RECOVERY_STATE_DELTA_KEYS
     }
+    contested_relation_delta = len(after.get("contested_relations", []) or []) - len(before.get("contested_relations", []) or [])
     improved_keys = [key for key in _RECOVERY_BURDEN_DELTA_KEYS if delta.get(key, 0) < 0]
     worsened_keys = [key for key in _RECOVERY_BURDEN_DELTA_KEYS if delta.get(key, 0) > 0]
     tolerated_worsened_keys: List[str] = []
@@ -5669,6 +5807,8 @@ def _build_recovery_state_delta(before: Dict[str, Any], after: Dict[str, Any]) -
         "tolerated_worsened_keys": sorted(tolerated_worsened_keys),
         "consistency_improved": bool(improved_keys and not worsened_keys),
         "negative_recovery_commit": bool(worsened_keys and not improved_keys),
+        "contested_relation_delta": contested_relation_delta,
+        "contested_relation_added": contested_relation_delta > 0,
     }
 
 
@@ -5678,6 +5818,12 @@ def _recovery_patch_operation(parsed_patch: Dict[str, Any], validation: Dict[str
     target_type = str(validation.get("target_type") or parsed_patch.get("target_type") or "")
     old_status = str(validation.get("old_status") or parsed_patch.get("old_status") or "").lower()
     new_status = str(validation.get("new_status") or parsed_patch.get("new_status") or "").lower()
+    raw_payload = parsed_patch.get("raw_payload") or {}
+    requested_operation = str(
+        parsed_patch.get("recovery_patch_operation") or raw_payload.get("recovery_patch_operation") or ""
+    ).strip().lower()
+    if target_type == "claim" and (validation.get("mark_contested") or parsed_patch.get("mark_contested") or requested_operation == "mark_contested"):
+        return "mark_contested"
     if target_type == "evidence_link" and new_status in {"unbound", "invalid_claim_id"}:
         return "rebind_evidence"
     if target_type == "gap" and new_status == "resolved":
@@ -6005,6 +6151,49 @@ def _apply_recovery_update(state: Dict[str, Any], payload: Dict[str, Any]) -> Di
         merged["_latest_patch_log"]["recovery_failure_code"] = "CHECKER_TOO_STRICT"
         merged["_latest_patch_log"]["recovery_failure_message"] = f"Recovery state commit failed: {exc}"
         return merged
+
+    if (
+        merged["_latest_patch_log"].get("recovery_patch_operation") == "mark_contested"
+        and str(validation.get("target_type") or parsed_patch.get("target_type") or "").strip().lower() == "claim"
+    ):
+        claim_id = str(validation.get("target_id") or parsed_patch.get("target_id") or "").strip()
+        evidence_ids = _strip_synthetic_recovery_markers(
+            list(validation.get("supporting_evidence_ids", parsed_patch.get("supporting_evidence_ids", [])) or [])
+        )
+        if claim_id and evidence_ids:
+            relation = {
+                "relation_id": _slugify("contested", f"{claim_id}-{'-'.join(evidence_ids[:2])}", len(merged.get("contested_relations", []) or []) + 1),
+                "claim_id": claim_id,
+                "negative_evidence_ids": evidence_ids[:4],
+                "support_evidence_ids": list((validation.get("target_item") or {}).get("supporting_evidence_ids") or [])[:4],
+                "reason": parsed_patch.get("reason_for_change") or "Verified paper-negative evidence contests otherwise supported claim evidence.",
+                "final_view": "potential_concern",
+                "status": "contested",
+            }
+            existing = list(merged.get("contested_relations", []) or [])
+            existing_keys = {
+                (
+                    str(item.get("claim_id") or ""),
+                    tuple(str(eid) for eid in item.get("negative_evidence_ids", []) or []),
+                )
+                for item in existing
+                if isinstance(item, dict)
+            }
+            relation_key = (claim_id, tuple(evidence_ids[:4]))
+            if relation_key not in existing_keys:
+                merged["contested_relations"] = (existing + [relation])[-12:]
+                recovery_revisions: List[Dict[str, Any]] = []
+                _append_revision_event(
+                    recovery_revisions,
+                    "claim",
+                    claim_id,
+                    "contested_relation",
+                    "",
+                    "contested",
+                    reason="recovery_patch_committed",
+                )
+                merged["revision_log"] = (merged.get("revision_log", []) + recovery_revisions)[-40:]
+                merged = _update_state_summaries(merged)
 
     resolved_conflict_ids = list(validation.get("matched_conflict_ids", []) or parsed_patch.get("conflict_note_ids", []) or [])
     if resolved_conflict_ids:
@@ -6607,6 +6796,17 @@ _NEG_TYPE_REPRODUCIBILITY_GAP_RE = re.compile(
     r"cannot reproduce|insufficient detail)\b",
     re.IGNORECASE,
 )
+_NEG_TYPE_SCOPE_OVERCLAIM_RE = re.compile(
+    r"\b(scope overclaim|overclaim|over-claim|overstate(?:s|d)?|overstated|"
+    r"claim(?:s|ed)? too broad(?:ly)?)\b",
+    re.IGNORECASE,
+)
+_NEG_TYPE_RESULT_CLAIM_MISMATCH_RE = re.compile(
+    r"\b(result(?:s)? (?:do|does|did) not support|claim(?:s)? (?:do|does|did) not match|"
+    r"mismatch(?:es)? between (?:the )?(?:claim|conclusion) and (?:the )?result|"
+    r"contrary to (?:the )?(?:claim|conclusion)|reported result(?:s)? (?:are|is) weaker)\b",
+    re.IGNORECASE,
+)
 _NEG_TYPE_SCOPE_LIMITATION_RE = re.compile(
     r"\b(limitation|limitations|limited|restrict(?:s|ed|ion|ions)?|"
     r"threats? to validity|future work|out of scope|"
@@ -6673,6 +6873,10 @@ def _classify_negative_evidence_type(quote: str) -> str:
         return "insufficient_evaluation"
     if _NEG_TYPE_REPRODUCIBILITY_GAP_RE.search(quote):
         return "reproducibility_gap"
+    if _NEG_TYPE_RESULT_CLAIM_MISMATCH_RE.search(quote):
+        return "result_claim_mismatch"
+    if _NEG_TYPE_SCOPE_OVERCLAIM_RE.search(quote):
+        return "scope_overclaim"
     if _NEG_TYPE_SCOPE_LIMITATION_RE.search(quote):
         return "scope_limitation"
     if _NEG_TYPE_BIB_TITLE_NOISE_RE.search(quote):
@@ -6683,12 +6887,20 @@ def _classify_negative_evidence_type(quote: str) -> str:
 NOISE_NEGATIVE_TYPES = frozenset({"bibliographic_or_title_noise", "neutral_instruction_noise"})
 NEGATIVE_EVIDENCE_TYPES_ALL = frozenset(
     {"direct_contradiction", "negative_result", "missing_ablation", "missing_baseline",
-     "insufficient_evaluation", "reproducibility_gap",
+     "insufficient_evaluation", "reproducibility_gap", "scope_overclaim", "result_claim_mismatch",
      "scope_limitation", "neutral_control_context", "generic_gap",
      "bibliographic_or_title_noise", "neutral_instruction_noise"}
 )
 ACTIONABLE_NEGATIVE_EVIDENCE_TYPES = frozenset(
-    {"direct_contradiction", "negative_result", "missing_ablation", "missing_baseline", "insufficient_evaluation"}
+    {
+        "direct_contradiction",
+        "negative_result",
+        "missing_ablation",
+        "missing_baseline",
+        "insufficient_evaluation",
+        "scope_overclaim",
+        "result_claim_mismatch",
+    }
 )
 LIMITATION_NEGATIVE_EVIDENCE_TYPES = frozenset({"scope_limitation", "reproducibility_gap", "generic_gap"})
 
@@ -8641,9 +8853,11 @@ def _negative_evidence_weakened_dimension(negative_type: str, text: str) -> str:
         return "the empirical support for the claim"
     if value == "direct_contradiction":
         return "the claim's stated conclusion"
+    if value == "result_claim_mismatch":
+        return "the alignment between the reported result and the claim"
     if value == "reproducibility_gap":
         return "the reproducibility or implementation support"
-    if value == "scope_limitation":
+    if value in {"scope_limitation", "scope_overclaim"}:
         return "the scope of the claim"
     lowered = str(text or "").lower()
     if any(token in lowered for token in ("table", "figure", "baseline", "ablation", "benchmark", "evaluation", "result")):
@@ -9510,6 +9724,15 @@ def _classify_revision_events(revision_events: List[Dict[str, Any]], worker_payl
                 "reason": reason or "lifecycle_commit",
                 "success": True
             })
+        elif field == 'contested_relation' and new_value == 'contested':
+            commit_applied = True
+            commit_details.append({
+                "target_id": entity,
+                "old_status": "uncontested",
+                "new_status": "contested",
+                "reason": reason or "mark_contested",
+                "success": True,
+            })
 
         # Check for retractions
         if new_value in RETRACT_VALUES and entity not in retracted_items:
@@ -9843,8 +10066,20 @@ def _compute_recovery_layer_fields(
     state_delta = turn_patch_log.get("recovery_state_delta") or {}
     consistency_improved = bool(state_delta.get("consistency_improved", False))
     negative_recovery_commit = bool(state_delta.get("negative_recovery_commit", False))
-    hygiene_delta_improved = bool(state_mutation_applied and consistency_improved and not negative_recovery_commit)
-    no_effect_commit = bool(state_mutation_applied and has_status_transition and not consistency_improved and not negative_recovery_commit)
+    operation = str(turn_patch_log.get("recovery_patch_operation") or "")
+    contested_relation_added = bool(state_delta.get("contested_relation_added", False))
+    hygiene_delta_improved = bool(
+        state_mutation_applied
+        and not negative_recovery_commit
+        and (consistency_improved or (operation == "mark_contested" and contested_relation_added))
+    )
+    no_effect_commit = bool(
+        state_mutation_applied
+        and has_status_transition
+        and not consistency_improved
+        and not contested_relation_added
+        and not negative_recovery_commit
+    )
 
     if hygiene_delta_improved:
         layer = "hygiene_delta_improved"

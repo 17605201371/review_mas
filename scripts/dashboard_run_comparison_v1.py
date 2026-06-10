@@ -179,6 +179,8 @@ def _recovery_turn_delta(tl: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _turn_has_no_effect_commit(tl: Dict[str, Any]) -> bool:
+    if str(tl.get("recovery_patch_operation") or "") == "mark_contested":
+        return False
     if tl.get("recovery_no_effect_commit"):
         return True
     if not (tl.get("recovery_patch_committed") and tl.get("recovery_commit_applied")):
@@ -186,7 +188,11 @@ def _turn_has_no_effect_commit(tl: Dict[str, Any]) -> bool:
     delta = _recovery_turn_delta(tl)
     if not delta:
         return False
-    return not bool(delta.get("consistency_improved")) and not bool(delta.get("negative_recovery_commit"))
+    return (
+        not bool(delta.get("consistency_improved"))
+        and not bool(delta.get("contested_relation_added"))
+        and not bool(delta.get("negative_recovery_commit"))
+    )
 
 
 def _turn_has_harmful_commit_risk(tl: Dict[str, Any]) -> bool:
@@ -594,11 +600,14 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
         "missing_baseline",
         "insufficient_evaluation",
         "reproducibility_gap",
+        "scope_overclaim",
+        "result_claim_mismatch",
         "scope_limitation",
         "neutral_control_context",
         "generic_gap",
     ):
         out[f"negative_type_{neg_type}"] = int(type_counts.get(neg_type, 0))
+    out["synced_actionable_negative_type_count"] = _sum(rows, "synced_actionable_negative_type_count")
     out["verified_potential_concern_count"] = _sum(rows, "verified_potential_concern_count")
     out["grounded_weakness_count"] = _sum(rows, "grounded_weakness_count")
     out["assessment_limitation_flaw_count"] = _sum(rows, "assessment_limitation_flaw_count")
@@ -1203,7 +1212,10 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "negative_type_missing_baseline",
         "negative_type_insufficient_evaluation",
         "negative_type_reproducibility_gap",
+        "negative_type_scope_overclaim",
+        "negative_type_result_claim_mismatch",
         "negative_type_scope_limitation",
+        "synced_actionable_negative_type_count",
         "negative_type_neutral_control_context",
         "negative_type_generic_gap",
         "verified_potential_concern_count",

@@ -3566,14 +3566,14 @@ def test_decision_hygiene_emits_state_contamination_targets_and_gate_counts():
     type_counts = hygiene["state_contamination_type_counts"]
     gate_counts = hygiene["recovery_target_gate_counts"]
 
-    assert hygiene["state_contamination_count"] >= 4
-    assert type_counts["unsupported_with_strong_support"] == 1
+    assert hygiene["state_contamination_count"] >= 3
+    assert type_counts.get("unsupported_with_strong_support", 0) == 0
     assert type_counts["stale_gap_persistence"] == 1
     assert type_counts["unsupported_flaw_escalation"] == 1
     assert type_counts["negative_evidence_overclaim"] == 1
-    assert gate_counts["real_target"] >= 2
+    assert gate_counts["real_target"] >= 1
     assert gate_counts["weak_target"] >= 2
-    assert hygiene["repairable_contamination_target_count"] >= 2
+    assert hygiene["repairable_contamination_target_count"] >= 1
     assert hygiene["conservative_contamination_target_count"] >= 2
     assert all(item.get("target_gate_label") for item in hygiene["state_contamination_targets"])
 
@@ -4794,6 +4794,84 @@ def test_final_view_routes_actionable_negative_candidate_to_potential_concern():
     assert dh["verified_potential_concern_count"] == 1
     assert dh["potential_concern_count"] == 1
     assert dh["negative_evidence_type_counts"] == {"negative_result": 1}
+
+
+def test_final_view_routes_scope_overclaim_to_potential_concern():
+    state = _negative_type_flaw_state("scope_overclaim", status="candidate", severity="major")
+    state["claims"][0]["claim"] = "The method generalizes to unseen graph settings."
+    state["evidence_map"][0]["raw_quote"] = "Additional relation types are left for future work."
+
+    view = build_decision_hygiene_view(state)
+    flaw = view["flaw_candidates"][0]
+    dh = view["decision_hygiene"]
+
+    assert flaw["final_view_flaw_layer"] == "potential_concern"
+    assert dh["verified_actionable_negative_flaw_count"] == 1
+    assert dh["verified_potential_concern_count"] == 1
+    assert dh["potential_concern_count"] == 1
+    assert dh["negative_evidence_type_counts"] == {"scope_overclaim": 1}
+
+
+def test_decision_view_syncs_actionable_flaw_type_to_verified_limitation_evidence():
+    state = _negative_type_flaw_state("scope_limitation", status="candidate", severity="major")
+    state["claims"][0]["claim"] = "The method generalizes to unseen graph settings."
+    state["evidence_map"][0]["raw_quote"] = "Additional relation types are left for future work."
+    state["evidence_map"][0]["negative_evidence_actionability"] = "actionable_candidate"
+    state["flaw_candidates"][0]["negative_evidence_type"] = "scope_overclaim"
+    state["flaw_candidates"][0]["flaw"] = "Verified scope overclaim against a broad generalization claim."
+
+    view = build_decision_hygiene_view(state)
+    flaw = view["flaw_candidates"][0]
+    evidence = view["evidence_map"][0]
+    dh = view["decision_hygiene"]
+
+    assert evidence["negative_evidence_type"] == "scope_overclaim"
+    assert evidence["negative_evidence_type_original"] == "scope_limitation"
+    assert evidence["negative_evidence_type_decision_view_reason"] == "linked_actionable_flaw_type_sync"
+    assert flaw["final_view_flaw_layer"] == "potential_concern"
+    assert dh["synced_actionable_negative_type_count"] == 1
+    assert dh["verified_actionable_negative_flaw_count"] == 1
+    assert dh["potential_concern_count"] == 1
+    assert dh.get("contamination_negative_evidence_overclaim", 0) == 0
+
+
+def test_decision_view_auto_binds_unlinked_verified_negative_evidence():
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-main",
+                "claim": "The model improves the main benchmark.",
+                "status": "supported",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "e-neg-unlinked",
+                "claim_id": "claim-main",
+                "stance": "missing",
+                "strength": "missing",
+                "source": "quote-bank-negative-grounding",
+                "support_source_bucket": "limitation_or_gap",
+                "negative_evidence_type": "negative_result",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_negative_verified",
+                "binding_status": "bound_real_claim",
+                "raw_quote": "The method performs worse than the baseline on the main benchmark.",
+            }
+        ],
+        "flaw_candidates": [],
+    }
+
+    view = build_decision_hygiene_view(state)
+    dh = view["decision_hygiene"]
+
+    assert dh["negative_evidence_candidate_count"] == 1
+    assert dh["negative_evidence_linked_to_flaw_count"] == 1
+    assert dh["negative_evidence_unlinked_to_flaw_count"] == 0
+    assert dh["auto_bound_negative_flaw_count"] == 1
+    assert dh["verified_actionable_negative_flaw_count"] == 1
+    assert dh["potential_concern_count"] == 1
+    assert view["flaw_candidates"][0]["source"] == "decision-view-auto-negative-binding"
 
 
 def test_potential_concern_text_includes_verified_negative_context():

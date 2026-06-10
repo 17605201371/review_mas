@@ -676,6 +676,117 @@ def test_fallback_claim_status_patch_is_blocked_even_with_verified_negative_evid
     assert patch_log["recovery_target_gate_label"] == "fallback_target"
 
 
+def test_mark_contested_patch_commits_without_claim_status_downgrade(mock_state):
+    state = copy.deepcopy(mock_state)
+    for evidence in state["evidence_map"]:
+        if evidence["evidence_id"] == "e2":
+            evidence.update(
+                {
+                    "verified_grounding_label": "paper_grounded_exact",
+                    "semantic_grounding_label": "semantic_support_verified",
+                }
+            )
+        if evidence["evidence_id"] == "e3":
+            evidence.update(
+                {
+                    "verified_grounding_label": "paper_grounded_exact",
+                    "semantic_grounding_label": "semantic_negative_verified",
+                    "negative_evidence_type": "scope_overclaim",
+                    "raw_quote": "The broad setting is left for future work.",
+                }
+            )
+
+    new_state = merge_review_state(
+        state,
+        {
+            "action": "apply_recovery_patch",
+            "target_type": "claim",
+            "target_id": "c2",
+            "old_status": "partially_supported",
+            "new_status": "partially_supported",
+            "supporting_evidence_ids": ["e3"],
+            "resolution_expectation": "partially_resolved",
+            "recovery_patch_operation": "mark_contested",
+            "mark_contested": True,
+        },
+    )
+
+    claim = next(item for item in new_state["claims"] if item["claim_id"] == "c2")
+    patch_log = new_state["_latest_patch_log"]
+    assert claim["status"] == "partially_supported"
+    assert patch_log["recovery_committed"] is True
+    assert patch_log["recovery_patch_operation"] == "mark_contested"
+    assert patch_log["recovery_state_delta"]["contested_relation_added"] is True
+    assert patch_log.get("recovery_no_effect_commit") is not True
+    assert new_state["contested_relations"][0]["claim_id"] == "c2"
+    assert new_state["contested_relations"][0]["negative_evidence_ids"] == ["e3"]
+
+
+def test_mark_contested_allows_paper_salvaged_claim_without_status_downgrade():
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-paper-fallback-1",
+                "claim": "Paper-salvaged claim with both positive and negative grounding.",
+                "status": "supported",
+                "claim_kind": "paper_extracted",
+                "claim_origin_kind": "raw_salvaged_claim_agent_output",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "e-pos",
+                "claim_id": "claim-paper-fallback-1",
+                "stance": "supports",
+                "strength": "strong",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_support_verified",
+            },
+            {
+                "evidence_id": "e-neg",
+                "claim_id": "claim-paper-fallback-1",
+                "stance": "missing",
+                "strength": "missing",
+                "source": "quote-bank-negative-grounding",
+                "negative_evidence_type": "negative_result",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_negative_verified",
+            },
+        ],
+        "flaw_candidates": [],
+    }
+
+    new_state = merge_review_state(
+        state,
+        {
+            "action": "apply_recovery_patch",
+            "target_type": "claim",
+            "target_id": "claim-paper-fallback-1",
+            "old_status": "supported",
+            "new_status": "supported",
+            "supporting_evidence_ids": ["e-neg"],
+            "resolution_expectation": "partially_resolved",
+            "recovery_patch_operation": "mark_contested",
+            "mark_contested": True,
+            "contested_relation": {
+                "claim_id": "claim-paper-fallback-1",
+                "support_evidence_ids": ["e-pos"],
+                "negative_evidence_ids": ["e-neg"],
+            },
+        },
+    )
+
+    claim = new_state["claims"][0]
+    patch_log = new_state["_latest_patch_log"]
+    assert claim["status"] == "supported"
+    assert patch_log["recovery_committed"] is True
+    assert patch_log["recovery_patch_operation"] == "mark_contested"
+    assert patch_log["recovery_state_delta"]["contested_relation_added"] is True
+    assert patch_log.get("recovery_no_effect_commit") is not True
+    assert patch_log["recovery_target_gate_label"] == "fallback_target"
+    assert new_state["contested_relations"][0]["claim_id"] == "claim-paper-fallback-1"
+
+
 def test_downgraded_flaw_negative_ids_do_not_report_active_misbinding():
     state = {
         "claims": [{"claim_id": "c1", "claim": "The method improves results.", "status": "supported"}],
