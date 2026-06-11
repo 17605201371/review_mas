@@ -5401,7 +5401,7 @@ class ApiReviewGenerator:
         max_tokens: int = 640,
         max_workers: int = 8,
         timeout: int = 120,
-        max_retries: int = 3,
+        max_retries: int = 6,
         retry_delay: float = 2.0,
         provider: str = "auto",
         system_prompt: Optional[str] = None,
@@ -5537,7 +5537,7 @@ class ApiReviewGenerator:
             except Exception as e:
                 last_error = e
                 if attempt < self.max_retries - 1:
-                    wait = self.retry_delay * (2 ** attempt)
+                    wait = min(self.retry_delay * (2 ** attempt), 30.0)
                     print(f"[API] Retry {attempt + 1}/{self.max_retries} for {agent_id}: {e}, waiting {wait:.1f}s")
                     time.sleep(wait)
         raise RuntimeError(f"API call failed after {self.max_retries} retries for {agent_id}: {last_error}")
@@ -5731,7 +5731,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--api-system-prompt", default=None, help="Optional system message for API backends. MiMo gets a provider default when omitted.")
     parser.add_argument("--api-max-workers", type=int, default=8, help="Max concurrent API calls for batch generation.")
     parser.add_argument("--api-timeout", type=int, default=120, help="API request timeout in seconds.")
-    parser.add_argument("--api-max-retries", type=int, default=3, help="Max retries per API request.")
+    parser.add_argument("--api-max-retries", type=int, default=6, help="Max retries per API request.")
     return parser
 
 

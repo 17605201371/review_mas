@@ -1,0 +1,17 @@
+run_name=mimo_v25_full39_mt9_b4w4_api2_20260611_173526
+start_time=2026-06-11 17:35:26 CST
+dataset_path=fulltest39_20260606.parquet
+limit=39
+mode=s4
+max_turns=9
+manager_batch_size=4
+api_max_workers=2
+api_timeout=300
+api_max_retries=6
+model_adapter_mode=small_model
+max_tokens=768
+temperature=1.0
+top_p=0.95
+python=python3
+end_time=2026-06-11 19:18:00 CST
+exit_code=0
