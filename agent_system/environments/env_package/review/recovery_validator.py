@@ -289,15 +289,18 @@ def _negative_recovery_evidence_type(item: Dict[str, Any]) -> str:
     return "generic_gap"
 
 
-def _is_mark_contested_patch(patch: Dict[str, Any], current_status: str = "") -> bool:
+def _requests_mark_contested_patch(patch: Dict[str, Any]) -> bool:
     raw = patch.get("raw_payload") or {}
-    requested = (
+    return bool(
         patch.get("mark_contested")
         or raw.get("mark_contested")
         or str(patch.get("recovery_patch_operation") or raw.get("recovery_patch_operation") or "").strip().lower() == "mark_contested"
         or bool(raw.get("contested_relation"))
     )
-    if not requested:
+
+
+def _is_mark_contested_patch(patch: Dict[str, Any], current_status: str = "") -> bool:
+    if not _requests_mark_contested_patch(patch):
         return False
     if str(patch.get("target_type") or "").strip().lower() not in {"claim", "flaw"}:
         return False
@@ -595,6 +598,7 @@ def validate_recovery_patch(state: Dict[str, Any], patch: Dict[str, Any]) -> Dic
         old_status = str(patch.get("old_status") or "").lower()
         new_status = str(patch.get("new_status") or "").lower()
         evidence_ids = list(patch.get("supporting_evidence_ids", []) or [])
+        requested_mark_contested = _requests_mark_contested_patch(patch)
         mark_contested_patch = _is_mark_contested_patch(patch, current_status)
 
         if (
@@ -606,6 +610,15 @@ def validate_recovery_patch(state: Dict[str, Any], patch: Dict[str, Any]) -> Dic
                 "BLOCKED_BY_POLICY",
                 "Recovery cannot commit a claim-status lifecycle patch against a synthetic fallback/context claim.",
                 "Target a real paper claim for mark_contested, or keep the verified negative issue as a flaw/assessment limitation.",
+                validated=True,
+            )
+
+        if requested_mark_contested and not mark_contested_patch:
+            return _failure(
+                validation,
+                "BLOCKED_BY_POLICY",
+                "mark_contested is a non-destructive recovery operation and cannot change claim or flaw status.",
+                "Keep old_status and new_status equal to the live ReviewState status, and write only a contested_relation; use a separate guarded lifecycle patch for real status changes.",
                 validated=True,
             )
 
@@ -679,6 +692,23 @@ def validate_recovery_patch(state: Dict[str, Any], patch: Dict[str, Any]) -> Dic
             validation["normalization_reason"] = "verified_negative_evidence_requires_conservative_claim_downgrade"
             new_status = "unsupported"
             validation["new_status"] = new_status
+
+        if (
+            target_type == "claim"
+            and new_status == "unsupported"
+            and _verified_positive_support_ids_for_claim(
+                state,
+                str(patch.get("target_id") or ""),
+                list((located.get("target_item") or {}).get("supporting_evidence_ids") or []),
+            )
+        ):
+            return _failure(
+                validation,
+                "BLOCKED_BY_POLICY",
+                "Claim downgrade to unsupported is unsafe because the claim retains verified positive support; preserve the claim status and record a contested relation against the verified negative flaw.",
+                "Use flaw-target mark_contested with verified positive support ids and verified negative evidence ids instead of changing the claim status.",
+                validated=True,
+            )
 
         if current_status == new_status:
             return _failure(

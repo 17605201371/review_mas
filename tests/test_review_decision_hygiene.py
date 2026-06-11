@@ -5209,6 +5209,11 @@ def test_negative_classifier_keeps_external_baseline_dataset_unavailable_neutral
 def test_negative_classifier_keeps_actionable_missing_ablation_and_baseline():
     assert _classify_negative_evidence_type("The paper does not report ablation experiments for the core module.") == "missing_ablation"
     assert _classify_negative_evidence_type("The paper did not compare against a strong baseline on the main benchmark.") == "missing_baseline"
+    assert _classify_negative_evidence_type("The component contribution is not isolated by an ablation analysis.") == "missing_ablation"
+    assert _classify_negative_evidence_type("The comparison to recent state-of-the-art baselines is missing.") == "missing_baseline"
+    assert _classify_negative_evidence_type("The evaluation is limited to a single dataset.") == "insufficient_evaluation"
+    assert _classify_negative_evidence_type("Training details and data split details are omitted, limiting reproducibility.") == "reproducibility_gap"
+    assert _classify_negative_evidence_type("The improvements are small and not consistent across tasks.") == "result_claim_mismatch"
 
 
 def test_generic_gap_cannot_anchor_grounded_negative_evidence():

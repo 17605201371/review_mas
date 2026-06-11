@@ -501,6 +501,58 @@ def test_runner_quote_bank_prefers_latest_context_meta():
     assert quote_bank[0]["raw_quote"] == "Latest visible limitation quote."
 
 
+def test_select_negative_quote_bank_entries_prefers_type_diversity():
+    from agent_system.inference.review_runner import _select_negative_quote_bank_entries
+
+    state = {
+        "claims": [{"claim_id": "claim-main", "claim": "The method is broadly evaluated and reproducible."}],
+        "_latest_evidence_context_meta": {
+            "evidence_quote_bank": [
+                {
+                    "quote_id": "q-neg-result",
+                    "source_bucket": "negative_or_gap",
+                    "negative_evidence_type": "negative_result",
+                    "raw_quote": "The main result is worse than the strongest baseline.",
+                },
+                {
+                    "quote_id": "q-neg-result-2",
+                    "source_bucket": "negative_or_gap",
+                    "negative_evidence_type": "negative_result",
+                    "raw_quote": "The method underperforms on the second benchmark.",
+                },
+                {
+                    "quote_id": "q-ablation",
+                    "source_bucket": "negative_or_gap",
+                    "negative_evidence_type": "missing_ablation",
+                    "raw_quote": "The component contribution is not isolated by an ablation analysis.",
+                },
+                {
+                    "quote_id": "q-repro",
+                    "source_bucket": "negative_or_gap",
+                    "negative_evidence_type": "reproducibility_gap",
+                    "raw_quote": "Training details and data split details are omitted, limiting reproducibility.",
+                },
+                {
+                    "quote_id": "q-mismatch",
+                    "source_bucket": "negative_or_gap",
+                    "negative_evidence_type": "result_claim_mismatch",
+                    "raw_quote": "The improvements are small and not consistent across tasks.",
+                },
+            ]
+        },
+    }
+
+    selected = _select_negative_quote_bank_entries(
+        state,
+        {"target_claim_ids": ["claim-main"], "target_flaw_ids": []},
+        max_entries=4,
+    )
+
+    selected_types = [item["negative_evidence_type"] for item in selected]
+    assert len(selected_types) == len(set(selected_types))
+    assert {"missing_ablation", "reproducibility_gap", "result_claim_mismatch"}.issubset(selected_types)
+
+
 def test_evidence_context_sources_only_report_rendered_snippets():
     paper_text = """--- BEGIN PAPER ---
 Title: Tiny Context
@@ -1659,9 +1711,43 @@ def test_recovery_payload_salvages_critique_emission_failure_to_patch():
     assert payload["_recovery_patch_source"] == "system_salvaged"
 
 
-def test_fallback_recovery_patch_pattern_a_skipped_when_direct_negative_present():
-    """P0-1a: should NOT downgrade if the flaw also has a direct (non-quote-bank)
-    verified-negative — that case must remain handled by the claim branch."""
+def test_model_claim_downgrade_with_positive_support_rebuilds_to_contested_flaw():
+    state = _build_pattern_a_state()
+    state["evidence_map"][1]["negative_evidence_type"] = "negative_result"
+    state["evidence_map"][1]["claim_status_downgrade_allowed"] = True
+
+    payload = _maybe_salvage_recovery_payload(
+        "Critique Agent",
+        {
+            "action": "apply_recovery_patch",
+            "target_type": "claim",
+            "target_id": "claim-main",
+            "old_status": "supported",
+            "new_status": "unsupported",
+            "supporting_evidence_ids": ["evidence-negative-quote-bank-quote-1-1"],
+        },
+        state,
+        manager_payload={
+            "action_type": "challenge_previous_hypothesis",
+            "effective_action_type": "challenge_previous_hypothesis",
+            "turn_mode": "recovery_patch",
+            "target_claim_ids": ["claim-main"],
+            "target_flaw_ids": ["flaw-quote-bank-1"],
+            "target_evidence_ids": ["evidence-negative-quote-bank-quote-1-1"],
+        },
+    )
+
+    assert payload["action"] == "apply_recovery_patch"
+    assert payload["target_type"] == "flaw"
+    assert payload["target_id"] == "flaw-quote-bank-1"
+    assert payload["new_status"] == "candidate"
+    assert payload["recovery_patch_operation"] == "mark_contested"
+    assert payload["claim_downgrade_contested_rebuild_used"] is True
+
+
+def test_fallback_recovery_patch_contests_direct_negative_when_positive_support_present():
+    """Direct verified-negative evidence should still use a non-destructive
+    contested relation when the claim retains verified positive support."""
     state = _build_pattern_a_state(
         extra_negative_evidence=[
             {
@@ -1689,12 +1775,13 @@ def test_fallback_recovery_patch_pattern_a_skipped_when_direct_negative_present(
         },
     )
 
-    # The claim branch should fire first using the direct contradiction.
     assert payload["action"] == "apply_recovery_patch"
-    assert payload["target_type"] == "claim"
-    assert payload["target_id"] == "claim-main"
-    assert payload["new_status"] == "unsupported"
+    assert payload["target_type"] == "flaw"
+    assert payload["target_id"] == "flaw-quote-bank-1"
+    assert payload["new_status"] == "candidate"
+    assert payload["recovery_patch_operation"] == "mark_contested"
     assert "evidence-direct-contradiction" in payload["supporting_evidence_ids"]
+    assert payload["contested_relation"]["claim_id"] == "claim-main"
 
 
 def test_fallback_recovery_patch_pattern_a_preserves_actionable_quote_bank_candidate():
@@ -1798,10 +1885,13 @@ def test_fallback_recovery_patch_marks_real_claim_contested_from_allowed_actiona
     )
 
     assert payload["action"] == "apply_recovery_patch"
-    assert payload["target_type"] == "claim"
-    assert payload["target_id"] == "claim-main"
-    assert payload["new_status"] == "unsupported"
+    assert payload["target_type"] == "flaw"
+    assert payload["target_id"] == "flaw-quote-bank-1"
+    assert payload["old_status"] == "candidate"
+    assert payload["new_status"] == "candidate"
     assert payload["supporting_evidence_ids"] == ["evidence-negative-quote-bank-quote-1-1"]
+    assert payload["recovery_patch_operation"] == "mark_contested"
+    assert payload["contested_relation"]["claim_id"] == "claim-main"
 
 
 def test_fallback_recovery_patch_contests_paper_fallback_only_through_flaw_target():
@@ -4976,6 +5066,49 @@ def test_recovery_candidate_flaw_ids_keeps_actionable_verified_negative_flaw():
     assert _recovery_candidate_flaw_ids(state) == ["flaw-actionable"]
 
 
+def test_recovery_candidate_flaw_ids_prefers_confirmed_actionable_flaw_for_safe_downgrade():
+    from agent_system.inference.review_runner import _recovery_candidate_flaw_ids
+
+    state = {
+        "evidence_map": [
+            {
+                "evidence_id": "e-candidate-negative",
+                "claim_id": "claim-main",
+                "stance": "contradicts",
+                "strength": "strong",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_negative_verified",
+                "negative_evidence_type": "negative_result",
+            },
+            {
+                "evidence_id": "e-confirmed-negative",
+                "claim_id": "claim-main",
+                "stance": "contradicts",
+                "strength": "strong",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_negative_verified",
+                "negative_evidence_type": "negative_result",
+            },
+        ],
+        "flaw_candidates": [
+            {
+                "flaw_id": "flaw-candidate",
+                "status": "candidate",
+                "related_claim_ids": ["claim-main"],
+                "negative_evidence_ids": ["e-candidate-negative"],
+            },
+            {
+                "flaw_id": "flaw-confirmed",
+                "status": "confirmed",
+                "related_claim_ids": ["claim-main"],
+                "negative_evidence_ids": ["e-confirmed-negative"],
+            },
+        ],
+    }
+
+    assert _recovery_candidate_flaw_ids(state) == ["flaw-confirmed", "flaw-candidate"]
+
+
 def test_apply_recovery_phase_protocol_upgrades_recheck_when_verified_negative_flaw_ready():
     from agent_system.inference.review_runner import _apply_recovery_phase_protocol
 
@@ -5248,7 +5381,7 @@ def test_build_turn_log_records_phase_fields_and_recovery_aliases():
                 "old_status": "supported",
                 "new_status": "unsupported",
                 "recovery_target_gate_label": "real_target",
-                "recovery_patch_operation": "mark_contested",
+                "recovery_patch_operation": "downgrade_claim_to_unsupported",
                 "recovery_target_commit_allowed": True,
                 "recovery_patch_source": "system_salvaged",
             },
@@ -5268,7 +5401,7 @@ def test_build_turn_log_records_phase_fields_and_recovery_aliases():
     assert turn_log["recovery_patch_validated"] is True
     assert turn_log["recovery_patch_committed"] is True
     assert turn_log["recovery_target_gate_label"] == "real_target"
-    assert turn_log["recovery_patch_operation"] == "mark_contested"
+    assert turn_log["recovery_patch_operation"] == "downgrade_claim_to_unsupported"
     assert turn_log["recovery_target_commit_allowed"] is True
 
 

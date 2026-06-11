@@ -92,6 +92,20 @@ SYNTHETIC_EVIDENCE_PREFIXES = (
     "evidence-synthetic-",
 )
 
+VERIFIED_PAPER_GROUNDED_LABELS = {"paper_grounded_exact", "paper_grounded_normalized"}
+VERIFIED_POSITIVE_SEMANTIC_LABELS = {"semantic_support_verified"}
+VERIFIED_NEGATIVE_SEMANTIC_LABELS = {"semantic_negative_verified"}
+NEGATIVE_EVIDENCE_STANCES = {
+    "contradicts",
+    "refutes",
+    "weakens",
+    "does_not_support",
+    "missing",
+    "unsupported",
+    "insufficient",
+}
+CONTESTED_FINAL_VIEWS = {"potential_concern", "contested_finding"}
+
 # Protection lines (must be true on every candidate run, see P26 plan).
 FULL39_REFERENCE_PAPERS = 39
 
@@ -199,6 +213,90 @@ def _turn_has_harmful_commit_risk(tl: Dict[str, Any]) -> bool:
     if tl.get("recovery_harmful_commit_risk") or tl.get("negative_recovery_commit"):
         return True
     return bool(_recovery_turn_delta(tl).get("negative_recovery_commit"))
+
+
+def _row_evidence_lookup(row: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    state = row.get("review_state") or {}
+    return {
+        str(item.get("evidence_id") or ""): item
+        for item in state.get("evidence_map") or []
+        if isinstance(item, dict) and item.get("evidence_id")
+    }
+
+
+def _is_verified_positive_support(item: Dict[str, Any], claim_id: str = "") -> bool:
+    if claim_id and str(item.get("claim_id") or "") != str(claim_id):
+        return False
+    return bool(
+        str(item.get("stance") or "").strip().lower() in {"supports", "partially_supports"}
+        and str(item.get("verified_grounding_label") or "").strip() in VERIFIED_PAPER_GROUNDED_LABELS
+        and str(item.get("semantic_grounding_label") or "").strip() in VERIFIED_POSITIVE_SEMANTIC_LABELS
+    )
+
+
+def _is_verified_negative_evidence(item: Dict[str, Any], claim_id: str = "") -> bool:
+    if claim_id and str(item.get("claim_id") or "") != str(claim_id):
+        return False
+    stance = str(item.get("stance") or "").strip().lower()
+    strength = str(item.get("strength") or "").strip().lower()
+    return bool(
+        str(item.get("verified_grounding_label") or "").strip() in VERIFIED_PAPER_GROUNDED_LABELS
+        and str(item.get("semantic_grounding_label") or "").strip() in VERIFIED_NEGATIVE_SEMANTIC_LABELS
+        and (
+            stance in NEGATIVE_EVIDENCE_STANCES
+            or strength in {"missing", "insufficient"}
+            or bool(str(item.get("negative_evidence_type") or "").strip())
+        )
+    )
+
+
+def _ids_have_verified_positive_support(
+    evidence_lookup: Dict[str, Dict[str, Any]],
+    evidence_ids: Iterable[Any],
+    claim_id: str,
+) -> bool:
+    return any(
+        _is_verified_positive_support(evidence_lookup.get(str(eid), {}) or {}, claim_id)
+        for eid in evidence_ids or []
+    )
+
+
+def _ids_have_verified_negative_evidence(
+    evidence_lookup: Dict[str, Dict[str, Any]],
+    evidence_ids: Iterable[Any],
+    claim_id: str,
+) -> bool:
+    return any(
+        _is_verified_negative_evidence(evidence_lookup.get(str(eid), {}) or {}, claim_id)
+        for eid in evidence_ids or []
+    )
+
+
+def _contested_relation_stats(rows: Iterable[Dict[str, Any]]) -> Counter[str]:
+    stats: Counter[str] = Counter()
+    for row in rows:
+        state = row.get("review_state") or {}
+        evidence_lookup = _row_evidence_lookup(row)
+        for relation in state.get("contested_relations") or []:
+            if not isinstance(relation, dict):
+                continue
+            claim_id = str(relation.get("claim_id") or "").strip()
+            negative_ids = list(relation.get("negative_evidence_ids") or [])
+            support_ids = list(relation.get("support_evidence_ids") or [])
+            final_view = str(relation.get("final_view") or "").strip().lower()
+            has_positive = _ids_have_verified_positive_support(evidence_lookup, support_ids, claim_id)
+            has_negative = _ids_have_verified_negative_evidence(evidence_lookup, negative_ids, claim_id)
+            final_view_ok = final_view in CONTESTED_FINAL_VIEWS
+            stats["contested_relation_final_count"] += 1
+            if has_positive:
+                stats["contested_relation_with_positive_support_count"] += 1
+            if has_negative:
+                stats["contested_relation_with_verified_negative_evidence_count"] += 1
+            if final_view_ok:
+                stats["contested_relation_final_view_count"] += 1
+            if has_positive and has_negative and final_view_ok:
+                stats["contested_relation_effective_count"] += 1
+    return stats
 
 
 def _row_has_clean_state(row: Dict[str, Any]) -> bool:
@@ -658,6 +756,15 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     out["claims_with_contested_support"] = _sum(rows, "claims_with_contested_support")
     out["claims_with_contested_final_support"] = _sum(rows, "claims_with_contested_final_support")
     out["open_conflict_count"] = _sum(rows, "open_conflict_count")
+    relation_stats = _contested_relation_stats(rows)
+    for key in (
+        "contested_relation_final_count",
+        "contested_relation_effective_count",
+        "contested_relation_with_positive_support_count",
+        "contested_relation_with_verified_negative_evidence_count",
+        "contested_relation_final_view_count",
+    ):
+        out[key] = int(relation_stats.get(key, 0))
 
     # --- gaps / unresolved / locator ----------------------------------
     gap_counts = _gap_status_counts(rows)
@@ -778,6 +885,7 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     failure_codes: Counter = Counter()
     synthetic_in_supporting = 0
     for r in rows:
+        evidence_lookup = _row_evidence_lookup(r)
         for tl in r.get("turn_logs") or []:
             if not isinstance(tl, dict):
                 continue
@@ -807,6 +915,48 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
             operation = str(tl.get("recovery_patch_operation") or "")
             if operation:
                 rec[f"recovery_patch_operation_{operation}_turns"] += 1
+            if gate_label == "negative_verified_target" and not _turn_has_harmful_commit_risk(tl):
+                rec["negative_verified_target_preserved_count"] += 1
+            if operation == "mark_contested":
+                committed = bool(tl.get("recovery_patch_committed") or tl.get("recovery_committed"))
+                delta = _recovery_turn_delta(tl)
+                if committed:
+                    rec["mark_contested_commit_count"] += 1
+                if bool(delta.get("contested_relation_added")):
+                    rec["contested_relation_added_count"] += 1
+                open_conflict_delta = 0
+                try:
+                    open_conflict_delta = int((delta.get("delta") or {}).get("open_conflict_count") or 0)
+                except (TypeError, ValueError):
+                    open_conflict_delta = 0
+                if committed and (int(tl.get("resolved_conflict_count") or 0) > 0 or open_conflict_delta < 0):
+                    rec["conflict_to_contested_resolution_count"] += 1
+                claim_id = str(tl.get("contested_relation_claim_id") or "").strip()
+                negative_ids = list(tl.get("contested_relation_negative_evidence_ids") or [])
+                if not negative_ids:
+                    negative_ids = list(tl.get("supporting_evidence_ids") or [])
+                if not claim_id and str(tl.get("recovery_target_type") or "") == "claim":
+                    claim_id = str(tl.get("recovery_target_id") or "").strip()
+                if not claim_id:
+                    for evidence_id in negative_ids:
+                        claim_id = str((evidence_lookup.get(str(evidence_id)) or {}).get("claim_id") or "").strip()
+                        if claim_id:
+                            break
+                support_ids = list(tl.get("contested_relation_support_evidence_ids") or [])
+                has_positive_support = _ids_have_verified_positive_support(evidence_lookup, support_ids, claim_id)
+                if not has_positive_support and claim_id:
+                    has_positive_support = any(
+                        _is_verified_positive_support(item, claim_id)
+                        for item in evidence_lookup.values()
+                    )
+                has_verified_negative = _ids_have_verified_negative_evidence(evidence_lookup, negative_ids, claim_id)
+                final_view = str(tl.get("contested_relation_final_view") or "").strip().lower()
+                if committed and has_positive_support:
+                    rec["mark_contested_with_positive_support_count"] += 1
+                if committed and has_verified_negative:
+                    rec["mark_contested_with_verified_negative_evidence_count"] += 1
+                if committed and final_view in CONTESTED_FINAL_VIEWS:
+                    rec["mark_contested_final_view_count"] += 1
             code = str(tl.get("recovery_failure_code") or "")
             if code:
                 failure_codes[code] += 1
@@ -835,6 +985,13 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     out["recovery_safe_blocked_terminal_target"] = rec["recovery_safe_blocked_terminal_target"]
     out["recovery_terminal_turns"] = rec["recovery_terminal_turns"]
     out["recovery_repeat_allowed_false_turns"] = rec["recovery_repeat_allowed_false_turns"]
+    out["contested_relation_added_count"] = rec["contested_relation_added_count"]
+    out["conflict_to_contested_resolution_count"] = rec["conflict_to_contested_resolution_count"]
+    out["negative_verified_target_preserved_count"] = rec["negative_verified_target_preserved_count"]
+    out["mark_contested_commit_count"] = rec["mark_contested_commit_count"]
+    out["mark_contested_with_positive_support_count"] = rec["mark_contested_with_positive_support_count"]
+    out["mark_contested_with_verified_negative_evidence_count"] = rec["mark_contested_with_verified_negative_evidence_count"]
+    out["mark_contested_final_view_count"] = rec["mark_contested_final_view_count"]
     out["recovery_safe_resolution"] = (
         rec["recovery_success"]
         + rec["recovery_safe_blocked_weak_target"]
@@ -866,6 +1023,7 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
         "rebind_evidence",
         "split_overbroad_claim",
         "convert_negative_to_gap",
+        "downgrade_claim_to_unsupported",
         "mark_contested",
         "resolve_stale_gap",
     ):
@@ -1261,6 +1419,18 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "claims_with_contested_support",
         "claims_with_contested_final_support",
         "open_conflict_count",
+        "contested_relation_final_count",
+        "contested_relation_added_count",
+        "contested_relation_effective_count",
+        "conflict_to_contested_resolution_count",
+        "negative_verified_target_preserved_count",
+        "mark_contested_commit_count",
+        "mark_contested_with_positive_support_count",
+        "mark_contested_with_verified_negative_evidence_count",
+        "mark_contested_final_view_count",
+        "contested_relation_with_positive_support_count",
+        "contested_relation_with_verified_negative_evidence_count",
+        "contested_relation_final_view_count",
     ]),
     ("Gap cleanup & locator", [
         "evidence_gap_open_count",
@@ -1317,6 +1487,7 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "recovery_patch_operation_reject_patch_turns",
         "recovery_patch_operation_downgrade_final_to_candidate_turns",
         "recovery_patch_operation_route_to_assessment_limitation_turns",
+        "recovery_patch_operation_downgrade_claim_to_unsupported_turns",
         "recovery_patch_operation_mark_contested_turns",
         "recovery_patch_operation_resolve_stale_gap_turns",
     ]),

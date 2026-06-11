@@ -5820,11 +5820,7 @@ def _recovery_patch_operation(parsed_patch: Dict[str, Any], validation: Dict[str
     target_type = str(validation.get("target_type") or parsed_patch.get("target_type") or "")
     old_status = str(validation.get("old_status") or parsed_patch.get("old_status") or "").lower()
     new_status = str(validation.get("new_status") or parsed_patch.get("new_status") or "").lower()
-    raw_payload = parsed_patch.get("raw_payload") or {}
-    requested_operation = str(
-        parsed_patch.get("recovery_patch_operation") or raw_payload.get("recovery_patch_operation") or ""
-    ).strip().lower()
-    if target_type in {"claim", "flaw"} and (validation.get("mark_contested") or parsed_patch.get("mark_contested") or requested_operation == "mark_contested"):
+    if target_type in {"claim", "flaw"} and validation.get("mark_contested"):
         return "mark_contested"
     if target_type == "evidence_link" and new_status in {"unbound", "invalid_claim_id"}:
         return "rebind_evidence"
@@ -5837,7 +5833,7 @@ def _recovery_patch_operation(parsed_patch: Dict[str, Any], validation: Dict[str
     if target_type == "flaw" and new_status in {"downgraded", "retracted"}:
         return "route_to_assessment_limitation"
     if target_type == "claim" and new_status == "unsupported":
-        return "mark_contested"
+        return "downgrade_claim_to_unsupported"
     if target_type == "claim" and new_status in {"supported", "partially_supported"}:
         return "resolve_stale_gap"
     if target_type == "hypothesis":
@@ -5907,6 +5903,9 @@ def _build_recovery_patch_log(parsed_patch: Dict[str, Any], validation: Dict[str
     repeat_allowed = bool(parsed_patch.get("recovery_repeat_allowed", raw_payload.get("recovery_repeat_allowed", True)))
     if recovery_terminal:
         repeat_allowed = False
+    relation_payload = parsed_patch.get("contested_relation") or raw_payload.get("contested_relation") or {}
+    if not isinstance(relation_payload, dict):
+        relation_payload = {}
     return {
         "recovery_attempted": parsed_patch.get("is_recovery_payload", False),
         "recovery_validated": patch_validated,
@@ -5934,6 +5933,15 @@ def _build_recovery_patch_log(parsed_patch: Dict[str, Any], validation: Dict[str
         "recovery_terminal": recovery_terminal,
         "recovery_terminal_reason": terminal_reason,
         "recovery_repeat_allowed": repeat_allowed,
+        "contested_relation_claim_id": str(relation_payload.get("claim_id") or ""),
+        "contested_relation_support_evidence_ids": _strip_synthetic_recovery_markers(
+            list(relation_payload.get("support_evidence_ids") or [])
+        ),
+        "contested_relation_negative_evidence_ids": _strip_synthetic_recovery_markers(
+            list(relation_payload.get("negative_evidence_ids") or [])
+        ),
+        "contested_relation_final_view": str(relation_payload.get("final_view") or ""),
+        "contested_relation_status": str(relation_payload.get("status") or ""),
         "recovery_state_delta": {},
         "recovery_consistency_improved": False,
         "negative_recovery_commit": False,
@@ -6052,6 +6060,8 @@ def _apply_recovery_update(state: Dict[str, Any], payload: Dict[str, Any]) -> Di
     target_field = validation.get("target_field")
     target_index = validation.get("target_index")
     new_status = str(validation.get("new_status") or parsed_patch.get("new_status") or "").lower()
+    patch_operation = str(merged["_latest_patch_log"].get("recovery_patch_operation") or "")
+    relation_only_mark_contested = bool(patch_operation == "mark_contested" and validation.get("mark_contested"))
     if _flaw_limitation_patch_is_no_effect(state, validation, new_status):
         merged["_latest_patch_log"].update(
             {
@@ -6111,7 +6121,9 @@ def _apply_recovery_update(state: Dict[str, Any], payload: Dict[str, Any]) -> Di
         target_entity_id = str(validation.get("target_id") or parsed_patch.get("target_id") or "")
 
     try:
-        if target_field == "current_hypotheses":
+        if relation_only_mark_contested:
+            pass
+        elif target_field == "current_hypotheses":
             hypotheses = list(merged.get("current_hypotheses", []) or [])
             hypotheses[int(target_index)] = _format_hypothesis_status_text(hypotheses[int(target_index)], new_status)
             merged["current_hypotheses"] = hypotheses
@@ -6216,6 +6228,15 @@ def _apply_recovery_update(state: Dict[str, Any], payload: Dict[str, Any]) -> Di
             relation_key = (claim_id, tuple(evidence_ids[:4]))
             if relation_key not in existing_keys:
                 merged["contested_relations"] = (existing + [relation])[-12:]
+                merged["_latest_patch_log"].update(
+                    {
+                        "contested_relation_claim_id": claim_id,
+                        "contested_relation_support_evidence_ids": relation["support_evidence_ids"],
+                        "contested_relation_negative_evidence_ids": relation["negative_evidence_ids"],
+                        "contested_relation_final_view": relation["final_view"],
+                        "contested_relation_status": relation["status"],
+                    }
+                )
                 recovery_revisions: List[Dict[str, Any]] = []
                 _append_revision_event(
                     recovery_revisions,
@@ -6775,11 +6796,14 @@ _EVIDENCE_NEGATIVE_ANCHOR_PATTERNS: List[Tuple[str, re.Pattern[str]]] = [
         re.compile(
             r"\b("
             r"no\s+(?:ablation|baseline|comparison|evaluation)|"
-            r"missing\s+(?:ablation|baseline|comparison|evaluation)|"
-            r"not\s+(?:evaluated|compared|significant)|no\s+significant|"
+            r"missing\s+(?:ablation|baseline|comparison|evaluation|implementation|hyperparameter|details?)|"
+            r"not\s+(?:evaluated|compared|significant|consistent|reproducible)|no\s+significant|"
             r"(?:do|does|did)\s+not\s+(?:report|provide|include|evaluate|compare|validate|establish|show)\b|"
-            r"lack(?:s|ed|ing)?\s+(?:ablation|baseline|comparison|evaluation|implementation|detail)|"
-            r"insufficient\s+(?:evaluation|experiment|baseline|comparison|detail)|"
+            r"lack(?:s|ed|ing)?\s+(?:ablation|baseline|comparison|evaluation|implementation|detail|hyperparameter|component analysis)|"
+            r"insufficient\s+(?:evaluation|experiment|baseline|comparison|detail|implementation)|"
+            r"single\s+dataset|only\s+evaluated|limited\s+to\s+(?:one|two|a single)|"
+            r"implementation\s+details?|hyperparameters?|reproducib(?:ility|le)|"
+            r"mixed\s+results?|marginal\s+improvements?|inconsistent\s+results?|"
             r"worse|underperform(?:s|ed)?|fail(?:s|ed)?\s+to\s+(?:show|evaluate|compare|generalize|generalise)|"
             r"threats?\s+to\s+validity|future\s+work|limitation|limitations"
             r")\b",
@@ -6807,12 +6831,17 @@ _NEG_TYPE_NEGATIVE_RESULT_RE = re.compile(
 )
 _NEG_TYPE_MISSING_ABLATION_RE = re.compile(
     r"\b(no ablation|missing ablation|lacks? (?:an? )?ablation|"
-    r"do(?:es)? not (?:report|provide|include).*\bablation)\b",
+    r"do(?:es)? not (?:report|provide|include).*\bablation|"
+    r"(?:component|module|mechanism|contribution)[^.!?]{0,100}(?:not|never|without|lacks?)[^.!?]{0,80}(?:isolat(?:ed|e|ing)|ablat(?:ed|e|ion)|analysis)|"
+    r"(?:no|missing|without)\s+(?:component|module|mechanism)\s+(?:analysis|ablation))\b",
     re.IGNORECASE,
 )
 _NEG_TYPE_MISSING_BASELINE_RE = re.compile(
     r"\b(not compare(?:d)?|missing baseline|no baseline|without comparison|"
-    r"without (?:a |the )?(?:strong )?baseline|lacks? (?:a |the )?(?:strong )?baseline|"
+    r"without (?:a |the )?(?:strong |recent |direct |state-of-the-art |sota )?baseline|"
+    r"lacks? (?:a |the )?(?:strong |recent |direct |state-of-the-art |sota )?baseline|"
+    r"(?:no|missing|without)\s+(?:comparison|comparisons)\s+(?:to|with)\s+(?:recent|strong|state-of-the-art|sota|competitive)|"
+    r"(?:comparison|comparisons)\s+(?:to|with)\s+(?:recent|strong|state-of-the-art|sota|competitive)[^.!?]{0,100}(?:baseline|baselines)[^.!?]{0,40}(?:is|are|was|were)?\s*(?:missing|absent|omitted)|"
     r"do(?:es)? not (?:compare|report|provide|include).*\b(baseline|comparison)|"
     r"(?:baseline|comparison)[^.!?]{0,100}(?:is |are |was |were )?not (?:reported|included|provided)|"
     r"not (?:reported|included|provided)[^.!?]{0,100}\b(baseline|comparison))\b",
@@ -6821,13 +6850,18 @@ _NEG_TYPE_MISSING_BASELINE_RE = re.compile(
 _NEG_TYPE_INSUFFICIENT_EVALUATION_RE = re.compile(
     r"\b(not evaluated|insufficient evaluation|limited evaluation|evaluation is limited|"
     r"small-scale evaluation|few datasets?|limited datasets?|insufficient experiments?|"
-    r"do(?:es)? not (?:evaluate|test|validate)|no evaluation)\b",
+    r"single dataset|only evaluated on|limited to (?:one|two|a single) (?:dataset|benchmark|task|domain)|"
+    r"do(?:es)? not (?:evaluate|test|validate)|no evaluation|"
+    r"do(?:es)? not judge (?:whether|if) (?:the )?output is accurate|"
+    r"not tested on (?:real|external|out-of-domain|unseen))\b",
     re.IGNORECASE,
 )
 _NEG_TYPE_REPRODUCIBILITY_GAP_RE = re.compile(
     r"\b(reproducibility|reproducible|implementation detail|hyperparameter|code unavailable|"
-    r"not release(?:d)? code|lack(?:s|ing)? implementation|missing implementation|"
-    r"cannot reproduce|insufficient detail)\b",
+    r"not release(?:d)? code|code (?:is )?not (?:available|released)|"
+    r"lack(?:s|ing)? (?:implementation|hyperparameter|training detail|data split|compute setup)|"
+    r"missing (?:implementation|hyperparameter|training detail|data split|compute setup|details?)|"
+    r"cannot reproduce|insufficient detail|details? (?:are|is) omitted)\b",
     re.IGNORECASE,
 )
 _NEG_TYPE_SCOPE_OVERCLAIM_RE = re.compile(
@@ -6839,6 +6873,12 @@ _NEG_TYPE_RESULT_CLAIM_MISMATCH_RE = re.compile(
     r"\b(result(?:s)? (?:do|does|did) not support|claim(?:s)? (?:do|does|did) not match|"
     r"mismatch(?:es)? between (?:the )?(?:claim|conclusion) and (?:the )?result|"
     r"contrary to (?:the )?(?:claim|conclusion)|reported result(?:s)? (?:are|is) weaker)\b",
+    re.IGNORECASE,
+)
+_NEG_TYPE_RESULT_PATTERN_WEAKNESS_RE = re.compile(
+    r"\b(mixed results?|inconsistent results?|not consistent(?:ly)?|does not always improve|"
+    r"only marginal(?:ly)? (?:improv(?:e|es|ed|ement)|gain)|small gains?|"
+    r"performance (?:varies|is mixed)|not uniformly distributed)\b",
     re.IGNORECASE,
 )
 _NEG_TYPE_SCOPE_LIMITATION_RE = re.compile(
@@ -6908,6 +6948,8 @@ def _classify_negative_evidence_type(quote: str) -> str:
     if _NEG_TYPE_REPRODUCIBILITY_GAP_RE.search(quote):
         return "reproducibility_gap"
     if _NEG_TYPE_RESULT_CLAIM_MISMATCH_RE.search(quote):
+        return "result_claim_mismatch"
+    if _NEG_TYPE_RESULT_PATTERN_WEAKNESS_RE.search(quote):
         return "result_claim_mismatch"
     if _NEG_TYPE_SCOPE_OVERCLAIM_RE.search(quote):
         return "scope_overclaim"
@@ -7322,10 +7364,19 @@ def _build_critique_negative_quote_bank(body: str, max_quotes: int = 6) -> List[
             score = 0 if neg_type in ACTIONABLE_NEGATIVE_EVIDENCE_TYPES else 1
             candidates.append((score, match.start(), quote))
     candidates.sort(key=lambda item: (item[0], item[1]))
+    ordered_candidates: List[Tuple[int, int, str]] = []
+    used_candidate_types: set[str] = set()
+    for item in candidates:
+        neg_type = _classify_negative_evidence_type(item[2])
+        if neg_type in used_candidate_types:
+            continue
+        used_candidate_types.add(neg_type)
+        ordered_candidates.append(item)
+    ordered_candidates.extend(item for item in candidates if item not in ordered_candidates)
 
     quote_bank: List[Dict[str, Any]] = []
     seen: set[str] = set()
-    for _, pos, quote in candidates:
+    for _, pos, quote in ordered_candidates:
         if len(quote_bank) >= max_quotes:
             break
         key = _quote_bank_dedupe_key(quote)
@@ -8048,8 +8099,18 @@ def _prompt_negative_quote_bank_entries(quote_bank: Sequence[Dict[str, Any]], ma
             return ""
         return raw_quote
 
+    ordered_items: List[Dict[str, Any]] = []
+    used_types: set[str] = set()
+    for _, _, item in sorted(scored, key=lambda pair: (pair[0], pair[1])):
+        neg_type = _negative_evidence_type_for_record(item)
+        if neg_type in used_types:
+            continue
+        used_types.add(neg_type)
+        ordered_items.append(item)
+    ordered_items.extend(item for _, _, item in sorted(scored, key=lambda pair: (pair[0], pair[1])) if item not in ordered_items)
+
     entries: List[Dict[str, Any]] = []
-    for _, _, item in sorted(scored, key=lambda pair: (pair[0], pair[1]))[:max_items]:
+    for item in ordered_items[:max_items]:
         neg_type = _negative_evidence_type_for_record(item)
         prompt_quote = _prompt_safe_negative_quote_text(item, neg_type)
         if not prompt_quote or neg_type == "generic_gap":
@@ -10478,6 +10539,15 @@ def build_turn_log(
         "recovery_terminal": bool(turn_patch_log.get("recovery_terminal", False)),
         "recovery_terminal_reason": turn_patch_log.get("recovery_terminal_reason", ""),
         "recovery_repeat_allowed": bool(turn_patch_log.get("recovery_repeat_allowed", True)),
+        "contested_relation_claim_id": turn_patch_log.get("contested_relation_claim_id", ""),
+        "contested_relation_support_evidence_ids": _strip_synthetic_recovery_markers(
+            turn_patch_log.get("contested_relation_support_evidence_ids", [])
+        ),
+        "contested_relation_negative_evidence_ids": _strip_synthetic_recovery_markers(
+            turn_patch_log.get("contested_relation_negative_evidence_ids", [])
+        ),
+        "contested_relation_final_view": turn_patch_log.get("contested_relation_final_view", ""),
+        "contested_relation_status": turn_patch_log.get("contested_relation_status", ""),
         "sticky_target_id": state.get("sticky_target_id", ""),
         "sticky_target_type": state.get("sticky_target_type", ""),
         "sticky_target_active": bool(state.get("sticky_target_active", False)),

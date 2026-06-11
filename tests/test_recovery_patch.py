@@ -574,7 +574,7 @@ def test_claim_patch_with_verified_negative_normalizes_mistaken_positive_status(
     assert patch_log["recovery_failure_code"] == "SUCCESS"
     assert patch_log["status_normalized_from"] == "partially_supported"
     assert patch_log["status_normalized_to"] == "unsupported"
-    assert patch_log["recovery_patch_operation"] == "mark_contested"
+    assert patch_log["recovery_patch_operation"] == "downgrade_claim_to_unsupported"
 
 
 def test_not_assessable_gap_resolves_when_later_real_support_binds():
@@ -720,6 +720,97 @@ def test_mark_contested_patch_commits_without_claim_status_downgrade(mock_state)
     assert patch_log.get("recovery_no_effect_commit") is not True
     assert new_state["contested_relations"][0]["claim_id"] == "c2"
     assert new_state["contested_relations"][0]["negative_evidence_ids"] == ["e3"]
+
+
+def test_mark_contested_blocks_claim_status_downgrade_request(mock_state):
+    state = copy.deepcopy(mock_state)
+    for evidence in state["evidence_map"]:
+        if evidence["evidence_id"] == "e2":
+            evidence.update(
+                {
+                    "verified_grounding_label": "paper_grounded_exact",
+                    "semantic_grounding_label": "semantic_support_verified",
+                }
+            )
+        if evidence["evidence_id"] == "e3":
+            evidence.update(
+                {
+                    "verified_grounding_label": "paper_grounded_exact",
+                    "semantic_grounding_label": "semantic_negative_verified",
+                    "negative_evidence_type": "scope_overclaim",
+                    "raw_quote": "The broad setting is left for future work.",
+                }
+            )
+
+    new_state = merge_review_state(
+        state,
+        {
+            "action": "apply_recovery_patch",
+            "target_type": "claim",
+            "target_id": "c2",
+            "old_status": "partially_supported",
+            "new_status": "unsupported",
+            "supporting_evidence_ids": ["e3"],
+            "resolution_expectation": "partially_resolved",
+            "recovery_patch_operation": "mark_contested",
+            "mark_contested": True,
+            "contested_relation": {
+                "claim_id": "c2",
+                "support_evidence_ids": ["e2"],
+                "negative_evidence_ids": ["e3"],
+            },
+        },
+    )
+
+    claim = next(item for item in new_state["claims"] if item["claim_id"] == "c2")
+    patch_log = new_state["_latest_patch_log"]
+    assert claim["status"] == "partially_supported"
+    assert patch_log["recovery_committed"] is False
+    assert patch_log["recovery_failure_code"] == "BLOCKED_BY_POLICY"
+    assert patch_log["recovery_patch_operation"] == "reject_patch"
+    assert "non-destructive" in patch_log["recovery_failure_message"]
+
+
+def test_claim_unsupported_patch_blocks_when_verified_positive_support_remains(mock_state):
+    state = copy.deepcopy(mock_state)
+    for evidence in state["evidence_map"]:
+        if evidence["evidence_id"] == "e2":
+            evidence.update(
+                {
+                    "verified_grounding_label": "paper_grounded_exact",
+                    "semantic_grounding_label": "semantic_support_verified",
+                }
+            )
+        if evidence["evidence_id"] == "e3":
+            evidence.update(
+                {
+                    "verified_grounding_label": "paper_grounded_exact",
+                    "semantic_grounding_label": "semantic_negative_verified",
+                    "negative_evidence_type": "negative_result",
+                    "raw_quote": "The main result is worse than the strongest baseline.",
+                }
+            )
+
+    new_state = merge_review_state(
+        state,
+        {
+            "action": "apply_recovery_patch",
+            "target_type": "claim",
+            "target_id": "c2",
+            "old_status": "partially_supported",
+            "new_status": "unsupported",
+            "supporting_evidence_ids": ["e3"],
+            "resolution_expectation": "partially_resolved",
+        },
+    )
+
+    claim = next(item for item in new_state["claims"] if item["claim_id"] == "c2")
+    patch_log = new_state["_latest_patch_log"]
+    assert claim["status"] == "partially_supported"
+    assert patch_log["recovery_committed"] is False
+    assert patch_log["recovery_failure_code"] == "BLOCKED_BY_POLICY"
+    assert patch_log["recovery_patch_operation"] == "reject_patch"
+    assert "verified positive support" in patch_log["recovery_failure_message"]
 
 
 def test_mark_contested_blocks_paper_salvaged_claim_patch_without_status_downgrade():
@@ -1014,7 +1105,7 @@ def test_recovery_commit_records_state_quality_delta(mock_state):
     assert patch_log["recovery_state_delta"]["delta"]["open_conflict_count"] == -1
     assert patch_log["recovery_consistency_improved"] is True
     assert patch_log["negative_recovery_commit"] is False
-    assert patch_log["recovery_patch_operation"] == "mark_contested"
+    assert patch_log["recovery_patch_operation"] == "downgrade_claim_to_unsupported"
     assert patch_log["recovery_target_gate_label"] == "real_target"
     assert patch_log["recovery_target_commit_allowed"] is True
 

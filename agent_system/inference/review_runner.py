@@ -385,7 +385,12 @@ _NEGATIVE_RECOVERY_STANCES = {
 
 
 _NEGATIVE_QUOTE_ANCHOR_RE = re.compile(
-    r"\b(no\s+significant|not\s+significant|does\s+not|do\s+not|did\s+not|lack|lacks|lacking|missing|without|insufficient|not\s+evaluated|not\s+compare|no\s+ablation|fail|fails|failed|worse|underperform|limitation|limitations)\b",
+    r"\b(no\s+significant|not\s+significant|does\s+not|do\s+not|did\s+not|"
+    r"lack|lacks|lacking|missing|without|insufficient|not\s+evaluated|"
+    r"not\s+compare|no\s+ablation|component\s+analysis|single\s+dataset|"
+    r"only\s+evaluated|implementation\s+details?|hyperparameters?|reproducib(?:ility|le)|"
+    r"mixed\s+results?|inconsistent\s+results?|marginal\s+improvements?|"
+    r"fail|fails|failed|worse|underperform|limitation|limitations)\b",
     re.IGNORECASE,
 )
 
@@ -636,7 +641,16 @@ def _select_negative_quote_bank_entries(
     selected: List[Dict[str, Any]] = []
     seen_quote_ids: set[str] = set()
     seen_raw_keys: set[str] = set()
+    ordered_items: List[Dict[str, Any]] = []
+    used_types: set[str] = set()
     for _, _, _, item in candidates:
+        neg_type = _negative_quote_entry_type(item)
+        if neg_type in used_types:
+            continue
+        used_types.add(neg_type)
+        ordered_items.append(item)
+    ordered_items.extend(item for _, _, _, item in candidates if item not in ordered_items)
+    for item in ordered_items:
         quote_id = str(item.get("quote_id") or "").strip()
         raw_key = _runner_quote_bank_dedupe_key(str(item.get("raw_quote") or ""))
         if quote_id and quote_id in seen_quote_ids:
@@ -917,6 +931,8 @@ def _claim_downgrade_patch_from_actionable_flaw(
         old_status = str((claim or {}).get("status") or "uncertain").strip().lower()
         if old_status not in {"supported", "partially_supported", "uncertain"}:
             continue
+        if _verified_positive_support_ids_for_claim(claim or {}, evidence_lookup):
+            continue
         supporting_ids = [
             evidence_id
             for evidence_id in actionable_ids
@@ -1095,6 +1111,7 @@ def _recovery_candidate_flaw_ids(
         for item in state.get("evidence_map", []) or []
         if isinstance(item, dict) and item.get("evidence_id")
     }
+    confirmed_actionable_candidates: List[str] = []
     actionable_candidates: List[str] = []
     unverified_candidates: List[str] = []
     verified_candidates: List[str] = []
@@ -1109,12 +1126,15 @@ def _recovery_candidate_flaw_ids(
             continue
         verified_evidence_ids = _flaw_verified_negative_evidence_ids_for_recovery(flaw, evidence_lookup)
         if any(_allows_claim_status_downgrade_from_recovery(evidence_lookup.get(evidence_id, {})) for evidence_id in verified_evidence_ids):
+            if status == "confirmed":
+                confirmed_actionable_candidates.append(flaw_id)
+                continue
             actionable_candidates.append(flaw_id)
         elif verified_evidence_ids:
             verified_candidates.append(flaw_id)
         else:
             unverified_candidates.append(flaw_id)
-    candidates = actionable_candidates + unverified_candidates + verified_candidates
+    candidates = confirmed_actionable_candidates + actionable_candidates + unverified_candidates + verified_candidates
     return list(dict.fromkeys(candidates))[:2]
 
 
@@ -2309,11 +2329,13 @@ def _enforce_negative_evidence_formation_payload(
     ]
     if len(kept_actionable_grounded) < 1:
         needed_salvage = max(needed_salvage, 1)
+    if manager_payload.get("negative_evidence_formation_required"):
+        needed_salvage = max(needed_salvage, 2)
     if needed_salvage:
         for entry in _select_negative_quote_bank_entries(
             state,
             manager_payload,
-            max_entries=2,
+            max_entries=3,
             exclude_quote_ids=existing_quote_ids,
         ):
             salvage = _negative_quote_bank_salvage_payload(
@@ -3238,9 +3260,6 @@ def _fallback_recovery_patch_payload(state: Dict[str, Any], manager_payload: Dic
             if _negative_evidence_record_is_actionable(evidence_lookup.get(evidence_id, {}))
         ]
         if actionable_negative_ids:
-            claim_patch = _claim_downgrade_patch_from_actionable_flaw(flaw, claim_lookup, evidence_lookup)
-            if claim_patch:
-                return claim_patch
             if old_status == "confirmed":
                 return normalize_review_update_payload(
                     {
@@ -3266,6 +3285,9 @@ def _fallback_recovery_patch_payload(state: Dict[str, Any], manager_payload: Dic
             )
             if contested_patch:
                 return contested_patch
+            claim_patch = _claim_downgrade_patch_from_actionable_flaw(flaw, claim_lookup, evidence_lookup)
+            if claim_patch:
+                return claim_patch
             return _protected_potential_concern_blocked_payload(flaw_id)
         verified_quote_bank_negative_ids = _flaw_verified_negative_evidence_ids_for_recovery(
             flaw,
@@ -3345,9 +3367,6 @@ def _fallback_recovery_patch_payload(state: Dict[str, Any], manager_payload: Dic
         status = str(flaw.get("status") or "candidate").strip().lower()
         if status not in {"candidate", "confirmed"}:
             continue
-        claim_patch = _claim_downgrade_patch_from_actionable_flaw(flaw, claim_lookup, evidence_lookup)
-        if claim_patch:
-            return claim_patch
         contested_patch = _mark_contested_patch_from_verified_negative_flaw(
             flaw,
             claim_lookup,
@@ -3355,6 +3374,9 @@ def _fallback_recovery_patch_payload(state: Dict[str, Any], manager_payload: Dic
         )
         if contested_patch:
             return contested_patch
+        claim_patch = _claim_downgrade_patch_from_actionable_flaw(flaw, claim_lookup, evidence_lookup)
+        if claim_patch:
+            return claim_patch
 
     ordered_claim_ids = [
         str(claim_id).strip()
@@ -3564,6 +3586,34 @@ def _recovery_patch_cites_only_real_evidence(
     return all(eid in known_ids for eid in cited)
 
 
+def _claim_downgrade_patch_should_be_contested(worker_payload: Dict[str, Any], state: Dict[str, Any]) -> bool:
+    if worker_payload.get("action") != "apply_recovery_patch":
+        return False
+    if str(worker_payload.get("target_type") or "").strip().lower() != "claim":
+        return False
+    if str(worker_payload.get("new_status") or "").strip().lower() != "unsupported":
+        return False
+    target_id = str(worker_payload.get("target_id") or "").strip()
+    if not target_id:
+        return False
+    evidence_lookup = {
+        str(item.get("evidence_id") or ""): item
+        for item in state.get("evidence_map", []) or []
+        if isinstance(item, dict) and item.get("evidence_id")
+    }
+    claim_lookup = {
+        str(item.get("claim_id") or ""): item
+        for item in state.get("claims", []) or []
+        if isinstance(item, dict) and item.get("claim_id")
+    }
+    if not _verified_positive_support_ids_for_claim(claim_lookup.get(target_id, {}) or {}, evidence_lookup):
+        return False
+    return any(
+        _is_verified_negative_evidence_for_recovery(evidence_lookup.get(str(evidence_id), {}) or {})
+        for evidence_id in worker_payload.get("supporting_evidence_ids", []) or []
+    )
+
+
 def _recovery_patch_has_weak_target(worker_payload: Dict[str, Any], state: Dict[str, Any]) -> bool:
     if worker_payload.get("action") != "apply_recovery_patch":
         return False
@@ -3656,6 +3706,12 @@ def _maybe_salvage_recovery_payload(
     if worker_payload.get("action") == "apply_recovery_patch":
         if not worker_payload.get("_recovery_patch_source"):
             worker_payload["_recovery_patch_source"] = "model_generated"
+        if _claim_downgrade_patch_should_be_contested(worker_payload, state):
+            rebuilt = _fallback_recovery_patch_payload(state, manager_payload)
+            if rebuilt.get("action") == "apply_recovery_patch" and _recovery_patch_cites_only_real_evidence(rebuilt, state):
+                rebuilt["_recovery_patch_source"] = "claim_downgrade_contested_rebuild"
+                rebuilt["claim_downgrade_contested_rebuild_used"] = True
+                return rebuilt
         if _recovery_patch_has_weak_target(worker_payload, state):
             rebuilt = _build_verified_negative_claim_recovery_patch(state, manager_payload)
             if rebuilt is None:
@@ -3730,6 +3786,12 @@ def _build_verified_negative_claim_recovery_patch(
             continue
         old_status = str((claim or {}).get("status") or "uncertain").strip().lower()
         if old_status not in {"supported", "partially_supported", "uncertain"}:
+            continue
+        if _verified_positive_support_ids_for_claim(claim or {}, {
+            str(item.get("evidence_id") or ""): item
+            for item in state.get("evidence_map", []) or []
+            if isinstance(item, dict) and item.get("evidence_id")
+        }):
             continue
         return normalize_review_update_payload(
             {
