@@ -433,12 +433,19 @@ def _negative_evidence_record_is_actionable(item: Dict[str, Any]) -> bool:
 _BROAD_CLAIM_RE = re.compile(
     r"\b(generaliz(?:e|es|ed|ation)|generalisation|zero-shot|unseen|robust|"
     r"across|various|diverse|all|any|foundation model|scal(?:e|es|able|ability)|"
-    r"broad|universal|comprehensive|state-of-the-art|sota)\b",
+    r"broad|universal|comprehensive|state-of-the-art|sota|"
+    r"defy|defies|defying|overcome|mitigat(?:e|es|ed|ing|ion))\b",
     re.IGNORECASE,
 )
 _SCOPE_LIMIT_QUOTE_RE = re.compile(
     r"\b(future work|leave (?:their|our|this|its)? ?exploration|not yet (?:explored|evaluated|validated)|"
     r"limited to|only evaluated|out of scope|limitation|limitations|restrict(?:ed|ion|ions)?)\b",
+    re.IGNORECASE,
+)
+_CONCRETE_SCOPE_LIMIT_QUOTE_RE = re.compile(
+    r"\b(can be explored|could be explored|remain(?:s)? (?:for|as) future work|"
+    r"leave (?:their|our|this|its)? ?exploration|not yet (?:explored|evaluated|validated)|"
+    r"limited to|only evaluated|out of scope|more effective way|limitation|limitations|restrict(?:ed|ion|ions)?)\b",
     re.IGNORECASE,
 )
 
@@ -517,7 +524,9 @@ def _quote_bank_from_state_or_meta(state: Optional[Dict[str, Any]]) -> List[Dict
     entries: List[Dict[str, Any]] = []
     for source in (
         meta.get("evidence_quote_bank", []) if isinstance(meta, dict) else [],
+        meta.get("critique_negative_quote_bank", []) if isinstance(meta, dict) else [],
         (state or {}).get("evidence_quote_bank", []),
+        (state or {}).get("critique_negative_quote_bank", []),
     ):
         entries.extend(item for item in source or [] if isinstance(item, dict))
     deduped: List[Dict[str, Any]] = []
@@ -531,19 +540,73 @@ def _quote_bank_from_state_or_meta(state: Optional[Dict[str, Any]]) -> List[Dict
     return deduped
 
 
-def _select_negative_quote_bank_entry(state: Optional[Dict[str, Any]], manager_payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+def _runner_quote_bank_dedupe_key(text: str) -> str:
+    return re.sub(r"\s+", " ", str(text or "").strip().lower())
+
+
+def _negative_quote_bank_grounded_quote_ids(
+    payload_items: Sequence[Dict[str, Any]],
+    state: Optional[Dict[str, Any]],
+) -> set[str]:
+    negative_entries = []
+    for item in _quote_bank_from_state_or_meta(state):
+        if str(item.get("source_bucket") or "") != "negative_or_gap":
+            continue
+        neg_type = _negative_quote_entry_type(item)
+        if neg_type in {"generic_gap", "neutral_control_context", "bibliographic_or_title_noise", "neutral_instruction_noise"}:
+            continue
+        negative_entries.append(item)
+    negative_quote_ids = {
+        str(item.get("quote_id") or "").strip()
+        for item in negative_entries
+        if str(item.get("quote_id") or "").strip()
+    }
+    negative_quote_raw_to_id = {
+        _runner_quote_bank_dedupe_key(str(item.get("raw_quote") or "")): str(item.get("quote_id") or "").strip()
+        for item in negative_entries
+        if str(item.get("raw_quote") or "").strip() and str(item.get("quote_id") or "").strip()
+    }
+    grounded_ids: set[str] = set()
+    for item in payload_items or []:
+        if not isinstance(item, dict):
+            continue
+        quote_id = str(item.get("quote_id") or "").strip()
+        if quote_id and quote_id in negative_quote_ids:
+            grounded_ids.add(quote_id)
+            continue
+        source_bucket = str(item.get("support_source_bucket") or item.get("verified_source_bucket") or "").strip()
+        raw_quote = str(item.get("raw_quote") or item.get("evidence") or "")
+        raw_key = _runner_quote_bank_dedupe_key(raw_quote)
+        if source_bucket in {"limitation_or_gap", "negative_or_gap"} and raw_key in negative_quote_raw_to_id:
+            grounded_ids.add(negative_quote_raw_to_id[raw_key])
+    return grounded_ids
+
+
+def _select_negative_quote_bank_entries(
+    state: Optional[Dict[str, Any]],
+    manager_payload: Dict[str, Any],
+    *,
+    max_entries: int = 1,
+    exclude_quote_ids: Optional[set[str]] = None,
+) -> List[Dict[str, Any]]:
     quote_bank = _quote_bank_from_state_or_meta(state)
     target_text = " ".join([
         _target_flaw_text(manager_payload, state),
         " ".join(_claim_text_lookup(state).get(str(item or ""), "") for item in (manager_payload or {}).get("target_claim_ids", []) or []),
     ]).strip()
+    excluded = {str(item or "").strip() for item in (exclude_quote_ids or set()) if str(item or "").strip()}
     candidates = []
     for item in quote_bank:
+        quote_id = str(item.get("quote_id") or "").strip()
+        if quote_id and quote_id in excluded:
+            continue
         source_bucket = str(item.get("source_bucket") or "")
         raw_quote = str(item.get("raw_quote") or "").strip()
         if not raw_quote:
             continue
         neg_type = _negative_quote_entry_type(item)
+        if neg_type in {"neutral_control_context", "bibliographic_or_title_noise", "neutral_instruction_noise"}:
+            continue
         explicit_typed_negative = (
             source_bucket == "negative_or_gap"
             and neg_type in (_ACTIONABLE_NEGATIVE_EVIDENCE_TYPES | _LIMITATION_NEGATIVE_EVIDENCE_TYPES)
@@ -554,19 +617,45 @@ def _select_negative_quote_bank_entry(state: Optional[Dict[str, Any]], manager_p
         if source_bucket == "abstract":
             continue
         explicit_negative_bucket = source_bucket == "negative_or_gap"
+        if explicit_negative_bucket and neg_type == "generic_gap":
+            continue
         if not explicit_negative_bucket and neg_type in {"generic_gap", "neutral_control_context"}:
             # Non-abstract quotes with negative terms are useful to ground an
             # assessment limitation, but not enough for claim-status downgrade.
             item = dict(item)
             item.setdefault("negative_evidence_type", "scope_limitation")
             item["negative_quote_bank_inferred_from_anchor"] = True
+            neg_type = _negative_quote_entry_type(item)
         score = _runner_overlap_score(target_text, raw_quote) if target_text else 0.0
-        priority = 2 if explicit_negative_bucket else 1
-        candidates.append((priority, score, item))
+        scope_specificity = 1 if neg_type in _LIMITATION_NEGATIVE_EVIDENCE_TYPES and _CONCRETE_SCOPE_LIMIT_QUOTE_RE.search(raw_quote) else 0
+        priority = 3 if neg_type in _ACTIONABLE_NEGATIVE_EVIDENCE_TYPES else 2 if explicit_negative_bucket else 1
+        candidates.append((priority, scope_specificity, score, item))
     if not candidates:
-        return None
-    candidates.sort(key=lambda pair: (pair[0], pair[1]), reverse=True)
-    return candidates[0][2]
+        return []
+    candidates.sort(key=lambda pair: (pair[0], pair[1], pair[2]), reverse=True)
+    selected: List[Dict[str, Any]] = []
+    seen_quote_ids: set[str] = set()
+    seen_raw_keys: set[str] = set()
+    for _, _, _, item in candidates:
+        quote_id = str(item.get("quote_id") or "").strip()
+        raw_key = _runner_quote_bank_dedupe_key(str(item.get("raw_quote") or ""))
+        if quote_id and quote_id in seen_quote_ids:
+            continue
+        if raw_key and raw_key in seen_raw_keys:
+            continue
+        if quote_id:
+            seen_quote_ids.add(quote_id)
+        if raw_key:
+            seen_raw_keys.add(raw_key)
+        selected.append(item)
+        if len(selected) >= max_entries:
+            break
+    return selected
+
+
+def _select_negative_quote_bank_entry(state: Optional[Dict[str, Any]], manager_payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    entries = _select_negative_quote_bank_entries(state, manager_payload, max_entries=1)
+    return entries[0] if entries else None
 
 
 def _select_negative_quote_target_claim(state: Optional[Dict[str, Any]], manager_payload: Dict[str, Any], quote: str) -> str:
@@ -585,24 +674,7 @@ def _select_negative_quote_target_claim(state: Optional[Dict[str, Any]], manager
 
 
 def _payload_has_negative_quote_bank_grounding(payload_items: Sequence[Dict[str, Any]], state: Optional[Dict[str, Any]]) -> bool:
-    negative_quote_ids = {
-        str(item.get("quote_id") or "")
-        for item in _quote_bank_from_state_or_meta(state)
-        if isinstance(item, dict) and str(item.get("source_bucket") or "") == "negative_or_gap"
-    }
-    for item in payload_items or []:
-        if not isinstance(item, dict):
-            continue
-        quote_id = str(item.get("quote_id") or "")
-        raw_quote = str(item.get("raw_quote") or item.get("evidence") or "")
-        source_bucket = str(item.get("support_source_bucket") or item.get("verified_source_bucket") or "")
-        if quote_id and quote_id in negative_quote_ids:
-            return True
-        if source_bucket in {"limitation_or_gap", "negative_or_gap"} and _NEGATIVE_QUOTE_ANCHOR_RE.search(raw_quote):
-            return True
-        if _NEGATIVE_QUOTE_ANCHOR_RE.search(raw_quote):
-            return True
-    return False
+    return bool(_negative_quote_bank_grounded_quote_ids(payload_items, state))
 
 def _negative_salvage_target_flaw_updates(
     manager_payload: Dict[str, Any],
@@ -679,8 +751,9 @@ def _negative_quote_bank_salvage_payload(
     state: Optional[Dict[str, Any]],
     manager_payload: Dict[str, Any],
     existing_count: int,
+    entry_override: Optional[Dict[str, Any]] = None,
 ) -> Optional[Dict[str, Any]]:
-    entry = _select_negative_quote_bank_entry(state, manager_payload)
+    entry = entry_override if isinstance(entry_override, dict) else _select_negative_quote_bank_entry(state, manager_payload)
     if not entry:
         return None
     raw_quote = str(entry.get("raw_quote") or "").strip()
@@ -941,17 +1014,21 @@ def _mark_contested_patch_from_verified_negative_flaw(
         support_ids = _verified_positive_support_ids_for_claim(claim or {}, evidence_lookup)
         if not support_ids:
             continue
+        flaw_id = str(flaw.get("flaw_id") or "").strip()
+        if not flaw_id:
+            continue
+        flaw_status = str(flaw.get("status") or "candidate").strip().lower() or "candidate"
         return normalize_review_update_payload(
             {
                 "action": "apply_recovery_patch",
-                "target_type": "claim",
-                "target_id": claim_id,
-                "old_status": old_status,
-                "new_status": old_status,
+                "target_type": "flaw",
+                "target_id": flaw_id,
+                "old_status": flaw_status,
+                "new_status": flaw_status,
                 "supporting_evidence_ids": aligned_negative_ids[:2],
                 "reason_for_change": (
                     "Verified paper-negative evidence contests a claim that also has verified positive support; "
-                    "recovery records a contested relation without downgrading the claim status."
+                    "recovery records a contested relation from the flaw target without downgrading claim status."
                 ),
                 "resolution_expectation": "partially_resolved",
                 "confidence": 0.6,
@@ -2213,16 +2290,52 @@ def _enforce_negative_evidence_formation_payload(
         else:
             dropped.append(str(item.get("evidence_id") or item.get("evidence") or "positive-support"))
 
-    salvage = None
-    if not _payload_has_negative_quote_bank_grounding(kept, state):
-        salvage = _negative_quote_bank_salvage_payload(state, manager_payload, len(evidence_items))
-        if salvage:
+    salvage_items: List[Dict[str, Any]] = []
+    grounded_quote_ids = _negative_quote_bank_grounded_quote_ids(kept, state)
+    existing_quote_ids = set(grounded_quote_ids)
+    for item in (state or {}).get("evidence_map", []) or []:
+        if not isinstance(item, dict):
+            continue
+        quote_id = str(item.get("quote_id") or "").strip()
+        if quote_id and _negative_evidence_record_type(item) not in {"generic_gap", "neutral_control_context"}:
+            existing_quote_ids.add(quote_id)
+    needed_salvage = 0
+    if not grounded_quote_ids:
+        needed_salvage = 1
+    kept_actionable_grounded = [
+        item for item in kept
+        if _negative_evidence_record_is_actionable(item)
+        and str(item.get("quote_id") or "").strip() in grounded_quote_ids
+    ]
+    if len(kept_actionable_grounded) < 1:
+        needed_salvage = max(needed_salvage, 1)
+    if needed_salvage:
+        for entry in _select_negative_quote_bank_entries(
+            state,
+            manager_payload,
+            max_entries=2,
+            exclude_quote_ids=existing_quote_ids,
+        ):
+            salvage = _negative_quote_bank_salvage_payload(
+                state,
+                manager_payload,
+                len(evidence_items) + len(salvage_items),
+                entry_override=entry,
+            )
+            if not salvage:
+                continue
+            quote_id = str(salvage.get("quote_id") or "").strip()
+            if quote_id and quote_id in existing_quote_ids:
+                continue
             kept.append(salvage)
+            salvage_items.append(salvage)
+            if quote_id:
+                existing_quote_ids.add(quote_id)
             flaw_updates = _negative_salvage_target_flaw_updates(
                 manager_payload,
                 str(salvage.get("evidence_id") or ""),
                 str(salvage.get("claim_id") or ""),
-                str(salvage.get("quote_id") or ""),
+                quote_id,
                 str(salvage.get("negative_evidence_type") or "generic_gap"),
                 _claim_text_lookup(state).get(str(salvage.get("claim_id") or ""), ""),
                 str(salvage.get("raw_quote") or ""),
@@ -2230,14 +2343,18 @@ def _enforce_negative_evidence_formation_payload(
             )
             if flaw_updates:
                 payload["flaw_candidates"] = list(payload.get("flaw_candidates") or []) + flaw_updates
-            payload["negative_quote_bank_salvage_used"] = True
-            payload["negative_quote_bank_salvage_quote_id"] = salvage.get("quote_id", "")
+            if len(salvage_items) >= needed_salvage:
+                break
+    if salvage_items:
+        payload["negative_quote_bank_salvage_used"] = True
+        payload["negative_quote_bank_salvage_quote_id"] = salvage_items[0].get("quote_id", "")
+        payload["negative_quote_bank_salvage_quote_ids"] = [item.get("quote_id", "") for item in salvage_items]
 
     payload["evidence_map"] = kept
     if dropped:
         payload["negative_evidence_formation_filtered_positive_count"] = len(dropped)
         notes = list(payload.get("unresolved_questions") or [])
-        if salvage:
+        if salvage_items:
             # P0-4: keep this note paper-side / reviewer-neutral so it cannot
             # leak system-process language ("filtered", "salvage",
             # "hard-negative", etc.) into the user-facing report.

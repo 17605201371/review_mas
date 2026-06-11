@@ -1483,10 +1483,10 @@ def test_fallback_recovery_patch_pattern_a_marks_quote_bank_conflict_contested()
     )
 
     assert payload["action"] == "apply_recovery_patch"
-    assert payload["target_type"] == "claim"
-    assert payload["target_id"] == "claim-main"
-    assert payload["old_status"] == "supported"
-    assert payload["new_status"] == "supported"
+    assert payload["target_type"] == "flaw"
+    assert payload["target_id"] == "flaw-quote-bank-1"
+    assert payload["old_status"] == "candidate"
+    assert payload["new_status"] == "candidate"
     assert payload["supporting_evidence_ids"] == ["evidence-negative-quote-bank-quote-1-1"]
     assert payload["recovery_patch_operation"] == "mark_contested"
     assert payload["mark_contested"] is True
@@ -1620,10 +1620,10 @@ def test_fallback_recovery_patch_marks_paper_salvaged_claim_contested():
     )
 
     assert payload["action"] == "apply_recovery_patch"
-    assert payload["target_type"] == "claim"
-    assert payload["target_id"] == "claim-paper-fallback-2"
-    assert payload["old_status"] == "supported"
-    assert payload["new_status"] == "supported"
+    assert payload["target_type"] == "flaw"
+    assert payload["target_id"] == "flaw-negative-result"
+    assert payload["old_status"] == "candidate"
+    assert payload["new_status"] == "candidate"
     assert payload["supporting_evidence_ids"] == ["evidence-neg"]
     assert payload["recovery_patch_operation"] == "mark_contested"
     assert payload["mark_contested"] is True
@@ -1716,9 +1716,9 @@ def test_fallback_recovery_patch_pattern_a_preserves_actionable_quote_bank_candi
     )
 
     assert payload["action"] == "apply_recovery_patch"
-    assert payload["target_type"] == "claim"
-    assert payload["target_id"] == "claim-main"
-    assert payload["new_status"] == "supported"
+    assert payload["target_type"] == "flaw"
+    assert payload["target_id"] == "flaw-quote-bank-1"
+    assert payload["new_status"] == "candidate"
     assert payload["recovery_patch_operation"] == "mark_contested"
 
 
@@ -1739,9 +1739,9 @@ def test_fallback_recovery_patch_marks_targeted_protected_concern_terminal():
     )
 
     assert payload["action"] == "apply_recovery_patch"
-    assert payload["target_type"] == "claim"
-    assert payload["target_id"] == "claim-main"
-    assert payload["new_status"] == "supported"
+    assert payload["target_type"] == "flaw"
+    assert payload["target_id"] == "flaw-quote-bank-1"
+    assert payload["new_status"] == "candidate"
     assert payload["recovery_patch_operation"] == "mark_contested"
 
 
@@ -1804,17 +1804,19 @@ def test_fallback_recovery_patch_marks_real_claim_contested_from_allowed_actiona
     assert payload["supporting_evidence_ids"] == ["evidence-negative-quote-bank-quote-1-1"]
 
 
-def test_fallback_recovery_patch_does_not_contest_paper_fallback_claim():
+def test_fallback_recovery_patch_contests_paper_fallback_only_through_flaw_target():
     state = _build_pattern_a_state()
     state["claims"] = [
         {
             "claim_id": "claim-paper-fallback-1",
             "claim": "Paper-salvaged fallback claim.",
             "status": "supported",
+            "supporting_evidence_ids": ["evidence-positive-strong"],
             "claim_kind": "paper_extracted",
             "claim_origin_kind": "raw_salvaged_claim_agent_output",
         }
     ]
+    state["evidence_map"][0]["claim_id"] = "claim-paper-fallback-1"
     state["evidence_map"][1]["claim_id"] = "claim-paper-fallback-1"
     state["evidence_map"][1]["negative_evidence_type"] = "negative_result"
     state["evidence_map"][1]["claim_status_downgrade_allowed"] = True
@@ -1831,8 +1833,11 @@ def test_fallback_recovery_patch_does_not_contest_paper_fallback_claim():
         },
     )
 
-    assert payload["action"] == "blocked"
-    assert payload.get("target_type") != "claim"
+    assert payload["action"] == "apply_recovery_patch"
+    assert payload["target_type"] == "flaw"
+    assert payload["target_id"] == "flaw-quote-bank-1"
+    assert payload["new_status"] == "candidate"
+    assert payload["recovery_patch_operation"] == "mark_contested"
 
 
 def test_fallback_recovery_patch_downgrades_confirmed_actionable_flaw_to_candidate():
@@ -6615,6 +6620,45 @@ def test_negative_quote_bank_salvage_promotes_scope_limitation_for_broad_claim()
     assert merged["evidence_map"][0]["negative_evidence_type"] == "scope_overclaim"
 
 
+def test_negative_quote_bank_salvage_prefers_concrete_scope_limit_for_broad_capability_claim():
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The method defies multi-model forgetting in one-shot NAS.",
+                "status": "supported",
+            }
+        ],
+        "evidence_quote_bank": [
+            {
+                "quote_id": "quote-section-header",
+                "source_bucket": "negative_or_gap",
+                "source_locator": "Conclusion and future work",
+                "raw_quote": "The goal of this work is to train a supernet in an effective way to overcome multi-model forgetting.",
+                "negative_evidence_type": "scope_limitation",
+            },
+            {
+                "quote_id": "quote-concrete-future-work",
+                "source_bucket": "negative_or_gap",
+                "source_locator": "Conclusion and future work",
+                "raw_quote": "In future work, a more effective way to store all gradient vectors can be explored to improve the supernet predictive ability.",
+                "negative_evidence_type": "scope_limitation",
+            },
+        ],
+    }
+
+    salvaged = _negative_quote_bank_salvage_payload(
+        state,
+        {"target_claim_ids": ["claim-1"], "target_flaw_ids": ["flaw-scope"]},
+        0,
+    )
+
+    assert salvaged is not None
+    assert salvaged["quote_id"] == "quote-concrete-future-work"
+    assert salvaged["negative_evidence_type"] == "scope_overclaim"
+    assert salvaged["negative_evidence_actionability"] == "actionable_candidate"
+
+
 def test_negative_evidence_formation_adds_quote_bank_when_negative_item_lacks_negative_anchor():
     state = {
         "claims": [{"claim_id": "claim-1", "claim": "The method is validated against baselines."}],
@@ -6685,6 +6729,83 @@ def test_negative_evidence_formation_can_use_latest_context_quote_bank_meta():
 
     assert len(filtered["evidence_map"]) == 1
     assert filtered["evidence_map"][0]["quote_id"] == "quote-negative-or-gap-1"
+
+
+def test_negative_evidence_formation_adds_quote_bank_when_model_negative_quote_is_unmatched():
+    state = {
+        "claims": [{"claim_id": "claim-1", "claim": "The method is evaluated against strong baselines."}],
+        "evidence_quote_bank": [
+            {
+                "quote_id": "quote-negative-or-gap-1",
+                "source_bucket": "negative_or_gap",
+                "source_locator": "Limitations excerpt #1",
+                "raw_quote": "The evaluation does not compare against retrieval-heavy baselines.",
+                "source_span_start": 3,
+                "source_span_end": 68,
+            }
+        ],
+        "evidence_map": [],
+        "flaw_candidates": [],
+    }
+    payload = normalize_review_update_payload({
+        "evidence_map": [
+            {
+                "evidence_id": "e-unmatched-negative",
+                "claim_id": "claim-1",
+                "evidence": "No significant improvement is reported over strong baselines.",
+                "source": "experiment",
+                "raw_quote": "No significant improvement is reported over strong baselines.",
+                "stance": "missing",
+                "strength": "missing",
+            }
+        ],
+    })
+
+    filtered = _enforce_negative_evidence_formation_payload(
+        "Evidence Agent",
+        payload,
+        {"policy_source": "hard_negative_discovery_override", "target_claim_ids": ["claim-1"]},
+        state,
+    )
+
+    assert len(filtered["evidence_map"]) == 2
+    quote_bank_items = [item for item in filtered["evidence_map"] if item.get("source") == "quote-bank-negative-grounding"]
+    assert quote_bank_items
+    assert quote_bank_items[0]["quote_id"] == "quote-negative-or-gap-1"
+
+
+def test_negative_quote_bank_salvage_can_use_critique_negative_quote_meta():
+    task = {
+        "paper_id": "paper-critique-negative-meta",
+        "mode": "s4",
+        "max_turns": 7,
+        "user_goal": "Review the paper.",
+        "paper_text": """--- BEGIN PAPER ---
+\\begin{abstract} We propose a method for retrieval-heavy evaluation.\\end{abstract}
+\\section{4 Experiments} Table 1 reports model accuracy.
+\\section{5 Limitations} The evaluation does not compare against retrieval-heavy baselines.
+--- END PAPER ---""",
+        "review_state": {
+            "turn_id": 0,
+            "claims": [{"claim_id": "claim-1", "claim": "The method is evaluated against retrieval-heavy baselines.", "status": "supported"}],
+            "evidence_map": [],
+            "flaw_candidates": [],
+        },
+    }
+
+    render_critique_observation(task, {"target_claim_ids": ["claim-1"]})
+    state = dict(task["review_state"])
+    state["_latest_evidence_context_meta"] = dict(task["_latest_evidence_context_meta"])
+    state["_latest_evidence_context_meta"]["evidence_quote_bank"] = []
+    salvaged = _negative_quote_bank_salvage_payload(
+        state,
+        {"target_claim_ids": ["claim-1"]},
+        0,
+    )
+
+    assert salvaged is not None
+    assert salvaged["quote_id"].startswith("quote-critique-negative-")
+    assert salvaged["negative_evidence_type"] == "missing_baseline"
 
 
 def test_evidence_quote_bank_includes_negative_gap_quotes():

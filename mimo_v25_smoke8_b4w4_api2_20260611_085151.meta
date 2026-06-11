@@ -1,0 +1,17 @@
+run_name=mimo_v25_smoke8_b4w4_api2_20260611_085151
+start_time=2026-06-11 08:51:51 CST
+dataset_path=fulltest39_20260606.parquet
+limit=8
+mode=s4
+max_turns=7
+manager_batch_size=4
+api_max_workers=2
+api_timeout=300
+api_max_retries=3
+model_adapter_mode=small_model
+max_tokens=768
+temperature=1.0
+top_p=0.95
+python=python3
+end_time=2026-06-11 09:04:08 CST
+exit_code=0

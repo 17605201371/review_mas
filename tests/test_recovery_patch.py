@@ -722,7 +722,7 @@ def test_mark_contested_patch_commits_without_claim_status_downgrade(mock_state)
     assert new_state["contested_relations"][0]["negative_evidence_ids"] == ["e3"]
 
 
-def test_mark_contested_allows_paper_salvaged_claim_without_status_downgrade():
+def test_mark_contested_blocks_paper_salvaged_claim_patch_without_status_downgrade():
     state = {
         "claims": [
             {
@@ -779,11 +779,85 @@ def test_mark_contested_allows_paper_salvaged_claim_without_status_downgrade():
     claim = new_state["claims"][0]
     patch_log = new_state["_latest_patch_log"]
     assert claim["status"] == "supported"
+    assert patch_log["recovery_committed"] is False
+    assert patch_log["recovery_failure_code"] == "BLOCKED_BY_POLICY"
+    assert patch_log["recovery_patch_operation"] == "reject_patch"
+    assert patch_log["recovery_target_gate_label"] == "fallback_target"
+
+
+def test_mark_contested_flaw_target_allows_paper_salvaged_relation_without_status_downgrade():
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-paper-fallback-1",
+                "claim": "Paper-salvaged claim with both positive and negative grounding.",
+                "status": "supported",
+                "claim_kind": "paper_extracted",
+                "claim_origin_kind": "raw_salvaged_claim_agent_output",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "e-pos",
+                "claim_id": "claim-paper-fallback-1",
+                "stance": "supports",
+                "strength": "strong",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_support_verified",
+            },
+            {
+                "evidence_id": "e-neg",
+                "claim_id": "claim-paper-fallback-1",
+                "stance": "missing",
+                "strength": "missing",
+                "source": "quote-bank-negative-grounding",
+                "negative_evidence_type": "negative_result",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_negative_verified",
+            },
+        ],
+        "flaw_candidates": [
+            {
+                "flaw_id": "flaw-neg",
+                "status": "candidate",
+                "related_claim_ids": ["claim-paper-fallback-1"],
+                "evidence_ids": ["e-neg"],
+                "negative_evidence_ids": ["e-neg"],
+                "negative_evidence_type": "negative_result",
+            }
+        ],
+    }
+
+    new_state = merge_review_state(
+        state,
+        {
+            "action": "apply_recovery_patch",
+            "target_type": "flaw",
+            "target_id": "flaw-neg",
+            "old_status": "candidate",
+            "new_status": "candidate",
+            "supporting_evidence_ids": ["e-neg"],
+            "resolution_expectation": "partially_resolved",
+            "recovery_patch_operation": "mark_contested",
+            "mark_contested": True,
+            "contested_relation": {
+                "claim_id": "claim-paper-fallback-1",
+                "support_evidence_ids": ["e-pos"],
+                "negative_evidence_ids": ["e-neg"],
+            },
+        },
+    )
+
+    claim = new_state["claims"][0]
+    flaw = new_state["flaw_candidates"][0]
+    patch_log = new_state["_latest_patch_log"]
+    assert claim["status"] == "supported"
+    assert flaw["status"] == "candidate"
     assert patch_log["recovery_committed"] is True
     assert patch_log["recovery_patch_operation"] == "mark_contested"
+    assert patch_log["recovery_target_gate_label"] == "negative_verified_target"
     assert patch_log["recovery_state_delta"]["contested_relation_added"] is True
     assert patch_log.get("recovery_no_effect_commit") is not True
-    assert patch_log["recovery_target_gate_label"] == "fallback_target"
     assert new_state["contested_relations"][0]["claim_id"] == "claim-paper-fallback-1"
 
 
@@ -1123,6 +1197,7 @@ def test_recovery_patch_blocks_no_effect_assessment_limitation_downgrade():
     assert patch_log["recovery_committed"] is False
     assert patch_log["recovery_failure_code"] == "BLOCKED_BY_POLICY"
     assert patch_log["recovery_patch_operation"] == "reject_patch"
+    assert patch_log["recovery_target_gate_label"] == "real_target"
 
 
 def test_recovery_patch_can_deescalate_confirmed_flaw_to_candidate(mock_state):

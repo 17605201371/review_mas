@@ -828,7 +828,9 @@ def _quote_bank_entries_for_grounding(state: Dict[str, Any]) -> List[Dict[str, A
     latest_meta = (state or {}).get("_latest_evidence_context_meta") or {}
     for source in (
         latest_meta.get("evidence_quote_bank", []) if isinstance(latest_meta, dict) else [],
+        latest_meta.get("critique_negative_quote_bank", []) if isinstance(latest_meta, dict) else [],
         (state or {}).get("evidence_quote_bank", []),
+        (state or {}).get("critique_negative_quote_bank", []),
     ):
         for entry in source or []:
             if isinstance(entry, dict):
@@ -5822,7 +5824,7 @@ def _recovery_patch_operation(parsed_patch: Dict[str, Any], validation: Dict[str
     requested_operation = str(
         parsed_patch.get("recovery_patch_operation") or raw_payload.get("recovery_patch_operation") or ""
     ).strip().lower()
-    if target_type == "claim" and (validation.get("mark_contested") or parsed_patch.get("mark_contested") or requested_operation == "mark_contested"):
+    if target_type in {"claim", "flaw"} and (validation.get("mark_contested") or parsed_patch.get("mark_contested") or requested_operation == "mark_contested"):
         return "mark_contested"
     if target_type == "evidence_link" and new_status in {"unbound", "invalid_claim_id"}:
         return "rebind_evidence"
@@ -5858,11 +5860,15 @@ def _recovery_patch_target_gate_label(parsed_patch: Dict[str, Any], validation: 
     if (
         target_type == "flaw"
         and (
-            validation.get("failure_code") == "ACTIONABLE_CONCERN_PRESERVED"
+            validation.get("mark_contested")
+            or validation.get("negative_verified_target")
+            or validation.get("failure_code") == "ACTIONABLE_CONCERN_PRESERVED"
             or terminal_reason == PROTECTED_POTENTIAL_CONCERN_TERMINAL_REASON
         )
     ):
         return "negative_verified_target"
+    if target_type == "flaw" and validation.get("verified_negative_flaw_target"):
+        return "real_target"
     if validation.get("failure_code") in {"UNKNOWN_TARGET", "MISSING_TARGET_ID"}:
         confidence = 0.2
         repairability = "none"
@@ -6152,22 +6158,50 @@ def _apply_recovery_update(state: Dict[str, Any], payload: Dict[str, Any]) -> Di
         merged["_latest_patch_log"]["recovery_failure_message"] = f"Recovery state commit failed: {exc}"
         return merged
 
-    if (
-        merged["_latest_patch_log"].get("recovery_patch_operation") == "mark_contested"
-        and str(validation.get("target_type") or parsed_patch.get("target_type") or "").strip().lower() == "claim"
-    ):
-        claim_id = str(validation.get("target_id") or parsed_patch.get("target_id") or "").strip()
+    if merged["_latest_patch_log"].get("recovery_patch_operation") == "mark_contested":
+        mark_target_type = str(validation.get("target_type") or parsed_patch.get("target_type") or "").strip().lower()
+        raw_payload = parsed_patch.get("raw_payload") or {}
+        relation_payload = parsed_patch.get("contested_relation") or raw_payload.get("contested_relation") or {}
         evidence_ids = _strip_synthetic_recovery_markers(
             list(validation.get("supporting_evidence_ids", parsed_patch.get("supporting_evidence_ids", [])) or [])
         )
+        evidence_lookup = {
+            str(item.get("evidence_id") or ""): item
+            for item in merged.get("evidence_map", []) or []
+            if isinstance(item, dict) and str(item.get("evidence_id") or "")
+        }
+        claim_id = str((relation_payload or {}).get("claim_id") or "").strip()
+        if not claim_id and mark_target_type == "claim":
+            claim_id = str(validation.get("target_id") or parsed_patch.get("target_id") or "").strip()
+        if not claim_id:
+            for evidence_id in evidence_ids:
+                claim_id = str((evidence_lookup.get(str(evidence_id)) or {}).get("claim_id") or "").strip()
+                if claim_id:
+                    break
+        support_evidence_ids = [
+            str(item or "").strip()
+            for item in ((relation_payload or {}).get("support_evidence_ids") or [])
+            if str(item or "").strip()
+        ]
+        if not support_evidence_ids and claim_id:
+            for evidence in evidence_lookup.values():
+                if str(evidence.get("claim_id") or "").strip() != claim_id:
+                    continue
+                stance = str(evidence.get("stance") or "").strip().lower()
+                if (
+                    stance in {"supports", "partially_supports"}
+                    and str(evidence.get("verified_grounding_label") or "").strip() in VERIFIED_PAPER_GROUNDED_LABELS
+                    and str(evidence.get("semantic_grounding_label") or "").strip() == "semantic_support_verified"
+                ):
+                    support_evidence_ids.append(str(evidence.get("evidence_id") or ""))
         if claim_id and evidence_ids:
             relation = {
                 "relation_id": _slugify("contested", f"{claim_id}-{'-'.join(evidence_ids[:2])}", len(merged.get("contested_relations", []) or []) + 1),
                 "claim_id": claim_id,
                 "negative_evidence_ids": evidence_ids[:4],
-                "support_evidence_ids": list((validation.get("target_item") or {}).get("supporting_evidence_ids") or [])[:4],
+                "support_evidence_ids": list(dict.fromkeys(support_evidence_ids))[:4],
                 "reason": parsed_patch.get("reason_for_change") or "Verified paper-negative evidence contests otherwise supported claim evidence.",
-                "final_view": "potential_concern",
+                "final_view": str((relation_payload or {}).get("final_view") or "potential_concern"),
                 "status": "contested",
             }
             existing = list(merged.get("contested_relations", []) or [])
@@ -8206,6 +8240,13 @@ def render_critique_observation(task: Dict[str, Any], manager_payload: Optional[
     )
     body, _ = _clean_paper_body(task.get("paper_text", ""))
     direct_negative_quote_bank = _build_critique_negative_quote_bank(body, max_quotes=6)
+    critique_context_meta["critique_negative_quote_bank"] = direct_negative_quote_bank
+    task["_latest_evidence_context_meta"] = dict(critique_context_meta)
+    manager_payload.update({
+        key: value
+        for key, value in critique_context_meta.items()
+        if key not in {"evidence_quote_bank", "critique_negative_quote_bank"}
+    })
     negative_quote_bank = _prompt_negative_quote_bank_entries(
         list(direct_negative_quote_bank) + list(critique_context_meta.get("evidence_quote_bank", []) or [])
     )
