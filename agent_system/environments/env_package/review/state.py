@@ -53,6 +53,7 @@ RECOVERY_PATCH_ACTION_TYPES = {"challenge_previous_hypothesis"}
 TURN_MODES = {"normal_evidence", "recovery_patch"}
 REVIEW_PHASES = {"normal_review", "recovery"}
 PROTECTED_POTENTIAL_CONCERN_TERMINAL_REASON = "verified_actionable_negative_concern_preserved"
+ASSESSMENT_LIMITATION_NO_EFFECT_TERMINAL_REASON = "assessment_limitation_no_effect_preserved"
 
 ENABLE_EVIDENCE_ID_COLLISION_PRESERVATION = False
 
@@ -3479,12 +3480,12 @@ def _filter_decision_gaps(
         if "claim-fallback" in text:
             stale.append({**gap, "status": "superseded", "gap_lifecycle_state": "stale_or_internal", "resolution": gap.get("resolution") or "fallback_gap_not_paper_grounded"})
             continue
+        if re.search(r"\bflaw\b.{0,120}\blacks\s+anchored\s+evidence", text, re.I):
+            stale.append({**gap, "status": "superseded", "gap_lifecycle_state": "stale_or_internal", "resolution": gap.get("resolution") or "flaw_anchor_gap_hidden_from_decision_view"})
+            continue
         claim_record = claim_lookup.get(claim_id) if claim_id else None
         if claim_record and _claim_gap_should_be_not_assessable(claim_record):
             stale.append({**gap, "status": "not_assessable", "gap_lifecycle_state": "assessment_limitation", "resolution": gap.get("resolution") or "diagnostic_or_salvaged_claim_without_verified_support"})
-            continue
-        if re.search(r"\bflaw\s+[A-Za-z0-9_.:-]+\s+lacks\s+anchored\s+evidence", text, re.I):
-            stale.append({**gap, "status": "superseded", "gap_lifecycle_state": "stale_or_internal", "resolution": gap.get("resolution") or "flaw_anchor_gap_hidden_from_decision_view"})
             continue
         if any(count > 0 and (supported_claim_id == claim_id or supported_claim_id in text) for supported_claim_id, count in support_counts.items()):
             stale.append({**gap, "status": "resolved", "gap_lifecycle_state": "resolved", "resolution": gap.get("resolution") or "stale_resolved_by_support"})
@@ -3498,17 +3499,44 @@ def _filter_decision_gaps(
     return kept, stale
 
 
-def _filter_decision_conflicts(conflicts: Sequence[Dict[str, Any]], support_counts: Dict[str, int]) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+def _filter_decision_conflicts(
+    conflicts: Sequence[Dict[str, Any]],
+    support_counts: Dict[str, int],
+    view: Optional[Dict[str, Any]] = None,
+) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     kept: List[Dict[str, Any]] = []
     stale: List[Dict[str, Any]] = []
+    flaw_lookup = {
+        str(item.get("flaw_id") or ""): item
+        for item in (view or {}).get("flaw_candidates", []) or []
+        if isinstance(item, dict) and str(item.get("flaw_id") or "")
+    }
+    evidence_lookup = {
+        str(item.get("evidence_id") or ""): item
+        for item in (view or {}).get("evidence_map", []) or []
+        if isinstance(item, dict) and str(item.get("evidence_id") or "")
+    }
     for conflict in conflicts or []:
         conflict_type = str(conflict.get("conflict_type") or "")
         note = str(conflict.get("note") or "").lower()
         claim_id = str(conflict.get("claim_id") or "")
         evidence_id = str(conflict.get("evidence_id") or "")
+        flaw_id = str(conflict.get("flaw_id") or "")
         if conflict_type.startswith("fallback") or evidence_id.startswith("evidence-fallback"):
             stale.append(conflict)
             continue
+        if conflict_type in {"support_only_flaw_without_negative_grounding", "flaw_anchor_gap"}:
+            stale.append(conflict)
+            continue
+        if conflict_type == "interpretation_conflict":
+            flaw = flaw_lookup.get(flaw_id, {})
+            evidence = evidence_lookup.get(evidence_id, {})
+            if str((flaw or {}).get("status") or "") in {"downgraded", "retracted"}:
+                stale.append(conflict)
+                continue
+            if evidence and not _is_grounded_paper_negative_evidence_record(evidence, view or {}):
+                stale.append(conflict)
+                continue
         if claim_id and support_counts.get(claim_id, 0) > 0 and ("fallback" in note or "evidence-fallback" in note):
             stale.append(conflict)
             continue
@@ -4230,6 +4258,9 @@ def _state_contamination_targets(
     for gap in stale_gap_records or []:
         gap_id = str((gap or {}).get("gap_id") or "")
         text = str((gap or {}).get("text") or "")
+        classification = str((gap or {}).get("classification") or "")
+        if classification == "flaw_anchor_gap_hidden_from_decision_view":
+            continue
         match = re.search(r"claim\s+([A-Za-z0-9_.:-]+)\s+lacks\s+grounded", text, re.I)
         target_id = match.group(1) if match else gap_id
         records.append(_contamination_record(
@@ -4272,7 +4303,13 @@ def _state_contamination_targets(
                 confidence=0.9,
                 repairability="conservative",
             ))
-        if (status == "confirmed" or hygiene_reason == "decision_view_ungrounded_or_fallback_flaw") and not valid_negative_ids:
+        if (
+            status == "confirmed"
+            or (
+                status not in {"downgraded", "retracted"}
+                and hygiene_reason == "decision_view_ungrounded_or_fallback_flaw"
+            )
+        ) and not valid_negative_ids:
             records.append(_contamination_record(
                 "flaw",
                 flaw_id,
@@ -4342,6 +4379,15 @@ def _state_contamination_targets(
         ))
 
     return records[:80]
+
+
+def _negative_grounding_conflict_is_semantic_rejection(conflict: Dict[str, Any]) -> bool:
+    if not isinstance(conflict, dict):
+        return False
+    if str(conflict.get("reason") or "") != "negative_evidence_id_not_verified":
+        return False
+    semantic_label = str(conflict.get("semantic_grounding_label") or "").strip()
+    return semantic_label not in {"", "semantic_negative_verified", "semantic_support_verified"}
 
 
 def _auto_bind_unlinked_negative_evidence_flaws(view: Dict[str, Any], negative_evidence_ids: set[str]) -> List[str]:
@@ -4503,7 +4549,7 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
         _r6_negative_burden_claim_ids,
         claim_lookup_for_gaps,
     )
-    kept_conflicts, stale_conflicts = _filter_decision_conflicts(view.get("conflict_notes", []), support_counts)
+    kept_conflicts, stale_conflicts = _filter_decision_conflicts(view.get("conflict_notes", []), support_counts, view)
     view["evidence_gaps"] = _normalize_evidence_gaps(kept_gaps, max_items=10)
     view["conflict_notes"] = kept_conflicts[:12]
     synced_negative_type_ids = _sync_linked_actionable_negative_type_from_flaw(view)
@@ -4656,6 +4702,16 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
             flaw["hygiene_status_reason"] = "decision_view_evidence_aware_lack_flaw_conflict" if evidence_conflict else "decision_view_ungrounded_or_fallback_flaw"
             downgraded_flaws.append(str(flaw.get("flaw_id") or ""))
         if (
+            str(flaw.get("status") or "candidate") in {"candidate", "confirmed"}
+            and conflicts
+            and not pre_verified_negative_ids
+            and _flaw_explicit_negative_evidence_ids(flaw)
+            and all(_negative_grounding_conflict_is_semantic_rejection(conflict) for conflict in conflicts)
+        ):
+            flaw["status"] = "downgraded"
+            flaw["hygiene_status_reason"] = "semantic_rejected_negative_anchor"
+            downgraded_flaws.append(str(flaw.get("flaw_id") or ""))
+        if (
             flaw.get("status") not in {"downgraded", "retracted"}
             and not _flaw_has_negative_grounding(flaw, view)
             and _flaw_only_cites_supports(flaw, view)
@@ -4663,7 +4719,8 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
             support_only_flaws.append(str(flaw.get("flaw_id") or ""))
 
         verified_negative_ids = _verified_negative_evidence_ids_for_flaw(flaw, view)
-        if verified_negative_ids:
+        active_flaw_for_negative_metrics = str(flaw.get("status") or "candidate") not in {"downgraded", "retracted"}
+        if verified_negative_ids and active_flaw_for_negative_metrics:
             flaw["verified_negative_evidence_ids"] = verified_negative_ids
             verified_negative_flaw_ids.append(str(flaw.get("flaw_id") or ""))
             flaw_type_counts = _negative_evidence_type_counts_for_flaw(flaw, view)
@@ -4690,6 +4747,17 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
         flaw["final_view_flaw_layer"] = layer
         flaw_layer_counts[layer] = flaw_layer_counts.get(layer, 0) + 1
 
+    semantic_negative_rejections = [
+        conflict
+        for conflict in negative_grounding_conflicts
+        if _negative_grounding_conflict_is_semantic_rejection(conflict)
+    ]
+    active_negative_grounding_conflicts = [
+        conflict
+        for conflict in negative_grounding_conflicts
+        if not _negative_grounding_conflict_is_semantic_rejection(conflict)
+    ]
+
     support_quality = _decision_real_strong_support_quality(view)
     support_survival_trace = _build_support_survival_trace(view)
     support_survival_summary = _support_survival_summary(support_survival_trace)
@@ -4707,7 +4775,7 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
         view,
         support_counts,
         stale_gap_records,
-        negative_grounding_conflicts,
+        active_negative_grounding_conflicts,
     )
     contamination_type_counts = _type_counts(contamination_targets, "error_type")
     contamination_gate_counts = _gate_counts(contamination_targets)
@@ -4816,12 +4884,16 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
         "negative_evidence_binding_retry_candidate_count": max(0, len(negative_evidence_ids) - len(linked_negative_evidence_ids)),
         "auto_bound_negative_flaw_count": len(auto_bound_negative_flaws),
         "synced_actionable_negative_type_count": len(synced_negative_type_ids),
-        "negative_grounding_conflict_count": len(negative_grounding_conflicts),
-        "invalid_negative_evidence_id_count": len(negative_grounding_conflicts),
-        "invalid_negative_evidence_id_count_legacy": len(negative_grounding_conflicts),
-        "negative_semantic_anchor_conflict_count": len(negative_grounding_conflicts),
-        "generic_gap_semantic_rejected_count": len(negative_grounding_conflicts),
-        "negative_evidence_semantic_rejected_count": len(negative_grounding_conflicts),
+        "negative_grounding_conflict_count": len(active_negative_grounding_conflicts),
+        "invalid_negative_evidence_id_count": len(active_negative_grounding_conflicts),
+        "invalid_negative_evidence_id_count_legacy": len(active_negative_grounding_conflicts),
+        "negative_semantic_anchor_conflict_count": len(active_negative_grounding_conflicts),
+        "generic_gap_semantic_rejected_count": sum(
+            1
+            for conflict in semantic_negative_rejections
+            if str(conflict.get("negative_evidence_type") or "") == "generic_gap"
+        ),
+        "negative_evidence_semantic_rejected_count": len(semantic_negative_rejections),
         "claim_coverage_status": claim_coverage["claim_coverage_status"],
         "claim_coverage_tag_counts": claim_coverage["coverage_tag_counts"],
         "claim_coverage_missing_core_tags": claim_coverage["missing_core_coverage_tags"],
@@ -5863,6 +5935,8 @@ def _recovery_patch_target_gate_label(parsed_patch: Dict[str, Any], validation: 
         )
     ):
         return "negative_verified_target"
+    if target_type == "flaw" and terminal_reason == ASSESSMENT_LIMITATION_NO_EFFECT_TERMINAL_REASON:
+        return "real_target"
     if target_type == "flaw" and validation.get("verified_negative_flaw_target"):
         return "real_target"
     if validation.get("failure_code") in {"UNKNOWN_TARGET", "MISSING_TARGET_ID"}:
@@ -6047,6 +6121,36 @@ def _flaw_limitation_patch_is_no_effect(state: Dict[str, Any], validation: Dict[
     return False
 
 
+def _duplicate_contested_relation_patch(state: Dict[str, Any], parsed_patch: Dict[str, Any], validation: Dict[str, Any]) -> bool:
+    raw_payload = parsed_patch.get("raw_payload") or {}
+    relation_payload = parsed_patch.get("contested_relation") or raw_payload.get("contested_relation") or {}
+    claim_id = str((relation_payload or {}).get("claim_id") or "").strip()
+    if not claim_id and str(validation.get("target_type") or parsed_patch.get("target_type") or "").strip().lower() == "claim":
+        claim_id = str(validation.get("target_id") or parsed_patch.get("target_id") or "").strip()
+    negative_ids = _strip_synthetic_recovery_markers(
+        (relation_payload or {}).get("negative_evidence_ids", [])
+        or validation.get("supporting_evidence_ids", [])
+        or parsed_patch.get("supporting_evidence_ids", [])
+    )
+    relation_key = (claim_id, tuple(str(item or "").strip() for item in negative_ids if str(item or "").strip()))
+    if not relation_key[0] or not relation_key[1]:
+        return False
+    for relation in state.get("contested_relations", []) or []:
+        if not isinstance(relation, dict):
+            continue
+        existing_key = (
+            str(relation.get("claim_id") or "").strip(),
+            tuple(
+                str(item or "").strip()
+                for item in relation.get("negative_evidence_ids", []) or []
+                if str(item or "").strip()
+            ),
+        )
+        if existing_key == relation_key:
+            return True
+    return False
+
+
 def _apply_recovery_update(state: Dict[str, Any], payload: Dict[str, Any]) -> Dict[str, Any]:
     parsed_patch = parse_recovery_payload(payload)
     _refresh_stale_claim_downgrade_old_status(state, parsed_patch)
@@ -6075,6 +6179,26 @@ def _apply_recovery_update(state: Dict[str, Any], payload: Dict[str, Any]) -> Di
                     "with no remaining negative-grounding conflict; committing it would be a no-effect lifecycle change."
                 ),
                 "required_fix": "Choose a target with a remaining grounding conflict or an over-escalated confirmed concern.",
+                "recovery_target_commit_allowed": False,
+                "recovery_terminal": True,
+                "recovery_terminal_reason": ASSESSMENT_LIMITATION_NO_EFFECT_TERMINAL_REASON,
+                "recovery_repeat_allowed": False,
+            }
+        )
+        return merged
+    if relation_only_mark_contested and _duplicate_contested_relation_patch(state, parsed_patch, validation):
+        merged["_latest_patch_log"].update(
+            {
+                "recovery_validated": False,
+                "recovery_blocked": True,
+                "recovery_committed": False,
+                "recovery_patch_operation": "reject_patch",
+                "recovery_failure_code": "BLOCKED_BY_POLICY",
+                "recovery_failure_message": (
+                    "Recovery patch was blocked because the contested relation already exists; "
+                    "repeating mark_contested would be a no-effect lifecycle commit."
+                ),
+                "required_fix": "Select a different verified negative flaw or evidence relation for recovery.",
                 "recovery_target_commit_allowed": False,
             }
         )
@@ -6742,6 +6866,11 @@ _EVIDENCE_SECTION_HEADER_PATTERNS: List[Tuple[str, re.Pattern[str]]] = [
     ("theory_or_proof", re.compile(_SECTION_HEADER_PREFIX + r"(theory|theorem|proof|analysis|convergence|generalization)\s*[:.\-]?\s*(?:\n|$)", re.IGNORECASE)),
     ("conclusion", re.compile(_SECTION_HEADER_PREFIX + r"(conclusion|conclusions|discussion)\s*[:.\-]?\s*(?:\n|$)", re.IGNORECASE)),
 ]
+_EVIDENCE_INTRODUCTION_HEADER_PATTERN = re.compile(
+    _LATEX_SECTION_PREFIX + r"\b(introduction|intro)\b[^}]*\}|"
+    + _SECTION_HEADER_PREFIX + r"(introduction|intro)\s*[:.\-]?\s*(?:\n|$)",
+    re.IGNORECASE,
+)
 _EVIDENCE_DETAIL_ANCHOR_PATTERNS: List[Tuple[str, re.Pattern[str]]] = [
     (
         "ablation",
@@ -6798,6 +6927,7 @@ _EVIDENCE_NEGATIVE_ANCHOR_PATTERNS: List[Tuple[str, re.Pattern[str]]] = [
             r"no\s+(?:ablation|baseline|comparison|evaluation)|"
             r"missing\s+(?:ablation|baseline|comparison|evaluation|implementation|hyperparameter|details?)|"
             r"not\s+(?:evaluated|compared|significant|consistent|reproducible)|no\s+significant|"
+            r"without\s+(?:an?\s+|the\s+)?(?:baseline|comparison)(?:\s+(?:to|with|against))?|"
             r"(?:do|does|did)\s+not\s+(?:report|provide|include|evaluate|compare|validate|establish|show)\b|"
             r"lack(?:s|ed|ing)?\s+(?:ablation|baseline|comparison|evaluation|implementation|detail|hyperparameter|component analysis)|"
             r"insufficient\s+(?:evaluation|experiment|baseline|comparison|detail|implementation)|"
@@ -6824,7 +6954,11 @@ _NEG_TYPE_DIRECT_CONTRADICTION_RE = re.compile(
     re.IGNORECASE,
 )
 _NEG_TYPE_NEGATIVE_RESULT_RE = re.compile(
-    r"\b(worse|underperform(?:s|ed)?|lower than|insufficient|no improvement|degrad(?:e|es|ed|ation)|"
+    r"\b(worse|underperform(?:s|ed)?|"
+    r"(?:accuracy|performance|score|result|results|mrr|hits@?\d+|f1|auc|success rate)[^.!?]{0,60}lower than|"
+    r"lower (?:accuracy|performance|score|mrr|f1|auc)|"
+    r"insufficient (?:performance|accuracy|improvement|gain|gains|result|results)|"
+    r"no improvement|degrad(?:e|es|ed|ation)|"
     r"deteriorat(?:e|es|ed|ion)|declin(?:e|es|ed|ing)|poor performance|less accurate|drop in|"
     r"negative result|no significant|not significant)\b",
     re.IGNORECASE,
@@ -6838,6 +6972,7 @@ _NEG_TYPE_MISSING_ABLATION_RE = re.compile(
 )
 _NEG_TYPE_MISSING_BASELINE_RE = re.compile(
     r"\b(not compare(?:d)?|missing baseline|no baseline|without comparison|"
+    r"without (?:an? |the )?comparison (?:to|with|against)|"
     r"without (?:a |the )?(?:strong |recent |direct |state-of-the-art |sota )?baseline|"
     r"lacks? (?:a |the )?(?:strong |recent |direct |state-of-the-art |sota )?baseline|"
     r"(?:no|missing|without)\s+(?:comparison|comparisons)\s+(?:to|with)\s+(?:recent|strong|state-of-the-art|sota|competitive)|"
@@ -6857,11 +6992,17 @@ _NEG_TYPE_INSUFFICIENT_EVALUATION_RE = re.compile(
     re.IGNORECASE,
 )
 _NEG_TYPE_REPRODUCIBILITY_GAP_RE = re.compile(
-    r"\b(reproducibility|reproducible|implementation detail|hyperparameter|code unavailable|"
+    r"\b(reproducibility (?:gap|issue|concern|problem|limitation)|"
+    r"(?:not|hard to|difficult to|cannot)\s+reproduc(?:e|ible)|"
+    r"limit(?:s|ed|ing)? reproducibility|code unavailable|"
     r"not release(?:d)? code|code (?:is )?not (?:available|released)|"
     r"lack(?:s|ing)? (?:implementation|hyperparameter|training detail|data split|compute setup)|"
-    r"missing (?:implementation|hyperparameter|training detail|data split|compute setup|details?)|"
-    r"cannot reproduce|insufficient detail|details? (?:are|is) omitted)\b",
+    r"missing (?:implementation|hyperparameter|training detail|data split|compute setup)|"
+    r"(?:implementation|training|data split|compute setup|hyperparameter)s? details? (?:are|is)?\s*(?:missing|omitted|not provided)|"
+    r"hyperparameters? (?:are|is)?\s*(?:missing|omitted|not provided)|"
+    r"insufficient (?:implementation|training|data split|compute setup|hyperparameter)s? details?|"
+    r"insufficient details? (?:for|to) reproduc(?:e|tion|ibility)|"
+    r"cannot reproduce)\b",
     re.IGNORECASE,
 )
 _NEG_TYPE_SCOPE_OVERCLAIM_RE = re.compile(
@@ -6894,7 +7035,7 @@ _NEG_TYPE_NEUTRAL_CONTEXT_RE = re.compile(
     r"trained without (?:a |the )?(?:definition|auxiliary) task|"
     r"unlike [^.!?]{0,100}\bthey do not\b|in contrast[^.!?]{0,100}\bthey do not\b|"
     r"(?:baseline|method|approach|system|framework|hugginggpt)[^.!?]{0,120}did not release (?:their |the )?(?:evaluation )?dataset|"
-    r"without [^.!?]{0,80}\bwith(?:out)?\b)\b",
+    r"without\s+(?!(?:an?\s+|the\s+)?(?:comparison|baseline|evaluation)\b)[^.!?]{0,80}\bwith(?:out)?\b)\b",
     re.IGNORECASE,
 )
 
@@ -6914,6 +7055,11 @@ _NEG_TYPE_NEUTRAL_INSTRUCTION_NOISE_RE = re.compile(
     r"\b\[instruction\]|\bthe following (?:paper|academic paper)\b|"
     r"\boutput (?:exactly|the following|a json)\b|"
     r"\bsystem prompt\b|\binstruction(?:s)?:\s)",
+    re.IGNORECASE,
+)
+_INTRO_NEGATIVE_SELF_ANCHOR_RE = re.compile(
+    r"\b(our|ours|we|this (?:paper|work|method|model|system|approach)|"
+    r"the proposed (?:method|model|system|approach)|proposed (?:method|model|system|approach))\b",
     re.IGNORECASE,
 )
 
@@ -7331,13 +7477,18 @@ def _build_critique_negative_quote_bank(body: str, max_quotes: int = 6) -> List[
     """
     if not body:
         return []
-    header_positions = [
+    core_header_positions = [
         match.start()
         for source, pattern in _EVIDENCE_SECTION_HEADER_PATTERNS
         for match in [pattern.search(body)]
         if source != "abstract" and match
     ]
+    header_positions = list(core_header_positions)
+    intro_match = _EVIDENCE_INTRODUCTION_HEADER_PATTERN.search(body)
+    if intro_match:
+        header_positions.append(intro_match.start())
     first_nonabstract_pos = min(header_positions) if header_positions else min(len(body), max(900, len(body) // 8))
+    first_core_section_pos = min(core_header_positions) if core_header_positions else len(body)
     candidates: List[Tuple[int, int, str]] = []
     for _, pattern in _EVIDENCE_NEGATIVE_ANCHOR_PATTERNS:
         for match in pattern.finditer(body, pos=first_nonabstract_pos):
@@ -7359,6 +7510,9 @@ def _build_critique_negative_quote_bank(body: str, max_quotes: int = 6) -> List[
                 neg_type = _classify_negative_evidence_type(quote)
             else:
                 neg_type = _classify_negative_evidence_type(quote)
+            in_intro_region = bool(intro_match and intro_match.start() <= match.start() < first_core_section_pos)
+            if in_intro_region and neg_type == "negative_result" and not _INTRO_NEGATIVE_SELF_ANCHOR_RE.search(quote):
+                continue
             if neg_type in {"neutral_control_context", "generic_gap", "bibliographic_or_title_noise", "neutral_instruction_noise"}:
                 continue
             score = 0 if neg_type in ACTIONABLE_NEGATIVE_EVIDENCE_TYPES else 1
@@ -7534,6 +7688,7 @@ def _render_evidence_context_with_meta(
 
     context, sources = _assemble_evidence_context(snippets, max_length=max_length, claim_query_terms=claim_query_terms)
     quote_bank = _build_evidence_quote_bank(body, max_quotes=12, claim_query_terms=claim_query_terms)
+    critique_negative_quote_bank = _build_critique_negative_quote_bank(body, max_quotes=6)
     source_set = set(sources)
     empirical_term_count = _count_pattern(_EVIDENCE_EMPIRICAL_PATTERN, context)
     table_term_count = _count_pattern(_EVIDENCE_TABLE_PATTERN, context)
@@ -7560,8 +7715,11 @@ def _render_evidence_context_with_meta(
         "evidence_quote_bank_sources": [item.get("source_bucket", "") for item in quote_bank],
         "evidence_quote_bank_claim_matched_count": sum(1 for item in quote_bank if int(item.get("claim_overlap_score") or 0) > 0),
         "evidence_quote_bank_mode": "quote_bank_claim_v2",
+        "critique_negative_quote_bank_count": len(critique_negative_quote_bank),
+        "critique_negative_quote_bank_types": [item.get("negative_evidence_type", "") for item in critique_negative_quote_bank],
     }
     meta["evidence_quote_bank"] = quote_bank
+    meta["critique_negative_quote_bank"] = critique_negative_quote_bank
     return context or "No paper text available.", meta
 
 def _render_evidence_context(task: Dict[str, Any], max_length: int = 2400) -> str:
@@ -8589,6 +8747,8 @@ def _flaw_negative_grounding_conflicts(flaw: Dict[str, Any], state: Dict[str, An
                 "evidence_id": eid,
                 "reason": "negative_evidence_id_not_verified",
                 "verified_grounding_label": str(record.get("verified_grounding_label") or ""),
+                "semantic_grounding_label": str(record.get("semantic_grounding_label") or ""),
+                "negative_evidence_type": _negative_evidence_type_for_record(record),
             })
     return conflicts
 

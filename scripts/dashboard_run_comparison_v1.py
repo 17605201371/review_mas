@@ -1540,6 +1540,8 @@ _FAILURE_CODE_INTERPRETATIONS: Dict[str, str] = {
     "INSUFFICIENT_EVIDENCE": "safe_blocked_patch (insufficient evidence criteria)",
     "SEMANTIC_MISMATCH": "safe_blocked_patch (semantic validation mismatch)",
     "EVIDENCE_SEMANTIC_MISMATCH": "safe_blocked_patch (semantic evidence validation mismatch)",
+    "ACTIONABLE_CONCERN_PRESERVED": "safe_terminal_block (verified potential concern preserved)",
+    "NO_EFFECT_PATCH": "safe_blocked_patch (no state change needed)",
 }
 
 

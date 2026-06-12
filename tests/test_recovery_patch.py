@@ -722,6 +722,58 @@ def test_mark_contested_patch_commits_without_claim_status_downgrade(mock_state)
     assert new_state["contested_relations"][0]["negative_evidence_ids"] == ["e3"]
 
 
+def test_mark_contested_duplicate_relation_is_blocked_as_no_effect(mock_state):
+    state = copy.deepcopy(mock_state)
+    for evidence in state["evidence_map"]:
+        if evidence["evidence_id"] == "e2":
+            evidence.update(
+                {
+                    "verified_grounding_label": "paper_grounded_exact",
+                    "semantic_grounding_label": "semantic_support_verified",
+                }
+            )
+        if evidence["evidence_id"] == "e3":
+            evidence.update(
+                {
+                    "verified_grounding_label": "paper_grounded_exact",
+                    "semantic_grounding_label": "semantic_negative_verified",
+                    "negative_evidence_type": "scope_overclaim",
+                    "raw_quote": "The broad setting is left for future work.",
+                }
+            )
+    state["contested_relations"] = [
+        {
+            "relation_id": "contested-existing",
+            "claim_id": "c2",
+            "negative_evidence_ids": ["e3"],
+            "support_evidence_ids": ["e2"],
+            "final_view": "potential_concern",
+            "status": "contested",
+        }
+    ]
+
+    new_state = merge_review_state(
+        state,
+        {
+            "action": "apply_recovery_patch",
+            "target_type": "claim",
+            "target_id": "c2",
+            "old_status": "partially_supported",
+            "new_status": "partially_supported",
+            "supporting_evidence_ids": ["e3"],
+            "resolution_expectation": "partially_resolved",
+            "recovery_patch_operation": "mark_contested",
+            "mark_contested": True,
+        },
+    )
+
+    patch_log = new_state["_latest_patch_log"]
+    assert patch_log["recovery_committed"] is False
+    assert patch_log["recovery_patch_operation"] == "reject_patch"
+    assert patch_log["recovery_failure_code"] == "BLOCKED_BY_POLICY"
+    assert len(new_state["contested_relations"]) == 1
+
+
 def test_mark_contested_blocks_claim_status_downgrade_request(mock_state):
     state = copy.deepcopy(mock_state)
     for evidence in state["evidence_map"]:
@@ -1289,6 +1341,9 @@ def test_recovery_patch_blocks_no_effect_assessment_limitation_downgrade():
     assert patch_log["recovery_failure_code"] == "BLOCKED_BY_POLICY"
     assert patch_log["recovery_patch_operation"] == "reject_patch"
     assert patch_log["recovery_target_gate_label"] == "real_target"
+    assert patch_log["recovery_terminal"] is True
+    assert patch_log["recovery_terminal_reason"] == "assessment_limitation_no_effect_preserved"
+    assert patch_log["recovery_repeat_allowed"] is False
 
 
 def test_recovery_patch_can_deescalate_confirmed_flaw_to_candidate(mock_state):

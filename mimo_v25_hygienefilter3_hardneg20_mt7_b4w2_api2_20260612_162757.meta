@@ -1,0 +1,6 @@
+run_base=mimo_v25_hygienefilter3_hardneg20_mt7_b4w2_api2_20260612_162757
+start_time=2026-06-12 16:27:57 CST
+params=max_turns=7 manager_batch_size=4 api_max_workers=2 api_max_retries=3 dataset=hard_negative_20_20260611.parquet mode=s4 model=${MIMO_MODEL:-mimo-v2.5}
+launch_mode=background
+end_time=2026-06-12 17:03:45 CST
+exit_code=0

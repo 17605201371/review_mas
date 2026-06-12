@@ -1026,6 +1026,39 @@ def test_evidence_fallback_blocks_prompt_contract_echo():
     assert payload["evidence_map"] == []
     assert payload["unresolved_questions"]
 
+
+def test_evidence_fallback_blocks_natural_language_prompt_echo():
+    payload = _fallback_worker_payload(
+        agent_id="Evidence Agent",
+        raw_text=(
+            "First, the task is to output exactly one strict JSON object inside a ... block. "
+            "I am the Evidence Agent, and my role is to ground current claims in concrete paper evidence. "
+            "No reasoning text should appear outside the JSON."
+        ),
+        state={"claims": [{"claim_id": "claim-main"}], "evidence_map": [], "flaw_candidates": []},
+        manager_payload={"action_type": "verify_evidence", "target_claim_ids": ["claim-main"]},
+    )
+
+    assert payload["evidence_map"] == []
+    assert payload["unresolved_questions"]
+
+
+def test_evidence_fallback_blocks_quoted_agent_prompt_echo():
+    payload = _fallback_worker_payload(
+        agent_id="Evidence Agent",
+        raw_text=(
+            'First, I am considering the task. I am the "Evidence Agent" and must output '
+            "a JSON object within <json> tags. The output must be strictly JSON, no extra text. "
+            "Key elements from the input: - Turn Mode: recovery, phase: recovery."
+        ),
+        state={"claims": [{"claim_id": "claim-main"}], "evidence_map": [], "flaw_candidates": []},
+        manager_payload={"action_type": "verify_evidence", "target_claim_ids": ["claim-main"]},
+    )
+
+    assert payload["evidence_map"] == []
+    assert payload["unresolved_questions"]
+
+
 def test_run_review_episode_completes_with_fake_generator():
     responses = {
         "Review Manager Agent": [
@@ -1544,6 +1577,61 @@ def test_fallback_recovery_patch_pattern_a_marks_quote_bank_conflict_contested()
     assert payload["mark_contested"] is True
 
 
+def test_fallback_recovery_patch_skips_existing_contested_relation_and_retargets():
+    state = _build_pattern_a_state(
+        extra_negative_evidence=[
+            {
+                "evidence_id": "evidence-negative-quote-bank-quote-2-1",
+                "claim_id": "claim-main",
+                "stance": "missing",
+                "strength": "missing",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_negative_verified",
+                "support_source_bucket": "limitation_or_gap",
+                "source": "quote-bank-negative-grounding",
+                "negative_evidence_type": "negative_result",
+                "raw_quote": "The method underperforms the strongest baseline on the main benchmark.",
+            }
+        ]
+    )
+    state["contested_relations"] = [
+        {
+            "relation_id": "contested-existing",
+            "claim_id": "claim-main",
+            "negative_evidence_ids": ["evidence-negative-quote-bank-quote-1-1"],
+            "support_evidence_ids": ["evidence-positive-strong"],
+            "final_view": "potential_concern",
+            "status": "contested",
+        }
+    ]
+    state["flaw_candidates"].append(
+        {
+            "flaw_id": "flaw-quote-bank-2",
+            "status": "candidate",
+            "related_claim_ids": ["claim-main"],
+            "evidence_ids": ["evidence-negative-quote-bank-quote-2-1"],
+            "negative_evidence_ids": ["evidence-negative-quote-bank-quote-2-1"],
+        }
+    )
+
+    payload = _fallback_recovery_patch_payload(
+        state,
+        {
+            "action_type": "challenge_previous_hypothesis",
+            "effective_action_type": "challenge_previous_hypothesis",
+            "target_claim_ids": ["claim-main"],
+            "target_flaw_ids": ["flaw-quote-bank-1", "flaw-quote-bank-2"],
+            "target_evidence_ids": [],
+        },
+    )
+
+    assert payload["action"] == "apply_recovery_patch"
+    assert payload["target_type"] == "flaw"
+    assert payload["target_id"] == "flaw-quote-bank-2"
+    assert payload["supporting_evidence_ids"] == ["evidence-negative-quote-bank-quote-2-1"]
+    assert payload["recovery_patch_operation"] == "mark_contested"
+
+
 def test_fallback_recovery_patch_blocks_quote_bank_limitation_no_effect_downgrade():
     state = {
         "claims": [
@@ -1605,6 +1693,175 @@ def test_fallback_recovery_patch_blocks_quote_bank_limitation_no_effect_downgrad
     assert payload["target_type"] == "flaw"
     assert payload["target_id"] == "flaw-negative-scope"
     assert "no-effect recovery patch" in payload["blocked_reason"]
+    assert payload["recovery_terminal"] is True
+    assert payload["recovery_terminal_reason"] == "assessment_limitation_no_effect_preserved"
+    assert payload["recovery_repeat_allowed"] is False
+
+
+def test_fallback_recovery_patch_blocks_semantic_rejected_limitation_no_effect_downgrade():
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-paper-fallback-1",
+                "claim": "The method is comprehensively evaluated.",
+                "status": "supported",
+                "claim_kind": "paper_extracted",
+                "claim_origin_kind": "context_synthesized",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "evidence-positive",
+                "claim_id": "claim-paper-fallback-1",
+                "evidence": "Table 1 reports strong results.",
+                "raw_quote": "Table 1 reports strong results.",
+                "stance": "supports",
+                "strength": "strong",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_support_verified",
+            },
+            {
+                "evidence_id": "evidence-negative-semantic-rejected",
+                "claim_id": "claim-paper-fallback-1",
+                "evidence": "A copied quote-bank item does not actually anchor a negative concern.",
+                "raw_quote": "Table 5: Ablation study for selecting hyperparameters on the dataset.",
+                "stance": "missing",
+                "strength": "missing",
+                "support_source_bucket": "limitation_or_gap",
+                "source": "quote-bank-negative-grounding",
+                "negative_evidence_type": "scope_limitation",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_mismatch",
+            },
+        ],
+        "flaw_candidates": [
+            {
+                "flaw_id": "flaw-semantic-rejected",
+                "status": "candidate",
+                "title": "Rejected negative anchor",
+                "description": "Rejected negative anchor",
+                "severity": "minor",
+                "related_claim_ids": ["claim-paper-fallback-1"],
+                "evidence_ids": ["evidence-negative-semantic-rejected"],
+                "negative_evidence_ids": ["evidence-negative-semantic-rejected"],
+                "source": "quote-bank-negative-grounding",
+                "negative_evidence_type": "scope_limitation",
+            }
+        ],
+        "evidence_gaps": [],
+        "unresolved_questions": [],
+        "conflict_notes": [],
+    }
+
+    payload = _fallback_recovery_patch_payload(
+        state,
+        {
+            "action_type": "challenge_previous_hypothesis",
+            "effective_action_type": "challenge_previous_hypothesis",
+            "target_claim_ids": ["claim-paper-fallback-1"],
+            "target_flaw_ids": ["flaw-semantic-rejected"],
+            "target_evidence_ids": [],
+        },
+    )
+
+    assert payload["action"] == "blocked"
+    assert payload["target_type"] == "flaw"
+    assert payload["target_id"] == "flaw-semantic-rejected"
+    assert "no-effect recovery patch" in payload["blocked_reason"]
+    assert payload["recovery_terminal"] is True
+    assert payload["recovery_terminal_reason"] == "assessment_limitation_no_effect_preserved"
+    assert payload["recovery_repeat_allowed"] is False
+
+
+def test_fallback_recovery_patch_blocks_final_view_potential_concern_to_limitation():
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-main",
+                "claim": "The method is reproducible across settings.",
+                "status": "uncertain",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "evidence-negative-repro",
+                "claim_id": "claim-main",
+                "evidence": "The paper leaves implementation details for future work.",
+                "raw_quote": "Implementation details and hyperparameter settings are not fully specified.",
+                "source_locator": "Limitations",
+                "stance": "missing",
+                "strength": "missing",
+                "support_source_bucket": "limitation_or_gap",
+                "source": "quote-bank-negative-grounding",
+                "negative_evidence_type": "reproducibility_gap",
+                "negative_evidence_actionability": "assessment_limitation",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_negative_verified",
+            }
+        ],
+        "flaw_candidates": [
+            {
+                "flaw_id": "flaw-repro",
+                "status": "candidate",
+                "title": "Reproducibility concern",
+                "description": "Reproducibility concern",
+                "severity": "minor",
+                "related_claim_ids": ["claim-main"],
+                "evidence_ids": ["evidence-negative-repro"],
+                "negative_evidence_ids": ["evidence-negative-repro"],
+                "source": "quote-bank-negative-grounding",
+                "negative_evidence_type": "reproducibility_gap",
+                "grounding_status": "grounded_candidate",
+            }
+        ],
+        "evidence_gaps": [],
+        "unresolved_questions": [],
+        "conflict_notes": [],
+    }
+
+    payload = _fallback_recovery_patch_payload(
+        state,
+        {
+            "action_type": "challenge_previous_hypothesis",
+            "effective_action_type": "challenge_previous_hypothesis",
+            "target_claim_ids": ["claim-main"],
+            "target_flaw_ids": ["flaw-repro"],
+            "target_evidence_ids": [],
+        },
+    )
+
+    assert payload["action"] == "blocked"
+    assert payload["target_type"] == "flaw"
+    assert payload["target_id"] == "flaw-repro"
+    assert "no-effect recovery patch" in payload["blocked_reason"]
+    assert payload["recovery_terminal"] is True
+    assert payload["recovery_terminal_reason"] == "assessment_limitation_no_effect_preserved"
+    assert payload["recovery_repeat_allowed"] is False
+
+
+def test_final_view_concern_block_logs_terminal_negative_verified_target():
+    from agent_system.inference import review_runner as _rr
+
+    payload = _rr._blocked_final_view_concern_recovery_payload("flaw-protected", "potential_concern")
+    state = {
+        "claims": [],
+        "evidence_map": [],
+        "flaw_candidates": [{"flaw_id": "flaw-protected", "status": "candidate"}],
+        "evidence_gaps": [],
+        "unresolved_questions": [],
+        "conflict_notes": [],
+    }
+
+    new_state = merge_review_state(state, payload)
+    patch_log = new_state["_latest_patch_log"]
+
+    assert payload["recovery_terminal"] is True
+    assert payload["recovery_terminal_reason"] == "verified_actionable_negative_concern_preserved"
+    assert payload["recovery_repeat_allowed"] is False
+    assert patch_log["recovery_failure_code"] == "BLOCKED_BY_POLICY"
+    assert patch_log["recovery_target_gate_label"] == "negative_verified_target"
+    assert patch_log["recovery_terminal"] is True
+    assert patch_log["recovery_repeat_allowed"] is False
 
 
 def test_fallback_recovery_patch_marks_paper_salvaged_claim_contested():
@@ -1704,11 +1961,9 @@ def test_recovery_payload_salvages_critique_emission_failure_to_patch():
         },
     )
 
-    assert payload["action"] == "apply_recovery_patch"
-    assert payload["target_type"] == "flaw"
-    assert payload["target_id"] == "flaw-quote-bank-1"
-    assert payload["new_status"] == "downgraded"
-    assert payload["_recovery_patch_source"] == "system_salvaged"
+    assert payload["action"] == "blocked"
+    assert "no-effect recovery patch" in payload["blocked_reason"] or "No strong real recovery target" in payload["blocked_reason"]
+    assert payload["_recovery_patch_source"] == "system_salvaged_blocked"
 
 
 def test_model_claim_downgrade_with_positive_support_rebuilds_to_contested_flaw():
@@ -1743,6 +1998,133 @@ def test_model_claim_downgrade_with_positive_support_rebuilds_to_contested_flaw(
     assert payload["new_status"] == "candidate"
     assert payload["recovery_patch_operation"] == "mark_contested"
     assert payload["claim_downgrade_contested_rebuild_used"] is True
+
+
+def test_model_paper_fallback_claim_status_patch_rebinds_to_flaw_target():
+    state = _build_pattern_a_state()
+    state["claims"][0].update(
+        {
+            "claim_id": "claim-paper-fallback-1",
+            "claim_kind": "paper_extracted",
+            "claim_origin_kind": "raw_salvaged_claim_agent_output",
+        }
+    )
+    state["evidence_map"][0]["claim_id"] = "claim-paper-fallback-1"
+    state["evidence_map"][1]["claim_id"] = "claim-paper-fallback-1"
+    state["evidence_map"][1]["negative_evidence_type"] = "negative_result"
+    state["flaw_candidates"][0]["related_claim_ids"] = ["claim-paper-fallback-1"]
+
+    payload = _maybe_salvage_recovery_payload(
+        "Critique Agent",
+        {
+            "action": "apply_recovery_patch",
+            "target_type": "claim",
+            "target_id": "claim-paper-fallback-1",
+            "old_status": "supported",
+            "new_status": "unsupported",
+            "supporting_evidence_ids": ["evidence-negative-quote-bank-quote-1-1"],
+        },
+        state,
+        manager_payload={
+            "action_type": "challenge_previous_hypothesis",
+            "effective_action_type": "challenge_previous_hypothesis",
+            "turn_mode": "recovery_patch",
+            "target_claim_ids": ["claim-paper-fallback-1"],
+            "target_flaw_ids": ["flaw-quote-bank-1"],
+            "target_evidence_ids": ["evidence-negative-quote-bank-quote-1-1"],
+        },
+    )
+
+    assert payload["action"] == "apply_recovery_patch"
+    assert payload["target_type"] == "flaw"
+    assert payload["target_id"] == "flaw-quote-bank-1"
+    assert payload["new_status"] == "candidate"
+    assert payload["recovery_patch_operation"] == "mark_contested"
+    assert payload["claim_status_target_rebind_used"] is True
+
+
+def test_model_paper_fallback_claim_status_patch_rebinds_to_terminal_flaw_block():
+    state = _build_pattern_a_state()
+    state["claims"][0].update(
+        {
+            "claim_id": "claim-paper-fallback-1",
+            "claim_kind": "context",
+            "claim_origin_kind": "context_synthesized",
+        }
+    )
+    state["evidence_map"][0]["claim_id"] = "claim-paper-fallback-1"
+    state["evidence_map"][1].update(
+        {
+            "claim_id": "claim-paper-fallback-1",
+            "negative_evidence_type": "negative_result",
+            "negative_evidence_actionability": "actionable_candidate",
+        }
+    )
+    state["flaw_candidates"][0]["related_claim_ids"] = ["claim-paper-fallback-1"]
+
+    payload = _maybe_salvage_recovery_payload(
+        "Critique Agent",
+        {
+            "action": "apply_recovery_patch",
+            "target_type": "claim",
+            "target_id": "claim-paper-fallback-1",
+            "old_status": "supported",
+            "new_status": "unsupported",
+            "supporting_evidence_ids": ["evidence-negative-quote-bank-quote-1-1"],
+        },
+        state,
+        manager_payload={
+            "action_type": "challenge_previous_hypothesis",
+            "effective_action_type": "challenge_previous_hypothesis",
+            "turn_mode": "recovery_patch",
+            "target_claim_ids": ["claim-paper-fallback-1"],
+            "target_flaw_ids": ["flaw-quote-bank-1"],
+            "target_evidence_ids": ["evidence-negative-quote-bank-quote-1-1"],
+        },
+    )
+
+    assert payload["action"] == "blocked"
+    assert payload["target_type"] == "flaw"
+    assert payload["target_id"] == "flaw-quote-bank-1"
+    assert payload["recovery_terminal"] is True
+    assert payload["recovery_terminal_reason"] == "verified_actionable_negative_concern_preserved"
+    assert payload["claim_status_target_rebind_used"] is True
+
+
+def test_model_patch_with_unmatched_conflict_ids_rebinds_before_validator():
+    state = _build_pattern_a_state()
+    state["evidence_map"][1]["negative_evidence_type"] = "negative_result"
+
+    payload = _maybe_salvage_recovery_payload(
+        "Critique Agent",
+        {
+            "action": "apply_recovery_patch",
+            "target_type": "flaw",
+            "target_id": "flaw-quote-bank-1",
+            "old_status": "candidate",
+            "new_status": "retracted",
+            "supporting_evidence_ids": ["evidence-negative-quote-bank-quote-1-1"],
+            "conflict_note_ids": ["conflict-does-not-belong-to-this-flaw"],
+            "resolution_expectation": "resolved",
+        },
+        state,
+        manager_payload={
+            "action_type": "challenge_previous_hypothesis",
+            "effective_action_type": "challenge_previous_hypothesis",
+            "turn_mode": "recovery_patch",
+            "target_claim_ids": ["claim-main"],
+            "target_flaw_ids": ["flaw-quote-bank-1"],
+            "target_evidence_ids": ["evidence-negative-quote-bank-quote-1-1"],
+        },
+    )
+
+    assert payload["action"] == "apply_recovery_patch"
+    assert payload["target_type"] == "flaw"
+    assert payload["target_id"] == "flaw-quote-bank-1"
+    assert payload["new_status"] == "candidate"
+    assert payload["recovery_patch_operation"] == "mark_contested"
+    assert payload["conflict_note_rebind_used"] is True
+    assert payload.get("conflict_note_ids", []) == []
 
 
 def test_fallback_recovery_patch_contests_direct_negative_when_positive_support_present():
@@ -2168,6 +2550,21 @@ def test_fallback_general_reviewer_payload_respects_verify_evidence_action():
     assert payload["evidence_map"]
     assert payload["evidence_map"][0]["claim_id"] == "claim-main"
     assert payload["claims"] == []
+
+
+def test_fallback_general_reviewer_blocks_prompt_echo_for_evidence():
+    payload = _fallback_worker_payload(
+        agent_id="General Reviewer Agent 1",
+        raw_text=(
+            "First, I am the Evidence Agent and must output exactly one strict JSON object "
+            "inside a ... block. Phase: recovery. Action type: verify_evidence."
+        ),
+        state={"claims": [{"claim_id": "claim-main"}], "evidence_map": [], "flaw_candidates": []},
+        manager_payload={"action_type": "verify_evidence", "target_claim_ids": ["claim-main"]},
+    )
+
+    assert payload["evidence_map"] == []
+    assert payload["unresolved_questions"]
 
 
 def test_apply_manager_policy_fallback_overrides_s3_claim_progress_to_verify_evidence():
@@ -2977,9 +3374,13 @@ def test_programmatic_locator_treats_named_sections_as_specific():
 def test_negative_evidence_type_classifier_keeps_baseline_eval_reproducibility_separate():
     assert _classify_negative_evidence_type("The paper lacks an ablation study for the main module.") == "missing_ablation"
     assert _classify_negative_evidence_type("The method does not compare against a strong retrieval baseline.") == "missing_baseline"
+    assert _classify_negative_evidence_type("The paper is evaluated without comparison with strong baselines.") == "missing_baseline"
     assert _classify_negative_evidence_type("The evaluation is limited to one small dataset and is not evaluated on real benchmarks.") == "insufficient_evaluation"
+    assert _classify_negative_evidence_type("The paper has insufficient evaluation on real benchmarks.") == "insufficient_evaluation"
     assert _classify_negative_evidence_type("The implementation details and hyperparameters are missing, limiting reproducibility.") == "reproducibility_gap"
+    assert _classify_negative_evidence_type("Implementation details and hyperparameters are missing.") == "reproducibility_gap"
     assert _classify_negative_evidence_type("This limitation restricts applicability to a narrow domain.") == "scope_limitation"
+    assert _classify_negative_evidence_type("Fine-tuning costs are lower than training any model from scratch.") == "generic_gap"
 
 
 def test_evidence_gap_normalization_preserves_legacy_string_lifecycle():
@@ -4717,6 +5118,51 @@ def test_turn_level_recovery_salvage_replaces_blocked_critique_payload():
         state = merge_review_state(state, worker["payload"])
     assert state["claims"][0]["status"] == "unsupported"
     assert state["_latest_patch_log"]["recovery_committed"] is True
+
+
+def test_turn_level_recovery_salvage_rebinds_verified_negative_patch_with_bad_conflict_ids():
+    state = _build_pattern_a_state()
+    state["evidence_map"][1]["negative_evidence_type"] = "negative_result"
+    worker_payloads = [
+        {
+            "agent_id": "Critique Agent",
+            "payload": {
+                "action": "apply_recovery_patch",
+                "target_type": "claim",
+                "target_id": "claim-main",
+                "old_status": "supported",
+                "new_status": "unsupported",
+                "supporting_evidence_ids": ["evidence-negative-quote-bank-quote-1-1"],
+                "conflict_note_ids": ["conflict-not-on-claim-main"],
+                "resolution_expectation": "resolved",
+            },
+        }
+    ]
+    trace_item = {"worker_calls": [{"agent_id": "Critique Agent", "payload": dict(worker_payloads[0]["payload"])}]}
+
+    _maybe_salvage_turn_level_recovery_patch(
+        worker_payloads,
+        state=state,
+        manager_payload={
+            "action_type": "challenge_previous_hypothesis",
+            "effective_action_type": "challenge_previous_hypothesis",
+            "target_claim_ids": ["claim-main"],
+            "target_flaw_ids": ["flaw-quote-bank-1"],
+            "target_evidence_ids": ["evidence-negative-quote-bank-quote-1-1"],
+        },
+        trace_item=trace_item,
+    )
+
+    payload = worker_payloads[0]["payload"]
+    assert payload["action"] == "apply_recovery_patch"
+    assert payload["target_type"] == "flaw"
+    assert payload["target_id"] == "flaw-quote-bank-1"
+    assert payload["new_status"] == "candidate"
+    assert payload["recovery_patch_operation"] == "mark_contested"
+    assert payload["conflict_note_rebind_used"] is True
+    assert payload.get("conflict_note_ids", []) == []
+    assert trace_item["worker_calls"][0]["salvaged_recovery_patch"] is True
+    assert trace_item["worker_calls"][0]["salvage_reason"] == "conflict_note_rebind"
 
 
 def test_turn_level_recovery_salvage_skips_when_only_synthetic_marker_available():
@@ -6941,6 +7387,46 @@ def test_negative_quote_bank_salvage_can_use_critique_negative_quote_meta():
     assert salvaged["negative_evidence_type"] == "missing_baseline"
 
 
+def test_evidence_context_negative_quote_bank_searches_introduction_before_method():
+    paper_text = """--- BEGIN PAPER ---
+\\title{Intro Gap Paper}
+\\begin{abstract}
+We propose a system and report promising results.
+\\end{abstract}
+\\section{Introduction}
+Prior work evaluates similar systems with several interpretability baselines. Our evaluation does not compare to other interpretability methods.
+\\section{Method}
+The method section defines the architecture and training objective.
+--- END PAPER ---"""
+
+    _context, meta = _render_evidence_context_with_meta({"paper_text": paper_text}, max_length=900)
+
+    critique_negative_bank = meta["critique_negative_quote_bank"]
+    assert any(item["negative_evidence_type"] == "missing_baseline" for item in critique_negative_bank)
+    assert any("does not compare to other interpretability methods" in item["raw_quote"] for item in critique_negative_bank)
+
+
+def test_intro_related_work_underperformance_is_not_paper_negative_quote_bank():
+    paper_text = """--- BEGIN PAPER ---
+\\title{Related Work Motivation}
+\\begin{abstract}
+We propose a system and report promising results.
+\\end{abstract}
+\\section{Introduction}
+Standard GNN encoders underperform in link prediction tasks due to neighborhood symmetries. Our method is designed to address this issue.
+\\section{Method}
+The method section defines the architecture and training objective.
+--- END PAPER ---"""
+
+    _context, meta = _render_evidence_context_with_meta({"paper_text": paper_text}, max_length=900)
+
+    critique_negative_bank = meta["critique_negative_quote_bank"]
+    assert not any(
+        item["negative_evidence_type"] == "negative_result" and "Standard GNN encoders underperform" in item["raw_quote"]
+        for item in critique_negative_bank
+    )
+
+
 def test_evidence_quote_bank_includes_negative_gap_quotes():
     paper_text = """--- BEGIN PAPER ---
 \begin{abstract} We propose a method and report improvements.\end{abstract}
@@ -6954,6 +7440,10 @@ def test_evidence_quote_bank_includes_negative_gap_quotes():
 
     assert any(item["source_bucket"] == "negative_or_gap" for item in quote_bank)
     assert any("does not compare" in item["raw_quote"].lower() or "lacks an ablation" in item["raw_quote"].lower() for item in quote_bank)
+    critique_negative_bank = meta["critique_negative_quote_bank"]
+    critique_negative_types = {item["negative_evidence_type"] for item in critique_negative_bank}
+    assert critique_negative_bank
+    assert {"missing_baseline", "missing_ablation"} & critique_negative_types
 
 
 def test_evidence_worker_observation_exposes_target_flaws_for_negative_mode():
@@ -7174,6 +7664,206 @@ def test_hard_negative_discovery_does_not_loop_after_recent_attempt():
     )
 
     assert payload.get("policy_source") != "hard_negative_discovery_override"
+
+
+def test_hard_negative_discovery_allows_one_supplemental_attempt_when_first_finds_none():
+    state = {
+        "claims": [
+            {"claim_id": "claim-1", "claim": "The method is empirically strong.", "status": "supported"},
+            {"claim_id": "claim-2", "claim": "The evaluation is comprehensive.", "status": "supported"},
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "evidence-1",
+                "claim_id": "claim-1",
+                "evidence": "Table 1 supports the claim.",
+                "stance": "supports",
+                "strength": "strong",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_support_verified",
+            }
+        ],
+        "flaw_candidates": [],
+        "evidence_gaps": [],
+        "unresolved_questions": [],
+    }
+
+    payload = _apply_manager_policy_fallback(
+        {
+            "decision": "continue",
+            "action_type": "analyze_flaws",
+            "selected_agents": ["Critique Agent"],
+            "_phase_step": 4,
+            "_phase_turn_cap": 7,
+        },
+        state,
+        "s4",
+        ["Evidence Agent", "Critique Agent"],
+        1,
+        recent_turn_logs=[{"policy_source": "hard_negative_discovery_override", "negative_evidence_formation_required": True}],
+    )
+
+    assert payload["policy_source"] == "hard_negative_discovery_override"
+    assert payload["action_type"] == "request_evidence_recheck"
+    assert payload["negative_evidence_formation_required"] is True
+    assert any("Supplemental pass is allowed" in str(note) for note in payload.get("policy_notes", []))
+
+
+def test_supplemental_hard_negative_discovery_requires_phase_budget_metadata():
+    state = {
+        "claims": [{"claim_id": "claim-1", "claim": "The method is empirically strong.", "status": "supported"}],
+        "evidence_map": [
+            {
+                "evidence_id": "evidence-1",
+                "claim_id": "claim-1",
+                "evidence": "Table 1 supports the claim.",
+                "stance": "supports",
+                "strength": "strong",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_support_verified",
+            }
+        ],
+        "flaw_candidates": [],
+    }
+
+    payload = _apply_manager_policy_fallback(
+        {"decision": "continue", "action_type": "analyze_flaws", "selected_agents": ["Critique Agent"]},
+        state,
+        "s4",
+        ["Evidence Agent", "Critique Agent"],
+        1,
+        recent_turn_logs=[{"policy_source": "hard_negative_discovery_override", "negative_evidence_formation_required": True}],
+    )
+
+    assert payload.get("policy_source") != "hard_negative_discovery_override"
+
+
+def test_supplemental_hard_negative_discovery_stops_after_grounded_negative_evidence():
+    state = {
+        "claims": [{"claim_id": "claim-1", "claim": "The method is empirically strong.", "status": "supported"}],
+        "evidence_map": [
+            {
+                "evidence_id": "evidence-1",
+                "claim_id": "claim-1",
+                "evidence": "Table 1 supports the claim.",
+                "stance": "supports",
+                "strength": "strong",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_support_verified",
+            },
+            {
+                "evidence_id": "evidence-negative-1",
+                "claim_id": "claim-1",
+                "evidence": "The paper reports that a strong baseline comparison is missing.",
+                "raw_quote": "The paper does not compare against the strongest retrieval baseline.",
+                "source_locator": "Limitations",
+                "stance": "missing",
+                "strength": "missing",
+                "negative_evidence_type": "missing_baseline",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_negative_verified",
+            },
+        ],
+        "flaw_candidates": [],
+    }
+
+    payload = _apply_manager_policy_fallback(
+        {
+            "decision": "continue",
+            "action_type": "analyze_flaws",
+            "selected_agents": ["Critique Agent"],
+            "_phase_step": 4,
+            "_phase_turn_cap": 7,
+        },
+        state,
+        "s4",
+        ["Evidence Agent", "Critique Agent"],
+        1,
+        recent_turn_logs=[{"policy_source": "hard_negative_discovery_override", "negative_evidence_formation_required": True}],
+    )
+
+    assert payload.get("policy_source") != "hard_negative_discovery_override"
+
+
+def test_hard_negative_discovery_salvages_three_typed_quote_bank_entries():
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The method is comprehensively evaluated against strong baselines and is reproducible.",
+                "status": "supported",
+            }
+        ],
+        "evidence_quote_bank": [
+            {
+                "quote_id": "quote-missing-baseline",
+                "source_bucket": "negative_or_gap",
+                "source_locator": "Limitations",
+                "raw_quote": "The evaluation does not compare against the strongest retrieval baseline.",
+                "negative_evidence_type": "missing_baseline",
+            },
+            {
+                "quote_id": "quote-missing-ablation",
+                "source_bucket": "negative_or_gap",
+                "source_locator": "Limitations",
+                "raw_quote": "The paper lacks an ablation study for the main component.",
+                "negative_evidence_type": "missing_ablation",
+            },
+            {
+                "quote_id": "quote-insufficient-eval",
+                "source_bucket": "negative_or_gap",
+                "source_locator": "Experiments",
+                "raw_quote": "The method is only evaluated on one small dataset.",
+                "negative_evidence_type": "insufficient_evaluation",
+            },
+            {
+                "quote_id": "quote-result-mismatch",
+                "source_bucket": "negative_or_gap",
+                "source_locator": "Results",
+                "raw_quote": "The improvements are marginal and inconsistent across tasks.",
+                "negative_evidence_type": "result_claim_mismatch",
+            },
+        ],
+        "evidence_map": [],
+        "flaw_candidates": [],
+    }
+    payload = normalize_review_update_payload({
+        "evidence_map": [
+            {
+                "evidence_id": "e-positive",
+                "claim_id": "claim-1",
+                "evidence": "The abstract reports improvements.",
+                "source": "Abstract",
+                "stance": "supports",
+                "strength": "strong",
+            }
+        ],
+    })
+
+    filtered = _enforce_negative_evidence_formation_payload(
+        "Evidence Agent",
+        payload,
+        {
+            "policy_source": "hard_negative_discovery_override",
+            "target_claim_ids": ["claim-1"],
+            "target_flaw_ids": ["flaw-1"],
+        },
+        state,
+    )
+
+    quote_bank_items = [
+        item for item in filtered["evidence_map"]
+        if item.get("source") == "quote-bank-negative-grounding"
+    ]
+    quote_ids = [item.get("quote_id") for item in quote_bank_items]
+    negative_types = [item.get("negative_evidence_type") for item in quote_bank_items]
+
+    assert len(quote_bank_items) == 3
+    assert len(quote_ids) == len(set(quote_ids))
+    assert len(negative_types) == len(set(negative_types))
+    assert "generic_gap" not in negative_types
+    assert {"missing_baseline", "missing_ablation", "insufficient_evaluation"}.issubset(negative_types)
+    assert len(filtered["flaw_candidates"]) == 3
 
 
 # ----------------------------------------------------------------------

@@ -407,6 +407,7 @@ _ACTIONABLE_NEGATIVE_EVIDENCE_TYPES = frozenset(
 )
 _LIMITATION_NEGATIVE_EVIDENCE_TYPES = frozenset({"scope_limitation", "reproducibility_gap", "generic_gap"})
 _PROTECTED_POTENTIAL_CONCERN_TERMINAL_REASON = "verified_actionable_negative_concern_preserved"
+_ASSESSMENT_LIMITATION_NO_EFFECT_TERMINAL_REASON = "assessment_limitation_no_effect_preserved"
 _PROTECTED_POTENTIAL_CONCERN_BLOCKED_REASON = (
     "Target flaw is already a candidate with verified actionable negative evidence; "
     "leave it as a final potential concern instead of routing it to an assessment limitation."
@@ -993,10 +994,39 @@ def _verified_positive_support_ids_for_claim(
     return support_ids
 
 
+def _contested_relation_already_exists(
+    state: Optional[Dict[str, Any]],
+    claim_id: str,
+    negative_evidence_ids: Sequence[str],
+) -> bool:
+    claim_id = str(claim_id or "").strip()
+    negative_key = tuple(
+        str(item or "").strip()
+        for item in (negative_evidence_ids or [])
+        if str(item or "").strip()
+    )
+    if not claim_id or not negative_key:
+        return False
+    for relation in (state or {}).get("contested_relations", []) or []:
+        if not isinstance(relation, dict):
+            continue
+        if str(relation.get("claim_id") or "").strip() != claim_id:
+            continue
+        existing_key = tuple(
+            str(item or "").strip()
+            for item in relation.get("negative_evidence_ids", []) or []
+            if str(item or "").strip()
+        )
+        if existing_key == negative_key:
+            return True
+    return False
+
+
 def _mark_contested_patch_from_verified_negative_flaw(
     flaw: Dict[str, Any],
     claim_lookup: Dict[str, Dict[str, Any]],
     evidence_lookup: Dict[str, Dict[str, Any]],
+    state: Optional[Dict[str, Any]] = None,
 ) -> Optional[Dict[str, Any]]:
     if not isinstance(flaw, dict):
         return None
@@ -1026,6 +1056,8 @@ def _mark_contested_patch_from_verified_negative_flaw(
             if str((evidence_lookup.get(evidence_id) or {}).get("claim_id") or "").strip() == claim_id
         ]
         if not aligned_negative_ids:
+            continue
+        if _contested_relation_already_exists(state, claim_id, aligned_negative_ids[:4]):
             continue
         support_ids = _verified_positive_support_ids_for_claim(claim or {}, evidence_lookup)
         if not support_ids:
@@ -1061,6 +1093,35 @@ def _mark_contested_patch_from_verified_negative_flaw(
     return None
 
 
+def _flaw_contested_relation_already_exists(
+    flaw: Dict[str, Any],
+    state: Optional[Dict[str, Any]],
+    evidence_lookup: Dict[str, Dict[str, Any]],
+) -> bool:
+    verified_negative_ids = _flaw_verified_negative_evidence_ids_for_recovery(flaw, evidence_lookup)
+    if not verified_negative_ids:
+        return False
+    candidate_claim_ids: List[str] = []
+    for evidence_id in verified_negative_ids:
+        claim_id = str((evidence_lookup.get(evidence_id) or {}).get("claim_id") or "").strip()
+        if claim_id:
+            candidate_claim_ids.append(claim_id)
+    candidate_claim_ids.extend(
+        str(item or "").strip()
+        for item in flaw.get("related_claim_ids") or []
+        if str(item or "").strip()
+    )
+    for claim_id in dict.fromkeys(candidate_claim_ids):
+        aligned_negative_ids = [
+            evidence_id
+            for evidence_id in verified_negative_ids
+            if str((evidence_lookup.get(evidence_id) or {}).get("claim_id") or "").strip() == claim_id
+        ]
+        if aligned_negative_ids and _contested_relation_already_exists(state, claim_id, aligned_negative_ids[:4]):
+            return True
+    return False
+
+
 def _protected_potential_concern_blocked_payload(flaw_id: str) -> Dict[str, Any]:
     payload = normalize_review_update_payload(
         {
@@ -1094,8 +1155,10 @@ def _recent_terminal_recovery_flaw_ids(recent_turn_logs: Optional[Sequence[Dict[
         if (
             terminal
             or terminal_reason == _PROTECTED_POTENTIAL_CONCERN_TERMINAL_REASON
+            or terminal_reason == _ASSESSMENT_LIMITATION_NO_EFFECT_TERMINAL_REASON
             or failure_code == "ACTIONABLE_CONCERN_PRESERVED"
             or "final potential concern" in blocked_message
+            or "already represented as an assessment limitation" in blocked_message
         ):
             terminal_ids.add(target_id)
     return terminal_ids
@@ -2299,6 +2362,7 @@ def _enforce_negative_evidence_formation_payload(
     if worker_id != "Evidence Agent" or not _is_negative_evidence_formation_turn(manager_payload):
         return worker_payload
     payload = dict(worker_payload or {})
+    policy_source = str((manager_payload or {}).get("policy_source") or "").strip()
     evidence_items = [item for item in payload.get("evidence_map", []) or [] if isinstance(item, dict)]
     kept = []
     dropped = []
@@ -2331,11 +2395,13 @@ def _enforce_negative_evidence_formation_payload(
         needed_salvage = max(needed_salvage, 1)
     if manager_payload.get("negative_evidence_formation_required"):
         needed_salvage = max(needed_salvage, 2)
+    if policy_source == "hard_negative_discovery_override":
+        needed_salvage = max(needed_salvage, 3)
     if needed_salvage:
         for entry in _select_negative_quote_bank_entries(
             state,
             manager_payload,
-            max_entries=3,
+            max_entries=4,
             exclude_quote_ids=existing_quote_ids,
         ):
             salvage = _negative_quote_bank_salvage_payload(
@@ -3140,10 +3206,22 @@ _PROMPT_ECHO_MARKERS = (
     "evidence state slice.allowed_claim_ids",
     "json schema",
     "you are the",
+    "i am the evidence agent",
+    "my role is the evidence agent",
     "task introduction",
     "patch mode requirement",
     "strict json object",
+    "must output exactly one",
+    "no reasoning text",
     "machine-readable json",
+    "inside ... block",
+    "inside a ... block",
+    "phase:",
+    "turn mode:",
+    "action type",
+    "allowed_claim_ids",
+    "system prompt",
+    "key points from the task",
 )
 
 
@@ -3151,8 +3229,15 @@ def _looks_like_prompt_or_schema_echo(text: str) -> bool:
     lowered = str(text or "").lower()
     if not lowered.strip():
         return False
-    hits = sum(1 for marker in _PROMPT_ECHO_MARKERS if marker in lowered)
+    normalized = re.sub(r"[^a-z0-9]+", " ", lowered)
+    hits = sum(
+        1
+        for marker in _PROMPT_ECHO_MARKERS
+        if marker in lowered or re.sub(r"[^a-z0-9]+", " ", marker).strip() in normalized
+    )
     if lowered.lstrip().startswith("output contract") or lowered.lstrip().startswith("return this schema"):
+        return True
+    if re.search(r"\bi am (?:the )?evidence agent\b", normalized) and "json" in normalized:
         return True
     return hits >= 2
 
@@ -3218,8 +3303,40 @@ def _decision_view_flaw_layer_and_conflict(state: Dict[str, Any], flaw_id: str) 
             continue
         layer = str(flaw.get("final_view_flaw_layer") or "").strip()
         conflicts = flaw.get("hygiene_negative_grounding_conflicts") or []
-        return layer, bool(conflicts)
+        active_conflicts = [
+            conflict
+            for conflict in conflicts
+            if not (
+                isinstance(conflict, dict)
+                and str(conflict.get("reason") or "") == "negative_evidence_id_not_verified"
+                and str(conflict.get("semantic_grounding_label") or "").strip() not in {
+                    "",
+                    "semantic_negative_verified",
+                    "semantic_support_verified",
+                }
+            )
+        ]
+        return layer, bool(active_conflicts)
     return "", False
+
+
+def _blocked_final_view_concern_recovery_payload(flaw_id: str, layer: str) -> Dict[str, Any]:
+    readable_layer = str(layer or "potential_concern").strip() or "potential_concern"
+    return normalize_review_update_payload(
+        {
+            "action": "blocked",
+            "target_type": "flaw",
+            "target_id": flaw_id,
+            "blocked_reason": (
+                f"Target flaw is already represented as final-view {readable_layer}; "
+                "routing it to an assessment limitation would weaken a preserved negative finding."
+            ),
+            "missing_requirements": ["over-escalated confirmed weakness or active negative grounding conflict"],
+            "recovery_terminal": True,
+            "recovery_terminal_reason": _PROTECTED_POTENTIAL_CONCERN_TERMINAL_REASON,
+            "recovery_repeat_allowed": False,
+        }
+    )
 
 
 def _fallback_recovery_patch_payload(state: Dict[str, Any], manager_payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -3254,6 +3371,7 @@ def _fallback_recovery_patch_payload(state: Dict[str, Any], manager_payload: Dic
             flaw,
             evidence_lookup,
         )
+        has_negative_anchor = bool(flaw.get("negative_evidence_ids"))
         actionable_negative_ids = [
             evidence_id
             for evidence_id in verified_negative_ids
@@ -3282,9 +3400,12 @@ def _fallback_recovery_patch_payload(state: Dict[str, Any], manager_payload: Dic
                 flaw,
                 claim_lookup,
                 evidence_lookup,
+                state,
             )
             if contested_patch:
                 return contested_patch
+            if _flaw_contested_relation_already_exists(flaw, state, evidence_lookup):
+                continue
             claim_patch = _claim_downgrade_patch_from_actionable_flaw(flaw, claim_lookup, evidence_lookup)
             if claim_patch:
                 return claim_patch
@@ -3299,10 +3420,15 @@ def _fallback_recovery_patch_payload(state: Dict[str, Any], manager_payload: Dic
                 flaw,
                 claim_lookup,
                 evidence_lookup,
+                state,
             )
             if contested_patch:
                 return contested_patch
+            if _flaw_contested_relation_already_exists(flaw, state, evidence_lookup):
+                continue
             layer, has_negative_grounding_conflict = _decision_view_flaw_layer_and_conflict(state, flaw_id)
+            if has_negative_anchor and layer in {"potential_concern", "verified_potential_concern", "grounded_weakness"} and not has_negative_grounding_conflict:
+                return _blocked_final_view_concern_recovery_payload(flaw_id, layer)
             if layer == "assessment_limitation" and not has_negative_grounding_conflict:
                 return normalize_review_update_payload(
                     {
@@ -3314,6 +3440,9 @@ def _fallback_recovery_patch_payload(state: Dict[str, Any], manager_payload: Dic
                             "downgrading its raw candidate status would be a no-effect recovery patch."
                         ),
                         "missing_requirements": ["remaining negative grounding conflict or over-escalated concern status"],
+                        "recovery_terminal": True,
+                        "recovery_terminal_reason": _ASSESSMENT_LIMITATION_NO_EFFECT_TERMINAL_REASON,
+                        "recovery_repeat_allowed": False,
                     }
                 )
             return normalize_review_update_payload(
@@ -3338,6 +3467,30 @@ def _fallback_recovery_patch_payload(state: Dict[str, Any], manager_payload: Dic
             selected = [item for item in supporting_ids if item in target_evidence_ids]
             supporting_ids = selected or supporting_ids
         if supporting_ids:
+            layer, has_negative_grounding_conflict = _decision_view_flaw_layer_and_conflict(state, flaw_id)
+            supporting_has_negative_anchor = has_negative_anchor or any(
+                _negative_evidence_record_type(evidence_lookup.get(evidence_id, {}))
+                not in {"", "generic_gap", "neutral_control_context", "bibliographic_or_title_noise", "neutral_instruction_noise"}
+                for evidence_id in supporting_ids
+            )
+            if supporting_has_negative_anchor and layer in {"potential_concern", "verified_potential_concern", "grounded_weakness"} and not has_negative_grounding_conflict:
+                return _blocked_final_view_concern_recovery_payload(flaw_id, layer)
+            if layer == "assessment_limitation" and not has_negative_grounding_conflict:
+                return normalize_review_update_payload(
+                    {
+                        "action": "blocked",
+                        "target_type": "flaw",
+                        "target_id": flaw_id,
+                        "blocked_reason": (
+                            "Target flaw is already represented as an assessment limitation in the decision view; "
+                            "downgrading its raw candidate status would be a no-effect recovery patch."
+                        ),
+                        "missing_requirements": ["remaining negative grounding conflict or over-escalated concern status"],
+                        "recovery_terminal": True,
+                        "recovery_terminal_reason": _ASSESSMENT_LIMITATION_NO_EFFECT_TERMINAL_REASON,
+                        "recovery_repeat_allowed": False,
+                    }
+                )
             return normalize_review_update_payload(
                 {
                     "action": "apply_recovery_patch",
@@ -3371,9 +3524,12 @@ def _fallback_recovery_patch_payload(state: Dict[str, Any], manager_payload: Dic
             flaw,
             claim_lookup,
             evidence_lookup,
+            state,
         )
         if contested_patch:
             return contested_patch
+        if _flaw_contested_relation_already_exists(flaw, state, evidence_lookup):
+            continue
         claim_patch = _claim_downgrade_patch_from_actionable_flaw(flaw, claim_lookup, evidence_lookup)
         if claim_patch:
             return claim_patch
@@ -3614,6 +3770,79 @@ def _claim_downgrade_patch_should_be_contested(worker_payload: Dict[str, Any], s
     )
 
 
+def _claim_status_patch_targets_disallowed_claim(worker_payload: Dict[str, Any], state: Dict[str, Any]) -> bool:
+    if worker_payload.get("action") != "apply_recovery_patch":
+        return False
+    if str(worker_payload.get("target_type") or "").strip().lower() != "claim":
+        return False
+    target_id = str(worker_payload.get("target_id") or "").strip()
+    if not target_id:
+        return True
+    new_status = str(worker_payload.get("new_status") or "").strip().lower()
+    old_status = str(worker_payload.get("old_status") or "").strip().lower()
+    if not new_status or new_status == old_status:
+        return False
+    claim_lookup = {
+        str(item.get("claim_id") or "").strip(): item
+        for item in state.get("claims", []) or []
+        if isinstance(item, dict) and str(item.get("claim_id") or "").strip()
+    }
+    return not _is_recovery_claim_status_target(claim_lookup.get(target_id, {}))
+
+
+def _recovery_patch_has_unmatched_conflict_ids(worker_payload: Dict[str, Any], state: Dict[str, Any]) -> bool:
+    if worker_payload.get("action") != "apply_recovery_patch":
+        return False
+    provided = {
+        str(item or "").strip()
+        for item in worker_payload.get("conflict_note_ids", []) or []
+        if str(item or "").strip()
+    }
+    if not provided:
+        return False
+    target_type = str(worker_payload.get("target_type") or "").strip().lower()
+    target_id = str(worker_payload.get("target_id") or "").strip()
+    if target_type not in {"claim", "flaw"} or not target_id:
+        return False
+    related: set[str] = set()
+    for note in state.get("conflict_notes", []) or []:
+        if not isinstance(note, dict):
+            continue
+        conflict_id = str(note.get("conflict_id") or "").strip()
+        if not conflict_id:
+            continue
+        if target_type == "claim" and str(note.get("claim_id") or "").strip() == target_id:
+            related.add(conflict_id)
+        elif target_type == "flaw" and str(note.get("flaw_id") or "").strip() == target_id:
+            related.add(conflict_id)
+    return bool(provided - related)
+
+
+def _rebuild_recovery_patch_from_state(
+    state: Dict[str, Any],
+    manager_payload: Dict[str, Any],
+    *,
+    source: str,
+    marker: str,
+) -> Optional[Dict[str, Any]]:
+    rebuilt = _fallback_recovery_patch_payload(state, manager_payload)
+    if rebuilt.get("action") == "apply_recovery_patch" and _recovery_patch_cites_only_real_evidence(rebuilt, state):
+        rebuilt["_recovery_patch_source"] = source
+        rebuilt[marker] = True
+        return rebuilt
+    if (
+        rebuilt.get("action") == "blocked"
+        and str(rebuilt.get("target_type") or "").strip().lower() == "flaw"
+        and str(rebuilt.get("target_id") or "").strip()
+        and bool(rebuilt.get("recovery_terminal"))
+        and str(rebuilt.get("recovery_terminal_reason") or "").strip()
+    ):
+        rebuilt["_recovery_patch_source"] = source
+        rebuilt[marker] = True
+        return rebuilt
+    return None
+
+
 def _recovery_patch_has_weak_target(worker_payload: Dict[str, Any], state: Dict[str, Any]) -> bool:
     if worker_payload.get("action") != "apply_recovery_patch":
         return False
@@ -3706,6 +3935,24 @@ def _maybe_salvage_recovery_payload(
     if worker_payload.get("action") == "apply_recovery_patch":
         if not worker_payload.get("_recovery_patch_source"):
             worker_payload["_recovery_patch_source"] = "model_generated"
+        if _claim_status_patch_targets_disallowed_claim(worker_payload, state):
+            rebuilt = _rebuild_recovery_patch_from_state(
+                state,
+                manager_payload,
+                source="claim_status_target_rebind",
+                marker="claim_status_target_rebind_used",
+            )
+            if rebuilt is not None:
+                return rebuilt
+        if _recovery_patch_has_unmatched_conflict_ids(worker_payload, state):
+            rebuilt = _rebuild_recovery_patch_from_state(
+                state,
+                manager_payload,
+                source="conflict_note_rebind",
+                marker="conflict_note_rebind_used",
+            )
+            if rebuilt is not None:
+                return rebuilt
         if _claim_downgrade_patch_should_be_contested(worker_payload, state):
             rebuilt = _fallback_recovery_patch_payload(state, manager_payload)
             if rebuilt.get("action") == "apply_recovery_patch" and _recovery_patch_cites_only_real_evidence(rebuilt, state):
@@ -3901,6 +4148,29 @@ def _maybe_salvage_turn_level_recovery_patch(
     )
     if existing_patch_index is not None:
         existing_payload = worker_payloads[existing_patch_index].get("payload", {})
+        if _claim_status_patch_targets_disallowed_claim(existing_payload, state) or _recovery_patch_has_unmatched_conflict_ids(existing_payload, state):
+            marker = (
+                "claim_status_target_rebind_used"
+                if _claim_status_patch_targets_disallowed_claim(existing_payload, state)
+                else "conflict_note_rebind_used"
+            )
+            source = "claim_status_target_rebind" if marker == "claim_status_target_rebind_used" else "conflict_note_rebind"
+            rebuilt = _rebuild_recovery_patch_from_state(
+                state,
+                manager_payload,
+                source=source,
+                marker=marker,
+            )
+            if rebuilt is not None:
+                worker_payloads[existing_patch_index]["payload"] = rebuilt
+                if trace_item is not None:
+                    for call in trace_item.get("worker_calls", []):
+                        if call.get("payload", {}).get("action") == "apply_recovery_patch":
+                            call["payload"] = rebuilt
+                            call["salvaged_recovery_patch"] = True
+                            call["salvage_reason"] = source
+                            break
+                return
         if _recovery_patch_uses_verified_negative_evidence(existing_payload, state):
             return
         if trusted_negative_patch:
@@ -4379,6 +4649,10 @@ def _fallback_worker_payload(
         target_evidence_id = target_evidence_ids[0] if target_evidence_ids else (state.get("evidence_map", [{}]) or [{}])[0].get("evidence_id", "")
         target_flaw_id = target_flaw_ids[0] if target_flaw_ids else ""
         if action_type in {"verify_evidence", "request_evidence_recheck"}:
+            if _looks_like_prompt_or_schema_echo(snippet):
+                return _fallback_evidence_blocked_payload(
+                    "General-review fallback output echoed prompt/schema instructions, so no paper-grounded evidence was added."
+                )
             strength, stance = _fallback_evidence_labels(snippet, action_type)
             conflict_notes = []
             evidence_id = target_evidence_id or f"evidence-general-{len(state.get('evidence_map', [])) + 1}"
@@ -4410,6 +4684,10 @@ def _fallback_worker_payload(
                 required_fields=["evidence_map"],
             )
         if action_type in {"analyze_flaws", "challenge_previous_hypothesis"}:
+            if _looks_like_prompt_or_schema_echo(snippet):
+                return _fallback_critique_blocked_payload(
+                    "General-review fallback output echoed prompt/schema instructions, so no paper-grounded flaw was added."
+                )
             flaw_id = target_flaw_id or f"flaw-general-{len(state.get('flaw_candidates', [])) + 1}"
             flaw_status = "downgraded" if action_type == "challenge_previous_hypothesis" else "candidate"
             conflict_notes = [{

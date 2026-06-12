@@ -1,6 +1,6 @@
 # Run comparison dashboard v1
 
-- candidate: `mimo_v25_full39_mt9_b4w4_api2_20260611_173526.jsonl` (label: candidate, papers: 39)
+- candidate: `mimo_v25_full39_mt9_b4w4_api2_20260611_173526.jsonl` (label: mimo_v25_full39_mt9_b4w4_api2_20260611_173526, papers: 39)
 - dashboard_mode: `full39`
 
 ## Protection lines
@@ -27,7 +27,7 @@
 
 ## Evidence formation health
 
-| metric | candidate |
+| metric | mimo_v25_full39_mt9_b4w4_api2_20260611_173526 |
 |---|---|
 | `evidence_agent_worker_turns` | 249 |
 | `quote_bank_nonzero_turns` | 249 |
@@ -42,7 +42,7 @@
 
 ## Positive support
 
-| metric | candidate |
+| metric | mimo_v25_full39_mt9_b4w4_api2_20260611_173526 |
 |---|---|
 | `real_strong_support_total` | 198 |
 | `independent_support_group_total` | 198 |
@@ -96,7 +96,7 @@
 
 ## Negative & flaws
 
-| metric | candidate |
+| metric | mimo_v25_full39_mt9_b4w4_api2_20260611_173526 |
 |---|---|
 | `negative_evidence_candidate_count` | 13 |
 | `negative_evidence_linked_to_flaw_count` | 13 |
@@ -129,7 +129,7 @@
 
 ## State contamination
 
-| metric | candidate |
+| metric | mimo_v25_full39_mt9_b4w4_api2_20260611_173526 |
 |---|---|
 | `state_contamination_count` | 0 |
 | `state_contamination_count_legacy` | 0 |
@@ -158,7 +158,7 @@
 
 ## Contested support
 
-| metric | candidate |
+| metric | mimo_v25_full39_mt9_b4w4_api2_20260611_173526 |
 |---|---|
 | `contested_support_total` | 15 |
 | `contested_final_support_total` | 15 |
@@ -168,7 +168,7 @@
 
 ## Gap cleanup & locator
 
-| metric | candidate |
+| metric | mimo_v25_full39_mt9_b4w4_api2_20260611_173526 |
 |---|---|
 | `evidence_gap_open_count` | 6 |
 | `evidence_gap_resolved_count` | 105 |
@@ -200,7 +200,7 @@
 
 ## Recovery
 
-| metric | candidate |
+| metric | mimo_v25_full39_mt9_b4w4_api2_20260611_173526 |
 |---|---|
 | `recovery_attempted` | 35 |
 | `recovery_patch_validated` | 25 |
@@ -232,7 +232,7 @@
 
 ## Hygiene
 
-| metric | candidate |
+| metric | mimo_v25_full39_mt9_b4w4_api2_20260611_173526 |
 |---|---|
 | `final_nonreal_strong_support` | 0 |
 | `low_score_promoted_strong` | 0 |
@@ -243,7 +243,7 @@
 
 ## Recovery failure codes
 
-| code | candidate | interpreted safety outcome |
+| code | mimo_v25_full39_mt9_b4w4_api2_20260611_173526 | interpreted safety outcome |
 |---|---|---|
 | `BLOCKED_BY_POLICY` | 10 | **safe_blocked_patch (policy restriction/abstention)** |
 | `INSUFFICIENT_EVIDENCE` | 1 | **safe_blocked_patch (insufficient evidence criteria)** |
@@ -251,7 +251,7 @@
 
 ## Final decision distribution
 
-| decision | candidate |
+| decision | mimo_v25_full39_mt9_b4w4_api2_20260611_173526 |
 |---|---|
 | `accept` | 24 |
 | `reject` | 15 |

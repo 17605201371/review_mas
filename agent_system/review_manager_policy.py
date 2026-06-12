@@ -358,6 +358,37 @@ def _has_recent_negative_evidence_formation_turn(recent_turn_logs: Sequence[Dict
     return False
 
 
+def _negative_evidence_formation_attempt_count(recent_turn_logs: Sequence[Dict[str, Any]], *, window: int = 6) -> int:
+    count = 0
+    for turn in list(recent_turn_logs or [])[-window:]:
+        if turn.get("negative_evidence_formation_required"):
+            count += 1
+            continue
+        if str(turn.get("policy_source") or "") in {"negative_evidence_formation_override", "hard_negative_discovery_override"}:
+            count += 1
+    return count
+
+
+def _allow_supplemental_hard_negative_discovery(
+    state: Dict[str, Any],
+    recent_turn_logs: Sequence[Dict[str, Any]],
+    remaining_after_current: Optional[int],
+) -> bool:
+    """Allow one extra hard-negative pass when the first pass found nothing.
+
+    This is deliberately conservative: it only applies when current state still
+    has zero grounded negative evidence, exactly one recent negative-formation
+    attempt exists, and the turn budget leaves room for a follow-up recovery
+    commit. Legacy callers without phase budget metadata keep the old
+    single-pass behavior.
+    """
+    if remaining_after_current is None or remaining_after_current < 2:
+        return False
+    if _grounded_negative_evidence_count(state) > 0:
+        return False
+    return _negative_evidence_formation_attempt_count(recent_turn_logs) == 1
+
+
 def _grounded_negative_evidence_count(state: Dict[str, Any]) -> int:
     return sum(
         1
@@ -2214,6 +2245,12 @@ def apply_manager_policy_fallback(
             budget_aware_skip = True
         elif remaining_after_current < 2 and not _positive_inventory_ready(state):
             budget_aware_skip = True
+    recent_negative_formation = _has_recent_negative_evidence_formation_turn(recent_turn_logs)
+    supplemental_hard_negative_discovery = _allow_supplemental_hard_negative_discovery(
+        state,
+        recent_turn_logs,
+        remaining_after_current,
+    )
     if (
         mode == "s4"
         and policy_source in _HARD_NEGATIVE_DISCOVERY_ELIGIBLE_SOURCES
@@ -2227,13 +2264,16 @@ def apply_manager_policy_fallback(
         and counts["evidence_map"] >= 1
         and _grounded_negative_evidence_count(state) == 0
         and hard_negative_claim_ids
-        and not _has_recent_negative_evidence_formation_turn(recent_turn_logs)
+        and (not recent_negative_formation or supplemental_hard_negative_discovery)
         and "request_evidence_recheck" in allowed_actions
         and action_type in {"extract_claims", "verify_evidence", "request_evidence_recheck", "analyze_flaws", "summarize_progress", "finalize"}
         and not budget_aware_skip
     ):
         policy_source = "hard_negative_discovery_override"
-        policy_notes.append("S4 runs one hard-negative discovery pass so reject evidence is not inferred only from unresolved/meta burden.")
+        policy_notes.append(
+            "S4 runs a hard-negative discovery pass so reject evidence is not inferred only from unresolved/meta burden."
+            + (" Supplemental pass is allowed because the first pass found no grounded negative evidence and recovery budget remains." if supplemental_hard_negative_discovery else "")
+        )
         payload["decision"] = "continue"
         payload["final_decision"] = "undecided"
         payload["final_report"] = ""

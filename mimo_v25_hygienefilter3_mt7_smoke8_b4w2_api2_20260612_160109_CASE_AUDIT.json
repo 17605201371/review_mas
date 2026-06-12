@@ -1,0 +1,266 @@
+{
+  "schema_version": "post4tasks_case_anomaly_audit_v1_20260611",
+  "paper_count": 8,
+  "stored_metric_totals": {
+    "state_contamination_count": 0,
+    "contamination_evidence_misbinding": 0,
+    "open_conflict_count": 0,
+    "negative_semantic_anchor_conflict_count": 0,
+    "invalid_negative_evidence_id_count_legacy": 0,
+    "negative_evidence_semantic_rejected_count": 1,
+    "negative_evidence_candidate_count": 12,
+    "verified_negative_flaw_count": 12,
+    "verified_actionable_negative_flaw_count": 7,
+    "potential_concern_count": 7
+  },
+  "recomputed_metric_totals": {
+    "state_contamination_count": 0,
+    "contamination_evidence_misbinding": 0,
+    "open_conflict_count": 0,
+    "negative_semantic_anchor_conflict_count": 0,
+    "invalid_negative_evidence_id_count_legacy": 0,
+    "negative_evidence_semantic_rejected_count": 1,
+    "negative_evidence_candidate_count": 12,
+    "verified_negative_flaw_count": 12,
+    "verified_actionable_negative_flaw_count": 7,
+    "potential_concern_count": 7
+  },
+  "p0_1_open_conflict_cases": [],
+  "p0_2_evidence_misbinding_cases": [],
+  "p0_3_negative_semantic_anchor_cases": [
+    {
+      "paper_id": "WLgbjzKJkk",
+      "turn_id": null,
+      "claim_id": "claim-paper-fallback-3",
+      "claim_text": "CO-MOT, a framework for boosting end-to-end Transformer-based multi-object tracking.",
+      "flaw_id": "flaw-negative-quote-bank-quote-table-or-figure-3",
+      "negative_evidence_id": "evidence-negative-quote-bank-quote-table-or-figure-3-4",
+      "raw_negative_quote": "subsequent tracking. Sets that do not capture any object will be discarded. \\section{4 EXPERIMENT } Table 2: Comparison to state-of-the-art methods on different dataset. Please pay more attention to the metrics with blue",
+      "negative_locator": "Table 2",
+      "negative_type": "scope_limitation",
+      "semantic_label": "semantic_mismatch",
+      "anchor_claim_text": "CO-MOT, a framework for boosting end-to-end Transformer-based multi-object tracking.",
+      "anchor_quote_text": "subsequent tracking. Sets that do not capture any object will be discarded. \\section{4 EXPERIMENT } Table 2: Comparison to state-of-the-art methods on different dataset. Please pay more attention to the metrics with blue",
+      "why_semantic_anchor_conflict": "semantic_label_not_negative_verified",
+      "why_negative_evidence_rejected": "semantic_mismatch_or_unverified_negative_anchor",
+      "whether_id_is_legacy_or_normalized": "normalized_resolved",
+      "final_view_before": {
+        "negative_semantic_anchor_conflict_count": 0,
+        "invalid_negative_evidence_id_count_legacy": 0
+      },
+      "final_view_after": {
+        "negative_semantic_anchor_conflict_count": 0,
+        "negative_evidence_semantic_rejected_count": 1,
+        "verified_negative_flaw_count": 2
+      }
+    }
+  ],
+  "p0_4_verified_negative_flaw_mapping": {
+    "all_negative_evidence_ids": [
+      "KOUAayk5Kx:evidence-negative-quote-bank-quote-critique-negative-2-2",
+      "KOUAayk5Kx:evidence-negative-quote-bank-quote-negative-or-gap-1-3",
+      "KOUAayk5Kx:evidence-negative-quote-bank-quote-negative-or-gap-2-4",
+      "LebzzClHYw:evidence-negative-quote-bank-quote-critique-negative-1-3",
+      "LebzzClHYw:evidence-negative-quote-bank-quote-critique-negative-2-2",
+      "LebzzClHYw:evidence-negative-quote-bank-quote-negative-or-gap-1-1",
+      "WLgbjzKJkk:evidence-negative-quote-bank-quote-critique-negative-1-3",
+      "WLgbjzKJkk:evidence-negative-quote-bank-quote-critique-negative-2-2",
+      "fGXyvmWpw6:evidence-negative-quote-bank-quote-critique-negative-2-3",
+      "fGXyvmWpw6:evidence-negative-quote-bank-quote-negative-or-gap-1-2",
+      "jVEoydFOl9:evidence-negative-quote-bank-quote-critique-negative-1-3",
+      "jVEoydFOl9:evidence-negative-quote-bank-quote-negative-or-gap-1-2"
+    ],
+    "all_verified_negative_flaw_ids": [
+      "KOUAayk5Kx:flaw-negative-quote-bank-quote-critique-negative-2",
+      "KOUAayk5Kx:flaw-negative-quote-bank-quote-negative-or-gap-1",
+      "KOUAayk5Kx:flaw-negative-quote-bank-quote-negative-or-gap-2",
+      "LebzzClHYw:flaw-negative-quote-bank-quote-critique-negative-1",
+      "LebzzClHYw:flaw-negative-quote-bank-quote-critique-negative-2",
+      "LebzzClHYw:flaw-negative-quote-bank-quote-negative-or-gap-1",
+      "WLgbjzKJkk:flaw-negative-quote-bank-quote-critique-negative-1",
+      "WLgbjzKJkk:flaw-negative-quote-bank-quote-critique-negative-2",
+      "fGXyvmWpw6:flaw-negative-quote-bank-quote-critique-negative-2",
+      "fGXyvmWpw6:flaw-negative-quote-bank-quote-negative-or-gap-1",
+      "jVEoydFOl9:flaw-negative-quote-bank-quote-critique-negative-1",
+      "jVEoydFOl9:flaw-negative-quote-bank-quote-negative-or-gap-1"
+    ],
+    "flaw_to_negative_evidence_mapping": {
+      "jVEoydFOl9:flaw-negative-quote-bank-quote-negative-or-gap-1": [
+        "jVEoydFOl9:evidence-negative-quote-bank-quote-negative-or-gap-1-2"
+      ],
+      "jVEoydFOl9:flaw-negative-quote-bank-quote-critique-negative-1": [
+        "jVEoydFOl9:evidence-negative-quote-bank-quote-critique-negative-1-3"
+      ],
+      "fGXyvmWpw6:flaw-negative-quote-bank-quote-negative-or-gap-1": [
+        "fGXyvmWpw6:evidence-negative-quote-bank-quote-negative-or-gap-1-2",
+        "fGXyvmWpw6:evidence-negative-quote-bank-quote-critique-negative-2-3"
+      ],
+      "fGXyvmWpw6:flaw-negative-quote-bank-quote-critique-negative-2": [
+        "fGXyvmWpw6:evidence-negative-quote-bank-quote-critique-negative-2-3",
+        "fGXyvmWpw6:evidence-negative-quote-bank-quote-negative-or-gap-1-2"
+      ],
+      "WLgbjzKJkk:flaw-negative-quote-bank-quote-critique-negative-2": [
+        "WLgbjzKJkk:evidence-negative-quote-bank-quote-critique-negative-2-2"
+      ],
+      "WLgbjzKJkk:flaw-negative-quote-bank-quote-critique-negative-1": [
+        "WLgbjzKJkk:evidence-negative-quote-bank-quote-critique-negative-1-3"
+      ],
+      "LebzzClHYw:flaw-negative-quote-bank-quote-negative-or-gap-1": [
+        "LebzzClHYw:evidence-negative-quote-bank-quote-negative-or-gap-1-1",
+        "LebzzClHYw:evidence-negative-quote-bank-quote-critique-negative-1-3"
+      ],
+      "LebzzClHYw:flaw-negative-quote-bank-quote-critique-negative-2": [
+        "LebzzClHYw:evidence-negative-quote-bank-quote-critique-negative-2-2",
+        "LebzzClHYw:evidence-negative-quote-bank-quote-negative-or-gap-1-1",
+        "LebzzClHYw:evidence-negative-quote-bank-quote-critique-negative-1-3"
+      ],
+      "LebzzClHYw:flaw-negative-quote-bank-quote-critique-negative-1": [
+        "LebzzClHYw:evidence-negative-quote-bank-quote-critique-negative-1-3",
+        "LebzzClHYw:evidence-negative-quote-bank-quote-negative-or-gap-1-1"
+      ],
+      "KOUAayk5Kx:flaw-negative-quote-bank-quote-critique-negative-2": [
+        "KOUAayk5Kx:evidence-negative-quote-bank-quote-critique-negative-2-2",
+        "KOUAayk5Kx:evidence-negative-quote-bank-quote-negative-or-gap-1-3",
+        "KOUAayk5Kx:evidence-negative-quote-bank-quote-negative-or-gap-2-4"
+      ],
+      "KOUAayk5Kx:flaw-negative-quote-bank-quote-negative-or-gap-1": [
+        "KOUAayk5Kx:evidence-negative-quote-bank-quote-negative-or-gap-1-3",
+        "KOUAayk5Kx:evidence-negative-quote-bank-quote-critique-negative-2-2",
+        "KOUAayk5Kx:evidence-negative-quote-bank-quote-negative-or-gap-2-4"
+      ],
+      "KOUAayk5Kx:flaw-negative-quote-bank-quote-negative-or-gap-2": [
+        "KOUAayk5Kx:evidence-negative-quote-bank-quote-negative-or-gap-2-4",
+        "KOUAayk5Kx:evidence-negative-quote-bank-quote-critique-negative-2-2",
+        "KOUAayk5Kx:evidence-negative-quote-bank-quote-negative-or-gap-1-3"
+      ]
+    },
+    "negative_evidence_to_flaw_mapping": {
+      "jVEoydFOl9:evidence-negative-quote-bank-quote-negative-or-gap-1-2": [
+        "jVEoydFOl9:flaw-negative-quote-bank-quote-negative-or-gap-1"
+      ],
+      "jVEoydFOl9:evidence-negative-quote-bank-quote-critique-negative-1-3": [
+        "jVEoydFOl9:flaw-negative-quote-bank-quote-critique-negative-1"
+      ],
+      "fGXyvmWpw6:evidence-negative-quote-bank-quote-negative-or-gap-1-2": [
+        "fGXyvmWpw6:flaw-negative-quote-bank-quote-negative-or-gap-1",
+        "fGXyvmWpw6:flaw-negative-quote-bank-quote-critique-negative-2"
+      ],
+      "fGXyvmWpw6:evidence-negative-quote-bank-quote-critique-negative-2-3": [
+        "fGXyvmWpw6:flaw-negative-quote-bank-quote-negative-or-gap-1",
+        "fGXyvmWpw6:flaw-negative-quote-bank-quote-critique-negative-2"
+      ],
+      "WLgbjzKJkk:evidence-negative-quote-bank-quote-critique-negative-2-2": [
+        "WLgbjzKJkk:flaw-negative-quote-bank-quote-critique-negative-2"
+      ],
+      "WLgbjzKJkk:evidence-negative-quote-bank-quote-critique-negative-1-3": [
+        "WLgbjzKJkk:flaw-negative-quote-bank-quote-critique-negative-1"
+      ],
+      "LebzzClHYw:evidence-negative-quote-bank-quote-negative-or-gap-1-1": [
+        "LebzzClHYw:flaw-negative-quote-bank-quote-negative-or-gap-1",
+        "LebzzClHYw:flaw-negative-quote-bank-quote-critique-negative-2",
+        "LebzzClHYw:flaw-negative-quote-bank-quote-critique-negative-1"
+      ],
+      "LebzzClHYw:evidence-negative-quote-bank-quote-critique-negative-1-3": [
+        "LebzzClHYw:flaw-negative-quote-bank-quote-negative-or-gap-1",
+        "LebzzClHYw:flaw-negative-quote-bank-quote-critique-negative-2",
+        "LebzzClHYw:flaw-negative-quote-bank-quote-critique-negative-1"
+      ],
+      "LebzzClHYw:evidence-negative-quote-bank-quote-critique-negative-2-2": [
+        "LebzzClHYw:flaw-negative-quote-bank-quote-critique-negative-2"
+      ],
+      "KOUAayk5Kx:evidence-negative-quote-bank-quote-critique-negative-2-2": [
+        "KOUAayk5Kx:flaw-negative-quote-bank-quote-critique-negative-2",
+        "KOUAayk5Kx:flaw-negative-quote-bank-quote-negative-or-gap-1",
+        "KOUAayk5Kx:flaw-negative-quote-bank-quote-negative-or-gap-2"
+      ],
+      "KOUAayk5Kx:evidence-negative-quote-bank-quote-negative-or-gap-1-3": [
+        "KOUAayk5Kx:flaw-negative-quote-bank-quote-critique-negative-2",
+        "KOUAayk5Kx:flaw-negative-quote-bank-quote-negative-or-gap-1",
+        "KOUAayk5Kx:flaw-negative-quote-bank-quote-negative-or-gap-2"
+      ],
+      "KOUAayk5Kx:evidence-negative-quote-bank-quote-negative-or-gap-2-4": [
+        "KOUAayk5Kx:flaw-negative-quote-bank-quote-critique-negative-2",
+        "KOUAayk5Kx:flaw-negative-quote-bank-quote-negative-or-gap-1",
+        "KOUAayk5Kx:flaw-negative-quote-bank-quote-negative-or-gap-2"
+      ]
+    },
+    "duplicate_flaw_ids": [],
+    "duplicate_negative_evidence_ids": [],
+    "shared_negative_evidence_ids": {
+      "fGXyvmWpw6:evidence-negative-quote-bank-quote-negative-or-gap-1-2": [
+        "fGXyvmWpw6:flaw-negative-quote-bank-quote-negative-or-gap-1",
+        "fGXyvmWpw6:flaw-negative-quote-bank-quote-critique-negative-2"
+      ],
+      "fGXyvmWpw6:evidence-negative-quote-bank-quote-critique-negative-2-3": [
+        "fGXyvmWpw6:flaw-negative-quote-bank-quote-negative-or-gap-1",
+        "fGXyvmWpw6:flaw-negative-quote-bank-quote-critique-negative-2"
+      ],
+      "LebzzClHYw:evidence-negative-quote-bank-quote-negative-or-gap-1-1": [
+        "LebzzClHYw:flaw-negative-quote-bank-quote-negative-or-gap-1",
+        "LebzzClHYw:flaw-negative-quote-bank-quote-critique-negative-2",
+        "LebzzClHYw:flaw-negative-quote-bank-quote-critique-negative-1"
+      ],
+      "LebzzClHYw:evidence-negative-quote-bank-quote-critique-negative-1-3": [
+        "LebzzClHYw:flaw-negative-quote-bank-quote-negative-or-gap-1",
+        "LebzzClHYw:flaw-negative-quote-bank-quote-critique-negative-2",
+        "LebzzClHYw:flaw-negative-quote-bank-quote-critique-negative-1"
+      ],
+      "KOUAayk5Kx:evidence-negative-quote-bank-quote-critique-negative-2-2": [
+        "KOUAayk5Kx:flaw-negative-quote-bank-quote-critique-negative-2",
+        "KOUAayk5Kx:flaw-negative-quote-bank-quote-negative-or-gap-1",
+        "KOUAayk5Kx:flaw-negative-quote-bank-quote-negative-or-gap-2"
+      ],
+      "KOUAayk5Kx:evidence-negative-quote-bank-quote-negative-or-gap-1-3": [
+        "KOUAayk5Kx:flaw-negative-quote-bank-quote-critique-negative-2",
+        "KOUAayk5Kx:flaw-negative-quote-bank-quote-negative-or-gap-1",
+        "KOUAayk5Kx:flaw-negative-quote-bank-quote-negative-or-gap-2"
+      ],
+      "KOUAayk5Kx:evidence-negative-quote-bank-quote-negative-or-gap-2-4": [
+        "KOUAayk5Kx:flaw-negative-quote-bank-quote-critique-negative-2",
+        "KOUAayk5Kx:flaw-negative-quote-bank-quote-negative-or-gap-1",
+        "KOUAayk5Kx:flaw-negative-quote-bank-quote-negative-or-gap-2"
+      ]
+    },
+    "legacy_negative_evidence_ids": [],
+    "quote_bank_negative_ids": [
+      "KOUAayk5Kx:evidence-negative-quote-bank-quote-critique-negative-2-2",
+      "KOUAayk5Kx:evidence-negative-quote-bank-quote-negative-or-gap-1-3",
+      "KOUAayk5Kx:evidence-negative-quote-bank-quote-negative-or-gap-2-4",
+      "LebzzClHYw:evidence-negative-quote-bank-quote-critique-negative-1-3",
+      "LebzzClHYw:evidence-negative-quote-bank-quote-critique-negative-2-2",
+      "LebzzClHYw:evidence-negative-quote-bank-quote-negative-or-gap-1-1",
+      "WLgbjzKJkk:evidence-negative-quote-bank-quote-critique-negative-1-3",
+      "WLgbjzKJkk:evidence-negative-quote-bank-quote-critique-negative-2-2",
+      "fGXyvmWpw6:evidence-negative-quote-bank-quote-critique-negative-2-3",
+      "fGXyvmWpw6:evidence-negative-quote-bank-quote-negative-or-gap-1-2",
+      "jVEoydFOl9:evidence-negative-quote-bank-quote-critique-negative-1-3",
+      "jVEoydFOl9:evidence-negative-quote-bank-quote-negative-or-gap-1-2"
+    ],
+    "critique_negative_quote_bank_ids": [
+      "KOUAayk5Kx:evidence-negative-quote-bank-quote-critique-negative-2-2",
+      "LebzzClHYw:evidence-negative-quote-bank-quote-critique-negative-1-3",
+      "LebzzClHYw:evidence-negative-quote-bank-quote-critique-negative-2-2",
+      "WLgbjzKJkk:evidence-negative-quote-bank-quote-critique-negative-1-3",
+      "WLgbjzKJkk:evidence-negative-quote-bank-quote-critique-negative-2-2",
+      "fGXyvmWpw6:evidence-negative-quote-bank-quote-critique-negative-2-3",
+      "jVEoydFOl9:evidence-negative-quote-bank-quote-critique-negative-1-3"
+    ],
+    "programmatic_negative_ids": [
+      "KOUAayk5Kx:evidence-negative-quote-bank-quote-critique-negative-2-2",
+      "KOUAayk5Kx:evidence-negative-quote-bank-quote-negative-or-gap-1-3",
+      "KOUAayk5Kx:evidence-negative-quote-bank-quote-negative-or-gap-2-4",
+      "LebzzClHYw:evidence-negative-quote-bank-quote-critique-negative-1-3",
+      "LebzzClHYw:evidence-negative-quote-bank-quote-critique-negative-2-2",
+      "LebzzClHYw:evidence-negative-quote-bank-quote-negative-or-gap-1-1",
+      "WLgbjzKJkk:evidence-negative-quote-bank-quote-critique-negative-1-3",
+      "WLgbjzKJkk:evidence-negative-quote-bank-quote-critique-negative-2-2",
+      "fGXyvmWpw6:evidence-negative-quote-bank-quote-critique-negative-2-3",
+      "fGXyvmWpw6:evidence-negative-quote-bank-quote-negative-or-gap-1-2",
+      "jVEoydFOl9:evidence-negative-quote-bank-quote-critique-negative-1-3",
+      "jVEoydFOl9:evidence-negative-quote-bank-quote-negative-or-gap-1-2"
+    ],
+    "current_verified_negative_flaw_count": 12,
+    "current_negative_evidence_candidate_count": 12,
+    "current_verified_actionable_negative_flaw_count": 7
+  }
+}

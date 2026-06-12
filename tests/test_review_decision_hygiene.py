@@ -925,6 +925,266 @@ def test_flaw_negative_grounding_ignores_unresolved_explicit_ids_when_map_is_kno
     assert _render_weaknesses(state) == []
 
 
+def test_support_only_flaw_conflict_is_stale_after_downgrade():
+    state = {
+        "claims": [{"claim_id": "claim-1", "claim": "The method is evaluated.", "status": "supported"}],
+        "evidence_map": [
+            {
+                "evidence_id": "e-support",
+                "claim_id": "claim-1",
+                "raw_quote": "The method is evaluated on benchmark X.",
+                "source": "results",
+                "source_locator": "Table 1",
+                "strength": "strong",
+                "stance": "supports",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_support_verified",
+            }
+        ],
+        "flaw_candidates": [
+            {
+                "flaw_id": "flaw-support-only",
+                "status": "downgraded",
+                "related_claim_ids": ["claim-1"],
+                "evidence_ids": ["e-support"],
+                "negative_evidence_ids": ["e-support"],
+            }
+        ],
+        "conflict_notes": [
+            {
+                "conflict_id": "conflict-support-only",
+                "claim_id": "claim-1",
+                "evidence_id": "e-support",
+                "flaw_id": "flaw-support-only",
+                "conflict_type": "support_only_flaw_without_negative_grounding",
+                "note": "Flaw was downgraded because it only cites positive support evidence.",
+            }
+        ],
+    }
+
+    hygiene = build_decision_hygiene_view(state)["decision_hygiene"]
+    assert hygiene["open_conflict_count"] == 0
+    assert hygiene["stale_conflict_count"] == 1
+
+
+def test_interpretation_conflict_on_downgraded_flaw_is_stale():
+    state = {
+        "claims": [{"claim_id": "claim-1", "claim": "The method improves benchmark performance.", "status": "supported"}],
+        "evidence_map": [
+            {
+                "evidence_id": "e-support",
+                "claim_id": "claim-1",
+                "raw_quote": "Table 2 shows the method improves benchmark performance.",
+                "source": "results",
+                "source_locator": "Table 2",
+                "strength": "strong",
+                "stance": "supports",
+                "binding_status": "bound_real_claim",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_support_verified",
+                "semantic_alignment_score": 0.84,
+            }
+        ],
+        "flaw_candidates": [
+            {
+                "flaw_id": "flaw-1",
+                "status": "downgraded",
+                "hygiene_status_reason": "support_only_flaw_lacks_verified_negative_evidence",
+                "related_claim_ids": ["claim-1"],
+                "evidence_ids": ["e-support"],
+                "negative_evidence_ids": ["e-support"],
+                "final_view_flaw_layer": "assessment_limitation",
+            }
+        ],
+        "conflict_notes": [
+            {
+                "conflict_id": "conflict-positive-as-negative",
+                "note": "The second negative quote is a positive result and does not contradict the claim.",
+                "claim_id": "claim-1",
+                "evidence_id": "e-support",
+                "flaw_id": "flaw-1",
+                "conflict_type": "interpretation_conflict",
+            }
+        ],
+    }
+
+    hygiene = build_decision_hygiene_view(state)["decision_hygiene"]
+    assert hygiene["open_conflict_count"] == 0
+    assert hygiene["stale_conflict_count"] == 1
+
+
+def test_internal_flaw_anchor_gap_and_downgraded_flaw_do_not_count_as_contamination():
+    state = {
+        "claims": [{"claim_id": "claim-1", "claim": "The method improves benchmark performance.", "status": "supported"}],
+        "evidence_map": [
+            {
+                "evidence_id": "e-support",
+                "claim_id": "claim-1",
+                "raw_quote": "Table 2 shows the method improves benchmark performance.",
+                "source": "results",
+                "source_locator": "Table 2",
+                "strength": "strong",
+                "stance": "supports",
+                "binding_status": "bound_real_claim",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_support_verified",
+                "semantic_alignment_score": 0.84,
+            }
+        ],
+        "flaw_candidates": [
+            {
+                "flaw_id": "flaw-baseline-coverage",
+                "status": "downgraded",
+                "hygiene_status_reason": "decision_view_ungrounded_or_fallback_flaw",
+                "severity": "major",
+                "related_claim_ids": ["claim-1"],
+                "evidence_ids": [],
+                "negative_evidence_ids": [],
+            }
+        ],
+        "evidence_gaps": [
+            {
+                "gap_id": "gap-flaw-anchor",
+                "gap": "Flaw flaw-baseline-coverage lacks anchored evidence.",
+                "status": "open",
+            }
+        ],
+    }
+
+    hygiene = build_decision_hygiene_view(state)["decision_hygiene"]
+    type_counts = hygiene["state_contamination_type_counts"]
+    assert hygiene["open_evidence_gap_count"] == 0
+    assert hygiene["stale_evidence_gap_count"] == 1
+    assert type_counts.get("stale_gap_persistence", 0) == 0
+    assert type_counts.get("unsupported_flaw_escalation", 0) == 0
+
+
+def test_active_confirmed_support_only_flaw_still_counts_as_contamination():
+    state = {
+        "claims": [{"claim_id": "claim-1", "claim": "The method improves benchmark performance.", "status": "supported"}],
+        "evidence_map": [
+            {
+                "evidence_id": "e-support",
+                "claim_id": "claim-1",
+                "raw_quote": "Table 2 shows the method improves benchmark performance.",
+                "source": "results",
+                "source_locator": "Table 2",
+                "strength": "strong",
+                "stance": "supports",
+                "binding_status": "bound_real_claim",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_support_verified",
+                "semantic_alignment_score": 0.84,
+            }
+        ],
+        "flaw_candidates": [
+            {
+                "flaw_id": "flaw-active-unsupported",
+                "status": "confirmed",
+                "severity": "major",
+                "related_claim_ids": ["claim-1"],
+                "evidence_ids": ["e-support"],
+                "negative_evidence_ids": [],
+            }
+        ],
+    }
+
+    hygiene = build_decision_hygiene_view(state)["decision_hygiene"]
+    type_counts = hygiene["state_contamination_type_counts"]
+    assert type_counts["unsupported_flaw_escalation"] == 1
+
+
+def test_semantic_mismatch_negative_anchor_is_rejected_not_contamination():
+    state = {
+        "claims": [{"claim_id": "claim-1", "claim": "The method has complete ablations.", "status": "supported"}],
+        "evidence_map": [
+            {
+                "evidence_id": "e-support",
+                "claim_id": "claim-1",
+                "raw_quote": "The method is evaluated with ablation experiments in Table 3.",
+                "source": "results",
+                "source_locator": "Table 3",
+                "strength": "strong",
+                "stance": "supports",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_support_verified",
+            },
+            {
+                "evidence_id": "e-neg-mismatch",
+                "claim_id": "claim-1",
+                "raw_quote": "Table 3 lists ablation experiments for three hyperparameters.",
+                "source": "quote-bank-negative-grounding",
+                "source_locator": "Table 3",
+                "strength": "missing",
+                "stance": "missing",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_mismatch",
+                "negative_evidence_type": "scope_limitation",
+            }
+        ],
+        "flaw_candidates": [
+            {
+                "flaw_id": "flaw-neg-mismatch",
+                "status": "candidate",
+                "related_claim_ids": ["claim-1"],
+                "evidence_ids": ["e-neg-mismatch"],
+                "negative_evidence_ids": ["e-neg-mismatch"],
+                "description": "Claims missing ablation evidence from a quote that actually reports ablations.",
+            }
+        ],
+    }
+
+    view = build_decision_hygiene_view(state)
+    hygiene = view["decision_hygiene"]
+    assert hygiene["negative_evidence_semantic_rejected_count"] == 1
+    assert hygiene["negative_semantic_anchor_conflict_count"] == 0
+    assert hygiene["invalid_negative_evidence_id_count"] == 0
+    assert hygiene["state_contamination_count"] == 0
+    assert hygiene["verified_negative_flaw_count"] == 0
+    assert view["flaw_candidates"][0]["status"] == "downgraded"
+    assert view["flaw_candidates"][0]["final_view_flaw_layer"] == "assessment_limitation"
+
+
+def test_downgraded_negative_flaw_does_not_inflate_verified_flaw_count():
+    negative_evidence = {
+        "evidence_id": "e-neg",
+        "claim_id": "claim-1",
+        "raw_quote": "The method performs worse than the strongest baseline.",
+        "source": "results",
+        "source_locator": "Table 2",
+        "strength": "strong",
+        "stance": "contradicts",
+        "verified_grounding_label": "paper_grounded_exact",
+        "semantic_grounding_label": "semantic_negative_verified",
+        "negative_evidence_type": "negative_result",
+    }
+    state = {
+        "claims": [{"claim_id": "claim-1", "claim": "The method outperforms baselines.", "status": "supported"}],
+        "evidence_map": [negative_evidence],
+        "flaw_candidates": [
+            {
+                "flaw_id": "flaw-active",
+                "status": "candidate",
+                "related_claim_ids": ["claim-1"],
+                "negative_evidence_ids": ["e-neg"],
+                "description": "Active negative result concern.",
+            },
+            {
+                "flaw_id": "flaw-inactive",
+                "status": "downgraded",
+                "related_claim_ids": ["claim-1"],
+                "negative_evidence_ids": ["e-neg"],
+                "description": "Inactive duplicate concern.",
+            },
+        ],
+    }
+
+    hygiene = build_decision_hygiene_view(state)["decision_hygiene"]
+    assert hygiene["negative_evidence_candidate_count"] == 1
+    assert hygiene["verified_negative_flaw_count"] == 1
+    assert hygiene["verified_actionable_negative_flaw_count"] == 1
+
+
 def test_decision_view_reconciles_unsupported_claim_with_strong_support():
     state = _state_with_real_support()
     # Live state still says unsupported; the view should treat the claim as
@@ -3538,6 +3798,7 @@ def test_decision_hygiene_emits_state_contamination_targets_and_gate_counts():
                 "description": "The report escalated a flaw without verified negative evidence.",
                 "severity": "major",
                 "status": "confirmed",
+                "evidence_ids": ["e-support"],
             },
             {
                 "flaw_id": "flaw-overclaim",
@@ -5209,11 +5470,16 @@ def test_negative_classifier_keeps_external_baseline_dataset_unavailable_neutral
 def test_negative_classifier_keeps_actionable_missing_ablation_and_baseline():
     assert _classify_negative_evidence_type("The paper does not report ablation experiments for the core module.") == "missing_ablation"
     assert _classify_negative_evidence_type("The paper did not compare against a strong baseline on the main benchmark.") == "missing_baseline"
+    assert _classify_negative_evidence_type("The evaluation is reported without comparison with strong baselines.") == "missing_baseline"
     assert _classify_negative_evidence_type("The component contribution is not isolated by an ablation analysis.") == "missing_ablation"
     assert _classify_negative_evidence_type("The comparison to recent state-of-the-art baselines is missing.") == "missing_baseline"
     assert _classify_negative_evidence_type("The evaluation is limited to a single dataset.") == "insufficient_evaluation"
+    assert _classify_negative_evidence_type("The paper has insufficient evaluation on real benchmarks.") == "insufficient_evaluation"
     assert _classify_negative_evidence_type("Training details and data split details are omitted, limiting reproducibility.") == "reproducibility_gap"
+    assert _classify_negative_evidence_type("Implementation details and hyperparameters are missing.") == "reproducibility_gap"
+    assert _classify_negative_evidence_type("The implementation has insufficient details for reproduction.") == "reproducibility_gap"
     assert _classify_negative_evidence_type("The improvements are small and not consistent across tasks.") == "result_claim_mismatch"
+    assert _classify_negative_evidence_type("Fine-tuning costs are lower than training any model from scratch.") == "generic_gap"
 
 
 def test_generic_gap_cannot_anchor_grounded_negative_evidence():
