@@ -1,0 +1,17 @@
+run_base=mimo_v25_negqty_recoverycap_guard3_negaggr_hardneg20_mt7_b4w2_api4_r5t600_20260612_215608
+start_time=2026-06-12 21:56:08 CST
+params=max_turns=7 manager_batch_size=4 api_max_workers=4 api_max_retries=5 api_timeout=600 dataset=hard_negative_20_20260611.parquet mode=s4 model=mimo-v2.5 max_tokens=768 temperature=1.0 top_p=0.95 model_adapter_mode=small_model neg_discovery_mode=aggressive
+launch_mode=background
+output=mimo_v25_negqty_recoverycap_guard3_negaggr_hardneg20_mt7_b4w2_api4_r5t600_20260612_215608.jsonl
+log=mimo_v25_negqty_recoverycap_guard3_negaggr_hardneg20_mt7_b4w2_api4_r5t600_20260612_215608.log
+log_dir=mimo_v25_negqty_recoverycap_guard3_negaggr_hardneg20_mt7_b4w2_api4_r5t600_20260612_215608_logs
+pid=89968
+end_time=2026-06-12 22:20:42 CST
+exit_code=0
+rows=20
+monitor_end_time=2026-06-12 22:21:32 CST
+monitor_final_rows=20
+monitor_status=completed
+completion_watch_end_time=2026-06-12 22:24:31 CST
+completion_watch_final_rows=20
+completion_watch_status=dashboard_generated

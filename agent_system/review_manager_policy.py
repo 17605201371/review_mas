@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from typing import Any, Dict, List, Optional, Sequence
 
 from agent_system.environments.env_package.review.state import (
@@ -57,10 +58,28 @@ _PROTECTED_POTENTIAL_CONCERN_TERMINAL_REASON = "verified_actionable_negative_con
 _NEGATIVE_TARGET_FLAW_LIMIT = 4
 _NEGATIVE_TARGET_EVIDENCE_LIMIT = 4
 _NEGATIVE_TARGET_CLAIM_LIMIT = 2
-_HARD_NEGATIVE_DISCOVERY_GROUNDED_TARGET = 3
-_HARD_NEGATIVE_DISCOVERY_ACTIONABLE_TARGET = 2
-_HARD_NEGATIVE_DISCOVERY_VERIFIED_FLAW_TARGET = 2
-_HARD_NEGATIVE_DISCOVERY_MAX_ATTEMPTS = 3
+
+# P26 7.3: hard-negative discovery persistence is mode-gated so the smoke8
+# baseline stays byte-for-byte unchanged by default. The hardneg20 / full39 run
+# scripts export ``DRMAS_NEG_DISCOVERY_MODE=aggressive`` to keep the EXISTING
+# ``hard_negative_discovery_override`` firing for more supplemental passes
+# instead of stopping after only 3 grounded / 2 actionable negatives. This only
+# changes WHEN discovery stops; it never relaxes claim downgrade or any
+# validator/hygiene gate (negatives still pass ``_is_grounded_paper_negative_evidence_record``).
+_NEG_DISCOVERY_MODE = os.environ.get("DRMAS_NEG_DISCOVERY_MODE", "default").strip().lower()
+_NEG_DISCOVERY_AGGRESSIVE = _NEG_DISCOVERY_MODE in {"aggressive", "hardneg", "enrich"}
+if _NEG_DISCOVERY_AGGRESSIVE:
+    _HARD_NEGATIVE_DISCOVERY_GROUNDED_TARGET = 5
+    _HARD_NEGATIVE_DISCOVERY_ACTIONABLE_TARGET = 3
+    _HARD_NEGATIVE_DISCOVERY_VERIFIED_FLAW_TARGET = 3
+    _HARD_NEGATIVE_DISCOVERY_MAX_ATTEMPTS = 5
+    _HARD_NEGATIVE_DISCOVERY_MIN_REMAINING = 1
+else:
+    _HARD_NEGATIVE_DISCOVERY_GROUNDED_TARGET = 3
+    _HARD_NEGATIVE_DISCOVERY_ACTIONABLE_TARGET = 2
+    _HARD_NEGATIVE_DISCOVERY_VERIFIED_FLAW_TARGET = 2
+    _HARD_NEGATIVE_DISCOVERY_MAX_ATTEMPTS = 3
+    _HARD_NEGATIVE_DISCOVERY_MIN_REMAINING = 2
 
 ACTION_TO_WORKERS = {
     "extract_claims": ["Claim Agent"],
@@ -385,7 +404,7 @@ def _allow_supplemental_hard_negative_discovery(
     remaining_after_current: Optional[int],
 ) -> bool:
     """Allow bounded supplemental hard-negative passes while coverage is low."""
-    if remaining_after_current is None or remaining_after_current < 2:
+    if remaining_after_current is None or remaining_after_current < _HARD_NEGATIVE_DISCOVERY_MIN_REMAINING:
         return False
     attempt_count = _negative_evidence_formation_attempt_count(recent_turn_logs)
     if attempt_count <= 0 or attempt_count >= _HARD_NEGATIVE_DISCOVERY_MAX_ATTEMPTS:

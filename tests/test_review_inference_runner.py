@@ -8028,65 +8028,51 @@ def test_supplemental_hard_negative_discovery_allows_below_target_after_one_grou
 
 
 def test_supplemental_hard_negative_discovery_stops_after_negative_targets_met():
+    from agent_system import review_manager_policy as rmp
     from agent_system.review_manager_policy import (
         _allow_supplemental_hard_negative_discovery,
         _hard_negative_discovery_shortfall_reasons,
     )
 
-    state = {
-        "claims": [{"claim_id": "claim-1", "claim": "The method is empirically strong.", "status": "supported"}],
-        "evidence_map": [
+    # Build enough verified actionable negatives / flaws to meet whatever the
+    # current mode's discovery targets are (default 3/2/2, aggressive 5/3/3), so
+    # this "stops after targets met" invariant holds regardless of
+    # DRMAS_NEG_DISCOVERY_MODE.
+    n_evidence = max(
+        rmp._HARD_NEGATIVE_DISCOVERY_GROUNDED_TARGET,
+        rmp._HARD_NEGATIVE_DISCOVERY_ACTIONABLE_TARGET,
+    )
+    n_flaws = rmp._HARD_NEGATIVE_DISCOVERY_VERIFIED_FLAW_TARGET
+    evidence_map = []
+    for index in range(n_evidence):
+        evidence_map.append(
             {
-                "evidence_id": "evidence-negative-1",
+                "evidence_id": f"evidence-negative-{index}",
                 "claim_id": "claim-1",
                 "evidence": "The paper reports that a strong baseline comparison is missing.",
-                "raw_quote": "The paper does not compare against the strongest retrieval baseline.",
+                "raw_quote": f"The paper does not compare against strong baseline #{index}.",
                 "source_locator": "Limitations",
                 "stance": "missing",
                 "strength": "missing",
                 "negative_evidence_type": "missing_baseline",
                 "verified_grounding_label": "paper_grounded_exact",
                 "semantic_grounding_label": "semantic_negative_verified",
-            },
+            }
+        )
+    flaw_candidates = []
+    for f_index in range(n_flaws):
+        flaw_candidates.append(
             {
-                "evidence_id": "evidence-negative-2",
-                "claim_id": "claim-1",
-                "evidence": "The results are mixed and improvements are marginal.",
-                "raw_quote": "The results are mixed and improvements are marginal across tasks.",
-                "source_locator": "Results",
-                "stance": "weakens",
-                "strength": "medium",
-                "negative_evidence_type": "result_claim_mismatch",
-                "verified_grounding_label": "paper_grounded_exact",
-                "semantic_grounding_label": "semantic_negative_verified",
-            },
-            {
-                "evidence_id": "evidence-negative-3",
-                "claim_id": "claim-1",
-                "evidence": "The method is limited to one benchmark setting.",
-                "raw_quote": "The evaluation is limited to one benchmark setting.",
-                "source_locator": "Limitations",
-                "stance": "missing",
-                "strength": "missing",
-                "negative_evidence_type": "scope_limitation",
-                "verified_grounding_label": "paper_grounded_exact",
-                "semantic_grounding_label": "semantic_negative_verified",
-            },
-        ],
-        "flaw_candidates": [
-            {
-                "flaw_id": "flaw-negative-1",
+                "flaw_id": f"flaw-negative-{f_index}",
                 "status": "candidate",
                 "related_claim_ids": ["claim-1"],
-                "negative_evidence_ids": ["evidence-negative-1", "evidence-negative-2"],
-            },
-            {
-                "flaw_id": "flaw-negative-2",
-                "status": "candidate",
-                "related_claim_ids": ["claim-1"],
-                "negative_evidence_ids": ["evidence-negative-3"],
-            },
-        ],
+                "negative_evidence_ids": [f"evidence-negative-{f_index}"],
+            }
+        )
+    state = {
+        "claims": [{"claim_id": "claim-1", "claim": "The method is empirically strong.", "status": "supported"}],
+        "evidence_map": evidence_map,
+        "flaw_candidates": flaw_candidates,
     }
 
     assert _hard_negative_discovery_shortfall_reasons(state) == []

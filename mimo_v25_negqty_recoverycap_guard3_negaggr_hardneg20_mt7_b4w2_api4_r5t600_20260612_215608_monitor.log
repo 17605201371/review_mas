@@ -1,0 +1,18 @@
+[2026-06-12 22:04:31 CST] state=running pid=89968 rows=4 last_log={"paper_id": "7Dub7UXTXN", "mode": "s4", "reward": 0.5103355267224349, "final_decision": "accept", "model_adapter_mode": "small_model"}
+[2026-06-12 22:05:31 CST] state=running pid=89968 rows=8 last_log={"paper_id": "WpXq5n8yLb", "mode": "s4", "reward": 0.49746781529121303, "final_decision": "accept", "model_adapter_mode": "small_model"}
+[2026-06-12 22:06:31 CST] state=running pid=89968 rows=8 last_log={"paper_id": "WpXq5n8yLb", "mode": "s4", "reward": 0.49746781529121303, "final_decision": "accept", "model_adapter_mode": "small_model"}
+[2026-06-12 22:07:31 CST] state=running pid=89968 rows=8 last_log={"paper_id": "WpXq5n8yLb", "mode": "s4", "reward": 0.49746781529121303, "final_decision": "accept", "model_adapter_mode": "small_model"}
+[2026-06-12 22:08:31 CST] state=running pid=89968 rows=8 last_log={"paper_id": "WpXq5n8yLb", "mode": "s4", "reward": 0.49746781529121303, "final_decision": "accept", "model_adapter_mode": "small_model"}
+[2026-06-12 22:09:31 CST] state=running pid=89968 rows=8 last_log={"paper_id": "WpXq5n8yLb", "mode": "s4", "reward": 0.49746781529121303, "final_decision": "accept", "model_adapter_mode": "small_model"}
+[2026-06-12 22:10:31 CST] state=running pid=89968 rows=12 last_log={"paper_id": "HPuLU6q7xq", "mode": "s4", "reward": 0.6055158752472207, "final_decision": "reject", "model_adapter_mode": "small_model"}
+[2026-06-12 22:11:31 CST] state=running pid=89968 rows=12 last_log={"paper_id": "HPuLU6q7xq", "mode": "s4", "reward": 0.6055158752472207, "final_decision": "reject", "model_adapter_mode": "small_model"}
+[2026-06-12 22:12:31 CST] state=running pid=89968 rows=12 last_log={"paper_id": "HPuLU6q7xq", "mode": "s4", "reward": 0.6055158752472207, "final_decision": "reject", "model_adapter_mode": "small_model"}
+[2026-06-12 22:13:31 CST] state=running pid=89968 rows=12 last_log={"paper_id": "HPuLU6q7xq", "mode": "s4", "reward": 0.6055158752472207, "final_decision": "reject", "model_adapter_mode": "small_model"}
+[2026-06-12 22:14:31 CST] state=running pid=89968 rows=12 last_log={"paper_id": "HPuLU6q7xq", "mode": "s4", "reward": 0.6055158752472207, "final_decision": "reject", "model_adapter_mode": "small_model"}
+[2026-06-12 22:15:31 CST] state=running pid=89968 rows=16 last_log={"paper_id": "mHv6wcBb0z", "mode": "s4", "reward": 0.5726089375572053, "final_decision": "accept", "model_adapter_mode": "small_model"}
+[2026-06-12 22:16:31 CST] state=running pid=89968 rows=16 last_log={"paper_id": "mHv6wcBb0z", "mode": "s4", "reward": 0.5726089375572053, "final_decision": "accept", "model_adapter_mode": "small_model"}
+[2026-06-12 22:17:32 CST] state=running pid=89968 rows=16 last_log={"paper_id": "mHv6wcBb0z", "mode": "s4", "reward": 0.5726089375572053, "final_decision": "accept", "model_adapter_mode": "small_model"}
+[2026-06-12 22:18:32 CST] state=running pid=89968 rows=16 last_log={"paper_id": "mHv6wcBb0z", "mode": "s4", "reward": 0.5726089375572053, "final_decision": "accept", "model_adapter_mode": "small_model"}
+[2026-06-12 22:19:32 CST] state=running pid=89968 rows=16 last_log={"paper_id": "mHv6wcBb0z", "mode": "s4", "reward": 0.5726089375572053, "final_decision": "accept", "model_adapter_mode": "small_model"}
+[2026-06-12 22:20:32 CST] state=running pid=89968 rows=16 last_log={"paper_id": "mHv6wcBb0z", "mode": "s4", "reward": 0.5726089375572053, "final_decision": "accept", "model_adapter_mode": "small_model"}
+[2026-06-12 22:21:32 CST] state=stopped pid=89968 rows=20 last_log=[END] 2026-06-12 22:20:42 CST exit_code=0 rows=20

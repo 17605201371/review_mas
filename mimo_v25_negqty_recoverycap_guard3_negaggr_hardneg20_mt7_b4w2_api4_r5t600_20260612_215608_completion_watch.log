@@ -1,0 +1,6 @@
+[2026-06-12 22:14:31 CST] state=running pid=89968 rows=12
+[2026-06-12 22:19:31 CST] state=running pid=89968 rows=16
+[2026-06-12 22:24:31 CST] state=stopped pid=89968 rows=20
+[OK] case audit -> mimo_v25_negqty_recoverycap_guard3_negaggr_hardneg20_mt7_b4w2_api4_r5t600_20260612_215608_CASE_AUDIT.json
+paper_count=20 errors=0
+case_counts: {"positive_strong": 104, "empirical_support": 90, "verified_moderate": 1, "negative_concern": 9, "contested_support": 14, "recovery_success": 3, "recovery_blocked": 4, "dropped_support": 0}
