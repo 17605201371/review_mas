@@ -454,12 +454,53 @@ _CONCRETE_SCOPE_LIMIT_QUOTE_RE = re.compile(
     r"limited to|only evaluated|out of scope|more effective way|limitation|limitations|restrict(?:ed|ion|ions)?)\b",
     re.IGNORECASE,
 )
+_RESULT_SCOPE_CLAIM_RE = re.compile(
+    r"\b(outperform|improv(?:e|es|ed|ement)|performance|accuracy|f1|auc|result|"
+    r"state-of-the-art|sota|benchmark|achiev(?:e|es|ed))\b",
+    re.IGNORECASE,
+)
+_RESULT_MISMATCH_SCOPE_QUOTE_RE = re.compile(
+    r"\b(mixed results?|inconsistent(?: results?)?|not consistent(?:ly)?|"
+    r"does not always improve|does not improve|failed? to improve|fails? to improve|"
+    r"marginal(?: improvements?| gains?)?|small gains?|worse|underperform)\b",
+    re.IGNORECASE,
+)
+_EVAL_SCOPE_CLAIM_RE = re.compile(
+    r"\b(evaluat(?:e|es|ed|ion)|benchmark|dataset|comprehensive|robust|"
+    r"generaliz(?:e|es|ed|ation)|across|diverse|unseen|external|out-of-domain)\b",
+    re.IGNORECASE,
+)
+_INSUFFICIENT_EVAL_SCOPE_QUOTE_RE = re.compile(
+    r"\b(only evaluated on|single dataset|limited (?:evaluation|experiments?|datasets?|benchmarks?)|"
+    r"limited to (?:one|two|a single) (?:dataset|benchmark|task|domain)|"
+    r"not (?:yet )?(?:evaluated|validated|tested)|small-scale evaluation|few datasets?|no evaluation)\b",
+    re.IGNORECASE,
+)
+_REPRO_SCOPE_CLAIM_RE = re.compile(
+    r"\b(reproduc(?:e|ible|ibility)|implementation|hyperparameter|training detail|"
+    r"code|open-source|release(?:d)?|data split|compute setup|method detail)\b",
+    re.IGNORECASE,
+)
+_REPRO_SCOPE_QUOTE_RE = re.compile(
+    r"\b(reproducibility|cannot reproduce|hard to reproduce|difficult to reproduce|"
+    r"not release(?:d)? code|code (?:is )?not (?:available|released)|"
+    r"implementation details?|hyperparameters?|training details?|data splits?|compute setup)\b",
+    re.IGNORECASE,
+)
 
 
 def _promote_scope_limitation_for_broad_claim(negative_type: str, claim_text: str, raw_quote: str) -> str:
     if negative_type != "scope_limitation":
         return negative_type
-    if _BROAD_CLAIM_RE.search(str(claim_text or "")) and _SCOPE_LIMIT_QUOTE_RE.search(str(raw_quote or "")):
+    claim = str(claim_text or "")
+    quote = str(raw_quote or "")
+    if _RESULT_SCOPE_CLAIM_RE.search(claim) and _RESULT_MISMATCH_SCOPE_QUOTE_RE.search(quote):
+        return "result_claim_mismatch"
+    if _EVAL_SCOPE_CLAIM_RE.search(claim) and _INSUFFICIENT_EVAL_SCOPE_QUOTE_RE.search(quote):
+        return "insufficient_evaluation"
+    if _REPRO_SCOPE_CLAIM_RE.search(claim) and _REPRO_SCOPE_QUOTE_RE.search(quote):
+        return "reproducibility_gap"
+    if _BROAD_CLAIM_RE.search(claim) and _SCOPE_LIMIT_QUOTE_RE.search(quote):
         return "scope_overclaim"
     return negative_type
 
@@ -1167,6 +1208,8 @@ def _recent_terminal_recovery_flaw_ids(recent_turn_logs: Optional[Sequence[Dict[
 def _recovery_candidate_flaw_ids(
     state: Dict[str, Any],
     recent_turn_logs: Optional[Sequence[Dict[str, Any]]] = None,
+    *,
+    limit: int = 4,
 ) -> List[str]:
     terminal_flaw_ids = _recent_terminal_recovery_flaw_ids(recent_turn_logs)
     evidence_lookup = {
@@ -1198,7 +1241,7 @@ def _recovery_candidate_flaw_ids(
         else:
             unverified_candidates.append(flaw_id)
     candidates = confirmed_actionable_candidates + actionable_candidates + unverified_candidates + verified_candidates
-    return list(dict.fromkeys(candidates))[:2]
+    return list(dict.fromkeys(candidates))[:limit]
 
 
 def _recovery_lifecycle_claim_ids(state: Dict[str, Any], *, limit: int = 2) -> List[str]:
@@ -1599,7 +1642,7 @@ def _apply_recovery_phase_protocol(
         and "challenge_previous_hypothesis" in allowed_actions
     ):
         candidate_claim_ids = _recovery_candidate_claim_ids(state, "challenge_previous_hypothesis")
-        candidate_flaw_ids = _recovery_candidate_flaw_ids(state)
+        candidate_flaw_ids = _recovery_candidate_flaw_ids(state, recent_turn_logs)
         patch_ready = bool(candidate_claim_ids or candidate_flaw_ids)
         evidence_lookup = {
             str(item.get("evidence_id") or ""): item
@@ -3359,6 +3402,7 @@ def _fallback_recovery_patch_payload(state: Dict[str, Any], manager_payload: Dic
         for item in evidence_map
         if isinstance(item, dict) and item.get("evidence_id")
     }
+    deferred_terminal_block: Optional[Dict[str, Any]] = None
 
     for flaw_id in list(target_flaw_ids or []):
         flaw = flaw_lookup.get(flaw_id)
@@ -3405,11 +3449,17 @@ def _fallback_recovery_patch_payload(state: Dict[str, Any], manager_payload: Dic
             if contested_patch:
                 return contested_patch
             if _flaw_contested_relation_already_exists(flaw, state, evidence_lookup):
+                blocked = _blocked_final_view_concern_recovery_payload(flaw_id, "potential_concern")
+                if deferred_terminal_block is None:
+                    deferred_terminal_block = blocked
                 continue
             claim_patch = _claim_downgrade_patch_from_actionable_flaw(flaw, claim_lookup, evidence_lookup)
             if claim_patch:
                 return claim_patch
-            return _protected_potential_concern_blocked_payload(flaw_id)
+            blocked = _protected_potential_concern_blocked_payload(flaw_id)
+            if deferred_terminal_block is None:
+                deferred_terminal_block = blocked
+            continue
         verified_quote_bank_negative_ids = _flaw_verified_negative_evidence_ids_for_recovery(
             flaw,
             evidence_lookup,
@@ -3425,12 +3475,18 @@ def _fallback_recovery_patch_payload(state: Dict[str, Any], manager_payload: Dic
             if contested_patch:
                 return contested_patch
             if _flaw_contested_relation_already_exists(flaw, state, evidence_lookup):
+                blocked = _blocked_final_view_concern_recovery_payload(flaw_id, "potential_concern")
+                if deferred_terminal_block is None:
+                    deferred_terminal_block = blocked
                 continue
             layer, has_negative_grounding_conflict = _decision_view_flaw_layer_and_conflict(state, flaw_id)
             if has_negative_anchor and layer in {"potential_concern", "verified_potential_concern", "grounded_weakness"} and not has_negative_grounding_conflict:
-                return _blocked_final_view_concern_recovery_payload(flaw_id, layer)
+                blocked = _blocked_final_view_concern_recovery_payload(flaw_id, layer)
+                if deferred_terminal_block is None:
+                    deferred_terminal_block = blocked
+                continue
             if layer == "assessment_limitation" and not has_negative_grounding_conflict:
-                return normalize_review_update_payload(
+                blocked = normalize_review_update_payload(
                     {
                         "action": "blocked",
                         "target_type": "flaw",
@@ -3445,6 +3501,9 @@ def _fallback_recovery_patch_payload(state: Dict[str, Any], manager_payload: Dic
                         "recovery_repeat_allowed": False,
                     }
                 )
+                if deferred_terminal_block is None:
+                    deferred_terminal_block = blocked
+                continue
             return normalize_review_update_payload(
                 {
                     "action": "apply_recovery_patch",
@@ -3474,9 +3533,12 @@ def _fallback_recovery_patch_payload(state: Dict[str, Any], manager_payload: Dic
                 for evidence_id in supporting_ids
             )
             if supporting_has_negative_anchor and layer in {"potential_concern", "verified_potential_concern", "grounded_weakness"} and not has_negative_grounding_conflict:
-                return _blocked_final_view_concern_recovery_payload(flaw_id, layer)
+                blocked = _blocked_final_view_concern_recovery_payload(flaw_id, layer)
+                if deferred_terminal_block is None:
+                    deferred_terminal_block = blocked
+                continue
             if layer == "assessment_limitation" and not has_negative_grounding_conflict:
-                return normalize_review_update_payload(
+                blocked = normalize_review_update_payload(
                     {
                         "action": "blocked",
                         "target_type": "flaw",
@@ -3491,6 +3553,9 @@ def _fallback_recovery_patch_payload(state: Dict[str, Any], manager_payload: Dic
                         "recovery_repeat_allowed": False,
                     }
                 )
+                if deferred_terminal_block is None:
+                    deferred_terminal_block = blocked
+                continue
             return normalize_review_update_payload(
                 {
                     "action": "apply_recovery_patch",
@@ -3511,8 +3576,11 @@ def _fallback_recovery_patch_payload(state: Dict[str, Any], manager_payload: Dic
                 "target_id": flaw_id,
                 "blocked_reason": "Target flaw lacks existing evidence ids for a safe downgrade patch.",
                 "missing_requirements": ["existing evidence id aligned with target flaw"],
-            }
-        )
+                }
+            )
+
+    if deferred_terminal_block is not None:
+        return deferred_terminal_block
 
     for flaw in state.get("flaw_candidates", []) or []:
         if not isinstance(flaw, dict):
@@ -3790,6 +3858,56 @@ def _claim_status_patch_targets_disallowed_claim(worker_payload: Dict[str, Any],
     return not _is_recovery_claim_status_target(claim_lookup.get(target_id, {}))
 
 
+def _block_direct_route_to_limitation_if_preserved_concern(
+    worker_payload: Dict[str, Any],
+    state: Dict[str, Any],
+) -> Optional[Dict[str, Any]]:
+    if worker_payload.get("action") != "apply_recovery_patch":
+        return None
+    if str(worker_payload.get("target_type") or "").strip().lower() != "flaw":
+        return None
+    target_id = str(worker_payload.get("target_id") or "").strip()
+    if not target_id:
+        return None
+    new_status = str(worker_payload.get("new_status") or "").strip().lower()
+    operation = str(worker_payload.get("recovery_patch_operation") or "").strip().lower()
+    reason = str(worker_payload.get("reason_for_change") or "").strip().lower()
+    routes_to_limitation = (
+        operation == "route_to_assessment_limitation"
+        or new_status in {"downgraded", "assessment_limitation"}
+        or "assessment limitation" in reason
+    )
+    if not routes_to_limitation:
+        return None
+
+    flaw_lookup = {
+        str(item.get("flaw_id") or "").strip(): item
+        for item in state.get("flaw_candidates", []) or []
+        if isinstance(item, dict) and str(item.get("flaw_id") or "").strip()
+    }
+    flaw = flaw_lookup.get(target_id)
+    if not isinstance(flaw, dict):
+        return None
+    evidence_lookup = {
+        str(item.get("evidence_id") or "").strip(): item
+        for item in state.get("evidence_map", []) or []
+        if isinstance(item, dict) and str(item.get("evidence_id") or "").strip()
+    }
+    verified_negative_ids = _flaw_verified_negative_evidence_ids_for_recovery(flaw, evidence_lookup)
+    has_negative_anchor = bool(verified_negative_ids or flaw.get("negative_evidence_ids"))
+    if not has_negative_anchor:
+        return None
+    layer, has_negative_grounding_conflict = _decision_view_flaw_layer_and_conflict(state, target_id)
+    protected_layer = layer in {"potential_concern", "verified_potential_concern", "grounded_weakness"}
+    already_contested = _flaw_contested_relation_already_exists(flaw, state, evidence_lookup)
+    if has_negative_grounding_conflict or not (protected_layer or already_contested):
+        return None
+    blocked = _blocked_final_view_concern_recovery_payload(target_id, layer or "potential_concern")
+    blocked["_recovery_patch_source"] = "direct_route_to_limitation_blocked"
+    blocked["direct_route_to_limitation_blocked_used"] = True
+    return blocked
+
+
 def _recovery_patch_has_unmatched_conflict_ids(worker_payload: Dict[str, Any], state: Dict[str, Any]) -> bool:
     if worker_payload.get("action") != "apply_recovery_patch":
         return False
@@ -3959,6 +4077,14 @@ def _maybe_salvage_recovery_payload(
                 rebuilt["_recovery_patch_source"] = "claim_downgrade_contested_rebuild"
                 rebuilt["claim_downgrade_contested_rebuild_used"] = True
                 return rebuilt
+        blocked_route = _block_direct_route_to_limitation_if_preserved_concern(worker_payload, state)
+        if blocked_route is not None:
+            rebuilt = _fallback_recovery_patch_payload(state, manager_payload)
+            if rebuilt.get("action") == "apply_recovery_patch" and _recovery_patch_cites_only_real_evidence(rebuilt, state):
+                rebuilt["_recovery_patch_source"] = "direct_route_to_limitation_retarget"
+                rebuilt["direct_route_to_limitation_blocked_used"] = True
+                return rebuilt
+            return blocked_route
         if _recovery_patch_has_weak_target(worker_payload, state):
             rebuilt = _build_verified_negative_claim_recovery_patch(state, manager_payload)
             if rebuilt is None:

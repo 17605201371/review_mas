@@ -1,0 +1,40 @@
+[START] 2026-06-12 18:30:01 CST
+[RUN_TAG] mimo_v25_negqty_recoverycap_guard3_mt7_smoke8_b4w2_api2_20260612_183001
+[DATASET] smoke8_sameids_20260604.parquet
+[PARAMS] max_turns=7 manager_batch_size=4 api_max_workers=2 api_max_retries=3 api_timeout=300 max_tokens=768
+[API] Initialized: model=mimo-v2.5, provider=mimo, base_url=https://token-plan-sgp.xiaomimimo.com/v1, max_tokens=768
+[MAIN] Using API backend: model=mimo-v2.5
+[MAIN] model_adapter_mode=small_model (requested=small_model)
+[DEBUG] paper_id: WNxlJJIEVj, paper_text length: 48238
+[DEBUG] paper_text snippet: \title{Contrastive Diffuser: Planning Towards High Return States via Contrastive Learning}  \begin{a...
+[DEBUG] paper_id: WLgbjzKJkk, paper_text length: 33927
+[DEBUG] paper_text snippet: \title{CO-MOT: Boosting End-to-end Transformer-based Multi-Object Tracking via Coopetition Label Ass...
+[DEBUG] paper_id: 9zEBK3E9bX, paper_text length: 35496
+[DEBUG] paper_text snippet: \title{SPOT: Scalable 3D Pre-training via Occupancy Prediction for Autonomous Driving}  \begin{abstr...
+[DEBUG] paper_id: ZHr0JajZfH, paper_text length: 43980
+[DEBUG] paper_text snippet: \title{A Simple Unified Uncertainty-Guided Framework for Offline-to-Online Reinforcement Learning}  ...
+[DEBUG] paper_id: X41c4uB4k0, paper_text length: 36949
+[DEBUG] paper_text snippet: \title{Training-free Multi-objective Diffusion Model for 3D Molecule Generation}  \begin{abstract} S...
+[DEBUG] paper_id: QAAsnSRwgu, paper_text length: 36693
+[DEBUG] paper_text snippet: \title{From an LLM Swarm to a PDDL-empowered Hive: Planning Self-executed Instructions in a Multi-mo...
+[DEBUG] paper_id: hj323oR3rw, paper_text length: 35341
+[DEBUG] paper_text snippet: \title{Towards Robust Multimodal Open-set Test-time Adaptation via Adaptive Entropy-aware Optimizati...
+[DEBUG] paper_id: kam84eEmub, paper_text length: 56374
+[DEBUG] paper_text snippet: \title{LayerDAG: A Layerwise Autoregressive Diffusion Model for Directed Acyclic Graph Generation}  ...
+[review_reward][unknown][WNxlJJIEVj] reward=0.4981 breakdown={'decision': 0.0, 'section_presence': 1.0, 'length_score': 1.0, 'summary_align': 0.3584, 'strength_align': 0.3664, 'weakness_align': 0.1488, 'suggestion_align': 0.2, 'global_align': 0.2238, 'critique': 0.3822, 'stance_align': 0.8357, 'rating_align': 0.0, 'decision_line_bonus': 0.0, 'audit_id_leak_penalty': 0.0, 'penalty': 0.0, 'total': 0.4981, 'es_coverage': 0.6, 'es_depth': 0.6, 'es_empirical': 0.6, 'es_independent': 0.6, 'es_flaw_density': 0.0, 'es_support_volume': 0.6, 'evidence_support_score': 0.51}
+[review_reward][unknown][WLgbjzKJkk] reward=0.7160 breakdown={'decision': 0.0, 'section_presence': 1.0, 'length_score': 1.0, 'summary_align': 0.5287, 'strength_align': 0.348, 'weakness_align': 0.2309, 'suggestion_align': 0.2, 'global_align': 0.2544, 'critique': 1.0, 'stance_align': 0.8636, 'rating_align': 0.0, 'decision_line_bonus': 0.0, 'audit_id_leak_penalty': 0.0, 'penalty': 0.0, 'total': 0.716, 'es_coverage': 1.0, 'es_depth': 1.0, 'es_empirical': 1.0, 'es_independent': 1.0, 'es_flaw_density': 0.0, 'es_support_volume': 1.0, 'evidence_support_score': 0.85}
+[review_reward][unknown][9zEBK3E9bX] reward=0.5111 breakdown={'decision': 0.0, 'section_presence': 1.0, 'length_score': 1.0, 'summary_align': 0.6595, 'strength_align': 0.4094, 'weakness_align': 0.1692, 'suggestion_align': 0.2667, 'global_align': 0.36, 'critique': 0.6061, 'stance_align': 0.9545, 'rating_align': 0.0, 'decision_line_bonus': 0.0, 'audit_id_leak_penalty': 0.0, 'penalty': 0.0, 'total': 0.5111, 'es_coverage': 0.6667, 'es_depth': 0.5, 'es_empirical': 0.3333, 'es_independent': 0.0, 'es_flaw_density': 0.0, 'es_support_volume': 0.3333, 'evidence_support_score': 0.3833}
+[review_reward][unknown][ZHr0JajZfH] reward=0.6597 breakdown={'decision': 0.0, 'section_presence': 1.0, 'length_score': 1.0, 'summary_align': 0.2674, 'strength_align': 0.2439, 'weakness_align': 0.1724, 'suggestion_align': 0.2, 'global_align': 0.1777, 'critique': 0.9554, 'stance_align': 0.9244, 'rating_align': 0.0, 'decision_line_bonus': 0.0, 'audit_id_leak_penalty': 0.0, 'penalty': 0.0, 'total': 0.6597, 'es_coverage': 1.0, 'es_depth': 1.0, 'es_empirical': 1.0, 'es_independent': 0.5, 'es_flaw_density': 0.0, 'es_support_volume': 0.75, 'evidence_support_score': 0.775}
+{"paper_id": "WNxlJJIEVj", "mode": "s4", "reward": 0.49810341243616446, "final_decision": "accept", "model_adapter_mode": "small_model"}
+{"paper_id": "WLgbjzKJkk", "mode": "s4", "reward": 0.7160096272682825, "final_decision": "accept", "model_adapter_mode": "small_model"}
+{"paper_id": "9zEBK3E9bX", "mode": "s4", "reward": 0.511093469758751, "final_decision": "reject", "model_adapter_mode": "small_model"}
+{"paper_id": "ZHr0JajZfH", "mode": "s4", "reward": 0.6596665988548283, "final_decision": "reject", "model_adapter_mode": "small_model"}
+[review_reward][unknown][QAAsnSRwgu] reward=0.4155 breakdown={'decision': 0.0, 'section_presence': 1.0, 'length_score': 1.0, 'summary_align': 0.3853, 'strength_align': 0.1902, 'weakness_align': 0.1664, 'suggestion_align': 0.2, 'global_align': 0.1877, 'critique': 0.7101, 'stance_align': 0.9469, 'rating_align': 0.0, 'decision_line_bonus': 0.0, 'audit_id_leak_penalty': 0.0, 'penalty': 0.0, 'total': 0.4155, 'es_coverage': 0.25, 'es_depth': 0.25, 'es_empirical': 0.25, 'es_independent': 0.25, 'es_flaw_density': 0.0, 'es_support_volume': 0.25, 'evidence_support_score': 0.2125}
+[review_reward][unknown][X41c4uB4k0] reward=0.6873 breakdown={'decision': 0.0, 'section_presence': 1.0, 'length_score': 1.0, 'summary_align': 0.3729, 'strength_align': 0.2425, 'weakness_align': 0.2017, 'suggestion_align': 0.3333, 'global_align': 0.2238, 'critique': 0.8392, 'stance_align': 0.8462, 'rating_align': 0.0, 'decision_line_bonus': 0.0, 'audit_id_leak_penalty': 0.0, 'penalty': 0.0, 'total': 0.6873, 'es_coverage': 1.0, 'es_depth': 1.0, 'es_empirical': 1.0, 'es_independent': 1.0, 'es_flaw_density': 0.0, 'es_support_volume': 1.0, 'evidence_support_score': 0.85}
+[review_reward][unknown][hj323oR3rw] reward=0.6579 breakdown={'decision': 0.0, 'section_presence': 1.0, 'length_score': 1.0, 'summary_align': 0.5155, 'strength_align': 0.3867, 'weakness_align': 0.2335, 'suggestion_align': 0.2667, 'global_align': 0.3461, 'critique': 1.0, 'stance_align': 0.9214, 'rating_align': 0.0, 'decision_line_bonus': 0.0, 'audit_id_leak_penalty': 0.0, 'penalty': 0.0, 'total': 0.6579, 'es_coverage': 1.0, 'es_depth': 0.8333, 'es_empirical': 0.6667, 'es_independent': 0.3333, 'es_flaw_density': 0.0, 'es_support_volume': 0.6667, 'evidence_support_score': 0.6667}
+[review_reward][unknown][kam84eEmub] reward=0.6007 breakdown={'decision': 0.0, 'section_presence': 1.0, 'length_score': 1.0, 'summary_align': 0.3794, 'strength_align': 0.2959, 'weakness_align': 0.1497, 'suggestion_align': 0.4, 'global_align': 0.2364, 'critique': 1.0, 'stance_align': 0.9348, 'rating_align': 0.0, 'decision_line_bonus': 0.0, 'audit_id_leak_penalty': 0.0, 'penalty': 0.0, 'total': 0.6007, 'es_coverage': 0.6667, 'es_depth': 0.6667, 'es_empirical': 0.6667, 'es_independent': 0.6667, 'es_flaw_density': 0.0, 'es_support_volume': 0.6667, 'evidence_support_score': 0.5667}
+{"paper_id": "X41c4uB4k0", "mode": "s4", "reward": 0.6873243752809653, "final_decision": "accept", "model_adapter_mode": "small_model"}
+{"paper_id": "QAAsnSRwgu", "mode": "s4", "reward": 0.4154885293670899, "final_decision": "reject", "model_adapter_mode": "small_model"}
+{"paper_id": "hj323oR3rw", "mode": "s4", "reward": 0.6578978896748282, "final_decision": "reject", "model_adapter_mode": "small_model"}
+{"paper_id": "kam84eEmub", "mode": "s4", "reward": 0.600699241691221, "final_decision": "accept", "model_adapter_mode": "small_model"}
+[END] 2026-06-12 18:44:08 CST exit_code=0

@@ -396,15 +396,23 @@ wire_api = "responses"
 
 - `/v1/models`：✅ HTTP 200，返回 16 个模型
 - `/v1/responses`（gpt-5.5）：❌ HTTP 400 "invalid codex request" — 服务端校验请求必须来自 Codex 客户端
-- `/v1/responses`（gpt-5-codex）：❌ HTTP 500 "模型负载已经达到上限" — 通过了客户端校验但模型过载
+- `/v1/responses`（gpt-5-codex，带 Codex UA）：✅ 通过客户端校验，但 HTTP 500 "模型负载已经达到上限" — 模型过载
 - `/v1/responses`（Claude 系列）：❌ HTTP 404 "API 不支持此模型"
-- **结论：** 该服务与 sharedchat 类似，有客户端指纹校验，只能通过 Codex 客户端直连使用，无法通过 CodexManager 或 curl 测试。需要实际用 Codex 客户端测试才能确认是否可用。
+- `/v1/chat/completions`（所有模型）：❌ HTTP 404 "当前 API 不支持" — 只支持 responses API
+- **Codex 桌面端实测（model=gpt-5.5）**：❌ 返回 "invalid codex request"，导致聊天界面闪烁（反复报错重试）
+- **Codex 桌面端实测（model=gpt-5-codex）**：❌ 服务端过载，无法获得响应
+
+**社区反馈（论坛 zhuiyue132）：**
+
+- "报错和使用的人无关，和服务端的渠道有关" — anyrouter 后端有多种渠道处理请求，渠道不稳定导致报错
+- "本地用 docker 部署一个 CPA，多接几个 codex 渠道进去，报错后 CPA 会自己重试。只用 1 个 any 作为 codex 的提供商，没法根治这个问题，除非 any 自己解决"
+- **结论：** anyrouter 服务端渠道不稳定，不是客户端配置能解决的问题。建议通过 CodexManager 接入多渠道做自动重试来缓解，或等待 anyrouter 修复服务端问题。
 
 **注意事项：**
 
 - 系统 curl（macOS LibreSSL）与 anyrouter.top 存在 TLS 握手失败问题，需用 Python urllib 测试
-- 官方文档指定 `model = "gpt-5-codex"`，非 `gpt-5.5`
-- 此模式尚未经过 Codex 客户端实际测试验证
+- 官方文档指定 `model = "gpt-5-codex"`，`gpt-5.5` 虽然在 models 列表中但 responses API 不接受
+- 带 Codex User-Agent 的请求可以通过客户端校验（gpt-5-codex），但模型当前过载
 
 ---
 

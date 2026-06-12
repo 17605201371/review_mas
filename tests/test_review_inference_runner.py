@@ -2000,6 +2000,138 @@ def test_model_claim_downgrade_with_positive_support_rebuilds_to_contested_flaw(
     assert payload["claim_downgrade_contested_rebuild_used"] is True
 
 
+def test_model_route_to_assessment_limitation_blocks_preserved_negative_concern():
+    state = _build_pattern_a_state()
+    state["evidence_map"][1].update(
+        {
+            "evidence": "The paper leaves this evaluation setting for future work.",
+            "raw_quote": "The paper leaves this evaluation setting for future work.",
+            "source_locator": "Limitations",
+            "negative_evidence_type": "scope_limitation",
+        }
+    )
+    state["contested_relations"] = [
+        {
+            "relation_id": "contested-existing",
+            "claim_id": "claim-main",
+            "negative_evidence_ids": ["evidence-negative-quote-bank-quote-1-1"],
+            "support_evidence_ids": ["evidence-positive-strong"],
+            "final_view": "potential_concern",
+            "status": "contested",
+        }
+    ]
+
+    payload = _maybe_salvage_recovery_payload(
+        "Critique Agent",
+        {
+            "action": "apply_recovery_patch",
+            "target_type": "flaw",
+            "target_id": "flaw-quote-bank-1",
+            "old_status": "candidate",
+            "new_status": "downgraded",
+            "supporting_evidence_ids": ["evidence-negative-quote-bank-quote-1-1"],
+            "reason_for_change": "Route the concern to an assessment limitation.",
+            "recovery_patch_operation": "route_to_assessment_limitation",
+        },
+        state,
+        manager_payload={
+            "action_type": "challenge_previous_hypothesis",
+            "effective_action_type": "challenge_previous_hypothesis",
+            "turn_mode": "recovery_patch",
+            "target_claim_ids": ["claim-main"],
+            "target_flaw_ids": ["flaw-quote-bank-1"],
+            "target_evidence_ids": ["evidence-negative-quote-bank-quote-1-1"],
+        },
+    )
+
+    assert payload["action"] == "blocked"
+    assert payload["target_type"] == "flaw"
+    assert payload["target_id"] == "flaw-quote-bank-1"
+    assert payload["recovery_terminal"] is True
+    assert payload["_recovery_patch_source"] == "direct_route_to_limitation_blocked"
+    assert "weaken a preserved negative finding" in payload["blocked_reason"]
+
+
+def test_model_route_to_assessment_limitation_retargets_after_preserved_concern():
+    state = _build_pattern_a_state(
+        extra_negative_evidence=[
+            {
+                "evidence_id": "evidence-negative-quote-bank-quote-2-1",
+                "claim_id": "claim-main",
+                "evidence": "The paper reports mixed results on the main benchmark.",
+                "raw_quote": "The paper reports mixed results on the main benchmark.",
+                "source_locator": "Results",
+                "stance": "weakens",
+                "strength": "medium",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_negative_verified",
+                "source": "quote-bank-negative-grounding",
+                "negative_evidence_type": "result_claim_mismatch",
+            }
+        ]
+    )
+    state["evidence_map"][1].update(
+        {
+            "evidence": "The paper leaves this evaluation setting for future work.",
+            "raw_quote": "The paper leaves this evaluation setting for future work.",
+            "source_locator": "Limitations",
+            "negative_evidence_type": "scope_limitation",
+        }
+    )
+    state["contested_relations"] = [
+        {
+            "relation_id": "contested-existing",
+            "claim_id": "claim-main",
+            "negative_evidence_ids": ["evidence-negative-quote-bank-quote-1-1"],
+            "support_evidence_ids": ["evidence-positive-strong"],
+            "final_view": "potential_concern",
+            "status": "contested",
+        }
+    ]
+    state["flaw_candidates"].append(
+        {
+            "flaw_id": "flaw-quote-bank-2",
+            "status": "candidate",
+            "related_claim_ids": ["claim-main"],
+            "evidence_ids": ["evidence-negative-quote-bank-quote-2-1"],
+            "negative_evidence_ids": ["evidence-negative-quote-bank-quote-2-1"],
+        }
+    )
+
+    payload = _maybe_salvage_recovery_payload(
+        "Critique Agent",
+        {
+            "action": "apply_recovery_patch",
+            "target_type": "flaw",
+            "target_id": "flaw-quote-bank-1",
+            "old_status": "candidate",
+            "new_status": "downgraded",
+            "supporting_evidence_ids": ["evidence-negative-quote-bank-quote-1-1"],
+            "reason_for_change": "Route the concern to an assessment limitation.",
+            "recovery_patch_operation": "route_to_assessment_limitation",
+        },
+        state,
+        manager_payload={
+            "action_type": "challenge_previous_hypothesis",
+            "effective_action_type": "challenge_previous_hypothesis",
+            "turn_mode": "recovery_patch",
+            "target_claim_ids": ["claim-main"],
+            "target_flaw_ids": ["flaw-quote-bank-1", "flaw-quote-bank-2"],
+            "target_evidence_ids": [
+                "evidence-negative-quote-bank-quote-1-1",
+                "evidence-negative-quote-bank-quote-2-1",
+            ],
+        },
+    )
+
+    assert payload["action"] == "apply_recovery_patch"
+    assert payload["target_type"] == "flaw"
+    assert payload["target_id"] == "flaw-quote-bank-2"
+    assert payload["recovery_patch_operation"] == "mark_contested"
+    assert payload["_recovery_patch_source"] == "direct_route_to_limitation_retarget"
+    assert payload["direct_route_to_limitation_blocked_used"] is True
+
+
 def test_model_paper_fallback_claim_status_patch_rebinds_to_flaw_target():
     state = _build_pattern_a_state()
     state["claims"][0].update(
@@ -5555,6 +5687,39 @@ def test_recovery_candidate_flaw_ids_prefers_confirmed_actionable_flaw_for_safe_
     assert _recovery_candidate_flaw_ids(state) == ["flaw-confirmed", "flaw-candidate"]
 
 
+def test_recovery_candidate_flaw_ids_returns_four_verified_targets():
+    from agent_system.inference.review_runner import _recovery_candidate_flaw_ids
+
+    evidence_map = []
+    flaws = []
+    for index in range(5):
+        evidence_id = f"e-negative-{index}"
+        flaw_id = f"flaw-{index}"
+        evidence_map.append(
+            {
+                "evidence_id": evidence_id,
+                "claim_id": "claim-main",
+                "stance": "contradicts",
+                "strength": "strong",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_negative_verified",
+                "negative_evidence_type": "negative_result",
+            }
+        )
+        flaws.append(
+            {
+                "flaw_id": flaw_id,
+                "status": "candidate",
+                "related_claim_ids": ["claim-main"],
+                "negative_evidence_ids": [evidence_id],
+            }
+        )
+    state = {"evidence_map": evidence_map, "flaw_candidates": flaws}
+
+    assert _recovery_candidate_flaw_ids(state) == ["flaw-0", "flaw-1", "flaw-2", "flaw-3"]
+    assert _recovery_candidate_flaw_ids(state, limit=2) == ["flaw-0", "flaw-1"]
+
+
 def test_apply_recovery_phase_protocol_upgrades_recheck_when_verified_negative_flaw_ready():
     from agent_system.inference.review_runner import _apply_recovery_phase_protocol
 
@@ -7238,6 +7403,43 @@ def test_negative_quote_bank_salvage_prefers_concrete_scope_limit_for_broad_capa
     assert salvaged["negative_evidence_actionability"] == "actionable_candidate"
 
 
+def test_scope_limitation_promotion_splits_concrete_review_negative_types():
+    from agent_system.inference.review_runner import _promote_scope_limitation_for_broad_claim
+
+    assert (
+        _promote_scope_limitation_for_broad_claim(
+            "scope_limitation",
+            "The evaluation is comprehensive across diverse external datasets.",
+            "The method is only evaluated on one small dataset.",
+        )
+        == "insufficient_evaluation"
+    )
+    assert (
+        _promote_scope_limitation_for_broad_claim(
+            "scope_limitation",
+            "The model outperforms strong baselines with state-of-the-art performance.",
+            "The results are mixed and the gains are marginal across tasks.",
+        )
+        == "result_claim_mismatch"
+    )
+    assert (
+        _promote_scope_limitation_for_broad_claim(
+            "scope_limitation",
+            "The released method is reproducible with complete implementation details.",
+            "Code is not released and hyperparameter details are omitted.",
+        )
+        == "reproducibility_gap"
+    )
+    assert (
+        _promote_scope_limitation_for_broad_claim(
+            "scope_limitation",
+            "The method uses a two-stage encoder.",
+            "The method is limited to English inputs.",
+        )
+        == "scope_limitation"
+    )
+
+
 def test_negative_evidence_formation_adds_quote_bank_when_negative_item_lacks_negative_anchor():
     state = {
         "claims": [{"claim_id": "claim-1", "claim": "The method is validated against baselines."}],
@@ -7738,7 +7940,7 @@ def test_supplemental_hard_negative_discovery_requires_phase_budget_metadata():
     assert payload.get("policy_source") != "hard_negative_discovery_override"
 
 
-def test_supplemental_hard_negative_discovery_stops_after_grounded_negative_evidence():
+def test_supplemental_hard_negative_discovery_routes_unlinked_negative_before_more_discovery():
     state = {
         "claims": [{"claim_id": "claim-1", "claim": "The method is empirically strong.", "status": "supported"}],
         "evidence_map": [
@@ -7782,7 +7984,165 @@ def test_supplemental_hard_negative_discovery_stops_after_grounded_negative_evid
         recent_turn_logs=[{"policy_source": "hard_negative_discovery_override", "negative_evidence_formation_required": True}],
     )
 
-    assert payload.get("policy_source") != "hard_negative_discovery_override"
+    assert payload.get("policy_source") == "negative_evidence_binding_retry_override"
+
+
+def test_supplemental_hard_negative_discovery_allows_below_target_after_one_grounded_negative():
+    from agent_system.review_manager_policy import (
+        _allow_supplemental_hard_negative_discovery,
+        _hard_negative_discovery_shortfall_reasons,
+    )
+
+    state = {
+        "claims": [{"claim_id": "claim-1", "claim": "The method is empirically strong.", "status": "supported"}],
+        "evidence_map": [
+            {
+                "evidence_id": "evidence-negative-1",
+                "claim_id": "claim-1",
+                "evidence": "The paper reports that a strong baseline comparison is missing.",
+                "raw_quote": "The paper does not compare against the strongest retrieval baseline.",
+                "source_locator": "Limitations",
+                "stance": "missing",
+                "strength": "missing",
+                "negative_evidence_type": "missing_baseline",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_negative_verified",
+            },
+        ],
+        "flaw_candidates": [
+            {
+                "flaw_id": "flaw-negative-1",
+                "status": "candidate",
+                "related_claim_ids": ["claim-1"],
+                "negative_evidence_ids": ["evidence-negative-1"],
+            }
+        ],
+    }
+
+    assert _hard_negative_discovery_shortfall_reasons(state)
+    assert _allow_supplemental_hard_negative_discovery(
+        state,
+        [{"policy_source": "hard_negative_discovery_override", "negative_evidence_formation_required": True}],
+        3,
+    ) is True
+
+
+def test_supplemental_hard_negative_discovery_stops_after_negative_targets_met():
+    from agent_system.review_manager_policy import (
+        _allow_supplemental_hard_negative_discovery,
+        _hard_negative_discovery_shortfall_reasons,
+    )
+
+    state = {
+        "claims": [{"claim_id": "claim-1", "claim": "The method is empirically strong.", "status": "supported"}],
+        "evidence_map": [
+            {
+                "evidence_id": "evidence-negative-1",
+                "claim_id": "claim-1",
+                "evidence": "The paper reports that a strong baseline comparison is missing.",
+                "raw_quote": "The paper does not compare against the strongest retrieval baseline.",
+                "source_locator": "Limitations",
+                "stance": "missing",
+                "strength": "missing",
+                "negative_evidence_type": "missing_baseline",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_negative_verified",
+            },
+            {
+                "evidence_id": "evidence-negative-2",
+                "claim_id": "claim-1",
+                "evidence": "The results are mixed and improvements are marginal.",
+                "raw_quote": "The results are mixed and improvements are marginal across tasks.",
+                "source_locator": "Results",
+                "stance": "weakens",
+                "strength": "medium",
+                "negative_evidence_type": "result_claim_mismatch",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_negative_verified",
+            },
+            {
+                "evidence_id": "evidence-negative-3",
+                "claim_id": "claim-1",
+                "evidence": "The method is limited to one benchmark setting.",
+                "raw_quote": "The evaluation is limited to one benchmark setting.",
+                "source_locator": "Limitations",
+                "stance": "missing",
+                "strength": "missing",
+                "negative_evidence_type": "scope_limitation",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_negative_verified",
+            },
+        ],
+        "flaw_candidates": [
+            {
+                "flaw_id": "flaw-negative-1",
+                "status": "candidate",
+                "related_claim_ids": ["claim-1"],
+                "negative_evidence_ids": ["evidence-negative-1", "evidence-negative-2"],
+            },
+            {
+                "flaw_id": "flaw-negative-2",
+                "status": "candidate",
+                "related_claim_ids": ["claim-1"],
+                "negative_evidence_ids": ["evidence-negative-3"],
+            },
+        ],
+    }
+
+    assert _hard_negative_discovery_shortfall_reasons(state) == []
+    assert _allow_supplemental_hard_negative_discovery(
+        state,
+        [{"policy_source": "hard_negative_discovery_override", "negative_evidence_formation_required": True}],
+        3,
+    ) is False
+
+
+def test_verified_negative_flaw_review_targets_expand_flaw_and_evidence_but_not_claim_cap():
+    from agent_system.review_manager_policy import _verified_negative_flaw_review_targets
+
+    evidence_map = []
+    flaws = []
+    claims = []
+    for index in range(5):
+        claim_id = f"claim-{index}"
+        evidence_id = f"evidence-negative-{index}"
+        flaw_id = f"flaw-negative-{index}"
+        claims.append({"claim_id": claim_id, "claim": f"Claim {index}", "status": "supported"})
+        evidence_map.append(
+            {
+                "evidence_id": evidence_id,
+                "claim_id": claim_id,
+                "evidence": "The paper reports that an important evaluation is missing.",
+                "raw_quote": "The method is only evaluated on one small dataset.",
+                "source_locator": "Limitations",
+                "stance": "missing",
+                "strength": "missing",
+                "negative_evidence_type": "insufficient_evaluation",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_negative_verified",
+            }
+        )
+        flaws.append(
+            {
+                "flaw_id": flaw_id,
+                "status": "candidate",
+                "related_claim_ids": [claim_id],
+                "negative_evidence_ids": [evidence_id],
+            }
+        )
+    targets = _verified_negative_flaw_review_targets(
+        {"claims": claims, "evidence_map": evidence_map, "flaw_candidates": flaws},
+        [],
+    )
+
+    assert targets["target_flaw_ids"] == ["flaw-negative-0", "flaw-negative-1", "flaw-negative-2", "flaw-negative-3"]
+    assert targets["target_evidence_ids"] == [
+        "evidence-negative-0",
+        "evidence-negative-1",
+        "evidence-negative-2",
+        "evidence-negative-3",
+    ]
+    assert targets["target_claim_ids"] == ["claim-0", "claim-1"]
 
 
 def test_hard_negative_discovery_salvages_three_typed_quote_bank_entries():

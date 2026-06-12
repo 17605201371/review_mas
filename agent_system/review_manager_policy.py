@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional, Sequence
 
 from agent_system.environments.env_package.review.state import (
+    ACTIONABLE_NEGATIVE_EVIDENCE_TYPES,
     MANAGER_ACTION_TYPES,
     _flaw_valid_negative_evidence_ids,
     _is_grounded_paper_negative_evidence_record,
@@ -53,6 +54,13 @@ _HARD_NEGATIVE_DISCOVERY_ELIGIBLE_SOURCES = frozenset(
     }
 )
 _PROTECTED_POTENTIAL_CONCERN_TERMINAL_REASON = "verified_actionable_negative_concern_preserved"
+_NEGATIVE_TARGET_FLAW_LIMIT = 4
+_NEGATIVE_TARGET_EVIDENCE_LIMIT = 4
+_NEGATIVE_TARGET_CLAIM_LIMIT = 2
+_HARD_NEGATIVE_DISCOVERY_GROUNDED_TARGET = 3
+_HARD_NEGATIVE_DISCOVERY_ACTIONABLE_TARGET = 2
+_HARD_NEGATIVE_DISCOVERY_VERIFIED_FLAW_TARGET = 2
+_HARD_NEGATIVE_DISCOVERY_MAX_ATTEMPTS = 3
 
 ACTION_TO_WORKERS = {
     "extract_claims": ["Claim Agent"],
@@ -252,7 +260,9 @@ def _verified_negative_flaw_review_targets(
     state: Dict[str, Any],
     recent_turn_logs: Sequence[Dict[str, Any]],
     *,
-    limit: int = 2,
+    flaw_limit: int = _NEGATIVE_TARGET_FLAW_LIMIT,
+    evidence_limit: int = _NEGATIVE_TARGET_EVIDENCE_LIMIT,
+    claim_limit: int = _NEGATIVE_TARGET_CLAIM_LIMIT,
 ) -> Dict[str, List[str]]:
     retried_ids = _recent_negative_binding_retry_evidence_ids(recent_turn_logs)
     terminal_flaw_ids = _recent_terminal_recovery_flaw_ids(recent_turn_logs)
@@ -300,12 +310,12 @@ def _verified_negative_flaw_review_targets(
             claim_id = str(claim_id or "").strip()
             if claim_id and claim_id not in target_claim_ids:
                 target_claim_ids.append(claim_id)
-        if len(target_flaw_ids) >= limit:
+        if len(target_flaw_ids) >= flaw_limit:
             break
     return {
-        "target_flaw_ids": target_flaw_ids[:limit],
-        "target_evidence_ids": target_evidence_ids[:limit],
-        "target_claim_ids": target_claim_ids[:limit],
+        "target_flaw_ids": target_flaw_ids[:flaw_limit],
+        "target_evidence_ids": target_evidence_ids[:evidence_limit],
+        "target_claim_ids": target_claim_ids[:claim_limit],
     }
 
 
@@ -374,19 +384,15 @@ def _allow_supplemental_hard_negative_discovery(
     recent_turn_logs: Sequence[Dict[str, Any]],
     remaining_after_current: Optional[int],
 ) -> bool:
-    """Allow one extra hard-negative pass when the first pass found nothing.
-
-    This is deliberately conservative: it only applies when current state still
-    has zero grounded negative evidence, exactly one recent negative-formation
-    attempt exists, and the turn budget leaves room for a follow-up recovery
-    commit. Legacy callers without phase budget metadata keep the old
-    single-pass behavior.
-    """
+    """Allow bounded supplemental hard-negative passes while coverage is low."""
     if remaining_after_current is None or remaining_after_current < 2:
         return False
-    if _grounded_negative_evidence_count(state) > 0:
+    attempt_count = _negative_evidence_formation_attempt_count(recent_turn_logs)
+    if attempt_count <= 0 or attempt_count >= _HARD_NEGATIVE_DISCOVERY_MAX_ATTEMPTS:
         return False
-    return _negative_evidence_formation_attempt_count(recent_turn_logs) == 1
+    if not _hard_negative_discovery_shortfall_reasons(state):
+        return False
+    return True
 
 
 def _grounded_negative_evidence_count(state: Dict[str, Any]) -> int:
@@ -395,6 +401,54 @@ def _grounded_negative_evidence_count(state: Dict[str, Any]) -> int:
         for item in state.get("evidence_map", []) or []
         if isinstance(item, dict) and _is_grounded_paper_negative_evidence_record(item, state)
     )
+
+
+def _grounded_actionable_negative_evidence_count(state: Dict[str, Any]) -> int:
+    return sum(
+        1
+        for item in state.get("evidence_map", []) or []
+        if isinstance(item, dict)
+        and _is_grounded_paper_negative_evidence_record(item, state)
+        and str(item.get("negative_evidence_type") or "").strip() in ACTIONABLE_NEGATIVE_EVIDENCE_TYPES
+    )
+
+
+def _verified_negative_flaw_count_for_discovery(state: Dict[str, Any]) -> int:
+    evidence_lookup = {
+        str(item.get("evidence_id") or "").strip(): item
+        for item in state.get("evidence_map", []) or []
+        if isinstance(item, dict) and str(item.get("evidence_id") or "").strip()
+    }
+    count = 0
+    for flaw in state.get("flaw_candidates", []) or []:
+        if not isinstance(flaw, dict):
+            continue
+        status = str(flaw.get("status") or "candidate").strip().lower()
+        if status not in {"candidate", "confirmed", "potential_concern"}:
+            continue
+        verified = False
+        for evidence_id in _flaw_valid_negative_evidence_ids(flaw, state):
+            item = evidence_lookup.get(str(evidence_id or "").strip())
+            if item and _is_grounded_paper_negative_evidence_record(item, state):
+                verified = True
+                break
+        if verified:
+            count += 1
+    return count
+
+
+def _hard_negative_discovery_shortfall_reasons(state: Dict[str, Any]) -> List[str]:
+    reasons: List[str] = []
+    grounded_count = _grounded_negative_evidence_count(state)
+    actionable_count = _grounded_actionable_negative_evidence_count(state)
+    verified_flaw_count = _verified_negative_flaw_count_for_discovery(state)
+    if grounded_count < _HARD_NEGATIVE_DISCOVERY_GROUNDED_TARGET:
+        reasons.append(f"grounded_negative<{_HARD_NEGATIVE_DISCOVERY_GROUNDED_TARGET}")
+    if actionable_count < _HARD_NEGATIVE_DISCOVERY_ACTIONABLE_TARGET:
+        reasons.append(f"actionable_negative<{_HARD_NEGATIVE_DISCOVERY_ACTIONABLE_TARGET}")
+    if verified_flaw_count < _HARD_NEGATIVE_DISCOVERY_VERIFIED_FLAW_TARGET:
+        reasons.append(f"verified_negative_flaw<{_HARD_NEGATIVE_DISCOVERY_VERIFIED_FLAW_TARGET}")
+    return reasons
 
 
 def _is_non_real_review_claim_id(claim_id: str) -> bool:
@@ -883,25 +937,27 @@ def _sanitize_targets_for_action(
 
     if action_type == "challenge_previous_hypothesis":
         terminal_flaw_ids = _recent_terminal_recovery_flaw_ids(recent_turn_logs)
-        target_claim_ids = _recovery_ready_claim_ids(state, target_claim_ids, limit=2)
+        target_claim_ids = _recovery_ready_claim_ids(state, target_claim_ids, limit=_NEGATIVE_TARGET_CLAIM_LIMIT)
         if not target_claim_ids:
-            target_claim_ids = _verified_negative_recovery_claim_ids(state, limit=2)
+            target_claim_ids = _verified_negative_recovery_claim_ids(state, limit=_NEGATIVE_TARGET_CLAIM_LIMIT)
 
         target_flaw_ids = [
             fid for fid in target_flaw_ids
             if flaw_lookup.get(fid) in _ACTIVE_FLAW_STATUSES and fid not in terminal_flaw_ids
-        ]
-        for fid in _active_unverified_flaw_ids(state, limit=2):
+        ][:_NEGATIVE_TARGET_FLAW_LIMIT]
+        for fid in _active_unverified_flaw_ids(state, limit=_NEGATIVE_TARGET_FLAW_LIMIT):
             if fid in terminal_flaw_ids:
                 continue
             if fid not in target_flaw_ids:
                 target_flaw_ids.append(fid)
+            if len(target_flaw_ids) >= _NEGATIVE_TARGET_FLAW_LIMIT:
+                break
         if not target_claim_ids and not target_flaw_ids:
             target_flaw_ids = [
                 fid for fid in _flaw_ids_by_status(
                     flaws,
                     include=_ACTIVE_FLAW_STATUSES,
-                    limit=2,
+                    limit=_NEGATIVE_TARGET_FLAW_LIMIT,
                 )
                 if fid not in terminal_flaw_ids
             ]
@@ -2245,7 +2301,8 @@ def apply_manager_policy_fallback(
             budget_aware_skip = True
         elif remaining_after_current < 2 and not _positive_inventory_ready(state):
             budget_aware_skip = True
-    recent_negative_formation = _has_recent_negative_evidence_formation_turn(recent_turn_logs)
+    negative_formation_attempt_count = _negative_evidence_formation_attempt_count(recent_turn_logs)
+    hard_negative_shortfall_reasons = _hard_negative_discovery_shortfall_reasons(state)
     supplemental_hard_negative_discovery = _allow_supplemental_hard_negative_discovery(
         state,
         recent_turn_logs,
@@ -2262,17 +2319,18 @@ def apply_manager_policy_fallback(
         # least one already-merged evidence item still prevents the override
         # from firing before any worker pass.
         and counts["evidence_map"] >= 1
-        and _grounded_negative_evidence_count(state) == 0
+        and bool(hard_negative_shortfall_reasons)
         and hard_negative_claim_ids
-        and (not recent_negative_formation or supplemental_hard_negative_discovery)
+        and (negative_formation_attempt_count == 0 or supplemental_hard_negative_discovery)
         and "request_evidence_recheck" in allowed_actions
         and action_type in {"extract_claims", "verify_evidence", "request_evidence_recheck", "analyze_flaws", "summarize_progress", "finalize"}
+        and str(payload.get("phase") or state.get("phase") or "").strip().lower() != "recovery"
         and not budget_aware_skip
     ):
         policy_source = "hard_negative_discovery_override"
         policy_notes.append(
             "S4 runs a hard-negative discovery pass so reject evidence is not inferred only from unresolved/meta burden."
-            + (" Supplemental pass is allowed because the first pass found no grounded negative evidence and recovery budget remains." if supplemental_hard_negative_discovery else "")
+            + (" Supplemental pass is allowed because negative evidence coverage is still below target and recovery budget remains." if supplemental_hard_negative_discovery else "")
         )
         payload["decision"] = "continue"
         payload["final_decision"] = "undecided"
@@ -2282,6 +2340,7 @@ def apply_manager_policy_fallback(
         payload["target_flaw_ids"] = []
         payload["target_evidence_ids"] = []
         payload["negative_evidence_formation_required"] = True
+        payload["hard_negative_shortfall_reasons"] = hard_negative_shortfall_reasons
         payload["focus"] = "Search for copied paper quotes that weaken, limit, contradict, or show missing support for the strongest real claims; emit unresolved if no direct negative quote is visible."
     elif budget_aware_skip and not _has_recent_negative_evidence_formation_turn(recent_turn_logs):
         # Surface the skip reason for offline audit so the budget-aware
