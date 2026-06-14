@@ -1,3 +1,56 @@
+## 2026-06-14 - hardneg20 option B(quote 卫生) 结果：第一个干净正向，噪声 7→2
+
+- **qhyg run 跑完** (`...qhyg...20260614_111529`, 20/20, 0 报错, neg_quote_hygiene=1, discovery/reclassify 都关)。Protection PASS, avg reward 0.5779, decision 15/5。
+- **确定性核验（不受 run 方差干扰）**：对 grounded negative 跑噪声检测器——
+  - baseline(reclass=guard3默认): 13 条 grounded negative，其中 **7 条噪声(54%)**（章节头/作者列表引用/future-work 方向句）。
+  - option B(qhyg): 12 条 grounded negative，我的检测器判 0 噪声；**但手工核验有 2 条残留漏网**：①裸引用标题 "Beyond homophily...: Current limitations and effective designs."（无作者列表，citation 正则没命中）②"In future work, we will focus..."（future-direction 正则只认 "will be" 不认 "will+动词"）。所以实际 **7→2**。
+  - **recovery 红线全部保住**：effective_repair 7=7, no_effect_commit 0=0, harmful_risk 0=0, committed 7=7, mark_contested 7=7, contested_effective 7=7, contamination 0=0。**option B 没伤 recovery/contested**（它是减噪，不是放量）。
+- **结论**：option B 是这个序列(7.3 net-negative → 7.5 inert → option B)里**第一个干净正向**——显著提升负向证据质量(噪声占比 54%→~17%)且不破任何红线。负向计数/类型/decision 的差异(candidate 15→13, scope_overclaim 7→0, missing_baseline 0→6)是 temp=1.0 run 方差，**不要过度解读**。
+- **待办（下一步可选收尾 option B）**：补两个正则抓残留——citation 标题(无作者列表，如 "...: Current limitations and effective designs.")、future-work "we will/we plan to focus"。这两个只影响**未来 run**(hygiene 在跑批时生效，dashboard 重算不变)。改完最好再跑一次 qhyg 确认 7→0。
+- 仍未碰：claim downgrade / validator / 7.4 / 7.6。
+
+## 2026-06-13 - hardneg20 reclass(7.5) 结果：7.5 真实数据上空转 + 转向 option B(quote 选择卫生)
+
+- **7.5-only hardneg20 跑完** (`...reclass...20260613_224337`, 20 篇, neg_discovery_mode=default neg_reclassify=1)。**确定性核查发现 7.5 一条都没真正升级**：
+  - 整个 jsonl 里 `negative_type_reclassified_from` 标记 0 次；同一 jsonl 开/关 7.5 跑 dashboard 结果完全相同(都 scope_overclaim=7)。dashboard 的 scope_overclaim=7 是 base 分类器+run 方差，不是 7.5。decision 14/6→10/10 也是 temp=1.0 方差。
+  - **原因**：把这次 10 条 scope_limitation 负向喂回 7.5 逻辑，broad-claim 命中=0。系统抽出的 claim 是**描述性**的("The method uses temporal causal mechanisms")，不带 overclaim 语言；而 scope_limitation 的 quote 大多是**噪声**（`\section{...FUTURE WORK}` 章节头、参考文献行、LIMITATIONS 标题后接自夸）。7.5 保守地正确地没误升级，但真实数据上=空转。
+  - **意外收获**：7.5 空转 + 7.3 关，这条 run 等于 **guard3 mt7 默认基线**。它 recovery 健康(effective_repair=7, no_effect=0, mark_contested=7)，而 negaggr(仅7.3) 是(5,1,5)——**反证 7.3-aggressive 才是 recovery 退化元凶**。
+- **结论：分类不是瓶颈，负向 quote 选择质量才是。** 转做 option B。
+- **option B 实现 (negative-quote 选择卫生, mode-gated 默认关, env `DRMAS_NEG_QUOTE_HYGIENE`)**:
+  1. `state.py` 新增 `_is_low_quality_negative_quote()` + 正则：丢弃 `\section{}`/编号章节头、引用/参考文献行(含全名作者列表)、"future work…can be explored" 方向句、以及只有正面自夸无真负向线索的句子；**任何含真负向线索(worse/fails/cannot/lacks/limited to/without a…)的一律保留**(包括"\section{Limitations} 方法 does not scale" 这种标题后接真内容)。引用行无条件丢(即使标题含负向词)。
+  2. 接入 3 处：`_build_critique_negative_quote_bank` 的两个 skip 点 + 正向 quote bank 的 `negative_or_gap` 路径。
+  3. 拿这次 run 的 15 条真实 grounded negative 验证：**干净地丢 7 条噪声、留 6 条真负向**。
+  4. `run_hardneg20_guard3.sh` 支持 `DRMAS_NEG_QUOTE_HYGIENE=1`(tag 加 `_qhyg`)。
+- **验证(沙盒)**: 默认 289 passed(287+2 新)；三开关全开 289。
+- **下一步(Mac)**: 跑 `DRMAS_NEG_QUOTE_HYGIENE=1 bash run_hardneg20_guard3.sh`，和默认基线(reclass 那条可当默认基线)对比，看噪声负向是否减少、真负向占比/actionable 是否上升、recovery 红线是否守住。注意 quote hygiene 影响的是喂给 Critique Agent 的 bank，会改 runtime 轨迹(不像 7.5 是 view 级)，所以这次是真的会动结果。
+
+## 2026-06-12 - hardneg20 negaggr(7.3) 负结果分析 + 7.5 claim-aware 重分类实现
+
+- **hardneg20 7.3-aggressive 跑完，net-negative**: `mimo_v25_negqty_recoverycap_guard3_negaggr_hardneg20_..._215608`（20 篇）vs 基线 `hygienefilter3_hardneg20_..._162757`。Protection 都 PASS，avg reward 持平（0.5699→0.5710），decision 一样（14/6）。
+  - 负向数量小涨：candidate 12→17、verified_actionable 6→7、potential_concern 6→7。
+  - **但变差**：recovery_effective_repair 7→5、recovery_patch_committed 7→6、**recovery_no_effect_commit 0→1（破 0 线）**、mark_contested_commit 7→5、contested_relation_effective 7→5、recovery_terminal_turns 6→9。
+  - **根因（三段链）**：(1) 多发现的负向几乎全进 `scope_limitation`（14→19），四个 actionable 类型仍全 0——分类器只看 quote 不看 claim；(2) 多出的发现 pass 啃 mt7 预算：evidence_agent_worker_turns 95→108(+13)，且 question_only_turns 23→36(+13)，多出的 13 轮全是只产问题不产证据；(3) 预算被占→recovery/contested 管线退化。发现的负向还多绑在 fallback claim 上。
+  - **结论**：7.3 单独上净负，印证"只放量不修类型分类就是制造 scope_limitation 噪声"。→ 必须配 7.5。
+- **7.5 实现（claim-aware 负向重分类，mode-gated，默认关）**:
+  1. `state.py` 新增 `_NEG_RECLASSIFY_ENABLED`（env `DRMAS_NEG_RECLASSIFY`，默认关）、`_BROAD_CLAIM_RE`、`_SCOPE_RESTRICTION_CUE_RE`、`_reclassify_negative_with_claim_context()`、`_apply_claim_aware_negative_reclassification(view)`。
+  2. 单一保守升级路径：仅当 base_type=`scope_limitation` + 绑定的 real claim 宽泛/overclaim + quote 含具体 scope 限制线索（only applies/restricted to/assumes/does not generalize…，排除"future work"空话）→ 升级为 actionable 的 `scope_overclaim`。绝不碰 noise/neutral/generic、绝不降级。
+  3. 接入点：`build_decision_hygiene_view` 第 4538 行（view 级，**不改 live state**，不改 runtime 轨迹）。写回 `record["negative_evidence_type"]` 让下游计数/分层一致。
+  4. `run_hardneg20_guard3.sh` 支持 `DRMAS_NEG_RECLASSIFY=1`，run_tag 加 `_reclass` 后缀。
+- **验证（沙盒）**: 默认 287 passed（284+3 新 7.5 单测）；`DRMAS_NEG_RECLASSIFY=1` 287；`aggressive+reclassify` 287。探针确认升级精准、不过度触发、flag OFF 零影响。
+- **下一步实验（Mac 上跑）**: 建议跑 (a) 仅 7.5（`DRMAS_NEG_RECLASSIFY=1`，default discovery）隔离看重分类能否把 scope_limitation 转 actionable 而不动 recovery；(b) 7.3+7.5（`DRMAS_NEG_DISCOVERY_MODE=aggressive DRMAS_NEG_RECLASSIFY=1`）看是否能在保住 recovery 的同时提升 actionable。**注意 7.5 是 view 级，只改最终指标/报告，不回收 7.3 浪费的轮数**——若 recovery 退化仍在，下一刀要么收敛 7.3 的激进度，要么把重分类下沉到 live merge（更高风险，后做）。
+
+## 2026-06-12 - P26 7.3 Hard-Negative Discovery 持续性（mode-gated，待 hardneg20 验证）
+
+- **背景**: guard3 (commit 3342192) 在 smoke8 上 recovery/contested 改善但 negative quantity 下降。交付书第 7 节诊断了几个压制点；代码审计（见 `P26_NEGATIVE_DISCOVERY_CODE_LOCATIONS.md`）确认 7.1 target cap 其实已经是 4（误判）、7.2 quote bank 容量已是 6（非瓶颈），真正主因是 **7.3 hard-negative discovery 太早停**（每篇攒满 3 grounded/2 actionable 即停 + 最多 3 次 pass + mt7 预算被 budget_aware_skip 砍）和 **7.5 分类器无 claim 上下文**。
+- **本次代码改动**（只改 7.3，单一可解释因素，默认行为不变）:
+  1. `review_manager_policy.py`: 新增 `import os` 和环境变量开关 `DRMAS_NEG_DISCOVERY_MODE`（default | aggressive）。default 模式常量与改前完全一致（grounded=3/actionable=2/flaw=2/attempts=3/min_remaining=2）；aggressive 模式放开为 grounded=5/actionable=3/flaw=3/attempts=5/min_remaining=1。
+  2. `_allow_supplemental_hard_negative_discovery()` 的硬编码 `remaining_after_current < 2` 改为读 `_HARD_NEGATIVE_DISCOVERY_MIN_REMAINING`。
+  3. `tests/test_review_inference_runner.py`: 把 `test_supplemental_hard_negative_discovery_stops_after_negative_targets_met` 改为按模块当前阈值动态构造状态，两种模式都正确。
+  4. `run_hardneg20_guard3.sh`: 支持 `DRMAS_NEG_DISCOVERY_MODE=aggressive`，aggressive 时 run_tag 加 `_negaggr` 后缀并写入 .meta。
+- **不碰**: claim downgrade、validator、hygiene 门、target cap、quote bank 容量。aggressive 模式产出的 negative 仍照常过 `_is_grounded_paper_negative_evidence_record`。
+- **验证**: 沙盒 `python3 -m pytest tests/test_review_inference_runner.py tests/test_review_multiturn.py tests/test_recovery_patch.py -q` —— 默认模式 `284 passed`，aggressive 模式 `284 passed`。**注意：沙盒无 conda/无 MiMo API，跑不了真实推理；smoke8/hardneg20 验证必须在 Mac 上跑。**
+- **下一步**: 在 Mac 上跑两条隔离对比（baseline = default 模式，7.3 = aggressive 模式），确认 aggressive 是否在不破坏 protection/contamination/harmful_recovery 红线的前提下提升 negative quantity。若仍不足，再按 `P26_NEGATIVE_DISCOVERY_CODE_LOCATIONS.md` 顺序叠 7.5 → 7.4 → 7.6。
+
 ## 2026-06-06 - MiMo v2.5 Full39 Rerun (p2adapter, mt=768)
 
 - **背景**: 在 smoke8 验证 mt=768 优于 mt=2048 后，扩展到完整 39 样本测试集，使用 MiMo v2.5 API + small_model adapter 模式。

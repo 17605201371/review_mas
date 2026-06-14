@@ -4535,6 +4535,9 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
 
     view = copy.deepcopy(state or {})
     view["evidence_map"] = _verify_evidence_items_for_state(view, view.get("evidence_map", []) or [])
+    # P26 7.5: claim-aware negative reclassification (view-only, mode-gated). Must run
+    # before negative-type counting / flaw layering so upgraded types propagate.
+    _apply_claim_aware_negative_reclassification(view)
     context_support_diagnostics = _context_verified_support_diagnostics(view)
     support_counts = _decision_real_strong_support_counts(view)
     _r6_negative_burden_claim_ids = _negative_burden_claim_ids(view)
@@ -7139,6 +7142,159 @@ def _negative_evidence_type_for_record(record: Dict[str, Any]) -> str:
         return "direct_contradiction"
     return _classify_negative_evidence_type(quote)
 
+
+# P26 7.5: claim-aware negative reclassification (mode-gated, OFF by default so the
+# smoke8 baseline is byte-for-byte unchanged). Enable with DRMAS_NEG_RECLASSIFY=1.
+# Rationale: the quote-only ``_classify_negative_evidence_type`` dumps most broad
+# limitation language into the non-actionable ``scope_limitation`` bucket even when
+# the bound claim is an overclaim. When a verified negative is anchored to a BROAD
+# real claim AND its quote carries a concrete scope-restriction cue, the pair is
+# better described as an actionable ``scope_overclaim``. This is the single,
+# conservative upgrade path: it never touches noise/neutral/generic, never
+# downgrades, and the negative still passed semantic verification upstream.
+_NEG_RECLASSIFY_ENABLED = os.environ.get("DRMAS_NEG_RECLASSIFY", "").strip().lower() in {"1", "true", "on", "yes", "aggressive"}
+
+# A claim reads as broad/overclaiming when it asserts general superiority or universality.
+_BROAD_CLAIM_RE = re.compile(
+    r"\b(state[- ]of[- ]the[- ]art|sota|outperform\w*|surpass\w*|best\b|superior|"
+    r"general(?:ly|izes?|ization)?|universal\w*|always|every\b|"
+    r"robust\w*|significantly|substantial\w*|consistently|first to|novel framework)\b",
+    re.IGNORECASE,
+)
+# Concrete scope-restriction cue inside the negative quote: an actionable subset of
+# scope_limitation. Excludes vague "future work" / bare "limitation(s)".
+_SCOPE_RESTRICTION_CUE_RE = re.compile(
+    r"\b(only (?:applies|applicable|valid|works|holds|effective)|restricted to|"
+    r"constrained to|specific to|limited to|relies on the assumption|"
+    r"assume[sd]?\b|require[sd]?\b|does not generalize|do not generalize|"
+    r"fails? (?:when|on|to|for)|not applicable (?:to|in|when)|breaks? down)\b",
+    re.IGNORECASE,
+)
+
+
+def _reclassify_negative_with_claim_context(base_type: str, quote: str, claim_text: str) -> str:
+    """P26 7.5: upgrade an over-used ``scope_limitation`` label to the actionable
+    ``scope_overclaim`` when the bound real claim is broad/overclaiming AND the quote
+    carries a concrete scope-restriction cue. Conservative single upgrade path; no
+    effect when DRMAS_NEG_RECLASSIFY is off.
+    """
+    if not _NEG_RECLASSIFY_ENABLED:
+        return base_type
+    if base_type != "scope_limitation":
+        return base_type
+    if not claim_text or not quote:
+        return base_type
+    if not _BROAD_CLAIM_RE.search(claim_text):
+        return base_type
+    if not _SCOPE_RESTRICTION_CUE_RE.search(quote):
+        return base_type
+    return "scope_overclaim"
+
+
+def _apply_claim_aware_negative_reclassification(view: Dict[str, Any]) -> None:
+    """P26 7.5: persist claim-aware negative-type upgrades onto the decision-view
+    evidence records so all downstream counting/layering reads the upgraded type.
+    Operates on the view copy only (never the live ReviewState) and is a no-op when
+    DRMAS_NEG_RECLASSIFY is off.
+    """
+    if not _NEG_RECLASSIFY_ENABLED:
+        return
+    claims_by_id = {
+        str(c.get("claim_id") or "").strip(): c
+        for c in view.get("claims", []) or []
+        if isinstance(c, dict) and str(c.get("claim_id") or "").strip()
+    }
+    for record in view.get("evidence_map", []) or []:
+        if not isinstance(record, dict):
+            continue
+        if not _is_grounded_paper_negative_evidence_record(record, view):
+            continue
+        base_type = _negative_evidence_type_for_record(record)
+        if base_type != "scope_limitation":
+            continue
+        claim_id = str(record.get("claim_id") or "").strip()
+        if not _is_real_paper_claim_id(claim_id):
+            continue
+        claim = claims_by_id.get(claim_id)
+        claim_text = _normalize_text((claim or {}).get("claim") or (claim or {}).get("text"), max_length=200) if claim else ""
+        quote = str(record.get("raw_quote") or record.get("evidence") or "")
+        upgraded = _reclassify_negative_with_claim_context(base_type, quote, claim_text)
+        if upgraded != base_type:
+            record["negative_evidence_type"] = upgraded
+            record["negative_type_reclassified_from"] = base_type
+            record["negative_type_reclassified_reason"] = "claim_aware_broad_claim_scope_restriction"
+
+
+# P26 (option B): negative-quote selection hygiene (mode-gated, OFF by default so the
+# smoke8 baseline is byte-for-byte unchanged). Enable with DRMAS_NEG_QUOTE_HYGIENE=1.
+# Rationale: on real hardneg20 data the negative quote bank surfaces noise that matched
+# a limitation/future-work keyword but is not a genuine paper-side weakness:
+#   - LaTeX / bare section headers ("\section{... FUTURE WORK}", "9 LIMITATIONS ...")
+#     that are followed by positive/self-praising content;
+#   - citation / reference-list fragments whose cited TITLE contains "limitations";
+#   - "future work ... can be explored" forward-looking directions (not current flaws).
+# This filter drops such candidates BEFORE they reach the Critique Agent / quote bank.
+# It only ever removes low-quality candidates; it never fabricates or upgrades anything.
+_NEG_QUOTE_HYGIENE_ENABLED = os.environ.get("DRMAS_NEG_QUOTE_HYGIENE", "").strip().lower() in {"1", "true", "on", "yes", "aggressive"}
+
+_NEG_QUOTE_SECTION_HEADER_RE = re.compile(r"\\section\*?\{[^}]*\}|\\(?:sub)*section\b", re.IGNORECASE)
+_NEG_QUOTE_BARE_HEADER_RE = re.compile(
+    r"^\s*\d+\s+(LIMITATIONS?|DISCUSSION|CONCLUSION|FUTURE WORK|RELATED WORK|APPENDIX|REFERENCES)\b",
+    re.IGNORECASE,
+)
+_NEG_QUOTE_CITATION_RE = re.compile(
+    r"(?:[A-Z][a-z]+,\s+[A-Z]\.(?:\s*[A-Z]\.)*)|"
+    r"(?:[A-Z][a-z]+\s+[A-Z][a-z]+(?:,\s+|,?\s+and\s+)){2,}[A-Z][a-z]+\s+[A-Z][a-z]+|"
+    r"et al\.,?\s*\d{4}|arXiv:|In Proceedings|Advances in Neural Information",
+    re.IGNORECASE,
+)
+_NEG_QUOTE_FUTURE_DIRECTION_RE = re.compile(
+    r"\b(?:in (?:the )?future work|as future work|future work)\b.*\b(?:can be|could be|may be|will be|to be|explored?|investigat\w*|left|plan to)\b",
+    re.IGNORECASE,
+)
+_NEG_QUOTE_POSITIVE_RE = re.compile(
+    r"\b(?:strong performance|showcasing|highlights the strong|significant improvement|"
+    r"improved? (?:a|the|from|to)|outperform\w*|achieves?|the goal of this work|"
+    r"demonstrates? a significant)\b",
+    re.IGNORECASE,
+)
+_NEG_QUOTE_GENUINE_NEG_RE = re.compile(
+    r"\b(?:worse|fails?|cannot|do(?:es)? not|doesn't|don't|lacks?|missing|insufficient|"
+    r"limited to|restricted to|only applies|specific to|assumes?|does not generalize|"
+    r"without (?:a|the|any)|degrad\w*|drop\w*|weaker|underperform\w*|"
+    r"not (?:able|robust|sufficient|evaluated|compared))\b",
+    re.IGNORECASE,
+)
+
+
+def _is_low_quality_negative_quote(quote: str) -> bool:
+    """P26 option B: True when a candidate negative quote is selection noise rather
+    than a genuine paper-side weakness. No-op (always False) when
+    DRMAS_NEG_QUOTE_HYGIENE is off. Conservative: a quote carrying any genuine
+    negative cue is always kept.
+    """
+    if not _NEG_QUOTE_HYGIENE_ENABLED:
+        return False
+    q = (quote or "").strip()
+    if not q:
+        return True
+    # Citations/reference fragments are never useful, even if a cited title contains
+    # a negative-sounding word.
+    if _NEG_QUOTE_CITATION_RE.search(q):
+        return True
+    if _NEG_QUOTE_GENUINE_NEG_RE.search(q):
+        # A real negative cue is present -> keep, including genuine content that
+        # immediately follows a "\section{Limitations}"-style header.
+        return False
+    if _NEG_QUOTE_FUTURE_DIRECTION_RE.search(q):
+        return True
+    if _NEG_QUOTE_SECTION_HEADER_RE.search(q) or _NEG_QUOTE_BARE_HEADER_RE.search(q):
+        return True
+    if _NEG_QUOTE_POSITIVE_RE.search(q):
+        return True
+    return False
+
+
 _EVIDENCE_NONABSTRACT_FALLBACK_PATTERNS: List[Tuple[str, re.Pattern[str]]] = [
     ("method", re.compile(r"\b(method|methodology|approach|model|framework|algorithm|architecture|objective|training|decoding|routing|graph neural|diffusion)\b", re.IGNORECASE)),
     ("ablation", re.compile(r"\b(ablation|ablations|ablation study|ablation results|without (?:the )?\w+ module|remove(?:d|s)? (?:the )?\w+ module)\b", re.IGNORECASE)),
@@ -7462,6 +7618,10 @@ def _build_evidence_quote_bank(body: str, max_quotes: int = 6, claim_query_terms
         # to negative_or_gap quotes. No filtering, no gating — audit field only.
         if source == "negative_or_gap":
             entry["negative_evidence_type"] = _classify_negative_evidence_type(quote)
+            if _is_low_quality_negative_quote(quote):
+                # P26 option B: drop section-header / citation / future-work noise
+                # from the negative quote bank before the Critique Agent sees it.
+                continue
         quote_bank.append(entry)
     return quote_bank
 
@@ -7515,6 +7675,8 @@ def _build_critique_negative_quote_bank(body: str, max_quotes: int = 6) -> List[
                 continue
             if neg_type in {"neutral_control_context", "generic_gap", "bibliographic_or_title_noise", "neutral_instruction_noise"}:
                 continue
+            if _is_low_quality_negative_quote(quote):
+                continue
             score = 0 if neg_type in ACTIONABLE_NEGATIVE_EVIDENCE_TYPES else 1
             candidates.append((score, match.start(), quote))
     candidates.sort(key=lambda item: (item[0], item[1]))
@@ -7539,6 +7701,8 @@ def _build_critique_negative_quote_bank(body: str, max_quotes: int = 6) -> List[
         seen.add(key)
         neg_type = _classify_negative_evidence_type(quote)
         if neg_type in {"neutral_control_context", "generic_gap", "bibliographic_or_title_noise", "neutral_instruction_noise"}:
+            continue
+        if _is_low_quality_negative_quote(quote):
             continue
         verified_quote = _verify_quote_against_reference(quote, body, reference_start=0)
         span_start = int(verified_quote.get("verified_source_span_start", -1))

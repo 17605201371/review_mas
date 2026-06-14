@@ -229,6 +229,16 @@ open -a "Codex"
 
 所有备份位于：`~/.qoderworkcn/workspace/mpzgpefm0urjwkma/`
 
+**Anyrouter 直连配置备份（当前生效）：**
+
+| 备份文件 | 说明 |
+|----------|------|
+| `codex_config_anyrouter/config.toml` | 当前生效的 config.toml（anyrouter 直连） |
+| `codex_config_anyrouter/auth.json` | 当前生效的 auth.json |
+| `codex_config_anyrouter/zshrc_anyrouter.env` | 当前生效的 .zshrc 环境变量片段 |
+
+位于：`~/.qoderworkcn/workspace/mpzgpefm0urjwkma/codex_config_anyrouter/`
+
 ---
 
 ### 七、关键路径速查
@@ -252,7 +262,7 @@ open -a "Codex"
 
 以下是所有可用配置模式的完整参数汇总。切换模式时，按照对应模式修改所有标注"需要修改"的文件即可。
 
-#### 模式 1：CodexManager + 账号轮转（account_rotation）— 当前生效
+#### 模式 1：CodexManager + 账号轮转（account_rotation）
 
 通过 CodexManager 本地网关转发，使用绑定的 OpenAI 账号 token 轮转。
 
@@ -350,34 +360,30 @@ Codex 客户端直连 sharedchat，不经过 CodexManager 网关。
 
 ---
 
-#### 模式 4：Anyrouter 直连（绕过 CodexManager）— 未验证
+#### 模式 4：Anyrouter 直连（绕过 CodexManager）— 已验证可用 ✅
 
-Codex 客户端直连 anyrouter.top，不经过 CodexManager 网关。
+Codex 客户端直连 anyrouter.top，不经过 CodexManager 网关。provider 名称保留为 `"sharedchat"`（避免切换 provider 导致会话丢失），仅修改 `base_url` 和 key。
 
 | 配置项 | 值 | 是否需修改 |
 |--------|-----|-----------|
-| **config.toml** `model` | `"gpt-5-codex"`（注意：官方文档指定此模型名） | ✅ |
-| **config.toml** `model_provider` | `"anyrouter"` | ✅ |
-| **config.toml** `preferred_auth_method` | `"apikey"` | ✅（新增字段） |
-| **config.toml** `[model_providers.anyrouter]` | 新增整个配置段 | ✅ |
-| **config.toml** `[model_providers.anyrouter]` `name` | `"Any Router"` | ✅ |
-| **config.toml** `[model_providers.anyrouter]` `base_url` | `https://anyrouter.top/v1` | ✅ |
-| **config.toml** `[model_providers.anyrouter]` `wire_api` | `"responses"` | ✅ |
+| **config.toml** `model` | `"gpt-5.5"` | ✅ |
+| **config.toml** `model_provider` | `"sharedchat"`（保留原名，避免会话丢失） | ❌ |
+| **config.toml** `[model_providers.sharedchat]` `base_url` | `https://anyrouter.top/v1` | ✅ |
 | **.zshrc** `OPENAI_BASE_URL` | `https://anyrouter.top/v1` | ✅ |
-| **.zshrc** `OPENAI_API_KEY` | `sk-YTjqZ68Armv71bRhR6Wg5MV54nTznNnnXEGs9uSU47d49vuw` | ✅ |
-| **.zshrc** `CODEX_API_KEY` | `sk-YTjqZ68Armv71bRhR6Wg5MV54nTznNnnXEGs9uSU47d49vuw` | ✅ |
-| **auth.json** `OPENAI_API_KEY` | `sk-YTjqZ68Armv71bRhR6Wg5MV54nTznNnnXEGs9uSU47d49vuw` | ✅ |
-| **fix_codex_history.py** `TARGET_PROVIDER` | `"anyrouter"` | ✅ |
+| **.zshrc** `OPENAI_API_KEY` | `sk-w5B2Jv0qvK8Ynn7e01mTixtqNCI0ptAxhxr004I0nodHmtBj` | ✅ |
+| **.zshrc** `CODEX_API_KEY` | `sk-w5B2Jv0qvK8Ynn7e01mTixtqNCI0ptAxhxr004I0nodHmtBj` | ✅ |
+| **auth.json** `OPENAI_API_KEY` | `sk-w5B2Jv0qvK8Ynn7e01mTixtqNCI0ptAxhxr004I0nodHmtBj` | ✅ |
+| **fix_codex_history.py** `TARGET_PROVIDER` | `"sharedchat"` | ❌（无需改动） |
 
 **完整的 config.toml anyrouter 段示例：**
 
 ```toml
-model = "gpt-5-codex"
-model_provider = "anyrouter"
+model = "gpt-5.5"
+model_provider = "sharedchat"
 preferred_auth_method = "apikey"
 
-[model_providers.anyrouter]
-name = "Any Router"
+[model_providers.sharedchat]
+name = "Shared Chat"
 base_url = "https://anyrouter.top/v1"
 wire_api = "responses"
 ```
@@ -386,33 +392,31 @@ wire_api = "responses"
 
 ```json
 {
-  "OPENAI_API_KEY": "sk-YTjqZ68Armv71bRhR6Wg5MV54nTznNnnXEGs9uSU47d49vuw"
+  "OPENAI_API_KEY": "sk-w5B2Jv0qvK8Ynn7e01mTixtqNCI0ptAxhxr004I0nodHmtBj"
 }
 ```
 
-**可用模型（2026-06-12 查询）：** gpt-5.5、gpt-5-codex、claude-3-5-haiku-20241022、claude-3-5-sonnet-20241022、claude-3-7-sonnet-20250219、claude-fable-5、claude-haiku-4-5-20251001、claude-opus-4-1-20250805、claude-opus-4-20250514、claude-opus-4-5-20251101、claude-opus-4-6、claude-opus-4-7、claude-opus-4-8、claude-sonnet-4-20250514、claude-sonnet-4-5-20250929、gemini-2.5-pro
+**可用模型（2026-06-12 查询）：** gpt-5.5、gpt-5-codex、gpt-5.4、claude-3-5-haiku-20241022、claude-3-5-sonnet-20241022、claude-3-7-sonnet-20250219、claude-fable-5、claude-haiku-4-5-20251001、claude-opus-4-1-20250805、claude-opus-4-20250514、claude-opus-4-5-20251101、claude-opus-4-6、claude-opus-4-7、claude-opus-4-8、claude-sonnet-4-20250514、claude-sonnet-4-5-20250929、gemini-2.5-pro
 
 **测试结果（2026-06-12）：**
 
-- `/v1/models`：✅ HTTP 200，返回 16 个模型
-- `/v1/responses`（gpt-5.5）：❌ HTTP 400 "invalid codex request" — 服务端校验请求必须来自 Codex 客户端
-- `/v1/responses`（gpt-5-codex，带 Codex UA）：✅ 通过客户端校验，但 HTTP 500 "模型负载已经达到上限" — 模型过载
-- `/v1/responses`（Claude 系列）：❌ HTTP 404 "API 不支持此模型"
-- `/v1/chat/completions`（所有模型）：❌ HTTP 404 "当前 API 不支持" — 只支持 responses API
-- **Codex 桌面端实测（model=gpt-5.5）**：❌ 返回 "invalid codex request"，导致聊天界面闪烁（反复报错重试）
-- **Codex 桌面端实测（model=gpt-5-codex）**：❌ 服务端过载，无法获得响应
-
-**社区反馈（论坛 zhuiyue132）：**
-
-- "报错和使用的人无关，和服务端的渠道有关" — anyrouter 后端有多种渠道处理请求，渠道不稳定导致报错
-- "本地用 docker 部署一个 CPA，多接几个 codex 渠道进去，报错后 CPA 会自己重试。只用 1 个 any 作为 codex 的提供商，没法根治这个问题，除非 any 自己解决"
-- **结论：** anyrouter 服务端渠道不稳定，不是客户端配置能解决的问题。建议通过 CodexManager 接入多渠道做自动重试来缓解，或等待 anyrouter 修复服务端问题。
+- Codex 桌面端直连（model=gpt-5.5）：✅ 已连通，可正常对话
+- 此前使用 `model = "gpt-5-codex"` 时服务端过载返回 500，改用 `gpt-5.5` 后正常
+- 此前使用旧 key 时报 "invalid codex request"，更换新 key 后问题解决
 
 **注意事项：**
 
-- 系统 curl（macOS LibreSSL）与 anyrouter.top 存在 TLS 握手失败问题，需用 Python urllib 测试
-- 官方文档指定 `model = "gpt-5-codex"`，`gpt-5.5` 虽然在 models 列表中但 responses API 不接受
-- 带 Codex User-Agent 的请求可以通过客户端校验（gpt-5-codex），但模型当前过载
+- provider 名称保留 `"sharedchat"` 是为了避免切换 provider 导致历史会话消失，实际上 `base_url` 已指向 anyrouter.top
+- 从 sharedchat 切到 anyrouter 时，只需改 `base_url` 和 key，不需要运行 fix_codex_history.py
+- Claude 系列模型在 responses API 下不可用（返回 404 "API 不支持此模型"）
+
+**配置备份位置：**
+
+| 文件 | 路径 |
+|------|------|
+| config.toml | `~/.qoderworkcn/workspace/mpzgpefm0urjwkma/codex_config_anyrouter/config.toml` |
+| auth.json | `~/.qoderworkcn/workspace/mpzgpefm0urjwkma/codex_config_anyrouter/auth.json` |
+| zshrc 环境变量 | `~/.qoderworkcn/workspace/mpzgpefm0urjwkma/codex_config_anyrouter/zshrc_anyrouter.env` |
 
 ---
 
@@ -442,7 +446,8 @@ wire_api = "responses"
 | Rawchat Aggregate API ID | `ag_6b605f329c21` | aggregate_apis 表主键 |
 | Sharedchat API Key | `sk-eb75cdfb310f416aa5792211acefae75` | new.sharedchat.cc 密钥 |
 | Sharedchat Aggregate API ID | `ag_3899d1c97458` | aggregate_apis 表主键（已禁用） |
-| Anyrouter API Key | `sk-YTjqZ68Armv71bRhR6Wg5MV54nTznNnnXEGs9uSU47d49vuw` | anyrouter.top 密钥 |
+| Anyrouter API Key（旧） | `sk-YTjqZ68Armv71bRhR6Wg5MV54nTznNnnXEGs9uSU47d49vuw` | anyrouter.top 密钥（已弃用） |
+| Anyrouter API Key（新） | `sk-w5B2Jv0qvK8Ynn7e01mTixtqNCI0ptAxhxr004I0nodHmtBj` | anyrouter.top 密钥（当前生效） |
 | OpenAI 账号 ID | `apple\|001639.e29c58ffe09646efb350ffc64cbd5e4d.1126::cgpt=f4c3ffb2-e232-4e96-95f8-67719988ea55\|ws=org-gWVwdzlRrkWUJBEeebXupl1b\|zs2312259317@163.com` | accounts 表主键 |
 
 ---

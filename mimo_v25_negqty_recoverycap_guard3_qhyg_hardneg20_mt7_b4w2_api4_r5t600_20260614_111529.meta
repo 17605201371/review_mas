@@ -1,0 +1,5 @@
+run_base=mimo_v25_negqty_recoverycap_guard3_qhyg_hardneg20_mt7_b4w2_api4_r5t600_20260614_111529
+start_time=2026-06-14 11:15:29 CST
+params=max_turns=7 manager_batch_size=4 api_max_workers=4 api_max_retries=5 api_timeout=600 dataset=hard_negative_20_20260611.parquet mode=s4 model=mimo-v2.5 max_tokens=768 temperature=1.0 top_p=0.95 model_adapter_mode=small_model code_commit=3342192 neg_discovery_mode=default neg_reclassify=off neg_quote_hygiene=1
+launch_mode=background
+pid=2578

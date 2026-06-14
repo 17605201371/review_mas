@@ -8083,6 +8083,120 @@ def test_supplemental_hard_negative_discovery_stops_after_negative_targets_met()
     ) is False
 
 
+def test_claim_aware_negative_reclassification_scope_overclaim(monkeypatch):
+    # P26 7.5: scope_limitation + broad claim + concrete restriction cue -> scope_overclaim.
+    from agent_system.environments.env_package.review import state as S
+
+    monkeypatch.setattr(S, "_NEG_RECLASSIFY_ENABLED", True)
+    assert S._reclassify_negative_with_claim_context(
+        "scope_limitation",
+        "The method only applies to synthetic datasets.",
+        "Our approach achieves state-of-the-art results on all benchmarks.",
+    ) == "scope_overclaim"
+    assert S._reclassify_negative_with_claim_context(
+        "scope_limitation",
+        "The approach assumes access to ground-truth labels.",
+        "The model generalizes universally across domains.",
+    ) == "scope_overclaim"
+    # Vague "future work" quote (no concrete restriction) stays scope_limitation.
+    assert S._reclassify_negative_with_claim_context(
+        "scope_limitation",
+        "Future work could explore other settings.",
+        "Our approach achieves state-of-the-art results.",
+    ) == "scope_limitation"
+    # Claim not broad -> stays scope_limitation.
+    assert S._reclassify_negative_with_claim_context(
+        "scope_limitation",
+        "The method is restricted to small graphs.",
+        "We propose a new graph encoder.",
+    ) == "scope_limitation"
+    # Already-actionable base type is never touched.
+    assert S._reclassify_negative_with_claim_context(
+        "missing_baseline",
+        "No comparison against strong baselines.",
+        "Our method outperforms all prior work.",
+    ) == "missing_baseline"
+
+
+def test_claim_aware_negative_reclassification_disabled_by_default(monkeypatch):
+    # Default (flag off): no upgrade, smoke8 baseline preserved.
+    from agent_system.environments.env_package.review import state as S
+
+    monkeypatch.setattr(S, "_NEG_RECLASSIFY_ENABLED", False)
+    assert S._reclassify_negative_with_claim_context(
+        "scope_limitation",
+        "The method only applies to synthetic datasets.",
+        "Our approach achieves state-of-the-art results on all benchmarks.",
+    ) == "scope_limitation"
+
+
+def test_apply_claim_aware_negative_reclassification_persists_on_view(monkeypatch):
+    # End-to-end: the view-level pass upgrades the persisted negative_evidence_type.
+    from agent_system.environments.env_package.review import state as S
+
+    monkeypatch.setattr(S, "_NEG_RECLASSIFY_ENABLED", True)
+    view = {
+        "claims": [
+            {"claim_id": "claim-1", "claim": "Our method achieves state-of-the-art results across all benchmarks.", "status": "supported"},
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "evidence-negative-1",
+                "claim_id": "claim-1",
+                "evidence": "The method only applies to synthetic datasets.",
+                "raw_quote": "The method only applies to synthetic datasets.",
+                "source_locator": "Limitations",
+                "stance": "weakens",
+                "strength": "medium",
+                "negative_evidence_type": "scope_limitation",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_negative_verified",
+            },
+        ],
+    }
+    S._apply_claim_aware_negative_reclassification(view)
+    rec = view["evidence_map"][0]
+    assert rec["negative_evidence_type"] == "scope_overclaim"
+    assert rec.get("negative_type_reclassified_from") == "scope_limitation"
+
+
+def test_negative_quote_hygiene_drops_noise_keeps_genuine(monkeypatch):
+    # P26 option B: filter section headers / citations / future-work directions from
+    # negative quote candidates, while keeping genuine paper-side negatives.
+    from agent_system.environments.env_package.review import state as S
+
+    monkeypatch.setattr(S, "_NEG_QUOTE_HYGIENE_ENABLED", True)
+
+    # --- noise: dropped ---
+    noise = [
+        r"\section{5 DISCUSSION AND FUTURE WORK } Our definition task improved a neural theorem prover from 17.4% to 26.1%.",
+        "9 LIMITATIONS Our study highlights the strong performance of the propagation-only PROP method, showcasing its simplicity.",
+        "2, 8 Jiong Zhu, Yujun Yan, Lingxiao Zhao, Mark Heimann, Leman Akoglu, and Danai Koutra. Beyond homophily in graph neural networks.",
+        r"\section{5 DISSECTING THE LIMITATIONS OF GNNS IN GCL }",
+        "In the future work, a more effective way to store all gradient vectors can be explored to improve the supernet.",
+    ]
+    for q in noise:
+        assert S._is_low_quality_negative_quote(q) is True, q
+
+    # --- genuine negatives: kept ---
+    genuine = [
+        "The addition of names in G2T-Named-Update fares slightly worse than the main G2T solver.",
+        "Worse yet, we found increased data heterogeneity among clients when training with distilled local data.",
+        "The second approach has limitations when adapting to federated virtual learning because it cannot align gradients.",
+        r"\section{Limitations} Our method does not scale to large graphs and fails on dense inputs.",
+    ]
+    for q in genuine:
+        assert S._is_low_quality_negative_quote(q) is False, q
+
+
+def test_negative_quote_hygiene_disabled_by_default(monkeypatch):
+    # Default (flag off): never drops anything, smoke8 baseline preserved.
+    from agent_system.environments.env_package.review import state as S
+
+    monkeypatch.setattr(S, "_NEG_QUOTE_HYGIENE_ENABLED", False)
+    assert S._is_low_quality_negative_quote(r"\section{5 CONCLUSION AND FUTURE WORK } The goal of this work is to train a supernet.") is False
+
+
 def test_verified_negative_flaw_review_targets_expand_flaw_and_evidence_but_not_claim_cap():
     from agent_system.review_manager_policy import _verified_negative_flaw_review_targets
 

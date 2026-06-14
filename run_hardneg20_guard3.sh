@@ -38,6 +38,25 @@ else
   MODE_SUFFIX=""
 fi
 
+# P26 7.5: claim-aware negative reclassification (scope_limitation -> scope_overclaim
+# when the bound claim is broad/overclaiming + concrete restriction cue).
+#   DRMAS_NEG_RECLASSIFY=1 bash run_hardneg20_guard3.sh                       # 7.5 only
+#   DRMAS_NEG_DISCOVERY_MODE=aggressive DRMAS_NEG_RECLASSIFY=1 bash run_hardneg20_guard3.sh  # 7.3 + 7.5
+NEG_RECLASSIFY="${DRMAS_NEG_RECLASSIFY:-}"
+export DRMAS_NEG_RECLASSIFY="${NEG_RECLASSIFY}"
+if [[ "${NEG_RECLASSIFY}" == "1" || "${NEG_RECLASSIFY}" == "true" || "${NEG_RECLASSIFY}" == "on" || "${NEG_RECLASSIFY}" == "yes" || "${NEG_RECLASSIFY}" == "aggressive" ]]; then
+  MODE_SUFFIX="${MODE_SUFFIX}_reclass"
+fi
+
+# P26 option B: negative-quote selection hygiene (drop section-header / citation /
+# future-work noise from the negative quote bank before the Critique Agent sees it).
+#   DRMAS_NEG_QUOTE_HYGIENE=1 bash run_hardneg20_guard3.sh                    # option B only
+NEG_QUOTE_HYGIENE="${DRMAS_NEG_QUOTE_HYGIENE:-}"
+export DRMAS_NEG_QUOTE_HYGIENE="${NEG_QUOTE_HYGIENE}"
+if [[ "${NEG_QUOTE_HYGIENE}" == "1" || "${NEG_QUOTE_HYGIENE}" == "true" || "${NEG_QUOTE_HYGIENE}" == "on" || "${NEG_QUOTE_HYGIENE}" == "yes" || "${NEG_QUOTE_HYGIENE}" == "aggressive" ]]; then
+  MODE_SUFFIX="${MODE_SUFFIX}_qhyg"
+fi
+
 API_MAX_WORKERS="${API_MAX_WORKERS:-4}"
 API_MAX_RETRIES="${API_MAX_RETRIES:-5}"
 API_TIMEOUT="${API_TIMEOUT:-600}"
@@ -66,7 +85,7 @@ PYTHONPATH_VALUE="${PYTHONPATH_VALUE:-/opt/miniconda3/envs/agent/lib/python3.12/
 cat > "${META_FILE}" <<EOF
 run_base=${RUN_TAG}
 start_time=$(date '+%Y-%m-%d %H:%M:%S %Z')
-params=max_turns=7 manager_batch_size=4 api_max_workers=${API_MAX_WORKERS} api_max_retries=${API_MAX_RETRIES} api_timeout=${API_TIMEOUT} dataset=${DATASET} mode=s4 model=mimo-v2.5 max_tokens=768 temperature=1.0 top_p=0.95 model_adapter_mode=small_model code_commit=3342192 neg_discovery_mode=${NEG_MODE}
+params=max_turns=7 manager_batch_size=4 api_max_workers=${API_MAX_WORKERS} api_max_retries=${API_MAX_RETRIES} api_timeout=${API_TIMEOUT} dataset=${DATASET} mode=s4 model=mimo-v2.5 max_tokens=768 temperature=1.0 top_p=0.95 model_adapter_mode=small_model code_commit=3342192 neg_discovery_mode=${NEG_MODE} neg_reclassify=${NEG_RECLASSIFY:-off} neg_quote_hygiene=${NEG_QUOTE_HYGIENE:-off}
 launch_mode=background
 EOF
 

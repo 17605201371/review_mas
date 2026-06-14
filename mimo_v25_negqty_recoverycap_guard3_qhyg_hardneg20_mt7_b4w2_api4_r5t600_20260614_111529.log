@@ -1,0 +1,71 @@
+[API] Initialized: model=mimo-v2.5, provider=mimo, base_url=https://token-plan-sgp.xiaomimimo.com/v1, max_tokens=768
+[MAIN] Using API backend: model=mimo-v2.5
+[MAIN] model_adapter_mode=small_model (requested=small_model)
+[DEBUG] paper_id: ye3NrNrYOY, paper_text length: 34961
+[DEBUG] paper_text snippet: \title{Temporal Causal Mechanism Transfer for Few-shot Action Recognition}  \begin{abstract} The goa...
+[DEBUG] paper_id: WNxlJJIEVj, paper_text length: 48238
+[DEBUG] paper_text snippet: \title{Contrastive Diffuser: Planning Towards High Return States via Contrastive Learning}  \begin{a...
+[DEBUG] paper_id: uOrfve3prk, paper_text length: 44055
+[DEBUG] paper_text snippet: \title{Towards Unifying Interpretability and Control: Evaluation via Intervention}  \begin{abstract}...
+[DEBUG] paper_id: 7Dub7UXTXN, paper_text length: 17618
+[DEBUG] paper_text snippet: \title{When Are Bias-Free ReLU Networks Effectively Linear Networks?}  \begin{abstract}  We investig...
+[DEBUG] paper_id: 9zEBK3E9bX, paper_text length: 35496
+[DEBUG] paper_text snippet: \title{SPOT: Scalable 3D Pre-training via Occupancy Prediction for Autonomous Driving}  \begin{abstr...
+[DEBUG] paper_id: XyB4VvF01X, paper_text length: 32345
+[DEBUG] paper_text snippet: \title{Graph2Tac: Learning hierarchical representations of math concepts in theorem proving}  \begin...
+[DEBUG] paper_id: GE6iywJtsV, paper_text length: 30553
+[DEBUG] paper_text snippet: \title{Diff-Shape: A Novel Constrained Diffusion Model for Shape-based De Novo Drug Design}  \begin{...
+[DEBUG] paper_id: WpXq5n8yLb, paper_text length: 55540
+[DEBUG] paper_text snippet: \title{Recurrent Drafter for Fast Speculative Decoding in Large Language Models}  \begin{abstract} W...
+[DEBUG] paper_id: NnExMNiTHw, paper_text length: 37839
+[DEBUG] paper_text snippet: \title{SpecDec++: Boosting Speculative Decoding via Adaptive Candidate Lengths}  \begin{abstract} Sp...
+[DEBUG] paper_id: a6SntIisgg, paper_text length: 64928
+[DEBUG] paper_text snippet: \title{LogoRA: Local-Global Representation Alignment for Robust Time Series Classification}  \begin{...
+[DEBUG] paper_id: cklg91aPGk, paper_text length: 32511
+[DEBUG] paper_text snippet: \title{Propagation Alone is Enough for Graph Contrastive Learning}  \begin{abstract} Graph contrasti...
+[DEBUG] paper_id: HPuLU6q7xq, paper_text length: 38828
+[DEBUG] paper_text snippet: \title{Orca: Enhancing Role-Playing Abilities of Large Language Models by Integrating Personality Tr...
+[DEBUG] paper_id: fGXyvmWpw6, paper_text length: 47400
+[DEBUG] paper_text snippet: \title{Federated Virtual Learning on Heterogeneous Data with Local-global Distillation}  \begin{abst...
+[DEBUG] paper_id: QAgwFiIY4p, paper_text length: 49197
+[DEBUG] paper_text snippet: \title{Graph as Point Set}  \begin{abstract} Graph is a fundamental data structure to model intercon...
+[DEBUG] paper_id: TPAj63ax4Y, paper_text length: 49027
+[DEBUG] paper_text snippet: \title{Segment, Select, Correct: A Framework for Weakly-Supervised Referring Segmentation}  \begin{a...
+[DEBUG] paper_id: mHv6wcBb0z, paper_text length: 35109
+[DEBUG] paper_text snippet: \title{Preventing Model Collapse in Deep Canonical Correlation Analysis by Noise Regularization}  \b...
+[DEBUG] paper_id: xUe1YqEgd6, paper_text length: 34518
+[DEBUG] paper_text snippet: \title{Unsupervised motion segmentation in one go: Smooth long-term model over a video}  \begin{abst...
+[DEBUG] paper_id: YXn76HMetm, paper_text length: 36915
+[DEBUG] paper_text snippet: \title{Hyperbolic Active Learning for Semantic Segmentation under Domain Shift}  \begin{abstract}  W...
+[DEBUG] paper_id: KOUAayk5Kx, paper_text length: 32732
+[DEBUG] paper_text snippet: \title{Defying Multi-model Forgetting: Orthogonal Gradient Learning to One-shot Neural Architecture ...
+[DEBUG] paper_id: XH3OiIhtvf, paper_text length: 22365
+[DEBUG] paper_text snippet: \title{Unsupervised Federated Learning for Privacy Preserving in Face Recognition System}  \begin{ab...
+[review_reward][unknown][ye3NrNrYOY] reward=0.7024 breakdown={'decision': 0.0, 'section_presence': 1.0, 'length_score': 1.0, 'summary_align': 0.4208, 'strength_align': 0.3122, 'weakness_align': 0.2095, 'suggestion_align': 0.2, 'global_align': 0.341, 'critique': 1.0, 'stance_align': 0.7778, 'rating_align': 0.0, 'decision_line_bonus': 0.0, 'audit_id_leak_penalty': 0.0, 'penalty': 0.0, 'total': 0.7024, 'es_coverage': 1.0, 'es_depth': 1.0, 'es_empirical': 1.0, 'es_independent': 1.0, 'es_flaw_density': 0.0, 'es_support_volume': 1.0, 'evidence_support_score': 0.85}
+[review_reward][unknown][WNxlJJIEVj] reward=0.4928 breakdown={'decision': 0.0, 'section_presence': 1.0, 'length_score': 1.0, 'summary_align': 0.2492, 'strength_align': 0.2653, 'weakness_align': 0.1385, 'suggestion_align': 0.2, 'global_align': 0.1794, 'critique': 0.4444, 'stance_align': 0.8577, 'rating_align': 0.0, 'decision_line_bonus': 0.0, 'audit_id_leak_penalty': 0.0, 'penalty': 0.0, 'total': 0.4928, 'es_coverage': 0.6, 'es_depth': 0.6, 'es_empirical': 0.6, 'es_independent': 0.6, 'es_flaw_density': 0.0, 'es_support_volume': 0.6, 'evidence_support_score': 0.51}
+[review_reward][unknown][uOrfve3prk] reward=0.6058 breakdown={'decision': 0.0, 'section_presence': 1.0, 'length_score': 1.0, 'summary_align': 0.3591, 'strength_align': 0.3179, 'weakness_align': 0.1605, 'suggestion_align': 0.2, 'global_align': 0.1913, 'critique': 1.0, 'stance_align': 0.8129, 'rating_align': 0.0, 'decision_line_bonus': 0.0, 'audit_id_leak_penalty': 0.0, 'penalty': 0.0, 'total': 0.6058, 'es_coverage': 0.75, 'es_depth': 0.75, 'es_empirical': 0.75, 'es_independent': 0.75, 'es_flaw_density': 0.0, 'es_support_volume': 0.75, 'evidence_support_score': 0.6375}
+[review_reward][unknown][7Dub7UXTXN] reward=0.6724 breakdown={'decision': 0.0, 'section_presence': 1.0, 'length_score': 1.0, 'summary_align': 0.4776, 'strength_align': 0.3297, 'weakness_align': 0.1213, 'suggestion_align': 0.3333, 'global_align': 0.3222, 'critique': 0.5825, 'stance_align': 0.8889, 'rating_align': 0.0, 'decision_line_bonus': 0.0, 'audit_id_leak_penalty': 0.0, 'penalty': 0.0, 'total': 0.6724, 'es_coverage': 1.0, 'es_depth': 1.0, 'es_empirical': 1.0, 'es_independent': 1.0, 'es_flaw_density': 0.0, 'es_support_volume': 1.0, 'evidence_support_score': 0.85}
+{"paper_id": "ye3NrNrYOY", "mode": "s4", "reward": 0.7024295450367417, "final_decision": "accept", "model_adapter_mode": "small_model"}
+{"paper_id": "WNxlJJIEVj", "mode": "s4", "reward": 0.4927590507027151, "final_decision": "accept", "model_adapter_mode": "small_model"}
+{"paper_id": "uOrfve3prk", "mode": "s4", "reward": 0.6057585855169758, "final_decision": "reject", "model_adapter_mode": "small_model"}
+{"paper_id": "7Dub7UXTXN", "mode": "s4", "reward": 0.6724101161708903, "final_decision": "accept", "model_adapter_mode": "small_model"}
+[review_reward][unknown][9zEBK3E9bX] reward=0.6486 breakdown={'decision': 0.0, 'section_presence': 1.0, 'length_score': 1.0, 'summary_align': 0.6052, 'strength_align': 0.4553, 'weakness_align': 0.1205, 'suggestion_align': 0.2667, 'global_align': 0.3275, 'critique': 0.6383, 'stance_align': 0.9, 'rating_align': 0.0, 'decision_line_bonus': 0.0, 'audit_id_leak_penalty': 0.0, 'penalty': 0.0, 'total': 0.6486, 'es_coverage': 1.0, 'es_depth': 0.875, 'es_empirical': 0.75, 'es_independent': 0.75, 'es_flaw_density': 0.0, 'es_support_volume': 0.875, 'evidence_support_score': 0.75}
+[review_reward][unknown][XyB4VvF01X] reward=0.5798 breakdown={'decision': 0.0, 'section_presence': 1.0, 'length_score': 1.0, 'summary_align': 0.4759, 'strength_align': 0.3468, 'weakness_align': 0.1491, 'suggestion_align': 0.3333, 'global_align': 0.2421, 'critique': 1.0, 'stance_align': 0.6827, 'rating_align': 0.0, 'decision_line_bonus': 0.0, 'audit_id_leak_penalty': 0.0, 'penalty': 0.0, 'total': 0.5798, 'es_coverage': 0.6667, 'es_depth': 0.6667, 'es_empirical': 0.6667, 'es_independent': 0.6667, 'es_flaw_density': 0.0, 'es_support_volume': 0.6667, 'evidence_support_score': 0.5667}
+[review_reward][unknown][GE6iywJtsV] reward=0.4620 breakdown={'decision': 0.0, 'section_presence': 1.0, 'length_score': 1.0, 'summary_align': 0.2612, 'strength_align': 0.202, 'weakness_align': 0.1773, 'suggestion_align': 0.1333, 'global_align': 0.2376, 'critique': 0.3468, 'stance_align': 0.9784, 'rating_align': 0.0, 'decision_line_bonus': 0.0, 'audit_id_leak_penalty': 0.0, 'penalty': 0.0, 'total': 0.462, 'es_coverage': 0.5, 'es_depth': 0.5, 'es_empirical': 0.5, 'es_independent': 0.5, 'es_flaw_density': 0.0, 'es_support_volume': 0.5, 'evidence_support_score': 0.425}
+[review_reward][unknown][WpXq5n8yLb] reward=0.4544 breakdown={'decision': 0.0, 'section_presence': 1.0, 'length_score': 1.0, 'summary_align': 0.4006, 'strength_align': 0.2325, 'weakness_align': 0.1332, 'suggestion_align': 0.4, 'global_align': 0.2083, 'critique': 0.3571, 'stance_align': 0.7333, 'rating_align': 0.0, 'decision_line_bonus': 0.0, 'audit_id_leak_penalty': 0.0, 'penalty': 0.0, 'total': 0.4544, 'es_coverage': 0.5, 'es_depth': 0.5, 'es_empirical': 0.5, 'es_independent': 0.5, 'es_flaw_density': 0.0, 'es_support_volume': 0.5, 'evidence_support_score': 0.425}
+{"paper_id": "9zEBK3E9bX", "mode": "s4", "reward": 0.6486153415169776, "final_decision": "accept", "model_adapter_mode": "small_model"}
+{"paper_id": "XyB4VvF01X", "mode": "s4", "reward": 0.5797530446778951, "final_decision": "reject", "model_adapter_mode": "small_model"}
+{"paper_id": "GE6iywJtsV", "mode": "s4", "reward": 0.461954437638288, "final_decision": "reject", "model_adapter_mode": "small_model"}
+{"paper_id": "WpXq5n8yLb", "mode": "s4", "reward": 0.4544328882142766, "final_decision": "accept", "model_adapter_mode": "small_model"}
+{"paper_id": "NnExMNiTHw", "mode": "s4", "reward": 0.4976498827670438, "final_decision": "accept", "model_adapter_mode": "small_model"}
+{"paper_id": "a6SntIisgg", "mode": "s4", "reward": 0.5572926403648986, "final_decision": "accept", "model_adapter_mode": "small_model"}
+{"paper_id": "cklg91aPGk", "mode": "s4", "reward": 0.7059297285618624, "final_decision": "accept", "model_adapter_mode": "small_model"}
+{"paper_id": "HPuLU6q7xq", "mode": "s4", "reward": 0.5639230466352797, "final_decision": "accept", "model_adapter_mode": "small_model"}
+{"paper_id": "fGXyvmWpw6", "mode": "s4", "reward": 0.5415912076107101, "final_decision": "reject", "model_adapter_mode": "small_model"}
+{"paper_id": "QAgwFiIY4p", "mode": "s4", "reward": 0.6776036323245692, "final_decision": "accept", "model_adapter_mode": "small_model"}
+{"paper_id": "TPAj63ax4Y", "mode": "s4", "reward": 0.49344306317119463, "final_decision": "accept", "model_adapter_mode": "small_model"}
+{"paper_id": "mHv6wcBb0z", "mode": "s4", "reward": 0.44035542720214255, "final_decision": "accept", "model_adapter_mode": "small_model"}
+{"paper_id": "xUe1YqEgd6", "mode": "s4", "reward": 0.5554129364578091, "final_decision": "accept", "model_adapter_mode": "small_model"}
+{"paper_id": "YXn76HMetm", "mode": "s4", "reward": 0.6896641253409503, "final_decision": "accept", "model_adapter_mode": "small_model"}
+{"paper_id": "KOUAayk5Kx", "mode": "s4", "reward": 0.5754240385346288, "final_decision": "reject", "model_adapter_mode": "small_model"}
+{"paper_id": "XH3OiIhtvf", "mode": "s4", "reward": 0.6414189377063888, "final_decision": "accept", "model_adapter_mode": "small_model"}
