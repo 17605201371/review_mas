@@ -3162,6 +3162,290 @@ def _decision_primary_claim_ids(state: Dict[str, Any]) -> List[str]:
     return primary
 
 
+_CLAIM_REQ_EMPIRICAL_RE = re.compile(
+    r"\b(empirical|experiment|evaluation|benchmark|dataset|metric|performance|"
+    r"outperform|improv(?:e|es|ed|ement)|achiev(?:e|es|ed)|result|accuracy|f1|auc|"
+    r"generaliz(?:e|es|ed|ation)|robust|unseen|out-of-domain|ood)\b",
+    re.IGNORECASE,
+)
+_CLAIM_REQ_BASELINE_RE = re.compile(
+    r"\b(baseline|baselines|compare|comparison|compared|state-of-the-art|sota|against|"
+    r"outperform|surpass|better than|competitive)\b",
+    re.IGNORECASE,
+)
+_CLAIM_REQ_ABLATION_RE = re.compile(
+    r"\b(ablation|component analysis|module analysis|isolate(?:s|d)?|"
+    r"component contribution|module contribution|without (?:the )?\w+ module|remove(?:d|s)? (?:the )?\w+)\b",
+    re.IGNORECASE,
+)
+_CLAIM_REQ_SCOPE_RE = re.compile(
+    r"\b(generaliz(?:e|es|ed|ation)|robust|unseen|out-of-domain|ood|"
+    r"across|diverse|various|all\b|any\b|universal|broad|scal(?:e|es|able|ability))\b",
+    re.IGNORECASE,
+)
+_CLAIM_REQ_METHOD_RE = re.compile(
+    r"\b(method|approach|model|framework|algorithm|architecture|objective|"
+    r"training|optimization|loss|theorem|proof|assumption)\b",
+    re.IGNORECASE,
+)
+_CLAIM_REQ_REPRO_RE = re.compile(
+    r"\b(reproduc(?:e|ible|ibility)|implementation|code|hyperparameter|"
+    r"training detail|data split|compute setup|release)\b",
+    re.IGNORECASE,
+)
+_SUPPORT_BASELINE_RE = re.compile(
+    r"\b(baseline|baselines|compare|comparison|compared|state-of-the-art|sota|"
+    r"against|outperform|surpass|better than|competitive)\b",
+    re.IGNORECASE,
+)
+_SUPPORT_ABLATION_RE = re.compile(
+    r"\b(ablation|ablat(?:e|ed|ion|ions)|component analysis|module analysis|"
+    r"without (?:the )?\w+ module|remove(?:d|s)? (?:the )?\w+)\b",
+    re.IGNORECASE,
+)
+_SUPPORT_SCOPE_RE = re.compile(
+    r"\b(across|multiple|several|diverse|various|unseen|out-of-domain|ood|"
+    r"generaliz(?:e|es|ed|ation)|robustness|stress test|cross-domain|external)\b",
+    re.IGNORECASE,
+)
+_SUPPORT_REPRO_RE = re.compile(
+    r"\b(implementation details?|hyperparameters?|training details?|data splits?|"
+    r"compute setup|code|reproduc(?:e|ible|ibility)|release)\b",
+    re.IGNORECASE,
+)
+
+_REQUIREMENT_TO_NEGATIVE_TYPE = {
+    "empirical_result": "insufficient_evaluation",
+    "baseline_or_comparison": "missing_baseline",
+    "ablation_or_component": "missing_ablation",
+    "scope_coverage": "scope_overclaim",
+    "reproducibility_detail": "reproducibility_gap",
+    "method_detail": "method_support_gap",
+}
+
+_REQUIREMENT_LABELS = {
+    "empirical_result": "result/table/experiment evidence",
+    "baseline_or_comparison": "baseline or comparison evidence",
+    "ablation_or_component": "ablation or component-isolation evidence",
+    "scope_coverage": "scope or generalization coverage evidence",
+    "reproducibility_detail": "implementation/reproducibility detail",
+    "method_detail": "method or technical detail",
+}
+
+
+def _claim_requirement_text(claim: Dict[str, Any]) -> str:
+    return " ".join(
+        str(claim.get(key) or "")
+        for key in ("claim", "text", "claim_type", "evidence_need", "coverage_tags", "rationale")
+    )
+
+
+def _is_claim_requirement_auditable_claim(claim: Dict[str, Any], real_claim_ids: set[str]) -> bool:
+    """Return whether a claim should drive claim-requirement diagnostics.
+
+    Requirement gaps are user-visible diagnostic concerns, so they use a stricter
+    bar than generic support accounting. Context/fallback/salvage scaffold
+    claims can help prompt the agents, but their missing evidence should not be
+    rendered as paper-level claim-evidence gaps.
+    """
+    claim_id = str(claim.get("claim_id") or "")
+    if not claim_id or claim_id not in real_claim_ids:
+        return False
+    lowered = claim_id.lower()
+    if lowered.startswith(("claim-paper-context-", "claim-paper-fallback-", "claim-context-", "claim-fallback-")):
+        return False
+    if _claim_gap_should_be_not_assessable(claim):
+        return False
+    origin_kind = str(claim.get("claim_origin_kind") or "").strip().lower()
+    if origin_kind in {"context_synthesized", "raw_salvaged_claim_agent_output", "recovery_marker"}:
+        return False
+    return True
+
+
+def _claim_required_evidence_types(claim: Dict[str, Any]) -> List[str]:
+    """Infer what evidence a paper claim needs before it can be trusted.
+
+    This is the claim-centric hard-negative layer: it derives missing-evidence
+    opportunities from the claim itself, not from negative-sounding paper text.
+    The result is diagnostic and conservative; missing requirements are routed
+    to potential concerns / assessment limitations, never directly to grounded
+    weaknesses.
+    """
+    text = _claim_requirement_text(claim)
+    lowered_type = str(claim.get("claim_type") or "").strip().lower()
+    requirements: List[str] = []
+
+    def add(name: str) -> None:
+        if name not in requirements:
+            requirements.append(name)
+
+    if lowered_type in {"empirical", "comparison"} or _CLAIM_REQ_EMPIRICAL_RE.search(text):
+        add("empirical_result")
+    if _CLAIM_REQ_BASELINE_RE.search(text):
+        add("baseline_or_comparison")
+    if _CLAIM_REQ_ABLATION_RE.search(text):
+        add("ablation_or_component")
+    if _CLAIM_REQ_SCOPE_RE.search(text):
+        add("scope_coverage")
+    if _CLAIM_REQ_REPRO_RE.search(text):
+        add("reproducibility_detail")
+    if lowered_type == "method" or (_CLAIM_REQ_METHOD_RE.search(text) and not requirements):
+        add("method_detail")
+    if lowered_type == "contribution" and not requirements:
+        if re.search(r"\b(propose|introduce|present|framework|method|approach|model)\b", text, re.IGNORECASE):
+            add("method_detail")
+    return requirements[:4]
+
+
+def _is_claim_requirement_support_candidate(item: Dict[str, Any], real_claim_ids: set[str]) -> bool:
+    claim_id = str(item.get("claim_id") or "")
+    binding_status = str(item.get("binding_status") or "").strip()
+    return (
+        claim_id in real_claim_ids
+        and binding_status in {"", "unchecked", "bound_real_claim"}
+        and str(item.get("stance") or "") in {"supports", "partially_supports"}
+        and str(item.get("strength") or "") in {"strong", "medium"}
+        and _is_usable_support_grounding(item)
+    )
+
+
+def _claim_support_satisfies_requirement(item: Dict[str, Any], claim: Dict[str, Any], requirement: str) -> bool:
+    from .support_quality import derive_support_quality, evidence_section_bucket
+
+    section = evidence_section_bucket(item)
+    quality = derive_support_quality(item, claim)
+    combined = " ".join(
+        str(item.get(key) or "")
+        for key in ("evidence", "raw_quote", "source", "source_locator", "support_quality_reason", "binding_rationale")
+    )
+    if requirement == "empirical_result":
+        return section in {"result", "table_or_figure", "ablation"} and not quality.get("empirical_admission_block_reason")
+    if requirement == "baseline_or_comparison":
+        return bool(_SUPPORT_BASELINE_RE.search(combined)) and section in {"result", "table_or_figure", "ablation"}
+    if requirement == "ablation_or_component":
+        return section == "ablation" or bool(_SUPPORT_ABLATION_RE.search(combined))
+    if requirement == "scope_coverage":
+        return bool(_SUPPORT_SCOPE_RE.search(combined)) and section in {"result", "table_or_figure", "ablation", "method"}
+    if requirement == "reproducibility_detail":
+        return bool(_SUPPORT_REPRO_RE.search(combined))
+    if requirement == "method_detail":
+        return section in {"method", "theory_or_proof"}
+    return False
+
+
+def _claim_requirement_audit(state: Dict[str, Any]) -> Dict[str, Any]:
+    """Audit claim-level support gaps without fabricating negative quotes.
+
+    A missing requirement is a reviewer-diagnostic opportunity: the system found
+    no verified evidence of the required type for a real claim. It is not a
+    paper-grounded flaw by itself, because absence must be interpreted by a
+    human or a later targeted search.
+    """
+    real_claim_ids = _decision_real_claim_ids(state)
+    primary_ids = set(_decision_primary_claim_ids(state))
+    claims = [
+        claim for claim in state.get("claims", []) or []
+        if isinstance(claim, dict) and _is_claim_requirement_auditable_claim(claim, real_claim_ids)
+    ]
+    auditable_claim_ids = {str(claim.get("claim_id") or "") for claim in claims}
+    support_by_claim: Dict[str, List[Dict[str, Any]]] = {cid: [] for cid in real_claim_ids}
+    for item in state.get("evidence_map", []) or []:
+        if not isinstance(item, dict) or not _is_claim_requirement_support_candidate(item, real_claim_ids):
+            continue
+        if str(item.get("claim_id") or "") not in auditable_claim_ids:
+            continue
+        support_by_claim.setdefault(str(item.get("claim_id") or ""), []).append(item)
+
+    audits: List[Dict[str, Any]] = []
+    missing_type_counts: Counter[str] = Counter()
+    for idx, claim in enumerate(claims):
+        claim_id = str(claim.get("claim_id") or "")
+        requirements = _claim_required_evidence_types(claim)
+        if not requirements:
+            continue
+        support_items = support_by_claim.get(claim_id, [])
+        satisfied: List[str] = []
+        missing: List[str] = []
+        evidence_by_requirement: Dict[str, List[str]] = {}
+        for requirement in requirements:
+            matched = [
+                str(item.get("evidence_id") or "")
+                for item in support_items
+                if item.get("evidence_id") and _claim_support_satisfies_requirement(item, claim, requirement)
+            ]
+            if matched:
+                satisfied.append(requirement)
+                evidence_by_requirement[requirement] = matched[:4]
+            else:
+                missing.append(requirement)
+                missing_type_counts[_REQUIREMENT_TO_NEGATIVE_TYPE.get(requirement, requirement)] += 1
+        if not missing:
+            status = "satisfied"
+        elif satisfied:
+            status = "partial_gap"
+        else:
+            status = "unsupported_gap"
+        audits.append({
+            "claim_id": claim_id,
+            "claim": _normalize_text(claim.get("claim") or claim.get("text"), max_length=240),
+            "claim_type": str(claim.get("claim_type") or ""),
+            "importance": str(claim.get("importance") or ""),
+            "is_primary_claim": claim_id in primary_ids,
+            "required_evidence_types": requirements,
+            "satisfied_requirements": satisfied,
+            "missing_requirements": missing,
+            "missing_negative_types": [_REQUIREMENT_TO_NEGATIVE_TYPE.get(req, req) for req in missing],
+            "available_support_ids": [str(item.get("evidence_id") or "") for item in support_items if item.get("evidence_id")][:6],
+            "evidence_by_requirement": evidence_by_requirement,
+            "requirement_status": status,
+            "audit_basis": "claim_requirement_vs_verified_support",
+            "final_view_layer": "claim_evidence_gap" if missing else "satisfied",
+            "diagnostic_priority": (2 if claim_id in primary_ids else 0) + (1 if str(claim.get("importance") or "") == "high" else 0) + len(missing),
+        })
+
+    missing_claims = [item for item in audits if item.get("missing_requirements")]
+    missing_claims.sort(key=lambda item: int(item.get("diagnostic_priority") or 0), reverse=True)
+    return {
+        "claim_requirement_audit": audits,
+        "claim_requirement_gap_items": missing_claims,
+        "claim_requirement_missing_type_counts": dict(missing_type_counts),
+        "claim_requirement_missing_total": sum(len(item.get("missing_requirements") or []) for item in missing_claims),
+        "claims_with_requirement_gaps": len(missing_claims),
+        "primary_claims_with_requirement_gaps": sum(1 for item in missing_claims if item.get("is_primary_claim")),
+    }
+
+
+def _claim_requirement_gap_questions(requirement_audit: Dict[str, Any], max_items: int = 4) -> List[Dict[str, Any]]:
+    questions: List[Dict[str, Any]] = []
+    for item in requirement_audit.get("claim_requirement_gap_items", [])[:max_items]:
+        claim_id = str(item.get("claim_id") or "")
+        missing = [str(req) for req in item.get("missing_requirements") or []]
+        labels = [_REQUIREMENT_LABELS.get(req, req.replace("_", " ")) for req in missing]
+        claim_text = _normalize_text(item.get("claim"), max_length=140)
+        question = (
+            "Claim-evidence gap: "
+            f"claim {claim_id} still lacks verified {', '.join(labels)}"
+        )
+        if claim_text:
+            question += f" for '{claim_text}'."
+        else:
+            question += "."
+        questions.append({
+            "question_id": _slugify("question-claim-requirement", f"{claim_id}-{'-'.join(missing)}", len(questions) + 1),
+            "question": question,
+            "status": "open",
+            "related_claim_ids": [claim_id] if claim_id else [],
+            "target_type": "claim",
+            "target_classification": "claim_requirement_gap",
+            "hygiene_status_reason": "claim_requirement_missing_verified_support",
+            "final_diagnostic_visible": True,
+            "source": "claim_requirement_audit",
+            "missing_requirements": missing,
+            "missing_negative_types": item.get("missing_negative_types", []),
+        })
+    return questions
+
+
 def _decision_real_strong_support_quality(state: Dict[str, Any]) -> Dict[str, Any]:
     from .support_quality import derive_claim_support_summary, derive_support_quality, independence_group_id
 
@@ -4540,6 +4824,8 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
     _apply_claim_aware_negative_reclassification(view)
     context_support_diagnostics = _context_verified_support_diagnostics(view)
     support_counts = _decision_real_strong_support_counts(view)
+    requirement_audit = _claim_requirement_audit(view)
+    view["claim_requirement_audit"] = requirement_audit
     _r6_negative_burden_claim_ids = _negative_burden_claim_ids(view)
     claim_lookup_for_gaps = {
         str(item.get("claim_id") or ""): item
@@ -4611,7 +4897,9 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
     }
     classified_questions: List[Dict[str, Any]] = []
     claim_gap_pattern = re.compile(r"claim\s+([A-Za-z0-9_.:-]+)\s+lacks\s+grounded", re.I)
-    for question in view.get("unresolved_questions", []) or []:
+    unresolved_with_requirement_gaps = list(view.get("unresolved_questions", []) or [])
+    unresolved_with_requirement_gaps.extend(_claim_requirement_gap_questions(requirement_audit))
+    for question in unresolved_with_requirement_gaps:
         if not isinstance(question, dict):
             continue
         question_text = str(question.get("question", ""))
@@ -4795,6 +5083,12 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
     view["decision_hygiene"] = {
         "real_strong_support_total": sum(support_counts.values()),
         "real_strong_support_by_claim": support_counts,
+        "claim_requirement_missing_total": requirement_audit.get("claim_requirement_missing_total", 0),
+        "claims_with_requirement_gaps": requirement_audit.get("claims_with_requirement_gaps", 0),
+        "primary_claims_with_requirement_gaps": requirement_audit.get("primary_claims_with_requirement_gaps", 0),
+        "claim_requirement_missing_type_counts": requirement_audit.get("claim_requirement_missing_type_counts", {}),
+        "claim_requirement_gap_items": requirement_audit.get("claim_requirement_gap_items", [])[:8],
+        "claim_requirement_audit": requirement_audit.get("claim_requirement_audit", [])[:12],
         **context_support_diagnostics,
         **support_quality,
         "support_survival_trace": support_survival_trace,
@@ -5205,6 +5499,7 @@ def _update_state_summaries(state: Dict[str, Any]) -> Dict[str, Any]:
     updated["revision_summary"] = _build_revision_summary(updated.get("revision_log", []))
     updated["conflict_summary"] = _build_conflict_summary(updated.get("conflict_notes", []))
     updated["risk_profile"] = _build_risk_profile(updated)
+    updated["claim_requirement_audit"] = _claim_requirement_audit(updated)
     return updated
 
 
@@ -6730,6 +7025,9 @@ def infer_review_mode(explicit_mode: Optional[str], agent_ids: List[str], max_st
 
 
 def compact_review_state_for_prompt(state: Dict[str, Any]) -> Dict[str, Any]:
+    requirement_audit = state.get("claim_requirement_audit")
+    if not isinstance(requirement_audit, dict):
+        requirement_audit = _claim_requirement_audit(state)
     return {
         "turn_id": state.get("turn_id", 0),
         "mode": state.get("mode", "s4"),
@@ -6747,6 +7045,7 @@ def compact_review_state_for_prompt(state: Dict[str, Any]) -> Dict[str, Any]:
         "last_focus": state.get("last_focus", ""),
         "active_focus": state.get("active_focus", state.get("last_focus", "")),
         "claim_coverage": claim_coverage_summary(state),
+        "claim_requirement_gaps": requirement_audit.get("claim_requirement_gap_items", [])[:4],
         "claims": state.get("claims", [])[:5],
         "evidence_map": _compact_evidence_for_prompt(state.get("evidence_map", []), max_items=6),
         "flaw_candidates": state.get("flaw_candidates", [])[:5],
@@ -7252,6 +7551,26 @@ _NEG_QUOTE_FUTURE_DIRECTION_RE = re.compile(
     r"\b(?:in (?:the )?future work|as future work|future work)\b.*\b(?:can be|could be|may be|will be|to be|explored?|investigat\w*|left|plan to)\b",
     re.IGNORECASE,
 )
+# Forward-looking research plans ("we will / we plan to ... focus / investigate / explore ...")
+# are author intentions, not current paper-side weaknesses.
+_NEG_QUOTE_FUTURE_PLAN_RE = re.compile(
+    r"\b(?:we (?:will|plan to|intend to|aim to|would like to|hope to|leave)|in (?:the )?future|future work)\b"
+    r"[^.]*\b(?:focus|investigat\w*|explor\w*|extend|consider|study|address|improve|develop|pursue|examine|leave)\b",
+    re.IGNORECASE,
+)
+# First-person / paper-self reference: present in genuine review sentences, absent in
+# bare cited titles. Used to guard the citation-title heuristic below.
+_NEG_QUOTE_FIRST_PERSON_RE = re.compile(
+    r"\b(?:we|our|us|this paper|the paper|in this work|the authors?)\b",
+    re.IGNORECASE,
+)
+# Bare academic-title fragment of a CITED work (e.g. "X: Current limitations and
+# effective designs.") — colon-separated title shape ending in a period, containing a
+# title keyword, with no first-person and no genuine negative cue. Conservative.
+_NEG_QUOTE_CITATION_TITLE_RE = re.compile(
+    r":\s*[A-Z].*\b(?:limitations?|challenges?|drawbacks?|designs?|approaches?|perspectives?|survey|review|benchmark)\b.*\.\s*$",
+    re.IGNORECASE,
+)
 _NEG_QUOTE_POSITIVE_RE = re.compile(
     r"\b(?:strong performance|showcasing|highlights the strong|significant improvement|"
     r"improved? (?:a|the|from|to)|outperform\w*|achieves?|the goal of this work|"
@@ -7286,7 +7605,10 @@ def _is_low_quality_negative_quote(quote: str) -> bool:
         # A real negative cue is present -> keep, including genuine content that
         # immediately follows a "\section{Limitations}"-style header.
         return False
-    if _NEG_QUOTE_FUTURE_DIRECTION_RE.search(q):
+    if _NEG_QUOTE_FUTURE_DIRECTION_RE.search(q) or _NEG_QUOTE_FUTURE_PLAN_RE.search(q):
+        return True
+    # Bare cited-paper title containing a limitation-ish keyword (no first-person).
+    if not _NEG_QUOTE_FIRST_PERSON_RE.search(q) and _NEG_QUOTE_CITATION_TITLE_RE.search(q):
         return True
     if _NEG_QUOTE_SECTION_HEADER_RE.search(q) or _NEG_QUOTE_BARE_HEADER_RE.search(q):
         return True
@@ -7946,6 +8268,9 @@ def _render_manager_state_slice(state: Dict[str, Any]) -> Dict[str, Any]:
     negative_evidence = negative_binding["negative_evidence_candidates"]
     unlinked_negative_evidence = negative_binding["unlinked_negative_evidence_candidates"]
     claim_coverage = claim_coverage_summary(state)
+    requirement_audit = state.get("claim_requirement_audit")
+    if not isinstance(requirement_audit, dict):
+        requirement_audit = _claim_requirement_audit(state)
     recovery_hydration = _recovery_hydration_slice(state, max_targets=2)
     for _verbose_key in (
         "negative_evidence_type_counts",
@@ -7967,6 +8292,8 @@ def _render_manager_state_slice(state: Dict[str, Any]) -> Dict[str, Any]:
         "active_focus": state.get("active_focus", state.get("last_focus", "")),
         "risk_profile": copy.deepcopy(state.get("risk_profile", {})),
         "claim_coverage": claim_coverage,
+        "claim_requirement_gaps": requirement_audit.get("claim_requirement_gap_items", [])[:4],
+        "claim_requirement_missing_type_counts": requirement_audit.get("claim_requirement_missing_type_counts", {}),
         "open_unresolved_questions": open_unresolved[:5],
         "evidence_gaps": _open_evidence_gaps(state)[:5],
         "negative_evidence_candidates": negative_evidence[:4],
@@ -8196,6 +8523,14 @@ def _render_evidence_state_slice(state: Dict[str, Any], target_claim_ids: Option
         if item.get("claim_id") in real_claim_ids
     ]
     support_diversity_by_claim, independent_support_needs, quote_ids_to_avoid_by_claim, first_support_needs = support_diversity_for_claims(allowed_claim_ids)
+    requirement_audit = state.get("claim_requirement_audit")
+    if not isinstance(requirement_audit, dict):
+        requirement_audit = _claim_requirement_audit(state)
+    allowed_set = {str(item) for item in allowed_claim_ids if str(item)}
+    claim_requirement_gaps = [
+        item for item in requirement_audit.get("claim_requirement_gap_items", [])
+        if not allowed_set or str(item.get("claim_id") or "") in allowed_set
+    ][:4]
     return {
         "active_focus": state.get("active_focus", state.get("last_focus", "")),
         "action_type": action_type,
@@ -8218,6 +8553,12 @@ def _render_evidence_state_slice(state: Dict[str, Any], target_claim_ids: Option
         "support_diversity_by_claim": support_diversity_by_claim,
         "first_support_needs": first_support_needs,
         "independent_support_needs": independent_support_needs,
+        "claim_requirement_gaps": claim_requirement_gaps,
+        "claim_requirement_instruction": (
+            "For each claim_requirement_gap, search for the required evidence type "
+            "(empirical result, baseline/comparison, ablation, scope coverage, reproducibility, or method detail). "
+            "If the paper text contains no such verified quote, emit an unresolved question; do not invent a negative quote."
+        ),
         "quote_ids_to_avoid_by_claim": quote_ids_to_avoid_by_claim,
         "evidence_gaps": _open_evidence_gaps(state)[:5],
         "unresolved_questions": unresolved,
@@ -8288,6 +8629,14 @@ def _render_critique_state_slice(state: Dict[str, Any], target_claim_ids: Option
             strong_support_by_claim.setdefault(claim_id, []).append(str(item.get("evidence_id") or ""))
     target_evidence = _prioritize_critique_evidence(evidence, target_evidence_id_set)
     recovery_hydration = _recovery_hydration_slice(state)
+    requirement_audit = state.get("claim_requirement_audit")
+    if not isinstance(requirement_audit, dict):
+        requirement_audit = _claim_requirement_audit(state)
+    target_claim_set = {str(item) for item in (target_claim_ids or []) if str(item)}
+    claim_requirement_gaps = [
+        item for item in requirement_audit.get("claim_requirement_gap_items", [])
+        if not target_claim_set or str(item.get("claim_id") or "") in target_claim_set
+    ][:4]
     return {
         "active_focus": state.get("active_focus", state.get("last_focus", "")),
         "action_type": action_type,
@@ -8297,6 +8646,11 @@ def _render_critique_state_slice(state: Dict[str, Any], target_claim_ids: Option
         "unlinked_negative_evidence_candidates": unlinked_negative_evidence[:4],
         "negative_evidence_by_claim": {claim_id: ids[:4] for claim_id, ids in negative_evidence_by_claim.items()},
         "strong_support_by_claim": {claim_id: ids[:4] for claim_id, ids in strong_support_by_claim.items()},
+        "claim_requirement_gaps": claim_requirement_gaps,
+        "claim_requirement_gap_rule": (
+            "A claim_requirement_gap is a claim-evidence mismatch opportunity, not a grounded weakness. "
+            "Promote it to a flaw only if you can cite verified paper evidence or a precise missing-artifact rationale; otherwise keep it as assessment limitation."
+        ),
         "invalid_negative_grounding_conflicts": negative_binding["invalid_negative_grounding_conflicts"][:4],
         "recovery_hydration": recovery_hydration,
         "grounded_flaw_binding_rule": "If a flaw is based on negative_evidence_candidates, cite that id in both evidence_ids and negative_evidence_ids.",
@@ -8562,6 +8916,17 @@ def render_evidence_observation(task: Dict[str, Any], manager_payload: Optional[
             "# Independent Evidence Diversification\n"
             f"{json.dumps(independent_payload, ensure_ascii=False, indent=2)}\n\n"
         )
+    requirement_gap_block = ""
+    claim_requirement_gaps = evidence_slice.get("claim_requirement_gaps", []) or []
+    if claim_requirement_gaps:
+        requirement_payload = {
+            "claim_requirement_gaps": claim_requirement_gaps[:4],
+            "rule": evidence_slice.get("claim_requirement_instruction", ""),
+        }
+        requirement_gap_block = (
+            "# Claim Requirement Evidence Gaps\n"
+            f"{json.dumps(requirement_payload, ensure_ascii=False, indent=2)}\n\n"
+        )
     target_flaw_block = ""
     if evidence_slice.get("target_flaws"):
         target_flaw_payload = {
@@ -8593,6 +8958,7 @@ def render_evidence_observation(task: Dict[str, Any], manager_payload: Optional[
         f"# Evidence Action Context\n{json.dumps(action_payload, ensure_ascii=False, indent=2)}\n\n"
         f"{first_support_block}"
         f"{target_flaw_block}"
+        f"{requirement_gap_block}"
         f"{quote_bank_block}"
         f"{independent_support_block}"
         f"{open_check_block}"
@@ -9334,6 +9700,37 @@ def _render_verified_negative_concern_line(
     return "; ".join(parts)
 
 
+def _render_claim_requirement_gap_concerns(state: Dict[str, Any], max_items: int = 3) -> List[str]:
+    """Render claim-centric support gaps as diagnostic concerns.
+
+    These are not negative quote findings. They state that the current verified
+    support inventory does not satisfy a claim's expected evidence requirements.
+    """
+    audit = state.get("claim_requirement_audit")
+    if not isinstance(audit, dict):
+        audit = _claim_requirement_audit(state)
+    lines: List[str] = []
+    seen: set[str] = set()
+    for item in audit.get("claim_requirement_gap_items", [])[:max_items]:
+        claim_text = _normalize_text(item.get("claim"), max_length=160)
+        missing = [str(req) for req in item.get("missing_requirements") or []]
+        labels = [_REQUIREMENT_LABELS.get(req, req.replace("_", " ")) for req in missing]
+        if not labels:
+            continue
+        claim_prefix = f" for claim '{claim_text}'" if claim_text else ""
+        line = (
+            "[claim-evidence gap; not as a confirmed paper weakness] "
+            "The current verified support inventory lacks "
+            f"{', '.join(labels)}{claim_prefix}; treat this as a targeted follow-up."
+        )
+        key = line.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        lines.append(line)
+    return lines
+
+
 def _render_potential_concerns(state: Dict[str, Any]) -> List[str]:
     """Return active flaws that did not pass the grounded-weakness bar.
 
@@ -9811,6 +10208,9 @@ def _render_audit_trace_section(
         "primary_claim_support_coverage",
         "primary_claim_empirical_coverage",
         "support_concentration_index",
+        "claim_requirement_missing_total",
+        "claims_with_requirement_gaps",
+        "primary_claims_with_requirement_gaps",
         "support_only_flaw_filtered_count",
         "candidate_to_potential_concern_downgrade_count",
         "grounded_weakness_count",
@@ -9930,7 +10330,10 @@ def _build_review_diagnostic_parts(
             summary_text = _visible_summary
     strengths = _filter_report_visible_items(strengths)
     weaknesses = _filter_report_visible_items(weaknesses)
-    potential_concerns = _filter_report_visible_items(_render_potential_concerns(decision_state), max_items=3)
+    potential_concerns = _filter_report_visible_items(
+        _render_potential_concerns(decision_state) + _render_claim_requirement_gap_concerns(decision_state),
+        max_items=4,
+    )
 
     coverage_line = _render_support_coverage_summary(decision_hygiene)
     strength_items = list(strengths)

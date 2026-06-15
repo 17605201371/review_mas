@@ -31,6 +31,7 @@ from agent_system.environments.env_package.review.state import (
     _locator_from_text_anchor,
     _normalize_evidence_gaps,
     _render_evidence_context_with_meta,
+    build_decision_hygiene_view,
     build_turn_log,
     claim_coverage_summary,
     merge_review_state,
@@ -38,6 +39,7 @@ from agent_system.environments.env_package.review.state import (
     render_claim_observation,
     render_critique_observation,
     render_evidence_observation,
+    render_user_report,
     parse_turn_action,
     render_manager_observation,
 )
@@ -7079,6 +7081,192 @@ def test_evidence_worker_observation_exposes_negative_evidence_formation_mode():
     assert "Target Flaws" in observation
     assert "flaw-1" in observation
 
+
+def test_evidence_worker_observation_exposes_claim_requirement_gaps():
+    task = {
+        "paper_id": "paper-claim-requirement-observation",
+        "mode": "s4",
+        "paper_text": (
+            "--- BEGIN PAPER ---\n"
+            "\\section{3 Method} The method uses a reranking module trained with a contrastive objective.\n"
+            "\\section{4 Experiments} We report preliminary benchmark results.\n"
+            "--- END PAPER ---"
+        ),
+        "data_source": "unit-test",
+        "max_turns": 4,
+        "user_goal": "Audit claim requirement gaps.",
+        "review_state": {
+            "turn_id": 1,
+            "claims": [
+                {
+                    "claim_id": "claim-1",
+                    "claim": "The method outperforms strong baselines and generalizes across diverse datasets.",
+                    "claim_type": "empirical",
+                    "importance": "high",
+                    "claim_kind": "paper_extracted",
+                    "status": "supported",
+                }
+            ],
+            "evidence_map": [
+                {
+                    "evidence_id": "e-method-1",
+                    "claim_id": "claim-1",
+                    "evidence": "The method uses a reranking module.",
+                    "source_locator": "Section 3",
+                    "raw_quote": "The method uses a reranking module trained with a contrastive objective.",
+                    "stance": "supports",
+                    "strength": "medium",
+                    "binding_status": "bound_real_claim",
+                    "verified_grounding_label": "paper_grounded_exact",
+                    "semantic_grounding_label": "semantic_support_verified",
+                    "support_source_bucket": "method_or_approach",
+                }
+            ],
+            "flaw_candidates": [],
+            "unresolved_questions": [],
+            "evidence_gaps": [],
+        },
+    }
+    manager_payload = {
+        "action_type": "verify_evidence",
+        "target_claim_ids": ["claim-1"],
+    }
+
+    observation = build_worker_observation(task, manager_payload, "Evidence Agent")
+
+    assert "Claim Requirement Evidence Gaps" in observation
+    assert "empirical_result" in observation
+    assert "baseline_or_comparison" in observation
+    assert "scope_coverage" in observation
+
+
+def test_claim_requirement_audit_flags_empirical_gap_without_negative_quote():
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The method outperforms strong baselines and generalizes across diverse datasets.",
+                "claim_type": "empirical",
+                "importance": "high",
+                "claim_kind": "paper_extracted",
+                "status": "supported",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "e-method-1",
+                "claim_id": "claim-1",
+                "evidence": "The method uses a reranking module.",
+                "source": "Method",
+                "source_locator": "Section 3",
+                "raw_quote": "The method uses a reranking module trained with a contrastive objective.",
+                "stance": "supports",
+                "strength": "medium",
+                "binding_status": "bound_real_claim",
+                "verified_grounding_label": "paper_grounded_exact",
+                "verified_source_span_start": 10,
+                "verified_source_span_end": 88,
+                "verified_quote_match_type": "exact",
+                "semantic_grounding_label": "semantic_support_verified",
+                "support_source_bucket": "method_or_approach",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    view = build_decision_hygiene_view(state)
+    hygiene = view["decision_hygiene"]
+
+    assert hygiene["claims_with_requirement_gaps"] == 1
+    assert hygiene["claim_requirement_missing_type_counts"]["insufficient_evaluation"] >= 1
+    assert hygiene["claim_requirement_missing_type_counts"]["missing_baseline"] >= 1
+    assert hygiene["claim_requirement_missing_type_counts"]["scope_overclaim"] >= 1
+    report = render_user_report(state, {})
+    assert "claim-evidence gap" in report
+    assert "not as a confirmed paper weakness" in report
+
+
+def test_claim_requirement_audit_accepts_verified_empirical_baseline_support():
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The method outperforms BM25 baselines on retrieval benchmarks.",
+                "claim_type": "empirical",
+                "importance": "high",
+                "claim_kind": "paper_extracted",
+                "status": "supported",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "e-table-1",
+                "claim_id": "claim-1",
+                "evidence": "Table 1 shows the method outperforms BM25 baselines on retrieval benchmarks.",
+                "source": "Table 1",
+                "source_locator": "Table 1",
+                "raw_quote": "Table 1: The method outperforms BM25 baselines on retrieval benchmarks.",
+                "stance": "supports",
+                "strength": "strong",
+                "binding_status": "bound_real_claim",
+                "verified_grounding_label": "paper_grounded_exact",
+                "verified_source_span_start": 10,
+                "verified_source_span_end": 88,
+                "verified_quote_match_type": "exact",
+                "semantic_grounding_label": "semantic_support_verified",
+                "support_source_bucket": "table_or_figure",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    view = build_decision_hygiene_view(state)
+    hygiene = view["decision_hygiene"]
+
+    assert hygiene["claim_requirement_missing_total"] == 0
+    assert hygiene["claims_with_requirement_gaps"] == 0
+
+
+def test_claim_requirement_audit_ignores_context_and_fallback_claims():
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-paper-context-1",
+                "claim": "Table 4 compares the method with benchmarks.",
+                "claim_type": "empirical",
+                "importance": "high",
+                "claim_kind": "paper_extracted",
+                "status": "supported",
+            },
+            {
+                "claim_id": "claim-paper-fallback-1",
+                "claim": "The method outperforms baselines.",
+                "claim_type": "empirical",
+                "importance": "high",
+                "claim_kind": "paper_extracted",
+                "status": "supported",
+            },
+        ],
+        "evidence_map": [],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    view = build_decision_hygiene_view(state)
+    hygiene = view["decision_hygiene"]
+
+    assert hygiene["claim_requirement_missing_total"] == 0
+    assert hygiene["claims_with_requirement_gaps"] == 0
+
+
 def test_recovery_negative_evidence_requires_semantic_verified_label():
     base = {
         "evidence_id": "e-neg-1",
@@ -8174,6 +8362,10 @@ def test_negative_quote_hygiene_drops_noise_keeps_genuine(monkeypatch):
         "2, 8 Jiong Zhu, Yujun Yan, Lingxiao Zhao, Mark Heimann, Leman Akoglu, and Danai Koutra. Beyond homophily in graph neural networks.",
         r"\section{5 DISSECTING THE LIMITATIONS OF GNNS IN GCL }",
         "In the future work, a more effective way to store all gradient vectors can be explored to improve the supernet.",
+        # P0.1 residual leaks now covered:
+        "Beyond homophily in graph neural networks: Current limitations and effective designs.",  # bare cited title
+        "In future work, we will focus on the storage and computational issues.",  # future-plan ("we will focus")
+        "We plan to investigate stronger baselines in future work.",
     ]
     for q in noise:
         assert S._is_low_quality_negative_quote(q) is True, q
@@ -8184,6 +8376,9 @@ def test_negative_quote_hygiene_drops_noise_keeps_genuine(monkeypatch):
         "Worse yet, we found increased data heterogeneity among clients when training with distilled local data.",
         "The second approach has limitations when adapting to federated virtual learning because it cannot align gradients.",
         r"\section{Limitations} Our method does not scale to large graphs and fails on dense inputs.",
+        # genuine negative that also mentions future work must still be kept (genuine cue wins):
+        "We leave a deeper analysis to future work, but the method fails when the graph is dense.",
+        "However, challenges such as noise and label bias still pose limitations on the performance of DA methods.",
     ]
     for q in genuine:
         assert S._is_low_quality_negative_quote(q) is False, q

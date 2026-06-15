@@ -1,3 +1,24 @@
+## 2026-06-15 - P0.2 多种子验证(default×3 vs qhyg×3, 共同16篇)：option B 是稳健清洁层，recovery"退化"在方差内
+
+- 跑批：default×3 全 20/20；qhyg×3(003753=20/20, 000748=16/20, 005656=16/20 后两次断在16)。为公平裁到**共同 16 篇**再比，各 3 seed。
+- **稳健效应(各 seed 不重叠, 可归因 option B)**：
+  - noise: default {5,5,5} → qhyg {0,0,0}；noise_rate 41% → **0%**。
+  - scope_limitation: {16,16,18} → {1,3,6}（min default 16 > max qhyg 6，完全分离）。
+  - state_contamination: default {1,0,3}(2/3 有污染!) → qhyg {0,0,0}。option B **反而更干净**。
+  - 真负向(grounded−noise) 基本保留 ~7.3→7.7；real_strong 71.7→77。
+- **在方差内(不可归因)**：actionable 8.67→6.67、potential 8.67→6.67、effective_repair 6.67→5.33、mark_contested 6.67→5.33——但 default effrep 区间[4,9]、qhyg[3,7] 重叠严重，3 seed 下这点差异**说不清是 option B 还是采样**。不能说 option B 伤了 recovery。
+- **一个 flag**：no_effect_commit default {0,0,0} vs qhyg {1,0,0}，出在完整的 003753(非截断)。N=3 证据弱，但值得 case 查；同时 default 自己有 contamination，两边各有瑕疵。
+- **结论**：option B = **确认的稳健清洁层**（噪声/污染/scope_limitation 三项稳健改善 + 真负向保留），可作为 negative-quote-quality 层采纳。所谓 recovery/actionable 退化在 seed 方差内、非稳健下降。严格 P0.2 的"−1 容差"门在这种单位数高方差指标+3seed 上**不具判别力**。**真正问题(类型覆盖 missing_ablation/insufficient_evaluation 等仍≈0)option B 没碰**，是 P1 的事。
+- **方法论收获**：系统 recovery/actionable 单次方差极大(effrep 4–9)，任何机制结论必须 ≥3 seed 且看"区间是否分离"，不能只看 mean。
+- 临时审计脚本 `audit_one.py`/`multiseed_audit.py` 落在根目录(沙盒删不掉)，可手动 rm。
+
+## 2026-06-14 - P0.1 完成：补 qhyg 两处残留噪声正则（fresh run 可达 7→0）+ 纲领文件
+
+- **纲领文件 `PAPER_GOAL_AND_ROADMAP.md` 已建**：论文 4 关键词（structured/evidence-grounded/auditable/recoverable）+ 8 系统目标及状态 + 9 不足 + P0–P4 路线图。主线定为 **quote-quality-first + type-targeted negative discovery**。新确定性结论：缺失类型(missing_ablation/insufficient_evaluation/reproducibility_gap/result_claim_mismatch=0)是 **discovery/retrieval 问题不是分类问题**（扫两 run 全部负向，"内容像缺失类型却被分错类"≈0）。
+- **P0.1 代码改动**（`state.py`）：给 `_is_low_quality_negative_quote` 补两条正则——`_NEG_QUOTE_FUTURE_PLAN_RE`（"we will/plan to/intend to … focus/investigate/explore …"）和 `_NEG_QUOTE_CITATION_TITLE_RE`（裸引用标题：colon-title + limitation 关键词 + 无第一人称守卫 `_NEG_QUOTE_FIRST_PERSON_RE`）。判定顺序：citation → genuine-neg(keep) → future(dir/plan) → citation-title(非第一人称) → header → positive。
+- **验证**：复验 qhyg run 12 条 grounded 负向，新 filter 正确标出原先漏网的 2 条（裸引用标题 + "In future work, we will focus…"）且**不误杀真负向**（含 "we leave … to future work, but … fails" 被 genuine-neg 短路保住）→ fresh run 可达 7→0。单测：默认 289 / 三开关全开 289 / hygiene 单测 2 passed（新增 3 个噪声 + 2 个 keep 案例）。
+- **下一步 P0.2（需 Mac）**：`default × 3` vs `qhyg × 3` 多次跑，出 dashboard + noise audit，确认 qhyg 减噪稳定且 recovery 不退化（noise_rate≤20%，effective_repair/mark_contested/actionable/potential ≥ default 均值−1）。然后 P1：先做 context-coverage 诊断再决定改 prompt 还是 section selection。
+
 ## 2026-06-14 - hardneg20 option B(quote 卫生) 结果：第一个干净正向，噪声 7→2
 
 - **qhyg run 跑完** (`...qhyg...20260614_111529`, 20/20, 0 报错, neg_quote_hygiene=1, discovery/reclassify 都关)。Protection PASS, avg reward 0.5779, decision 15/5。
@@ -2668,3 +2689,9 @@ zero-real 且 step<turn_cap 时改写本轮为 verify_evidence + Evidence Agent�
 全套 382 passed（R1+R3+R4+R5+R6+R7 各项单测 + R2 纯函数单测）。六项离线任务全部离线验证通过且不破坏
 冻结基线；R2 代码安全无害但实战待调。spec 主体（P0 R1 + 全部 P1/P2）已收口。
 ## ============================================================
+
+## 2026-06-15 Claim-centric hard-negative 修正
+- 明确修正负向证据路线：不再把 hard-negative discovery 主要理解为“在论文中搜索负向关键词 quote”。保留 qhyg/negative quote bank 作为噪声过滤和直接负向锚点，但真正的漏洞诊断转为 claim-centric：先判断每个真实 claim 需要哪些证据，再检查当前 verified support 是否覆盖 empirical result、baseline/comparison、ablation/component、scope coverage、reproducibility detail、method detail。
+- 在 `state.py` 新增 claim requirement audit，输出 `claim_requirement_audit`、`claim_requirement_gap_items`、`claim_requirement_missing_type_counts`、`claim_requirement_missing_total`、`claims_with_requirement_gaps`、`primary_claims_with_requirement_gaps`。这些 gap 是 claim-evidence mismatch / targeted follow-up，不会直接变成 grounded weakness。
+- final-view 和 prompt state slice 已接入这些 gap：Evidence/Critique/Manager 都能看到 claim 缺什么证据；用户报告会把它们展示为 `[claim-evidence gap]` potential concern，并明确不是 confirmed paper weakness。
+- 已做函数级验证：方法证据不能满足“outperforms baselines and generalizes”这类 empirical/baseline/scope claim；verified Table baseline support 不会误报 gap；Evidence Agent observation 中能看到 `Claim Requirement Evidence Gaps` 和对应 required evidence types。系统 Python 缺 pytest，暂未跑 pytest suite。
