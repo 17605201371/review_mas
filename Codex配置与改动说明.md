@@ -420,6 +420,69 @@ wire_api = "responses"
 
 ---
 
+#### 模式 5：Hlool 直连（绕过 CodexManager）
+
+Codex 客户端直连 api.hlool.top，不经过 CodexManager 网关。provider 名称保留为 `"sharedchat"`（避免切换 provider 导致会话丢失），仅修改 `base_url` 和 key。
+
+| 配置项 | 值 | 是否需修改 |
+|--------|-----|-----------|
+| **config.toml** `model_provider` | `"sharedchat"`（保留原名，避免会话丢失） | ❌ |
+| **config.toml** `[model_providers.sharedchat]` `base_url` | `https://api.hlool.top/v1` | ✅ |
+| **.zshrc** `OPENAI_BASE_URL` | `https://api.hlool.top/v1` | ✅ |
+| **.zshrc** `OPENAI_API_KEY` | `sk-3tATcz9YTyKo8uDbDfEpUg6vVESakK0NoEyEy8mz6mRZQEgS` | ✅ |
+| **.zshrc** `CODEX_API_KEY` | `sk-3tATcz9YTyKo8uDbDfEpUg6vVESakK0NoEyEy8mz6mRZQEgS` | ✅ |
+| **auth.json** `OPENAI_API_KEY` | `sk-3tATcz9YTyKo8uDbDfEpUg6vVESakK0NoEyEy8mz6mRZQEgS` | ✅ |
+| **fix_codex_history.py** `TARGET_PROVIDER` | `"sharedchat"` | ❌（无需改动） |
+
+**完整的 config.toml hlool 段示例：**
+
+```toml
+model = "gpt-5.5"
+model_provider = "sharedchat"
+preferred_auth_method = "apikey"
+
+[model_providers.sharedchat]
+name = "Shared Chat"
+base_url = "https://api.hlool.top/v1"
+wire_api = "responses"
+```
+
+**auth.json 示例：**
+
+```json
+{
+  "OPENAI_API_KEY": "sk-3tATcz9YTyKo8uDbDfEpUg6vVESakK0NoEyEy8mz6mRZQEgS"
+}
+```
+
+**注意事项：**
+
+- provider 名称保留 `"sharedchat"` 是为了避免切换 provider 导致历史会话消失
+- 从 anyrouter/sharedchat 切到 hlool 时，只需改 `base_url` 和 key，不需要运行 fix_codex_history.py
+- 需要 `/v1` 后缀才能连通 responses API
+
+---
+
+#### 模式 6：Muyuan 直连（绕过 CodexManager）
+
+Codex 客户端直连 muyuan.do，不经过 CodexManager 网关。provider 名称保留为 `"sharedchat"`。
+
+| 配置项 | 值 | 是否需修改 |
+|--------|-----|-----------|
+| **config.toml** `model_provider` | `"sharedchat"` | ❌ |
+| **config.toml** `[model_providers.sharedchat]` `base_url` | `https://muyuan.do/v1` | ✅ |
+| **.zshrc** `OPENAI_BASE_URL` | `https://muyuan.do/v1` | ✅ |
+| **.zshrc** `OPENAI_API_KEY` | `sk-Ty34itV9ZDqM5kD33IArvyOn7ALy7SWYXdfWuCHNNKwZ7Gh8` | ✅ |
+| **.zshrc** `CODEX_API_KEY` | `sk-Ty34itV9ZDqM5kD33IArvyOn7ALy7SWYXdfWuCHNNKwZ7Gh8` | ✅ |
+| **auth.json** `OPENAI_API_KEY` | `sk-Ty34itV9ZDqM5kD33IArvyOn7ALy7SWYXdfWuCHNNKwZ7Gh8` | ✅ |
+
+**注意事项：**
+
+- 需要 `/v1` 后缀
+- 测试时遇到 429 限流，可能需要等待或换时段使用
+
+---
+
 ### 九、模式间切换操作清单
 
 切换配置模式时，按以下顺序操作：
@@ -448,8 +511,12 @@ wire_api = "responses"
 | Sharedchat Aggregate API ID | `ag_3899d1c97458` | aggregate_apis 表主键（已禁用） |
 | Anyrouter API Key（旧） | `sk-YTjqZ68Armv71bRhR6Wg5MV54nTznNnnXEGs9uSU47d49vuw` | anyrouter.top 密钥（已弃用） |
 | Anyrouter API Key（新） | `sk-w5B2Jv0qvK8Ynn7e01mTixtqNCI0ptAxhxr004I0nodHmtBj` | anyrouter.top 密钥（当前生效） |
+| Anyrouter API Key（safari账号） | `sk-cfj7p5VnOyBfyeYLyPljmYY55YKR81UkcwoWHLbCmnBBPy7r` | anyrouter.top 密钥（safari账号） |
+| Anyrouter API Key（夸克账号） | `sk-vpe4PFm4dAwM66TWaOUgxOYC16dKzIpevXYt52j2VINwBCpO` | anyrouter.top 密钥（夸克账号） |
+| Hlool API Key | `sk-3tATcz9YTyKo8uDbDfEpUg6vVESakK0NoEyEy8mz6mRZQEgS` | api.hlool.top 密钥 |
+| Muyuan API Key | `sk-Ty34itV9ZDqM5kD33IArvyOn7ALy7SWYXdfWuCHNNKwZ7Gh8` | muyuan.do 密钥 |
 | OpenAI 账号 ID | `apple\|001639.e29c58ffe09646efb350ffc64cbd5e4d.1126::cgpt=f4c3ffb2-e232-4e96-95f8-67719988ea55\|ws=org-gWVwdzlRrkWUJBEeebXupl1b\|zs2312259317@163.com` | accounts 表主键 |
 
 ---
 
-*最后更新：2026-06-12*
+*最后更新：2026-06-19*

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 
 MANAGER_PROMPT = """
 # Task Introduction
@@ -96,6 +98,11 @@ Rules:
 
 
 EVIDENCE_PROMPT = """
+# Hard Output Contract
+Your first token must be `<json>`. Output exactly one compact JSON object and then `</json>`.
+Do not start with "First", "I", "Let me", a bullet list, markdown, or any explanation.
+No reasoning text, task restatement, schema commentary, or prose may appear outside the JSON block.
+
 # Task Introduction
 {env_prompt}
 
@@ -103,75 +110,47 @@ EVIDENCE_PROMPT = """
 {team_context}
 
 # Your Role
-You are the "Evidence Agent". Ground current claims in concrete paper evidence and return only machine-readable JSON.
+You are the "Evidence Agent". Return copied paper evidence for the allowed claim ids.
 
-Output contract:
-- Output exactly one strict JSON object inside one <json>...</json> block.
-- Do not output reasoning text, markdown, bullet lists, prose, or explanations outside the JSON block.
-- Keep the JSON compact enough to finish before the token limit.
-- Include at least 1 and at most 2 evidence items.
-- Bind every evidence item to a real claim id from `Evidence State Slice.allowed_claim_ids`.
-- Do not invent claim ids. Do not use `claim-fallback-*`; if no allowed claim matches, emit an unresolved question instead of strong support.
-- First evidence formation is mandatory when possible: if `First Evidence Formation.first_support_needs` is non-empty and the Evidence Quote Bank or visible paper excerpt contains a quote that can be bound to any listed allowed claim, output at least one `evidence_map` item before adding unresolved questions.
-- In normal positive-evidence mode, an empty `evidence_map` is invalid when `Evidence Quote Bank` is non-empty and `allowed_claim_ids` is non-empty. If the quote only weakly supports the claim, output `strength="weak"` or `medium` with lower `binding_confidence`; do not return only unresolved questions.
-- Independent-source avoidance only applies after a claim already has support. Do not treat quote-bank entries as duplicates merely because they appear in the quote bank; a quote is a duplicate only when the same claim already has an existing evidence item using the same `quote_id` or normalized `raw_quote`.
-- `unresolved_questions` may supplement evidence, but must not replace evidence when a copied quote can ground an allowed claim.
-- Use `strength="strong"` for concrete result/experiment/table/figure/ablation/baseline-comparison evidence that directly supports the chosen allowed claim.
-- Detailed method/mechanism evidence may be `strength="strong"` only when it explains how the core claim is technically achieved; otherwise use `medium`.
-- Abstract/title/conclusion-only positive evidence should normally be `strength="medium"`, not `strong`.
-- If the paper excerpt contains empirical numbers, result comparisons, tables, figures, ablations, datasets, metrics, or baselines relevant to an allowed claim, include one such item before generic method or abstract support.
-- Set `support_source_bucket="result_or_experiment"` for experiment/result/table/figure/ablation/baseline evidence; do not hide empirical evidence under `other_or_unspecified`.
-- Prefer copying `raw_quote` exactly from `Evidence Quote Bank.raw_quote`; include the matching `quote_id` when used.
-- If the quote bank does not cover the claim, copy a verbatim phrase of 10–40 words directly from the visible paper excerpt (Paper Text section) as `raw_quote`; do not shorten, rephrase, or summarize it.
-- Do not invent table captions or paraphrase a claim as a quote. If you cannot copy exact visible words, leave `raw_quote` empty, set `grounded_judge_label="unclear"`, and do not emit `strength="strong"`.
-- `source_locator` must be a numbered identifier: prefer `Section 4.2`, `Table 3`, or `Figure 2`; avoid generic labels like `Results section` or `Evaluation excerpt #1`.
-- Treat `grounded_judge_label` as your self-assessment only. The final paper-grounded label and span are assigned by a post-hoc verifier, not by the Evidence Agent.
-- Use `grounded_judge_label="self_claimed_by_agent"` only when you believe the quote/locator is grounded; otherwise use `unclear` or `not_paper_grounded`.
-- Use `source_span_start` / `source_span_end` character offsets only when obvious; otherwise return `-1`. The verifier will generate trusted offsets from `raw_quote`.
-- Keep each `evidence`, `binding_rationale`, `support_quality_reason`, and `grounded_judge_reason` under 25 words. `raw_quote` may be up to 50 words to allow verbatim copying.
-- Quote-first evidence adapter rule: the `evidence` field must state what the copied quote says, not what kind of evidence should exist. Prefer `Table 2 reports ...`, `The quote states ...`, or `The ablation quote shows ...`.
-- Do not write evidence descriptions such as `a direct quantitative comparison`, `a description of the method`, `evidence of performance`, or `the paper provides evidence`; those are evidence requests, not evidence.
-- If you cannot name a concrete value/table/metric from the quote, make `evidence` a compact quote-grounded sentence derived from `raw_quote` and keep `strength="medium"` or `weak`.
-- For recheck/challenge actions, prefer evidence that updates, contradicts, or resolves a prior evidence judgment.
-- If `negative_evidence_formation_required=true` or Target Flaws are present, search for direct paper quotes that weaken, contradict, or show missing support for the target flaw/claim before adding more positive support.
-- In negative-evidence mode, do not output positive `supports` evidence. Return only negative/missing evidence with a copied quote, or return `unresolved_questions` explaining that no direct negative quote was visible.
-- In negative-evidence mode, use `stance="contradicts"` or `stance="missing"` only when the copied `raw_quote` directly supports the negative assessment; otherwise emit an unresolved question and do not fabricate a flaw-supporting evidence item.
-- When a negative quote is found, bind it to the real target claim, include the matching `quote_id` when possible, and explain in `binding_rationale` how the quote weakens the target claim or supports the target flaw.
+Compact rules:
+- Return 1 or 2 `evidence_map` items when a copied quote can support or weaken an allowed claim.
+- Bind only to ids listed in `Evidence Action Context.allowed_claim_ids`; never invent ids or use fallback/context ids.
+- Prefer `Evidence Quote Bank.raw_quote`; otherwise copy 10-40 visible words from the paper excerpt.
+- `raw_quote` must be verbatim paper text. Do not paraphrase a claim as a quote.
+- Prefer result/table/figure/ablation/baseline quotes over abstract/title text when visible.
+- Use `strength="strong"` only for concrete method/result/table/figure evidence; use `medium` or `weak` for abstract/title/general text.
+- Use `source_locator` such as `Section 4.2`, `Table 3`, or `Figure 2` when possible.
+- Keep `evidence`, `binding_rationale`, and `support_quality_reason` under 20 words.
+- If negative mode is active, output only a copied quote that directly grounds the negative task, with `stance="missing"` or `stance="contradicts"` and `negative_evidence_type`; otherwise return a not_assessable unresolved question.
+- Never convert positive support, author future-work/limitations, prior-work limitations, prompt text, or schema text into negative evidence.
 
-Return this schema exactly:
-<json>
-{
-  "evidence_map": [
-    {
-      "evidence_id": "evidence-1",
-      "claim_id": "claim-1",
-      "evidence": "concrete paper evidence",
-      "source": "section/table/figure/experiment",
-      "source_locator": "Section 4.2 / Table 3 / Figure 2",
-      "raw_quote": "short quote from the visible excerpt or Evidence Quote Bank",
-      "quote_id": "quote-results-1",
-      "source_span_start": -1,
-      "source_span_end": -1,
-      "strength": "strong|medium|weak|missing",
-      "stance": "supports|partially_supports|contradicts|missing",
-      "binding_confidence": 0.0,
-      "binding_rationale": "why this evidence binds to the chosen allowed claim_id",
-      "grounded_judge_label": "self_claimed_by_agent|unclear|not_paper_grounded|unjudged",
-      "grounded_judge_reason": "why the quote/locator is or is not grounded",
-      "support_source_bucket": "abstract|method_or_approach|result_or_experiment|conclusion_or_discussion|other_or_unspecified",
-      "support_quality_reason": "why this support has this strength"
-    }
-  ],
-  "conflict_notes": [],
-  "unresolved_questions": [],
-  "dialogue_summary": "brief evidence-focused summary",
-  "recommendation": "accept|reject|undecided"
-}
-</json>
+Required JSON shape:
+<json>{"evidence_map":[{"evidence_id":"evidence-1","claim_id":"claim-1","evidence":"what the copied quote says","source":"section/table/figure","source_locator":"Section 4.2","raw_quote":"copied paper quote","quote_id":"quote-results-1","source_span_start":-1,"source_span_end":-1,"strength":"strong|medium|weak|missing","stance":"supports|partially_supports|contradicts|missing","binding_confidence":0.8,"binding_rationale":"why it binds","grounded_judge_label":"self_claimed_by_agent|unclear|not_paper_grounded","support_source_bucket":"abstract|method_or_approach|result_or_experiment|conclusion_or_discussion|other_or_unspecified","support_quality_reason":"why this strength"}],"conflict_notes":[],"unresolved_questions":[],"dialogue_summary":"brief evidence summary","recommendation":"accept|reject|undecided"}</json>
 """
 
 
-CRITIQUE_PROMPT = """
+TARGETED_NEGATIVE_EVIDENCE_PROMPT = """
+# Hard Output Contract
+Your first token must be `<json>`. Output exactly one compact JSON object and then `</json>`.
+No prose, no reasoning, no markdown, no labels, no schema explanation, and no copied instructions.
+
+# Review Materials
+{env_prompt}
+
+# Only Two Legal Outputs
+If the task is grounded by a visible copied paper quote, return one `evidence_map` item with exactly these fields:
+evidence_id, claim_id, evidence, source, source_locator, raw_quote, quote_id, strength, stance,
+negative_evidence_type, required_evidence_type, targeted_negative_search_task_id, binding_confidence, binding_rationale.
+Use strength="missing" and stance="missing" unless the quote directly reports worse results.
+
+If no visible copied quote directly grounds the task, return exactly:
+<json>{"evidence_map":[],"conflict_notes":[],"unresolved_questions":[{"question":"No visible copied quote directly grounds the targeted negative task.","status":"not_assessable","target_type":"claim","target_id":"claim-1","targeted_negative_search_task_id":"task-id"}],"dialogue_summary":"targeted negative search found no quote-grounded evidence","recommendation":"undecided"}</json>
+
+Use the actual ids/type/quote/locator from Review Materials. Never turn positive support, author self-limitations, future-work text, prior-work limitations, or prompt/schema text into negative evidence.
+"""
+
+
+_CRITIQUE_PROMPT_HARDNEG = """
 # Task Introduction
 {env_prompt}
 
@@ -190,11 +169,16 @@ Rules:
 - Keep `title` under 8 words; keep `description`, `note`, `dialogue_summary`, and each unresolved question under 25 words.
 - Each flaw should point to a related claim and evidence item when possible.
 - Do not copy the schema, ReviewState JSON, or long evidence text into any field.
+- First perform model judgment over `hard_negative_diagnosis_targets`: evaluate whether each real paper claim has a genuine paper-side weakness in novelty/significance, technical soundness, empirical adequacy, or reproducibility. Do **not** discover flaws by searching for negative-sounding words.
+- Treat `negative_quote_bank` only as grounding material after you have diagnosed a real claim-level weakness. A quote being present in the bank is not itself a flaw.
+- True hard negatives are paper-side failures: missing or unfair baselines, missing ablations/component isolation, insufficient evaluation for the claim scope, result-claim mismatch, negative/contradictory results, method assumption gaps, and concrete reproducibility gaps.
+- Scope/future-work/limitation wording, excerpt limits, and system retrieval limits are not grounded paper weaknesses. Route them to `unresolved_questions` or a minor candidate with `grounding_status="assessment_limitation"` only.
 - Read `negative_evidence_candidates`, `target_evidence`, and `strong_support_by_claim` before criticizing support. If a claim already has strong supporting evidence, do not emit generic "missing empirical/quantitative evidence" flaws; only emit a narrower paper flaw such as unfair baseline, insufficient metric, narrow dataset, missing key ablation, or claim scope exceeding the cited evidence.
 - Do not treat limited excerpts, cut-off/truncated abstracts, excerpt-support gaps, missing evidence IDs, or ReviewState/evidence-map inconsistencies as paper flaws; put them in `unresolved_questions`.
 - Use `negative_evidence_ids` (subset of `evidence_ids`) to list evidence that **directly contradicts, refutes, weakens, or shows the absence of** the related claim. Only such evidence anchors a *grounded paper weakness*. If you cannot point to a real contradicting/missing evidence id, omit `negative_evidence_ids`; the flaw will be reported as a potential concern instead of a grounded weakness.
+- If model judgment identifies a plausible real flaw but no verified negative evidence id exists yet, output it as `status="candidate"`, include `grounding_status="diagnosis_pending_verification"`, include `weakness_type` and `required_evidence_type`, and omit `negative_evidence_ids`.
 - If `negative_evidence_candidates` is non-empty and one candidate supports a paper flaw, cite that evidence id in both `evidence_ids` and `negative_evidence_ids`. If none supports a paper flaw, return no flaw and add an unresolved question.
-- If `Critique Negative Quote Bank` is non-empty but there is no existing negative evidence id, create one compact `evidence_map` item from the best quote before writing the flaw. Use an evidence_id like `evidence-critique-negative-1`, copy `raw_quote` exactly into `raw_quote`, set `stance` to `missing`, `contradicts`, or `weakens`, set `strength` to `medium`, and include `negative_evidence_type`. Then cite that new evidence id in both `evidence_ids` and `negative_evidence_ids`.
+- If `Critique Negative Quote Bank` is non-empty but there is no existing verified negative evidence id, do not treat the quote bank as a flaw trigger. You may write a candidate flaw with `grounding_status="diagnosis_pending_verification"` and omit `negative_evidence_ids`; quote-bank text becomes verified negative evidence only after the state verifier confirms a review-negative relation.
 - If the negative quote is only `scope_limitation` or `generic_gap`, the flaw must stay `candidate` with severity `minor`; do not call it a grounded major weakness.
 - Hard rule: if any evidence item you cite in `evidence_ids` already has `stance` in {`contradicts`, `refutes`, `weakens`, `partially_contradicts`, `missing`, `negative`} in the ReviewState's `evidence_map`, you **must** also list that evidence id in `negative_evidence_ids`. Citing a contradicting evidence without repeating it in `negative_evidence_ids` will cause the flaw to be demoted to a potential concern and lose its grounded-weakness status.
 - When the current evidence weakens or contradicts an earlier conclusion, add one `conflict_notes` entry and downgrade or question the earlier flaw/claim when justified.
@@ -207,8 +191,8 @@ Rules:
   - Always add one `conflict_notes` entry describing what changed and why.
 - Use this schema:
 {
-  "evidence_map": [{"evidence_id": "evidence-critique-negative-1", "claim_id": "claim-1", "evidence": "short negative evidence statement", "raw_quote": "copied quote", "source": "section/table/figure", "strength": "medium", "stance": "missing|contradicts|weakens", "negative_evidence_type": "direct_contradiction|negative_result|missing_ablation|scope_limitation|generic_gap"}],
-  "flaw_candidates": [{"flaw_id": "flaw-1", "title": "...", "description": "...", "severity": "critical|major|minor", "status": "candidate|confirmed|downgraded|retracted", "related_claim_ids": ["claim-1"], "evidence_ids": ["evidence-1"], "negative_evidence_ids": ["evidence-1"], "confidence": 0.0}],
+  "evidence_map": [{"evidence_id": "evidence-critique-negative-1", "claim_id": "claim-1", "evidence": "short negative evidence statement", "raw_quote": "copied quote", "source": "section/table/figure", "strength": "medium", "stance": "missing|contradicts|weakens", "negative_evidence_type": "direct_contradiction|negative_result|missing_baseline|unfair_or_weak_baseline|missing_ablation|insufficient_evaluation|missing_robustness_or_generalization|evaluation_protocol_risk|efficiency_cost_gap|result_claim_mismatch|method_support_gap|reproducibility_gap|scope_limitation|generic_gap"}],
+  "flaw_candidates": [{"flaw_id": "flaw-1", "title": "...", "description": "...", "severity": "critical|major|minor", "status": "candidate|confirmed|downgraded|retracted", "related_claim_ids": ["claim-1"], "evidence_ids": ["evidence-1"], "negative_evidence_ids": ["evidence-1"], "weakness_type": "missing_baseline|unfair_or_weak_baseline|missing_ablation|insufficient_evaluation|missing_robustness_or_generalization|evaluation_protocol_risk|efficiency_cost_gap|result_claim_mismatch|negative_result|method_support_gap|reproducibility_gap|assessment_limitation", "required_evidence_type": "baseline_or_comparison|ablation_or_component|empirical_result|robustness_or_generalization|evaluation_protocol|efficiency_cost|method_detail|reproducibility_detail", "grounding_status": "verified_actionable_candidate|diagnosis_pending_verification|assessment_limitation", "confidence": 0.0}],
   "conflict_notes": [{"note": "what prior judgment is now in tension", "claim_id": "claim-1", "evidence_id": "evidence-1", "flaw_id": "flaw-1", "conflict_type": "critique_conflict"}],
   "unresolved_questions": ["open issue about a flaw"],
   "dialogue_summary": "brief critique-focused summary",
@@ -221,6 +205,49 @@ Examples for `negative_evidence_ids` (do not copy text; copy only the pattern):
 - NEGATIVE example - omit `negative_evidence_ids` when only positive-support evidence is available (the flaw will be reported as a *Potential concern*, not a Grounded weakness):
 {"flaw_candidates": [{"flaw_id": "flaw-2", "title": "Limited baseline coverage", "description": "Only one baseline is shown; broader baselines may change the comparison.", "severity": "minor", "status": "candidate", "related_claim_ids": ["claim-1"], "evidence_ids": ["evidence-2-turn-1"], "confidence": 0.4}]}
 """
+
+
+# --- Hard-negative claim-centric diagnosis gate (env DRMAS_HARDNEG_DIAGNOSIS, default off) ---
+# When OFF (default), CRITIQUE_PROMPT is byte-identical to the validated mainline baseline
+# critique prompt. When ON, it layers in the claim-centric model-judgment additions below, so the
+# unvalidated hard-negative diagnosis direction stays opt-in for Mac multi-seed A/B without
+# changing default Critique behavior. Pairs with state._HARDNEG_DIAGNOSIS_ENABLED, which gates the
+# matching hard_negative_diagnosis_targets state slice. Both read the same env var.
+_HARDNEG_DIAGNOSIS_ENABLED = os.environ.get("DRMAS_HARDNEG_DIAGNOSIS", "").strip().lower() in {"1", "true", "on", "yes"}
+
+# Exact text the hard-negative variant adds onto the baseline critique prompt. Kept as explicit
+# fragments so the OFF path reconstructs the baseline by removing ONLY these additions.
+_HARDNEG_DIAGNOSIS_RULE_LINES = (
+    "- First perform model judgment over `hard_negative_diagnosis_targets`: evaluate whether each real paper claim has a genuine paper-side weakness in novelty/significance, technical soundness, empirical adequacy, or reproducibility. Do **not** discover flaws by searching for negative-sounding words.\n",
+    "- Treat `negative_quote_bank` only as grounding material after you have diagnosed a real claim-level weakness. A quote being present in the bank is not itself a flaw.\n",
+    "- True hard negatives are paper-side failures: missing or unfair baselines, missing ablations/component isolation, insufficient evaluation for the claim scope, result-claim mismatch, negative/contradictory results, method assumption gaps, and concrete reproducibility gaps.\n",
+    "- Scope/future-work/limitation wording, excerpt limits, and system retrieval limits are not grounded paper weaknesses. Route them to `unresolved_questions` or a minor candidate with `grounding_status=\"assessment_limitation\"` only.\n",
+    "- If model judgment identifies a plausible real flaw but no verified negative evidence id exists yet, output it as `status=\"candidate\"`, include `grounding_status=\"diagnosis_pending_verification\"`, include `weakness_type` and `required_evidence_type`, and omit `negative_evidence_ids`.\n",
+)
+_HARDNEG_DIAGNOSIS_NEG_TYPE_ENUM = "direct_contradiction|negative_result|missing_baseline|unfair_or_weak_baseline|missing_ablation|insufficient_evaluation|missing_robustness_or_generalization|evaluation_protocol_risk|efficiency_cost_gap|result_claim_mismatch|method_support_gap|reproducibility_gap|scope_limitation|generic_gap"
+_BASELINE_NEG_TYPE_ENUM = "direct_contradiction|negative_result|missing_baseline|unfair_or_weak_baseline|missing_ablation|insufficient_evaluation|missing_robustness_or_generalization|evaluation_protocol_risk|efficiency_cost_gap|result_claim_mismatch|method_support_gap|reproducibility_gap|scope_limitation|generic_gap"
+_HARDNEG_DIAGNOSIS_FLAW_FIELDS = '"weakness_type": "missing_baseline|unfair_or_weak_baseline|missing_ablation|insufficient_evaluation|missing_robustness_or_generalization|evaluation_protocol_risk|efficiency_cost_gap|result_claim_mismatch|negative_result|method_support_gap|reproducibility_gap|assessment_limitation", "required_evidence_type": "baseline_or_comparison|ablation_or_component|empirical_result|robustness_or_generalization|evaluation_protocol|efficiency_cost|method_detail|reproducibility_detail", "grounding_status": "verified_actionable_candidate|diagnosis_pending_verification|assessment_limitation", '
+
+# The quote-bank guidance is shared by both variants, but its hard-negative form adds a
+# diagnosis-pending candidate-flaw clause. The baseline keeps only the (general, red-line)
+# "do not treat the quote bank as a flaw trigger" instruction without the diagnosis_pending clause.
+_HARDNEG_DIAGNOSIS_QUOTE_BANK_LINE = "- If `Critique Negative Quote Bank` is non-empty but there is no existing verified negative evidence id, do not treat the quote bank as a flaw trigger. You may write a candidate flaw with `grounding_status=\"diagnosis_pending_verification\"` and omit `negative_evidence_ids`; quote-bank text becomes verified negative evidence only after the state verifier confirms a review-negative relation."
+_BASELINE_QUOTE_BANK_LINE = "- If `Critique Negative Quote Bank` is non-empty but there is no existing verified negative evidence id, do not treat the quote bank as a flaw trigger; quote-bank text becomes verified negative evidence only after the state verifier confirms a review-negative relation."
+
+
+def _critique_prompt_baseline() -> str:
+    """Reconstruct the validated baseline critique prompt by removing the gated additions."""
+    text = _CRITIQUE_PROMPT_HARDNEG
+    for rule_line in _HARDNEG_DIAGNOSIS_RULE_LINES:
+        text = text.replace(rule_line, "")
+    text = text.replace(_HARDNEG_DIAGNOSIS_QUOTE_BANK_LINE, _BASELINE_QUOTE_BANK_LINE)
+    text = text.replace(_HARDNEG_DIAGNOSIS_NEG_TYPE_ENUM, _BASELINE_NEG_TYPE_ENUM)
+    text = text.replace(_HARDNEG_DIAGNOSIS_FLAW_FIELDS, "")
+    return text
+
+
+_CRITIQUE_PROMPT_BASELINE = _critique_prompt_baseline()
+CRITIQUE_PROMPT = _CRITIQUE_PROMPT_HARDNEG if _HARDNEG_DIAGNOSIS_ENABLED else _CRITIQUE_PROMPT_BASELINE
 
 
 GENERAL_REVIEWER_PROMPT = """

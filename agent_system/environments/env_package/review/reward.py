@@ -1,4 +1,5 @@
 import ast
+import copy
 import json
 import math
 import re
@@ -19,6 +20,7 @@ AUDIT_ID_PATTERN = re.compile(
     r"|\bevidence-(?:\d+(?:-[A-Za-z0-9_.:-]+)?|(?:recovery|fallback|general|placeholder|negative|critique)-[A-Za-z0-9_.:-]+)\b",
     re.I,
 )
+_CURRENT_DECISION_HYGIENE_SCHEMA_VERSION = "review_negative_final_view_v2"
 DECISION_PATTERNS = [
     re.compile(r"final\s*decision\s*[:：]\s*(accept|reject|neutral)", re.I),
     re.compile(r"decision\s*recommendation\s*[:：]\s*(accept|reject|neutral)", re.I),
@@ -307,22 +309,45 @@ def _audit_id_leak_ratio(prediction: str) -> float:
     return min(1.0, hits / max(1, len(words)))
 
 
+def _decision_hygiene_for_reward(review_state: Dict) -> Dict:
+    """Return current-schema hygiene for reward scoring."""
+    try:
+        from agent_system.environments.env_package.review.state import build_decision_hygiene_view
+
+        seed = copy.deepcopy(review_state or {})
+        seed.pop("decision_hygiene", None)
+        view = build_decision_hygiene_view(seed)
+        recomputed = view.get("decision_hygiene") if isinstance(view, dict) else None
+        if isinstance(recomputed, dict):
+            return recomputed
+    except Exception:
+        pass
+    sa = review_state.get("state_audit") or {}
+    dh = sa.get("decision_hygiene") or {}
+    if isinstance(dh, dict) and str(dh.get("decision_hygiene_schema_version") or "") == _CURRENT_DECISION_HYGIENE_SCHEMA_VERSION:
+        return dh
+    return {}
+
+
 def _evidence_support_score(review_state: Optional[Dict]) -> Tuple[float, Dict[str, float]]:
-    """Compute evidence/support quality score in 0..1 from review_state.state_audit.decision_hygiene.
+    """Compute evidence/support quality score in 0..1 from current final-view hygiene.
 
     Returns (score, breakdown). When review_state is missing or has no claims, returns (0.0, {}).
     """
     if not isinstance(review_state, dict):
         return 0.0, {}
-    sa = review_state.get('state_audit') or {}
-    dh = sa.get('decision_hygiene') or {}
+    dh = _decision_hygiene_for_reward(review_state)
     if not isinstance(dh, dict):
         return 0.0, {}
 
-    # Claim count: prefer paper_extracted; fallback to total claims
+    # Claim count: prefer the final-view state-aware real-claim count. The raw
+    # claim_kind fallback is legacy-only and can overcount prompt/context shells.
     claims = review_state.get('claims') or []
-    paper_claims = [c for c in claims if isinstance(c, dict) and str(c.get('claim_kind', '')).lower() == 'paper_extracted']
-    total_claims = len(paper_claims) if paper_claims else len(claims)
+    if 'real_claim_count' in dh:
+        total_claims = int(dh.get('real_claim_count') or 0)
+    else:
+        paper_claims = [c for c in claims if isinstance(c, dict) and str(c.get('claim_kind', '')).lower() == 'paper_extracted']
+        total_claims = len(paper_claims) if paper_claims else len(claims)
     if total_claims <= 0:
         return 0.0, {}
 
@@ -332,7 +357,7 @@ def _evidence_support_score(review_state: Optional[Dict]) -> Tuple[float, Dict[s
     claims_with_empirical = float(dh.get('claims_with_empirical_real_strong_support') or 0)
     deep = float((dh.get('claim_support_depth_counts') or {}).get('deep') or 0)
     moderate = float((dh.get('claim_support_depth_counts') or {}).get('moderate') or 0)
-    grounded_flaws = float(dh.get('grounded_active_flaw_count') or 0)
+    grounded_flaws = float(dh.get('verified_actionable_negative_flaw_count') or 0)
 
     # Sub-scores all in 0..1
     coverage = min(1.0, claims_with_real / total_claims)

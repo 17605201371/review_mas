@@ -68,6 +68,25 @@ _NEGATIVE_TARGET_CLAIM_LIMIT = 2
 # validator/hygiene gate (negatives still pass ``_is_grounded_paper_negative_evidence_record``).
 _NEG_DISCOVERY_MODE = os.environ.get("DRMAS_NEG_DISCOVERY_MODE", "default").strip().lower()
 _NEG_DISCOVERY_AGGRESSIVE = _NEG_DISCOVERY_MODE in {"aggressive", "hardneg", "enrich"}
+_NEGATIVE_PASS_MODE = os.environ.get("DRMAS_NEGATIVE_PASS_MODE", "default").strip().lower()
+_NEGATIVE_PASS_COMPACT = _NEGATIVE_PASS_MODE in {"compact", "merged", "p-a", "pa"}
+_COMPACT_NEGATIVE_PASS_SOURCE = "compact_negative_pass_override"
+# Hard-negative claim-centric diagnosis gate (env DRMAS_HARDNEG_DIAGNOSIS, default off).
+# When OFF (default), the hard_negative_discovery_override branch keeps the validated mainline
+# behavior (request_evidence_recheck + negative_evidence_formation_required). When ON, it pivots
+# that branch to model-judgment diagnosis (analyze_flaws + hard_negative_diagnosis_required) for
+# Mac multi-seed A/B. Pairs with state/review_prompts._HARDNEG_DIAGNOSIS_ENABLED (same env var).
+_HARDNEG_DIAGNOSIS_ENABLED = os.environ.get("DRMAS_HARDNEG_DIAGNOSIS", "").strip().lower() in {"1", "true", "on", "yes"}
+_TARGETED_NEGATIVE_SEARCH_ENABLED = os.environ.get("DRMAS_TARGETED_NEGATIVE_SEARCH", "").strip().lower() in {"1", "true", "on", "yes"}
+_TARGETED_NEGATIVE_SEARCH_SOURCE = "targeted_negative_search_override"
+_NEGATIVE_FORMATION_POLICY_SOURCES = frozenset(
+    {
+        "negative_evidence_formation_override",
+        "hard_negative_discovery_override",
+        _TARGETED_NEGATIVE_SEARCH_SOURCE,
+        _COMPACT_NEGATIVE_PASS_SOURCE,
+    }
+)
 if _NEG_DISCOVERY_AGGRESSIVE:
     _HARD_NEGATIVE_DISCOVERY_GROUNDED_TARGET = 5
     _HARD_NEGATIVE_DISCOVERY_ACTIONABLE_TARGET = 3
@@ -80,6 +99,94 @@ else:
     _HARD_NEGATIVE_DISCOVERY_VERIFIED_FLAW_TARGET = 2
     _HARD_NEGATIVE_DISCOVERY_MAX_ATTEMPTS = 3
     _HARD_NEGATIVE_DISCOVERY_MIN_REMAINING = 2
+
+
+def _configure_compact_negative_pass(
+    payload: Dict[str, Any],
+    *,
+    target_claim_ids: Optional[Sequence[str]] = None,
+    target_flaw_ids: Optional[Sequence[str]] = None,
+    target_evidence_ids: Optional[Sequence[str]] = None,
+    shortfall_reasons: Optional[Sequence[str]] = None,
+    note: str = "",
+    focus: str = "",
+) -> Dict[str, Any]:
+    """Mark a critique turn as the compact, mandatory negative pass.
+
+    This mode lowers the turn cost of negative discovery; it does not make the
+    negative pass optional.  The Critique Agent still receives the negative
+    quote bank and target ids, but we avoid spawning a separate Evidence
+    recheck turn for every sub-case.
+    """
+    updated = dict(payload or {})
+    updated["decision"] = "continue"
+    updated["action_type"] = "analyze_flaws"
+    updated["effective_action_type"] = "analyze_flaws"
+    updated["policy_source"] = _COMPACT_NEGATIVE_PASS_SOURCE
+    updated["final_decision"] = "undecided"
+    updated["final_report"] = ""
+    updated["negative_evidence_formation_required"] = True
+    updated["compact_negative_pass_required"] = True
+    updated["negative_pass_mode"] = "compact"
+    updated["target_claim_ids"] = list(target_claim_ids or [])[:_NEGATIVE_TARGET_CLAIM_LIMIT]
+    updated["target_flaw_ids"] = list(target_flaw_ids or [])[:_NEGATIVE_TARGET_FLAW_LIMIT]
+    updated["target_evidence_ids"] = list(target_evidence_ids or [])[:_NEGATIVE_TARGET_EVIDENCE_LIMIT]
+    if shortfall_reasons is not None:
+        updated["hard_negative_shortfall_reasons"] = list(shortfall_reasons)[:6]
+    notes = list(updated.get("policy_notes", []))
+    if note:
+        notes.append(note)
+    notes.append("Compact negative pass keeps negative detection mandatory while merging discovery/formation into the critique turn.")
+    updated["policy_notes"] = list(dict.fromkeys(notes))[:8]
+    updated["focus"] = focus or (
+        "Run a compact negative pass: use verified paper quotes to bind or downgrade "
+        "the targeted weakness signals without spending a separate evidence-recheck turn."
+    )
+    return updated
+
+
+def _claim_item_is_compact_negative_target(item: Dict[str, Any]) -> bool:
+    claim_id = str((item or {}).get("claim_id") or "").strip()
+    if not claim_id:
+        return False
+    if _claim_item_has_prompt_leakage(item):
+        return False
+    claim_text = str((item or {}).get("claim") or "").strip().lower()
+    if "claim-paper-context" in claim_text or "context_derived" in claim_text or "context-derived" in claim_text:
+        return False
+    if claim_id.startswith(("claim-context", "claim-paper-context", "claim-recovery", "recovery")):
+        return False
+    if claim_id.startswith(("claim-paper-fallback", "claim-fallback", "claim-general")):
+        return False
+    return not _is_non_real_review_claim_id(claim_id)
+
+
+def _compact_negative_checkpoint_claim_ids(state: Dict[str, Any], *, limit: int = _NEGATIVE_TARGET_CLAIM_LIMIT) -> List[str]:
+    """Pick real claims for the mandatory compact negative checkpoint.
+
+    This is intentionally lightweight: it does not infer new claim-requirement
+    gaps or inject diagnosis prompts back into the live evidence path.  It only
+    gives the Critique Agent a narrow, real-claim target set when compact mode
+    needs one negative pass for this paper.
+    """
+    selected: List[str] = []
+    preferred_status = {"supported", "partially_supported", "uncertain"}
+    claims = [item for item in state.get("claims", []) or [] if isinstance(item, dict)]
+    for preferred_pass in (True, False):
+        for item in claims:
+            claim_id = str(item.get("claim_id") or "").strip()
+            if not _claim_item_is_compact_negative_target(item):
+                continue
+            status = str(item.get("status") or "").strip().lower()
+            if preferred_pass and status not in preferred_status:
+                continue
+            if status in _INACTIVE_CLAIM_STATUSES:
+                continue
+            if claim_id not in selected:
+                selected.append(claim_id)
+            if len(selected) >= limit:
+                return selected
+    return selected
 
 ACTION_TO_WORKERS = {
     "extract_claims": ["Claim Agent"],
@@ -171,6 +278,23 @@ def pick_workers_for_action(action_type: str, worker_ids: Sequence[str], worker_
     return []
 
 
+def pick_workers_for_compact_negative_pass(worker_ids: Sequence[str], worker_limit: int) -> List[str]:
+    """Run compact negative detection as one combined evidence+critique turn.
+
+    With two worker slots, Evidence Agent forms verified negative quotes and
+    Critique Agent binds/downgrades flaws in the same manager turn.  With only
+    one slot, keep Critique Agent for backwards-compatible unit tests and
+    single-worker ablations.
+    """
+    if worker_limit >= 2:
+        selected = [agent for agent in ("Evidence Agent", "Critique Agent") if agent in worker_ids]
+        if selected:
+            return selected[:worker_limit]
+    if "Critique Agent" in worker_ids:
+        return ["Critique Agent"]
+    return pick_workers_for_action("analyze_flaws", worker_ids, worker_limit)
+
+
 def mode_allowed_actions(mode: str) -> set[str]:
     if mode == "s1":
         return {"extract_claims", "summarize_progress", "ask_user_clarification", "finalize"}
@@ -216,7 +340,11 @@ def _negative_evidence_is_binding_candidate(item: Dict[str, Any], state: Dict[st
         "negative_result",
         "missing_ablation",
         "missing_baseline",
+        "unfair_or_weak_baseline",
         "insufficient_evaluation",
+        "missing_robustness_or_generalization",
+        "evaluation_protocol_risk",
+        "efficiency_cost_gap",
         "scope_overclaim",
         "result_claim_mismatch",
     } or actionability == "actionable_candidate"
@@ -369,7 +497,9 @@ def _negative_evidence_binding_retry_targets(
 def _recent_negative_evidence_formation_flaw_counts(recent_turn_logs: Sequence[Dict[str, Any]]) -> Dict[str, int]:
     counts: Dict[str, int] = {}
     for turn in list(recent_turn_logs or [])[-5:]:
-        if str(turn.get("policy_source") or "") not in {"negative_evidence_formation_override", "hard_negative_discovery_override"}:
+        if turn.get("hard_negative_diagnosis_required"):
+            continue
+        if str(turn.get("policy_source") or "") not in _NEGATIVE_FORMATION_POLICY_SOURCES:
             continue
         for flaw_id in turn.get("target_flaw_ids") or []:
             flaw_id = str(flaw_id).strip()
@@ -380,9 +510,32 @@ def _recent_negative_evidence_formation_flaw_counts(recent_turn_logs: Sequence[D
 
 def _has_recent_negative_evidence_formation_turn(recent_turn_logs: Sequence[Dict[str, Any]], *, window: int = 5) -> bool:
     for turn in list(recent_turn_logs or [])[-window:]:
+        if turn.get("hard_negative_diagnosis_required"):
+            continue
         if turn.get("negative_evidence_formation_required"):
             return True
-        if str(turn.get("policy_source") or "") in {"negative_evidence_formation_override", "hard_negative_discovery_override"}:
+        policy_source = str(turn.get("policy_source") or "")
+        if policy_source == _TARGETED_NEGATIVE_SEARCH_SOURCE and not turn.get("targeted_negative_search_required"):
+            continue
+        if policy_source in _NEGATIVE_FORMATION_POLICY_SOURCES:
+            return True
+    return False
+
+
+def _has_recent_targeted_negative_no_task_block(recent_turn_logs: Sequence[Dict[str, Any]], *, window: int = 5) -> bool:
+    for turn in list(recent_turn_logs or [])[-window:]:
+        if turn.get("targeted_negative_search_no_task_blocked"):
+            return True
+        if str(turn.get("policy_source") or "") == "targeted_negative_search_no_task_blocked":
+            return True
+    return False
+
+
+def _has_prior_compact_negative_pass(recent_turn_logs: Sequence[Dict[str, Any]]) -> bool:
+    for turn in list(recent_turn_logs or []):
+        if str(turn.get("policy_source") or "") == _COMPACT_NEGATIVE_PASS_SOURCE:
+            return True
+        if turn.get("compact_negative_pass_required"):
             return True
     return False
 
@@ -390,10 +543,15 @@ def _has_recent_negative_evidence_formation_turn(recent_turn_logs: Sequence[Dict
 def _negative_evidence_formation_attempt_count(recent_turn_logs: Sequence[Dict[str, Any]], *, window: int = 6) -> int:
     count = 0
     for turn in list(recent_turn_logs or [])[-window:]:
+        if turn.get("hard_negative_diagnosis_required"):
+            continue
         if turn.get("negative_evidence_formation_required"):
             count += 1
             continue
-        if str(turn.get("policy_source") or "") in {"negative_evidence_formation_override", "hard_negative_discovery_override"}:
+        policy_source = str(turn.get("policy_source") or "")
+        if policy_source == _TARGETED_NEGATIVE_SEARCH_SOURCE and not turn.get("targeted_negative_search_required"):
+            continue
+        if policy_source in _NEGATIVE_FORMATION_POLICY_SOURCES:
             count += 1
     return count
 
@@ -520,6 +678,75 @@ def _claim_item_is_recovery_usable(item: Dict[str, Any], *, require_claim_text: 
     return not _is_non_real_review_claim_id(claim_id)
 
 
+def _claim_item_is_strict_hard_negative_target(item: Dict[str, Any], *, require_claim_text: bool = False) -> bool:
+    """Default hard-negative discovery target.
+
+    Raw-salvaged fallback claims can be useful diagnosis/search clues, but they
+    are not stable enough to drive default reviewer-negative evidence formation.
+    The default path must target ordinary paper claims only.
+    """
+    claim_text = str((item or {}).get("claim") or "").strip()
+    if require_claim_text and not claim_text:
+        return False
+    claim_id = str((item or {}).get("claim_id") or "").strip().lower()
+    if not claim_id:
+        return False
+    if _claim_item_has_prompt_leakage(item):
+        return False
+    if claim_id.startswith(
+        (
+            "claim-context",
+            "claim-paper-context",
+            "claim-recovery",
+            "claim-paper-recovery",
+            "claim-fallback",
+            "claim-paper-fallback",
+            "fallback",
+            "context",
+            "recovery",
+        )
+    ):
+        return False
+    origin_kind = str((item or {}).get("claim_origin_kind") or "").strip().lower()
+    claim_kind = str((item or {}).get("claim_kind") or "").strip().lower()
+    canonicalized_raw_salvage = bool((item or {}).get("paper_claim_canonicalized_from_raw_salvage"))
+    origin = " ".join(
+        str((item or {}).get(key) or "")
+        for key in ("claim_origin", "claim_source", "source_stage", "provenance")
+    ).lower()
+    if origin_kind in {
+        "context_synthesized",
+        "recovery_marker",
+        "fallback_synthesized",
+        "paper_context_synthesized",
+    }:
+        return False
+    if origin_kind == "raw_salvaged_claim_agent_output" and not canonicalized_raw_salvage:
+        return False
+    if "context_derived" in origin or ("raw_salvaged" in origin and not canonicalized_raw_salvage):
+        return False
+    if claim_kind and claim_kind != "paper_extracted":
+        return False
+    return not _is_non_real_review_claim_id(claim_id)
+
+
+def _salvaged_negative_diagnosis_claim_ids(state: Dict[str, Any], *, limit: int = 2) -> List[str]:
+    """Fallback-only target pool for explicitly gated diagnosis/search experiments."""
+    selected: List[str] = []
+    claims = [item for item in state.get("claims", []) or [] if isinstance(item, dict)]
+    for item in claims:
+        claim_id = str(item.get("claim_id") or "").strip()
+        if not claim_id.lower().startswith("claim-paper-fallback"):
+            continue
+        if not _claim_item_is_recovery_usable(item, require_claim_text=True):
+            continue
+        if claim_id not in selected:
+            selected.append(claim_id)
+        if len(selected) >= limit:
+            return selected
+    return selected
+
+
 def _claim_is_recovery_usable(state: Dict[str, Any], claim_id: str) -> bool:
     claim_id = str(claim_id or "").strip()
     if not claim_id:
@@ -537,7 +764,7 @@ def _fallback_negative_evidence_claim_ids(state: Dict[str, Any], *, limit: int =
     for pass_preferred in (True, False):
         for item in claims:
             claim_id = str(item.get("claim_id") or "").strip()
-            if not _claim_item_is_recovery_usable(item, require_claim_text=True):
+            if not _claim_item_is_strict_hard_negative_target(item, require_claim_text=True):
                 continue
             status = str(item.get("status") or "").strip().lower()
             if pass_preferred and status not in preferred_status:
@@ -649,10 +876,71 @@ def _turn_requested_recovery(turn: Dict[str, Any]) -> bool:
     return action_type in RECOVERY_ACTION_TYPES or bool(turn.get("recovery_patch_mode_entered"))
 
 
+def _verified_negative_relation_exists(
+    state: Dict[str, Any],
+    claim_ids: Sequence[str],
+    negative_evidence_ids: Sequence[str],
+) -> bool:
+    claim_set = {str(item or "").strip() for item in claim_ids or [] if str(item or "").strip()}
+    negative_set = {str(item or "").strip() for item in negative_evidence_ids or [] if str(item or "").strip()}
+    if not claim_set or not negative_set:
+        return False
+    for relation in state.get("contested_relations", []) or []:
+        if not isinstance(relation, dict):
+            continue
+        claim_id = str(relation.get("claim_id") or "").strip()
+        if claim_id not in claim_set:
+            continue
+        existing_negative = {
+            str(item or "").strip()
+            for item in relation.get("negative_evidence_ids", []) or []
+            if str(item or "").strip()
+        }
+        if existing_negative & negative_set:
+            return True
+    return False
+
+
+def _verified_negative_flaw_recovery_targets(state: Dict[str, Any], *, limit: int = 2) -> List[str]:
+    evidence_lookup = {
+        str(item.get("evidence_id") or ""): item
+        for item in state.get("evidence_map", []) or []
+        if isinstance(item, dict) and str(item.get("evidence_id") or "")
+    }
+    targets: List[str] = []
+    for flaw in state.get("flaw_candidates", []) or []:
+        if not isinstance(flaw, dict):
+            continue
+        flaw_id = str(flaw.get("flaw_id") or "").strip()
+        status = str(flaw.get("status") or "candidate").strip().lower()
+        if not flaw_id or status not in {"candidate", "confirmed"}:
+            continue
+        negative_ids = _flaw_valid_negative_evidence_ids(flaw, state)
+        if not negative_ids:
+            continue
+        claim_ids = [
+            str(item or "").strip()
+            for item in flaw.get("related_claim_ids", []) or []
+            if str(item or "").strip()
+        ]
+        for evidence_id in negative_ids:
+            claim_id = str((evidence_lookup.get(str(evidence_id)) or {}).get("claim_id") or "").strip()
+            if claim_id:
+                claim_ids.append(claim_id)
+        if _verified_negative_relation_exists(state, claim_ids, negative_ids):
+            continue
+        targets.append(flaw_id)
+        if len(targets) >= limit:
+            break
+    return targets
+
+
 def _state_is_recovery_relevant(state: Dict[str, Any], recent_turn_logs: Sequence[Dict[str, Any]]) -> bool:
     if bool(state.get("recovery_relevant")):
         return True
     if state.get("conflict_notes") or state.get("recovery_blocked_by"):
+        return True
+    if _verified_negative_flaw_recovery_targets(state, limit=1):
         return True
     latest_patch_log = state.get("_latest_patch_log", {}) or {}
     if str(latest_patch_log.get("recovery_failure_code") or "").strip():
@@ -815,7 +1103,7 @@ def _claim_ids_by_status(
         status = str(item.get("status") or "").strip().lower()
         if not claim_id:
             continue
-        if require_real and not _claim_item_is_recovery_usable(item):
+        if require_real and not _claim_item_is_strict_hard_negative_target(item):
             continue
         if include is not None and status not in include:
             continue
@@ -837,7 +1125,11 @@ def _claim_has_verified_negative_recovery_evidence(state: Dict[str, Any], claim_
         "negative_result",
         "missing_ablation",
         "missing_baseline",
+        "unfair_or_weak_baseline",
         "insufficient_evaluation",
+        "missing_robustness_or_generalization",
+        "evaluation_protocol_risk",
+        "efficiency_cost_gap",
         "scope_overclaim",
         "result_claim_mismatch",
     }
@@ -982,10 +1274,28 @@ def _sanitize_targets_for_action(
             ]
     elif action_type in {"verify_evidence", "request_evidence_recheck", "analyze_flaws"}:
         require_real_claim = action_type in {"request_evidence_recheck", "analyze_flaws"}
+        allow_salvaged_diagnosis_targets = bool(
+            payload.get("salvaged_paper_claim_target_mode") == "diagnosis_or_search_only"
+            and (
+                payload.get("hard_negative_diagnosis_required")
+                or payload.get("targeted_negative_search_required")
+            )
+        )
         target_claim_ids = [
             cid for cid in target_claim_ids
             if claim_lookup.get(cid) not in _INACTIVE_CLAIM_STATUSES
-            and not (require_real_claim and not _claim_is_recovery_usable(state, cid))
+            and not (
+                require_real_claim
+                and not any(
+                    isinstance(item, dict)
+                    and str(item.get("claim_id") or "").strip() == cid
+                    and (
+                        _claim_item_is_strict_hard_negative_target(item, require_claim_text=True)
+                        or (allow_salvaged_diagnosis_targets and _claim_item_is_recovery_usable(item, require_claim_text=True))
+                    )
+                    for item in claims
+                )
+            )
         ]
         if not target_claim_ids:
             target_claim_ids = _claim_ids_by_status(
@@ -1156,9 +1466,11 @@ def _choose_blocking_recovery_action(state: Dict[str, Any]) -> str:
     risk = state.get("risk_profile", {}) or {}
     if risks["contradictory_evidence"] > 0 or state.get("conflict_notes"):
         return "challenge_previous_hypothesis"
+    if _verified_negative_flaw_recovery_targets(state, limit=1):
+        return "challenge_previous_hypothesis"
     if _active_unverified_flaw_ids(state, limit=1):
         return "request_evidence_recheck"
-    if _open_evidence_gaps(state) or str(risk.get("readiness") or "") == "needs_targeted_recheck":
+    if str(risk.get("readiness") or "") == "needs_targeted_recheck" and state.get("flaw_candidates"):
         return "request_evidence_recheck"
     return _choose_recovery_action(state)
 
@@ -1172,11 +1484,11 @@ def _has_blocking_recovery_signal(state: Dict[str, Any], recent_turn_logs: Seque
     risk = state.get("risk_profile", {}) or {}
     flaws = state.get("flaw_candidates", []) or []
     has_active_flaw = any(str(item.get("status") or "candidate") not in {"downgraded", "retracted"} for item in flaws)
+    if _verified_negative_flaw_recovery_targets(state, limit=1):
+        return True
     if _active_unverified_flaw_ids(state, limit=1):
         return True
     open_evidence_gaps = _open_evidence_gaps(state)
-    if open_evidence_gaps and has_active_flaw:
-        return True
     if str(risk.get("readiness") or "") == "needs_targeted_recheck" and has_active_flaw:
         return True
     if int(risk.get("major_flaw_count", 0) or 0) > 0 and has_active_flaw:
@@ -1811,6 +2123,69 @@ def state_is_complete(mode: str, state: Dict[str, Any], manager_payload: Dict[st
     return True
 
 
+_PAYLOAD_REVIEW_NEGATIVE_STANCES = {
+    "contradicts",
+    "contradict",
+    "refutes",
+    "refute",
+    "weakens",
+    "weaken",
+    "undermines",
+    "undermine",
+    "partially_contradicts",
+    "partially_refutes",
+    "missing",
+    "unsupported",
+    "does_not_support",
+    "not_grounded",
+    "negative",
+}
+
+
+def _worker_payload_has_fresh_review_negative_flaw(worker_payloads: Sequence[Dict[str, Any]]) -> bool:
+    """Detect same-turn review-negative candidates before state verification runs.
+
+    This does not mark evidence as verified. It only prevents auto-finalize from
+    swallowing a just-produced negative/flaw pair before the ReviewState verifier
+    can canonicalize it and route the next turn into recovery.
+    """
+    negative_evidence_ids: set[str] = set()
+    for worker in worker_payloads or []:
+        payload = worker.get("payload", {}) if isinstance(worker, dict) else {}
+        for item in payload.get("evidence_map", []) or []:
+            if not isinstance(item, dict):
+                continue
+            evidence_id = str(item.get("evidence_id") or "").strip()
+            if not evidence_id:
+                continue
+            stance = str(item.get("stance") or "").strip().lower()
+            negative_type = str(item.get("negative_evidence_type") or "").strip()
+            quote = str(item.get("raw_quote") or item.get("quote_id") or "").strip()
+            locator = str(item.get("source_locator") or item.get("source") or "").strip()
+            if (
+                stance in _PAYLOAD_REVIEW_NEGATIVE_STANCES
+                and negative_type in ACTIONABLE_NEGATIVE_EVIDENCE_TYPES
+                and quote
+                and locator
+            ):
+                negative_evidence_ids.add(evidence_id)
+    if not negative_evidence_ids:
+        return False
+    for worker in worker_payloads or []:
+        payload = worker.get("payload", {}) if isinstance(worker, dict) else {}
+        for flaw in payload.get("flaw_candidates", []) or []:
+            if not isinstance(flaw, dict):
+                continue
+            cited_ids = {
+                str(item or "").strip()
+                for item in list(flaw.get("negative_evidence_ids") or []) + list(flaw.get("evidence_ids") or [])
+                if str(item or "").strip()
+            }
+            if cited_ids & negative_evidence_ids:
+                return True
+    return False
+
+
 def default_manager_payload(error: str = "") -> Dict[str, Any]:
     return {
         "decision": "continue",
@@ -1895,6 +2270,7 @@ def apply_finalize_policy(
     recent_turn_logs: Optional[Sequence[Dict[str, Any]]] = None,
 ) -> tuple[Dict[str, Any], List[str]]:
     payload = dict(manager_payload)
+    allowed_actions = mode_allowed_actions(mode)
     explicit_finalize_output = bool(
         payload.get("final_report")
         and payload.get("final_decision") in {"accept", "reject", "undecided"}
@@ -1957,6 +2333,7 @@ def apply_finalize_policy(
         auto_finalize_blocked_actions = {"ask_user_clarification", "request_evidence_recheck", "challenge_previous_hypothesis"}
         has_flaw_progress = any((worker.get("payload", {}) or {}).get("flaw_candidates") for worker in worker_payloads)
         unverified_flaw_ids = _active_unverified_flaw_ids(state, limit=2)
+        fresh_review_negative_flaw = _worker_payload_has_fresh_review_negative_flaw(worker_payloads)
 
         # --- Component B: conflict-block ---
         # In S4, block auto-finalize when unresolved conflicts exist and no
@@ -1983,32 +2360,78 @@ def apply_finalize_policy(
             and (state_is_complete(mode, state, payload, worker_payloads) or (mode == "s4" and has_flaw_progress))
             and (step >= auto_finalize_turn or step >= turn_cap)
         ):
+            if (
+                mode == "s4"
+                and fresh_review_negative_flaw
+                and not has_recovery
+                and step < turn_cap
+            ):
+                payload["decision"] = "continue"
+                payload["action_type"] = payload.get("effective_action_type") or payload.get("action_type") or "analyze_flaws"
+                payload["effective_action_type"] = payload["action_type"]
+                payload["final_decision"] = "undecided"
+                payload["final_report"] = ""
+                payload["auto_finalized"] = False
+                payload["policy_source"] = "fresh_review_negative_lifecycle_block_override"
+                policy_notes = list(payload.get("policy_notes", []))
+                policy_notes.append(
+                    "Auto-finalize was blocked because this turn produced an actionable quoted negative flaw candidate; the next turn must let verifier-confirmed negatives enter recovery."
+                )
+                payload["policy_notes"] = list(dict.fromkeys(policy_notes))[:8]
+                payload["rationale"] = (
+                    (payload.get("rationale", "") + " ").strip()
+                    + "Finalize was blocked so a newly found review-negative flaw can be verified and routed into recovery instead of being swallowed at finalization."
+                )[:600]
+                payload["focus"] = payload.get("focus") or "Verify and recover around the newly found paper-negative flaw before final reporting."
+                payload["selected_agents"] = list(selected_workers)
+                return payload, list(selected_workers)
+
             if conflict_block:
                 negative_targets = _unverified_flaw_negative_evidence_targets(state, recent_logs)
                 if negative_targets["target_flaw_ids"]:
-                    recovery_action = "request_evidence_recheck"
-                    payload["decision"] = "continue"
-                    payload["action_type"] = recovery_action
-                    payload["effective_action_type"] = recovery_action
-                    payload["target_flaw_ids"] = negative_targets["target_flaw_ids"]
-                    payload["target_claim_ids"] = negative_targets["target_claim_ids"] or payload.get("target_claim_ids") or _fallback_negative_evidence_claim_ids(state, limit=2)
-                    payload["target_evidence_ids"] = negative_targets["target_evidence_ids"]
-                    payload["negative_evidence_formation_required"] = True
-                    payload["final_decision"] = "undecided"
-                    payload["final_report"] = ""
-                    payload["policy_source"] = "negative_evidence_formation_override"
+                    target_claim_ids = negative_targets["target_claim_ids"] or payload.get("target_claim_ids") or _fallback_negative_evidence_claim_ids(state, limit=2)
+                    if _NEGATIVE_PASS_COMPACT and "analyze_flaws" in allowed_actions:
+                        payload = _configure_compact_negative_pass(
+                            payload,
+                            target_claim_ids=target_claim_ids,
+                            target_flaw_ids=negative_targets["target_flaw_ids"],
+                            target_evidence_ids=negative_targets["target_evidence_ids"],
+                            note=f"Auto-finalize was blocked because {conflict_count} unresolved conflict(s) exist and active flaws lack verified negative evidence.",
+                            focus="Bind or downgrade active flaw candidates using verified paper-negative quotes before final reporting.",
+                        )
+                        recovery_action = "analyze_flaws"
+                    else:
+                        recovery_action = "request_evidence_recheck"
+                        payload["decision"] = "continue"
+                        payload["action_type"] = recovery_action
+                        payload["effective_action_type"] = recovery_action
+                        payload["target_flaw_ids"] = negative_targets["target_flaw_ids"]
+                        payload["target_claim_ids"] = target_claim_ids
+                        payload["target_evidence_ids"] = negative_targets["target_evidence_ids"]
+                        payload["negative_evidence_formation_required"] = True
+                        payload["final_decision"] = "undecided"
+                        payload["final_report"] = ""
+                        payload["policy_source"] = "negative_evidence_formation_override"
                     policy_notes = list(payload.get("policy_notes", []))
                     policy_notes.append(
                         f"Auto-finalize was blocked because {conflict_count} unresolved conflict(s) exist and active flaws lack verified negative evidence."
                     )
-                    policy_notes.append("S4 requests verified negative evidence before challenge/recovery patch mode.")
+                    policy_notes.append(
+                        "S4 runs the compact negative pass before challenge/recovery patch mode."
+                        if _NEGATIVE_PASS_COMPACT and recovery_action == "analyze_flaws"
+                        else "S4 requests verified negative evidence before challenge/recovery patch mode."
+                    )
                     payload["policy_notes"] = list(dict.fromkeys(policy_notes))[:8]
                     payload["rationale"] = (
                         (payload.get("rationale", "") + " ").strip()
                         + "Finalize was blocked to ground the active flaw in paper negative evidence before recovery."
                     )[:600]
-                    payload["focus"] = "Find paper-grounded negative evidence for active flaw candidates before recovery."
-                    payload["selected_agents"] = pick_workers_for_action(recovery_action, worker_ids, worker_limit) or list(worker_ids[:worker_limit])
+                    payload["focus"] = payload.get("focus") or "Find paper-grounded negative evidence for active flaw candidates before recovery."
+                    payload["selected_agents"] = (
+                        pick_workers_for_compact_negative_pass(worker_ids, worker_limit)
+                        if payload.get("compact_negative_pass_required")
+                        else pick_workers_for_action(recovery_action, worker_ids, worker_limit) or list(worker_ids[:worker_limit])
+                    )
                     return payload, list(payload.get("selected_agents", []))
 
                 # Redirect to a recovery action instead of auto-finalizing.
@@ -2030,40 +2453,63 @@ def apply_finalize_policy(
                 )[:600]
                 if not payload.get("focus"):
                     payload["focus"] = "Address unresolved conflicts before finalizing the review."
-                payload["selected_agents"] = pick_workers_for_action(recovery_action, worker_ids, worker_limit) or list(worker_ids[:worker_limit])
+                payload["selected_agents"] = (
+                    pick_workers_for_compact_negative_pass(worker_ids, worker_limit)
+                    if payload.get("compact_negative_pass_required")
+                    else pick_workers_for_action(recovery_action, worker_ids, worker_limit) or list(worker_ids[:worker_limit])
+                )
                 return payload, list(payload.get("selected_agents", []))
 
             if flaw_lifecycle_block:
                 negative_targets = _unverified_flaw_negative_evidence_targets(state, recent_logs)
                 fallback_target_claim_ids = payload.get("target_claim_ids") or _fallback_negative_evidence_claim_ids(state, limit=2)
                 can_form_negative_evidence = bool(negative_targets["target_flaw_ids"] or fallback_target_claim_ids)
-                recovery_action = "request_evidence_recheck" if can_form_negative_evidence else "challenge_previous_hypothesis"
-                payload["decision"] = "continue"
-                payload["action_type"] = recovery_action
-                payload["effective_action_type"] = recovery_action
-                payload["target_flaw_ids"] = negative_targets["target_flaw_ids"] or unverified_flaw_ids
-                payload["target_claim_ids"] = negative_targets["target_claim_ids"] or fallback_target_claim_ids
-                payload["target_evidence_ids"] = negative_targets["target_evidence_ids"]
-                if can_form_negative_evidence:
-                    payload["negative_evidence_formation_required"] = True
-                payload["final_decision"] = "undecided"
-                payload["final_report"] = ""
-                payload["policy_source"] = "negative_evidence_formation_override" if can_form_negative_evidence else "flaw_lifecycle_block_override"
+                target_flaw_ids = negative_targets["target_flaw_ids"] or unverified_flaw_ids
+                target_claim_ids = negative_targets["target_claim_ids"] or fallback_target_claim_ids
+                if can_form_negative_evidence and _NEGATIVE_PASS_COMPACT and "analyze_flaws" in allowed_actions:
+                    recovery_action = "analyze_flaws"
+                    payload = _configure_compact_negative_pass(
+                        payload,
+                        target_claim_ids=target_claim_ids,
+                        target_flaw_ids=target_flaw_ids,
+                        target_evidence_ids=negative_targets["target_evidence_ids"],
+                        note="Auto-finalize was blocked because active flaw candidates lack verified negative evidence.",
+                        focus="Bind or downgrade active flaw candidates using verified paper-negative quotes before final reporting.",
+                    )
+                else:
+                    recovery_action = "request_evidence_recheck" if can_form_negative_evidence else "challenge_previous_hypothesis"
+                    payload["decision"] = "continue"
+                    payload["action_type"] = recovery_action
+                    payload["effective_action_type"] = recovery_action
+                    payload["target_flaw_ids"] = target_flaw_ids
+                    payload["target_claim_ids"] = target_claim_ids
+                    payload["target_evidence_ids"] = negative_targets["target_evidence_ids"]
+                    if can_form_negative_evidence:
+                        payload["negative_evidence_formation_required"] = True
+                    payload["final_decision"] = "undecided"
+                    payload["final_report"] = ""
+                    payload["policy_source"] = "negative_evidence_formation_override" if can_form_negative_evidence else "flaw_lifecycle_block_override"
                 policy_notes = list(payload.get("policy_notes", []))
                 policy_notes.append(
                     "Auto-finalize was blocked because active flaw candidates lack verified negative evidence."
                 )
                 if negative_targets["target_flaw_ids"]:
                     policy_notes.append(
-                        "S4 requests verified negative evidence for the active flaw before challenge/recovery patch mode."
+                        "S4 runs the compact negative pass for the active flaw before challenge/recovery patch mode."
+                        if _NEGATIVE_PASS_COMPACT and recovery_action == "analyze_flaws"
+                        else "S4 requests verified negative evidence for the active flaw before challenge/recovery patch mode."
                     )
                 payload["policy_notes"] = list(dict.fromkeys(policy_notes))[:8]
                 payload["rationale"] = (
                     (payload.get("rationale", "") + " ").strip()
                     + "Finalize was blocked to verify or downgrade ungrounded flaw candidates."
                 )[:600]
-                payload["focus"] = "Find paper-grounded negative evidence for active flaw candidates before final reporting."
-                payload["selected_agents"] = pick_workers_for_action(recovery_action, worker_ids, worker_limit) or list(worker_ids[:worker_limit])
+                payload["focus"] = payload.get("focus") or "Find paper-grounded negative evidence for active flaw candidates before final reporting."
+                payload["selected_agents"] = (
+                    pick_workers_for_compact_negative_pass(worker_ids, worker_limit)
+                    if payload.get("compact_negative_pass_required")
+                    else pick_workers_for_action(recovery_action, worker_ids, worker_limit) or list(worker_ids[:worker_limit])
+                )
                 return payload, list(payload.get("selected_agents", []))
 
             payload = build_auto_finalize_payload(
@@ -2115,6 +2561,7 @@ def apply_manager_policy_fallback(
     counts = state_counts(state)
     previous_action = recent_turn_logs[-1].get("action_type", "") if recent_turn_logs else ""
     previous_focus = recent_turn_logs[-1].get("focus", "") if recent_turn_logs else ""
+    compact_pass_already_done = _has_prior_compact_negative_pass(recent_turn_logs)
     inferred_action = inferred.get("action_type", action_type)
     current_focus = payload.get("focus") or inferred.get("focus", "")
     if mode == "s3" and action_type == "ask_user_clarification" and counts["claims"] == 0:
@@ -2173,6 +2620,13 @@ def apply_manager_policy_fallback(
         policy_notes.append("S4 keeps the turn budget on evidence grounding before asking for clarification.")
         action_type = "verify_evidence"
     hard_negative_claim_ids = _fallback_negative_evidence_claim_ids(state, limit=2)
+    salvaged_hard_negative_claim_ids = _salvaged_negative_diagnosis_claim_ids(state, limit=2)
+    hard_negative_discovery_claim_ids = list(hard_negative_claim_ids)
+    hard_negative_uses_salvaged_targets = False
+    if not hard_negative_discovery_claim_ids and (_TARGETED_NEGATIVE_SEARCH_ENABLED or _HARDNEG_DIAGNOSIS_ENABLED):
+        hard_negative_discovery_claim_ids = list(salvaged_hard_negative_claim_ids)
+        hard_negative_uses_salvaged_targets = bool(hard_negative_discovery_claim_ids)
+    compact_negative_claim_ids = _compact_negative_checkpoint_claim_ids(state, limit=2)
     if (
         mode == "s4"
         and policy_source == "manager_model"
@@ -2223,20 +2677,34 @@ def apply_manager_policy_fallback(
     if (
         mode == "s4"
         and negative_formation_targets["target_flaw_ids"]
-        and "request_evidence_recheck" in allowed_actions
+        and not (_NEGATIVE_PASS_COMPACT and compact_pass_already_done)
+        and ("request_evidence_recheck" in allowed_actions or (_NEGATIVE_PASS_COMPACT and "analyze_flaws" in allowed_actions))
         and action_type in {"ask_user_clarification", "verify_evidence", "request_evidence_recheck", "challenge_previous_hypothesis", "analyze_flaws", "summarize_progress", "finalize"}
     ):
-        policy_source = "negative_evidence_formation_override"
-        policy_notes.append("S4 asks Evidence Agent to form verified negative evidence for active flaws before entering recovery patch mode.")
-        payload["decision"] = "continue"
-        payload["final_decision"] = "undecided"
-        payload["final_report"] = ""
-        action_type = "request_evidence_recheck"
-        payload["target_flaw_ids"] = negative_formation_targets["target_flaw_ids"]
-        payload["target_claim_ids"] = negative_formation_targets["target_claim_ids"]
-        payload["target_evidence_ids"] = negative_formation_targets["target_evidence_ids"]
-        payload["negative_evidence_formation_required"] = True
-        payload["focus"] = "Find paper-grounded negative evidence for active flaw candidates before recovery or final reporting."
+        if _NEGATIVE_PASS_COMPACT and "analyze_flaws" in allowed_actions:
+            payload = _configure_compact_negative_pass(
+                payload,
+                target_claim_ids=negative_formation_targets["target_claim_ids"],
+                target_flaw_ids=negative_formation_targets["target_flaw_ids"],
+                target_evidence_ids=negative_formation_targets["target_evidence_ids"],
+                note="S4 merges verified negative-evidence formation for active flaws into the critique pass.",
+                focus="Use verified paper-negative quotes to bind or downgrade active flaw candidates before recovery or final reporting.",
+            )
+            policy_notes = list(payload.get("policy_notes", policy_notes))
+            policy_source = _COMPACT_NEGATIVE_PASS_SOURCE
+            action_type = "analyze_flaws"
+        else:
+            policy_source = "negative_evidence_formation_override"
+            policy_notes.append("S4 asks Evidence Agent to form verified negative evidence for active flaws before entering recovery patch mode.")
+            payload["decision"] = "continue"
+            payload["final_decision"] = "undecided"
+            payload["final_report"] = ""
+            action_type = "request_evidence_recheck"
+            payload["target_flaw_ids"] = negative_formation_targets["target_flaw_ids"]
+            payload["target_claim_ids"] = negative_formation_targets["target_claim_ids"]
+            payload["target_evidence_ids"] = negative_formation_targets["target_evidence_ids"]
+            payload["negative_evidence_formation_required"] = True
+            payload["focus"] = "Find paper-grounded negative evidence for active flaw candidates before recovery or final reporting."
     if (
         mode == "s4"
         and action_type in {"summarize_progress", "finalize"}
@@ -2321,6 +2789,7 @@ def apply_manager_policy_fallback(
         elif remaining_after_current < 2 and not _positive_inventory_ready(state):
             budget_aware_skip = True
     negative_formation_attempt_count = _negative_evidence_formation_attempt_count(recent_turn_logs)
+    targeted_no_task_recent = _has_recent_targeted_negative_no_task_block(recent_turn_logs)
     hard_negative_shortfall_reasons = _hard_negative_discovery_shortfall_reasons(state)
     supplemental_hard_negative_discovery = _allow_supplemental_hard_negative_discovery(
         state,
@@ -2339,34 +2808,123 @@ def apply_manager_policy_fallback(
         # from firing before any worker pass.
         and counts["evidence_map"] >= 1
         and bool(hard_negative_shortfall_reasons)
-        and hard_negative_claim_ids
-        and (negative_formation_attempt_count == 0 or supplemental_hard_negative_discovery)
-        and "request_evidence_recheck" in allowed_actions
+        and ((_NEGATIVE_PASS_COMPACT and compact_negative_claim_ids) or (not _NEGATIVE_PASS_COMPACT and hard_negative_discovery_claim_ids))
+        and not (_NEGATIVE_PASS_COMPACT and compact_pass_already_done)
+        and (
+            negative_formation_attempt_count == 0
+            or (supplemental_hard_negative_discovery and not _TARGETED_NEGATIVE_SEARCH_ENABLED)
+        )
+        and not (_TARGETED_NEGATIVE_SEARCH_ENABLED and targeted_no_task_recent)
+        and "analyze_flaws" in allowed_actions
         and action_type in {"extract_claims", "verify_evidence", "request_evidence_recheck", "analyze_flaws", "summarize_progress", "finalize"}
         and str(payload.get("phase") or state.get("phase") or "").strip().lower() != "recovery"
         and not budget_aware_skip
     ):
-        policy_source = "hard_negative_discovery_override"
-        policy_notes.append(
+        discovery_note = (
             "S4 runs a hard-negative discovery pass so reject evidence is not inferred only from unresolved/meta burden."
             + (" Supplemental pass is allowed because negative evidence coverage is still below target and recovery budget remains." if supplemental_hard_negative_discovery else "")
         )
-        payload["decision"] = "continue"
-        payload["final_decision"] = "undecided"
-        payload["final_report"] = ""
-        action_type = "request_evidence_recheck"
-        payload["target_claim_ids"] = hard_negative_claim_ids
-        payload["target_flaw_ids"] = []
-        payload["target_evidence_ids"] = []
-        payload["negative_evidence_formation_required"] = True
-        payload["hard_negative_shortfall_reasons"] = hard_negative_shortfall_reasons
-        payload["focus"] = "Search for copied paper quotes that weaken, limit, contradict, or show missing support for the strongest real claims; emit unresolved if no direct negative quote is visible."
+        if _NEGATIVE_PASS_COMPACT and "analyze_flaws" in allowed_actions:
+            payload = _configure_compact_negative_pass(
+                payload,
+                target_claim_ids=compact_negative_claim_ids,
+                target_flaw_ids=[],
+                target_evidence_ids=[],
+                shortfall_reasons=hard_negative_shortfall_reasons,
+                note=discovery_note,
+                focus="Run the mandatory compact hard-negative pass: inspect verified paper quotes for weaknesses, missing support, contradictions, or scoped limitations on the strongest real claims.",
+            )
+            policy_notes = list(payload.get("policy_notes", policy_notes))
+            policy_source = _COMPACT_NEGATIVE_PASS_SOURCE
+            action_type = "analyze_flaws"
+        else:
+            policy_source = (
+                _TARGETED_NEGATIVE_SEARCH_SOURCE
+                if _TARGETED_NEGATIVE_SEARCH_ENABLED
+                else "hard_negative_discovery_override"
+            )
+            policy_notes.append(discovery_note)
+            payload["decision"] = "continue"
+            payload["final_decision"] = "undecided"
+            payload["final_report"] = ""
+            payload["target_claim_ids"] = hard_negative_discovery_claim_ids
+            payload["target_flaw_ids"] = []
+            payload["target_evidence_ids"] = []
+            payload["hard_negative_shortfall_reasons"] = hard_negative_shortfall_reasons
+            if hard_negative_uses_salvaged_targets:
+                payload["salvaged_paper_claim_targets"] = hard_negative_discovery_claim_ids
+                payload["salvaged_paper_claim_target_mode"] = "diagnosis_or_search_only"
+                policy_notes.append(
+                    "Only raw-salvaged fallback claims were available; use them as diagnosis/search clues, not as default verified-negative targets."
+                )
+            if _TARGETED_NEGATIVE_SEARCH_ENABLED:
+                # Target generator path: keep formation in the Evidence Agent. The worker receives
+                # claim-obligation search tasks and must return either quote-grounded negative
+                # evidence or not_assessable, never a free-form flaw diagnosis.
+                action_type = "verify_evidence"
+                payload["effective_action_type"] = "verify_evidence"
+                payload["phase"] = "normal_review"
+                payload["turn_mode"] = "normal_evidence"
+                payload["negative_evidence_formation_required"] = True
+                payload["targeted_negative_search_required"] = True
+                payload["hard_negative_diagnosis_required"] = False
+                payload["focus"] = (
+                    "Run targeted paper-negative evidence search for the strongest real claims. "
+                    "Use claim evidence obligations to check missing baselines, ablations, insufficient evaluation, "
+                    "result-claim mismatch, method gaps, scope overclaim, or reproducibility gaps; return a copied quote "
+                    "with locator or mark the task not_assessable."
+                )
+            elif _HARDNEG_DIAGNOSIS_ENABLED:
+                # Gated, default off: claim-centric model-judgment diagnosis pass (pending Mac
+                # multi-seed A/B). Routes the override to the Critique Agent's analyze_flaws and
+                # asks for paper-side weakness diagnosis instead of negative-quote formation.
+                action_type = "analyze_flaws"
+                payload["effective_action_type"] = "analyze_flaws"
+                payload["negative_evidence_formation_required"] = False
+                payload["targeted_negative_search_required"] = False
+                payload["hard_negative_diagnosis_required"] = True
+                payload["focus"] = "Diagnose true paper-side weaknesses for the strongest real claims. Judge missing baselines, missing ablations, insufficient evaluation, result-claim mismatch, method gaps, or reproducibility gaps before using quote-bank evidence for grounding."
+            else:
+                # Validated mainline baseline: evidence-recheck driven negative evidence formation.
+                action_type = "request_evidence_recheck"
+                payload["negative_evidence_formation_required"] = True
+                payload["targeted_negative_search_required"] = False
     elif budget_aware_skip and not _has_recent_negative_evidence_formation_turn(recent_turn_logs):
         # Surface the skip reason for offline audit so the budget-aware
         # behaviour shows up in policy_notes / per-turn manager_payload.
         policy_notes.append(
             f"hard_negative_discovery_override skipped budget_aware_skip remaining_after_current={remaining_after_current} positive_inventory_ready={_positive_inventory_ready(state)}"
         )
+    compact_checkpoint_claim_ids = _compact_negative_checkpoint_claim_ids(state)
+    compact_checkpoint_budget_ok = remaining_after_current is None or remaining_after_current >= 1
+    compact_checkpoint_support_ok = _positive_inventory_ready(state) or remaining_after_current is None or remaining_after_current >= 2
+    if (
+        mode == "s4"
+        and _NEGATIVE_PASS_COMPACT
+        and policy_source in _HARD_NEGATIVE_DISCOVERY_ELIGIBLE_SOURCES.union({"manager_model"})
+        and counts["claims"] > 0
+        and counts["evidence_map"] > 0
+        and compact_checkpoint_claim_ids
+        and not payload.get("negative_evidence_formation_required")
+        and not compact_pass_already_done
+        and not _has_recent_negative_evidence_formation_turn(recent_turn_logs)
+        and "analyze_flaws" in allowed_actions
+        and action_type in {"analyze_flaws", "summarize_progress", "finalize"}
+        and str(payload.get("phase") or state.get("phase") or "").strip().lower() != "recovery"
+        and compact_checkpoint_budget_ok
+        and compact_checkpoint_support_ok
+    ):
+        payload = _configure_compact_negative_pass(
+            payload,
+            target_claim_ids=compact_checkpoint_claim_ids,
+            target_flaw_ids=[],
+            target_evidence_ids=[],
+            note="S4 runs the mandatory compact negative checkpoint once claims and evidence exist, without spawning separate negative recheck turns.",
+            focus="Run the compact negative checkpoint: test the strongest real claims against visible verified paper quotes and classify concerns without fabricating negative evidence.",
+        )
+        policy_notes = list(payload.get("policy_notes", policy_notes))
+        policy_source = _COMPACT_NEGATIVE_PASS_SOURCE
+        action_type = "analyze_flaws"
     # --- Component C: conflict-driven recovery override ---
     # After flaw analysis has produced at least one flaw, if conflicts exist
     # and no recovery action has been taken, redirect to a recovery action
@@ -2497,7 +3055,11 @@ def apply_manager_policy_fallback(
         payload["selected_agents"] = []
     else:
         payload["decision"] = "continue"
-        selected = pick_workers_for_action(action_type, worker_ids, worker_limit)
+        selected = (
+            pick_workers_for_compact_negative_pass(worker_ids, worker_limit)
+            if payload.get("compact_negative_pass_required")
+            else pick_workers_for_action(action_type, worker_ids, worker_limit)
+        )
         if not selected and payload.get("selected_agents"):
             selected = [agent for agent in payload.get("selected_agents", []) if agent in worker_ids][:worker_limit]
         if not selected:

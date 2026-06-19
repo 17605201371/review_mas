@@ -216,7 +216,7 @@
     "_recovery_patch_source": "system_salvaged"
   },
   "expected": {
-    "failure_code": "EVIDENCE_SEMANTIC_MISMATCH",
+    "failure_code": "BLOCKED_BY_POLICY",
     "validated": true,
     "commit_allowed": false
   },
@@ -226,5 +226,6 @@
     "recovery_target_id": "claim-1",
     "recovery_target_type": "claim",
     "recovery_patch_source": "system_salvaged"
-  }
+  },
+  "_audit_note": "expected.failure_code updated 2026-06-16 from EVIDENCE_SEMANTIC_MISMATCH to BLOCKED_BY_POLICY (meta.runner_failure_code keeps the 2026-06-04 capture code). Same root cause as 9zEBK3E9bX/XH3OiIhtvf: recovery_validator now blocks downgrading a claim that retains verified positive support (claim-1 keeps evidence-1-turn-2 stance=supports/paper_grounded_exact/semantic_support_verified) before reaching the negative-evidence semantic-mismatch branch. commit_allowed stays false either way, so the recovery safety line is unchanged. Confirmed identical on committed HEAD 3b97956 with a clean working tree; NOT introduced by the P26 working-tree edits."
 }

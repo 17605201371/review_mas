@@ -141,7 +141,7 @@
     "_recovery_patch_source": "model_generated"
   },
   "expected": {
-    "failure_code": "INSUFFICIENT_EVIDENCE",
+    "failure_code": "BLOCKED_BY_POLICY",
     "validated": true,
     "commit_allowed": false
   },
@@ -151,5 +151,6 @@
     "recovery_target_id": "claim-1",
     "recovery_target_type": "claim",
     "recovery_patch_source": "model_generated"
-  }
+  },
+  "_audit_note": "expected.failure_code updated 2026-06-16 from INSUFFICIENT_EVIDENCE to BLOCKED_BY_POLICY. Fixture was captured 2026-06-04 (meta.runner_failure_code keeps the original run's code). recovery_validator.validate_recovery_patch later added a guard ('claim downgrade to unsupported is unsafe because the claim retains verified positive support') that now fires for this case before the no-evidence INSUFFICIENT_EVIDENCE branch: claim-1 still holds verified positive support evidence-1-turn-2 (stance=supports, verified_grounding_label=paper_grounded_exact, semantic_grounding_label=semantic_support_verified). Both codes give validated=true / commit_allowed=false, so the recovery safety line is unchanged; only the block reason is more specific and safer. Confirmed identical on committed HEAD 3b97956 with a clean working tree, i.e. NOT introduced by the P26 working-tree edits."
 }

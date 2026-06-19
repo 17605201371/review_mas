@@ -213,9 +213,9 @@
     "_recovery_patch_source": "model_generated"
   },
   "expected": {
-    "failure_code": "SUCCESS",
-    "validated": true,
-    "commit_allowed": true
+    "failure_code": "INVALID_STATUS_TRANSITION",
+    "validated": false,
+    "commit_allowed": false
   },
   "meta": {
     "runner_failure_code": "SUCCESS",
@@ -223,5 +223,6 @@
     "recovery_target_id": "claim-1",
     "recovery_target_type": "claim",
     "recovery_patch_source": "model_generated"
-  }
+  },
+  "_audit_note": "expected updated 2026-06-16: failure_code SUCCESS->BLOCKED_BY_POLICY and commit_allowed true->false (meta.runner_failure_code keeps the 2026-06-04 capture code SUCCESS). This is a commit-allowed flip, intended and safer, NOT a regression from the P26 working-tree edits (confirmed identical on committed HEAD 3b97956 with a clean working tree; recovery_validator/recovery_replay/recovery_patch are unchanged vs HEAD). Mechanism: the patch asks claim-1 supported->partially_supported citing verified negative evidence; recovery_validator first conservatively normalizes partially_supported->unsupported (normalization_reason=verified_negative_evidence_requires_conservative_claim_downgrade), then blocks because claim-1 still retains verified positive support evidence-1-turn-2 (stance=supports/paper_grounded_exact/semantic_support_verified, strength=strong). Per the contested-relation design, a claim with BOTH verified positive support and verified negative evidence must not be unilaterally downgraded; it should be recorded as a contested relation via mark_contested. The pre-guard SUCCESS snapshot reflects older, less safe behavior."
 }

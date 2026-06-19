@@ -116,6 +116,8 @@ PROTECTION_LINES: List[Tuple[str, str, str]] = [
     ("final_report_leakage_paper_count",      "==", "0"),
     ("synthetic_marker_in_supporting_count",  "==", "0"),
     ("negative_evidence_unlinked_to_flaw",    "==", "0"),
+    ("semantic_negative_without_review_relation_count", "==", "0"),
+    ("positive_or_neutral_negative_candidate_count", "==", "0"),
     # For smoke/dry-run protection, a weak-target block is a valid safe
     # recovery outcome.  Effective repair is still reported separately; the
     # defense net should not force unsafe commits just to raise commit count.
@@ -433,6 +435,20 @@ def _gap_lifecycle_class_counts(rows: Iterable[Dict[str, Any]]) -> Counter[str]:
     return counts
 
 
+def _recovery_case_summary(rows: Iterable[Dict[str, Any]]) -> Counter[str]:
+    """Return case-audited recovery buckets for paper-facing recovery claims."""
+    try:
+        try:
+            from audit_recovery_case_table_v1 import build_recovery_case_table
+        except Exception:
+            from scripts.audit_recovery_case_table_v1 import build_recovery_case_table
+
+        _, summary = build_recovery_case_table(rows)
+        return Counter(summary)
+    except Exception:
+        return Counter({"case_audit_error": 1})
+
+
 def _unresolved_status_counts(rows: Iterable[Dict[str, Any]], *, final_view: bool = True) -> Counter[str]:
     counts: Counter[str] = Counter()
     for row in rows:
@@ -509,6 +525,8 @@ def _derived_negative_type_counts(rows: Iterable[Dict[str, Any]]) -> Counter[str
                 record = ev_by_id.get(evidence_id)
                 if not isinstance(record, dict):
                     continue
+                if str(record.get("source") or "").strip().lower() == "quote-bank-negative-grounding":
+                    continue
                 explicit = str(record.get("negative_evidence_type") or "").strip()
                 if explicit:
                     counts[explicit] += 1
@@ -518,6 +536,8 @@ def _derived_negative_type_counts(rows: Iterable[Dict[str, Any]]) -> Counter[str
 
 
 def _record_has_verified_negative_grounding(record: Dict[str, Any]) -> bool:
+    if str(record.get("source") or "").strip().lower() == "quote-bank-negative-grounding":
+        return False
     verified_label = str(record.get("verified_grounding_label") or "")
     semantic_label = str(record.get("semantic_grounding_label") or "")
     return verified_label.startswith("paper_grounded") and semantic_label == "semantic_negative_verified"
@@ -529,7 +549,15 @@ def _derived_negative_flaw_actionability_counts(rows: Iterable[Dict[str, Any]]) 
         "negative_result",
         "missing_ablation",
         "missing_baseline",
+        "unfair_or_weak_baseline",
         "insufficient_evaluation",
+        "missing_robustness_or_generalization",
+        "evaluation_protocol_risk",
+        "efficiency_cost_gap",
+        "scope_overclaim",
+        "result_claim_mismatch",
+        "method_support_gap",
+        "reproducibility_gap",
     }
     actionable_flaws = 0
     limitation_flaws = 0
@@ -582,6 +610,7 @@ def _report_has_leak(text: str) -> bool:
 def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     n_papers = len(rows)
     out: Dict[str, Any] = {"paper_count": n_papers}
+    recovery_case_summary = _recovery_case_summary(rows)
 
     # --- positive support ----------------------------------------------
     out["real_strong_support_total"] = _sum(rows, "real_strong_support_total")
@@ -673,6 +702,15 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
 
     # --- negative & flaws ----------------------------------------------
     out["negative_evidence_candidate_count"] = _sum(rows, "negative_evidence_candidate_count")
+    out["review_negative_verified_count"] = _sum(rows, "review_negative_verified_count")
+    out["paper_text_negative_candidate_count"] = _sum(rows, "paper_text_negative_candidate_count")
+    out["author_limitation_only_count"] = _sum(rows, "author_limitation_only_count")
+    out["prior_work_limitation_count"] = _sum(rows, "prior_work_limitation_count")
+    out["positive_or_neutral_negative_candidate_count"] = _sum(rows, "positive_or_neutral_negative_candidate_count")
+    out["resource_or_scope_context_negative_candidate_count"] = _sum(rows, "resource_or_scope_context_negative_candidate_count")
+    out["semantic_negative_without_review_relation_count"] = _sum(rows, "semantic_negative_without_review_relation_count")
+    out["scope_limitation_as_verified_negative_count"] = _sum(rows, "scope_limitation_as_verified_negative_count")
+    out["quote_bank_salvage_generated_negative_count"] = _sum(rows, "quote_bank_salvage_generated_negative_count")
     out["negative_evidence_linked_to_flaw_count"] = _sum(rows, "negative_evidence_linked_to_flaw_count")
     out["negative_evidence_unlinked_to_flaw"] = _sum(rows, "negative_evidence_unlinked_to_flaw_count")
     derived_actionable_flaws, derived_limitation_flaws = _derived_negative_flaw_actionability_counts(rows)
@@ -680,12 +718,10 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     verified_actionable_sum = _sum(rows, "verified_actionable_negative_flaw_count")
     verified_limitation_sum = _sum(rows, "verified_limitation_negative_flaw_count")
     out["verified_negative_flaw_count"] = verified_negative_sum
-    out["verified_actionable_negative_flaw_count"] = (
-        verified_actionable_sum if verified_negative_sum else derived_actionable_flaws
-    )
-    out["verified_limitation_negative_flaw_count"] = (
-        verified_limitation_sum if verified_negative_sum else derived_limitation_flaws
-    )
+    out["verified_actionable_negative_flaw_count"] = min(verified_actionable_sum, verified_negative_sum)
+    out["verified_limitation_negative_flaw_count"] = min(verified_limitation_sum, verified_negative_sum)
+    out["legacy_derived_actionable_negative_flaw_count"] = derived_actionable_flaws
+    out["legacy_derived_limitation_negative_flaw_count"] = derived_limitation_flaws
     type_counts = Counter()
     for row in rows:
         type_counts.update((_hygiene(row).get("negative_evidence_type_counts") or {}))
@@ -696,7 +732,11 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
         "negative_result",
         "missing_ablation",
         "missing_baseline",
+        "unfair_or_weak_baseline",
         "insufficient_evaluation",
+        "missing_robustness_or_generalization",
+        "evaluation_protocol_risk",
+        "efficiency_cost_gap",
         "reproducibility_gap",
         "scope_overclaim",
         "result_claim_mismatch",
@@ -716,6 +756,32 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     out["negative_evidence_semantic_rejected_count"] = _sum(rows, "negative_evidence_semantic_rejected_count")
     out["downgraded_flaw_count"] = _sum(rows, "downgraded_flaw_count")
     out["potential_concern_count"] = _sum(rows, "potential_concern_count")
+    out["diagnosis_pending_potential_concern_count"] = _sum(rows, "diagnosis_pending_potential_concern_count")
+    out["diagnosis_pending_potential_concern_claim_count"] = _sum(rows, "diagnosis_pending_potential_concern_claim_count")
+    out["diagnosis_pending_concern_recorded_count"] = _sum(rows, "diagnosis_pending_concern_recorded_count")
+    out["diagnosis_pending_concern_recorded_claim_count"] = _sum(rows, "diagnosis_pending_concern_recorded_claim_count")
+    diagnosis_pending_type_counts: Counter[str] = Counter()
+    for row in rows:
+        hygiene = _hygiene(row)
+        diagnosis_pending_type_counts.update(
+            hygiene.get("diagnosis_pending_potential_concern_type_counts")
+            or hygiene.get("claim_requirement_missing_type_counts")
+            or {}
+        )
+    for neg_type in (
+        "missing_ablation",
+        "missing_baseline",
+        "unfair_or_weak_baseline",
+        "insufficient_evaluation",
+        "missing_robustness_or_generalization",
+        "evaluation_protocol_risk",
+        "efficiency_cost_gap",
+        "reproducibility_gap",
+        "scope_overclaim",
+        "result_claim_mismatch",
+        "method_support_gap",
+    ):
+        out[f"diagnosis_pending_type_{neg_type}"] = int(diagnosis_pending_type_counts.get(neg_type, 0))
 
     # --- state contamination / target localization ---------------------
     contamination_type_counts: Counter = Counter()
@@ -810,6 +876,10 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     model_adapter_quote_first_rewrite_count = 0
     model_adapter_strength_downgrade_count = 0
     small_model_quote_bank_augmentation_count = 0
+    evidence_json_status_counts: Counter = Counter()
+    evidence_json_failure_counts: Counter = Counter()
+    evidence_json_prompt_chars: List[int] = []
+    evidence_json_raw_chars: List[int] = []
     for r in rows:
         for tl in r.get("turn_logs") or []:
             if not isinstance(tl, dict):
@@ -824,6 +894,24 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
             if "Evidence Agent" not in selected and not evidence_payloads:
                 continue
             evidence_agent_worker_turns += 1
+            json_status = str(tl.get("evidence_json_parse_status") or "").strip()
+            if json_status:
+                evidence_json_status_counts[json_status] += 1
+            json_failure_type = str(tl.get("evidence_json_failure_type") or "").strip()
+            if json_failure_type:
+                evidence_json_failure_counts[json_failure_type] += 1
+            try:
+                prompt_chars = int(tl.get("evidence_json_prompt_chars") or 0)
+            except (TypeError, ValueError):
+                prompt_chars = 0
+            if prompt_chars > 0:
+                evidence_json_prompt_chars.append(prompt_chars)
+            try:
+                raw_chars = int(tl.get("evidence_json_raw_chars") or 0)
+            except (TypeError, ValueError):
+                raw_chars = 0
+            if raw_chars > 0:
+                evidence_json_raw_chars.append(raw_chars)
             if int(tl.get("evidence_quote_bank_count") or 0) > 0:
                 quote_bank_nonzero_turns += 1
             turn_evidence_count = int(tl.get("evidence_payload_evidence_count") or 0)
@@ -879,6 +967,37 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     out["model_adapter_strength_downgrade_count"] = model_adapter_strength_downgrade_count
     out["small_model_quote_bank_augmentation_count"] = small_model_quote_bank_augmentation_count
     out["evidence_formation_dead_loop_count"] = 1 if quote_bank_nonzero_turns > 0 and payload_evidence_item_total == 0 else 0
+    evidence_json_valid_turns = int(evidence_json_status_counts.get("json_valid", 0))
+    evidence_json_partial_recovered_turns = int(evidence_json_status_counts.get("partial_recovered", 0))
+    evidence_json_fallback_turns = sum(
+        int(count)
+        for status, count in evidence_json_status_counts.items()
+        if status not in {"json_valid", "partial_recovered"}
+    )
+    evidence_json_total_turns = sum(int(count) for count in evidence_json_status_counts.values())
+    out["evidence_json_status_turns"] = evidence_json_total_turns
+    out["evidence_json_valid_turns"] = evidence_json_valid_turns
+    out["evidence_json_partial_recovered_turns"] = evidence_json_partial_recovered_turns
+    out["evidence_json_fallback_turns"] = evidence_json_fallback_turns
+    out["evidence_json_fallback_rate_pct"] = (
+        int(round(100.0 * evidence_json_fallback_turns / evidence_json_total_turns))
+        if evidence_json_total_turns else 0
+    )
+    out["evidence_json_no_json_object_turns"] = int(evidence_json_failure_counts.get("no_json_object", 0))
+    out["evidence_json_invalid_json_turns"] = int(evidence_json_failure_counts.get("invalid_json", 0))
+    out["evidence_json_truncated_turns"] = sum(
+        int(count)
+        for failure_type, count in evidence_json_failure_counts.items()
+        if "truncated" in failure_type
+    )
+    out["evidence_json_prompt_chars_median"] = (
+        int(round(sorted(evidence_json_prompt_chars)[len(evidence_json_prompt_chars) // 2]))
+        if evidence_json_prompt_chars else 0
+    )
+    out["evidence_json_raw_chars_median"] = (
+        int(round(sorted(evidence_json_raw_chars)[len(evidence_json_raw_chars) // 2]))
+        if evidence_json_raw_chars else 0
+    )
 
     # --- recovery (from turn_logs) -------------------------------------
     rec = Counter()
@@ -897,6 +1016,8 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
                 rec["recovery_patch_committed"] += 1
             if tl.get("recovery_layer_hygiene_delta_improved"):
                 rec["hygiene_delta_improved"] += 1
+            if tl.get("recovery_layer_diagnosis_pending_recorded"):
+                rec["diagnosis_pending_recorded_layer"] += 1
             if tl.get("recovery_effective_repair"):
                 rec["recovery_effective_repair"] += 1
             if _turn_has_no_effect_commit(tl):
@@ -957,6 +1078,13 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
                     rec["mark_contested_with_verified_negative_evidence_count"] += 1
                 if committed and final_view in CONTESTED_FINAL_VIEWS:
                     rec["mark_contested_final_view_count"] += 1
+            if operation == "record_diagnosis_pending_concern":
+                committed = bool(tl.get("recovery_patch_committed") or tl.get("recovery_committed"))
+                delta = _recovery_turn_delta(tl)
+                if committed:
+                    rec["diagnosis_pending_concern_commit_count"] += 1
+                if bool(delta.get("diagnosis_pending_concern_added")):
+                    rec["diagnosis_pending_concern_added_count"] += 1
             code = str(tl.get("recovery_failure_code") or "")
             if code:
                 failure_codes[code] += 1
@@ -978,6 +1106,7 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     out["recovery_committed"] = rec["recovery_committed"]
     out["recovery_success"] = rec["recovery_success"]
     out["hygiene_delta_improved"] = rec["hygiene_delta_improved"]
+    out["diagnosis_pending_recorded_layer"] = rec["diagnosis_pending_recorded_layer"]
     out["recovery_effective_repair"] = rec["recovery_effective_repair"]
     out["recovery_no_effect_commit"] = rec["recovery_no_effect_commit"]
     out["recovery_harmful_commit_risk"] = rec["recovery_harmful_commit_risk"]
@@ -992,6 +1121,8 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     out["mark_contested_with_positive_support_count"] = rec["mark_contested_with_positive_support_count"]
     out["mark_contested_with_verified_negative_evidence_count"] = rec["mark_contested_with_verified_negative_evidence_count"]
     out["mark_contested_final_view_count"] = rec["mark_contested_final_view_count"]
+    out["diagnosis_pending_concern_commit_count"] = rec["diagnosis_pending_concern_commit_count"]
+    out["diagnosis_pending_concern_added_count"] = rec["diagnosis_pending_concern_added_count"]
     out["recovery_safe_resolution"] = (
         rec["recovery_success"]
         + rec["recovery_safe_blocked_weak_target"]
@@ -1028,6 +1159,49 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
         "resolve_stale_gap",
     ):
         out[f"recovery_patch_operation_{operation}_turns"] = rec[f"recovery_patch_operation_{operation}_turns"]
+    out["recovery_case_rows"] = int(recovery_case_summary.get("case_rows", 0) or 0)
+    out["recovery_case_audit_error_count"] = int(recovery_case_summary.get("case_audit_error", 0) or 0)
+    out["recovery_case_decision_hygiene_error_count"] = int(
+        recovery_case_summary.get("decision_hygiene_errors", 0) or 0
+    )
+    for bucket in (
+        "verified_review_negative_repair",
+        "verified_negative_flaw_lifecycle_downgrade",
+        "state_hygiene_repair",
+        "assessment_limitation_routing",
+        "effective_repair_without_verified_negative",
+        "flaw_lifecycle_downgrade_needs_manual_review",
+        "effective_repair_needs_manual_review",
+        "attempted_not_committed",
+        "committed_not_effective",
+    ):
+        out[f"recovery_case_{bucket}"] = int(recovery_case_summary.get(f"bucket::{bucket}", 0) or 0)
+    for bucket in (
+        "verified_review_negative",
+        "author_limitation_only",
+        "prior_work_limitation",
+        "positive_or_neutral_support",
+        "resource_or_scope_context",
+        "untrusted_model_output",
+        "quote-bank-negative-grounding_candidate",
+        "fallback-extraction_candidate",
+        "system_recovery_salvage_candidate",
+        "support_only",
+        "not_verified_or_unknown",
+        "missing_evidence_id",
+    ):
+        out[f"recovery_case_evidence_bucket_{bucket}"] = int(
+            recovery_case_summary.get(f"evidence_bucket::{bucket}", 0) or 0
+        )
+    out["recovery_case_effective_repair_turns"] = int(
+        recovery_case_summary.get("effective_repair_turns", 0) or 0
+    )
+    out["recovery_case_effective_repair_not_verified_negative_repair"] = int(
+        recovery_case_summary.get("effective_repair_not_verified_negative_repair", 0) or 0
+    )
+    out["recovery_case_turns_with_verified_review_negative_evidence"] = int(
+        recovery_case_summary.get("turns_with_verified_review_negative_evidence", 0) or 0
+    )
     out["failure_codes"] = dict(failure_codes)
     out["synthetic_marker_in_supporting_count"] = synthetic_in_supporting
 
@@ -1296,6 +1470,16 @@ def _check_protection(metrics: Dict[str, Any], mode: str) -> Tuple[List[Dict[str
 GROUP_DEFS: List[Tuple[str, List[str]]] = [
     ("Evidence formation health", [
         "evidence_agent_worker_turns",
+        "evidence_json_status_turns",
+        "evidence_json_valid_turns",
+        "evidence_json_partial_recovered_turns",
+        "evidence_json_fallback_turns",
+        "evidence_json_fallback_rate_pct",
+        "evidence_json_no_json_object_turns",
+        "evidence_json_invalid_json_turns",
+        "evidence_json_truncated_turns",
+        "evidence_json_prompt_chars_median",
+        "evidence_json_raw_chars_median",
         "quote_bank_nonzero_turns",
         "payload_evidence_item_total",
         "evidence_agent_nonempty_payload_turns",
@@ -1359,6 +1543,15 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
     ]),
     ("Negative & flaws", [
         "negative_evidence_candidate_count",
+        "review_negative_verified_count",
+        "paper_text_negative_candidate_count",
+        "author_limitation_only_count",
+        "prior_work_limitation_count",
+        "positive_or_neutral_negative_candidate_count",
+        "resource_or_scope_context_negative_candidate_count",
+        "semantic_negative_without_review_relation_count",
+        "scope_limitation_as_verified_negative_count",
+        "quote_bank_salvage_generated_negative_count",
         "negative_evidence_linked_to_flaw_count",
         "negative_evidence_unlinked_to_flaw",
         "verified_negative_flaw_count",
@@ -1368,7 +1561,11 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "negative_type_negative_result",
         "negative_type_missing_ablation",
         "negative_type_missing_baseline",
+        "negative_type_unfair_or_weak_baseline",
         "negative_type_insufficient_evaluation",
+        "negative_type_missing_robustness_or_generalization",
+        "negative_type_evaluation_protocol_risk",
+        "negative_type_efficiency_cost_gap",
         "negative_type_reproducibility_gap",
         "negative_type_scope_overclaim",
         "negative_type_result_claim_mismatch",
@@ -1386,6 +1583,21 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "negative_evidence_semantic_rejected_count",
         "downgraded_flaw_count",
         "potential_concern_count",
+        "diagnosis_pending_potential_concern_count",
+        "diagnosis_pending_potential_concern_claim_count",
+        "diagnosis_pending_concern_recorded_count",
+        "diagnosis_pending_concern_recorded_claim_count",
+        "diagnosis_pending_type_missing_ablation",
+        "diagnosis_pending_type_missing_baseline",
+        "diagnosis_pending_type_unfair_or_weak_baseline",
+        "diagnosis_pending_type_insufficient_evaluation",
+        "diagnosis_pending_type_missing_robustness_or_generalization",
+        "diagnosis_pending_type_evaluation_protocol_risk",
+        "diagnosis_pending_type_efficiency_cost_gap",
+        "diagnosis_pending_type_reproducibility_gap",
+        "diagnosis_pending_type_scope_overclaim",
+        "diagnosis_pending_type_result_claim_mismatch",
+        "diagnosis_pending_type_method_support_gap",
     ]),
     ("State contamination", [
         "state_contamination_count",
@@ -1424,6 +1636,8 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "contested_relation_effective_count",
         "conflict_to_contested_resolution_count",
         "negative_verified_target_preserved_count",
+        "diagnosis_pending_concern_commit_count",
+        "diagnosis_pending_concern_added_count",
         "mark_contested_commit_count",
         "mark_contested_with_positive_support_count",
         "mark_contested_with_verified_negative_evidence_count",
@@ -1468,6 +1682,7 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "recovery_committed",
         "recovery_success",
         "hygiene_delta_improved",
+        "diagnosis_pending_recorded_layer",
         "recovery_effective_repair",
         "recovery_no_effect_commit",
         "recovery_harmful_commit_risk",
@@ -1481,6 +1696,7 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "recovery_repeat_allowed_false_turns",
         "recovery_target_gate_real_target_turns",
         "recovery_target_gate_negative_verified_target_turns",
+        "recovery_target_gate_diagnosis_pending_target_turns",
         "recovery_target_gate_weak_target_turns",
         "recovery_target_gate_fallback_target_turns",
         "recovery_target_gate_empty_target_turns",
@@ -1489,7 +1705,37 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "recovery_patch_operation_route_to_assessment_limitation_turns",
         "recovery_patch_operation_downgrade_claim_to_unsupported_turns",
         "recovery_patch_operation_mark_contested_turns",
+        "recovery_patch_operation_record_diagnosis_pending_concern_turns",
         "recovery_patch_operation_resolve_stale_gap_turns",
+    ]),
+    ("Recovery case audit", [
+        "recovery_case_rows",
+        "recovery_case_audit_error_count",
+        "recovery_case_decision_hygiene_error_count",
+        "recovery_case_verified_review_negative_repair",
+        "recovery_case_verified_negative_flaw_lifecycle_downgrade",
+        "recovery_case_state_hygiene_repair",
+        "recovery_case_assessment_limitation_routing",
+        "recovery_case_effective_repair_without_verified_negative",
+        "recovery_case_flaw_lifecycle_downgrade_needs_manual_review",
+        "recovery_case_effective_repair_needs_manual_review",
+        "recovery_case_attempted_not_committed",
+        "recovery_case_committed_not_effective",
+        "recovery_case_effective_repair_turns",
+        "recovery_case_effective_repair_not_verified_negative_repair",
+        "recovery_case_turns_with_verified_review_negative_evidence",
+        "recovery_case_evidence_bucket_verified_review_negative",
+        "recovery_case_evidence_bucket_author_limitation_only",
+        "recovery_case_evidence_bucket_prior_work_limitation",
+        "recovery_case_evidence_bucket_positive_or_neutral_support",
+        "recovery_case_evidence_bucket_resource_or_scope_context",
+        "recovery_case_evidence_bucket_untrusted_model_output",
+        "recovery_case_evidence_bucket_quote-bank-negative-grounding_candidate",
+        "recovery_case_evidence_bucket_fallback-extraction_candidate",
+        "recovery_case_evidence_bucket_system_recovery_salvage_candidate",
+        "recovery_case_evidence_bucket_support_only",
+        "recovery_case_evidence_bucket_not_verified_or_unknown",
+        "recovery_case_evidence_bucket_missing_evidence_id",
     ]),
     ("Hygiene", [
         "final_nonreal_strong_support",

@@ -39,6 +39,7 @@ SEMANTIC_GROUNDING_LABELS = {
     "semantic_unjudged",
     "semantic_support_verified",
     "semantic_negative_verified",
+    "semantic_author_limitation",
     "semantic_support_weak",
     "semantic_negative_weak",
     "semantic_mismatch",
@@ -46,7 +47,7 @@ SEMANTIC_GROUNDING_LABELS = {
 }
 FLAW_SEVERITY = {"critical", "major", "minor"}
 FLAW_STATUS = {"candidate", "confirmed", "downgraded", "retracted"}
-QUESTION_STATUS = {"open", "resolved", "deferred"}
+QUESTION_STATUS = {"open", "resolved", "deferred", "not_assessable"}
 MANAGER_ACTION_TYPES = {"extract_claims", "verify_evidence", "analyze_flaws", "request_evidence_recheck", "challenge_previous_hypothesis", "summarize_progress", "ask_user_clarification", "finalize"}
 RECOVERY_ACTION_TYPES = {"challenge_previous_hypothesis", "request_evidence_recheck"}
 RECOVERY_PATCH_ACTION_TYPES = {"challenge_previous_hypothesis"}
@@ -72,9 +73,10 @@ FLAW_STATUS_TRANSITIONS = {
     "retracted": {"retracted", "downgraded", "candidate"},
 }
 QUESTION_STATUS_TRANSITIONS = {
-    "open": {"open", "resolved", "deferred"},
+    "open": {"open", "resolved", "deferred", "not_assessable"},
     "resolved": {"resolved", "open"},
-    "deferred": {"deferred", "open", "resolved"},
+    "deferred": {"deferred", "open", "resolved", "not_assessable"},
+    "not_assessable": {"not_assessable", "open", "resolved", "deferred"},
 }
 
 
@@ -459,12 +461,26 @@ def _normalize_question_item(item: Any, fallback_index: int) -> Optional[Dict[st
         if not question_text:
             return None
         question_id = _normalize_text(item.get("question_id"), max_length=80) or _slugify("question", question_text, fallback_index)
-        return {
+        normalized = {
             "question_id": question_id,
             "question": question_text,
             "status": _normalize_choice(item.get("status"), QUESTION_STATUS, "open"),
             "related_claim_ids": _normalize_list_of_strings(item.get("related_claim_ids"), max_items=6, max_length=80),
         }
+        for field in (
+            "target_type",
+            "target_id",
+            "target_classification",
+            "targeted_negative_search_task_id",
+            "negative_evidence_type",
+            "required_evidence_type",
+            "source",
+            "hygiene_status_reason",
+        ):
+            value = _normalize_text(item.get(field), max_length=120)
+            if value:
+                normalized[field] = value
+        return normalized
 
     question_text = _normalize_text(item, max_length=300)
     if not question_text:
@@ -507,6 +523,10 @@ def _normalize_conflict_item(item: Any, fallback_index: int) -> Optional[Dict[st
 
 def _classify_claim_kind(claim_id: Any, declared_kind: Any = "") -> str:
     value = str(claim_id or "").strip().lower()
+    if value.startswith(("claim-paper-context", "claim-paper-recovery")):
+        return "context_synthesized" if value.startswith("claim-paper-context") else "recovery_marker"
+    if value.startswith("claim-paper-fallback"):
+        return "manager_fallback"
     if value.startswith("claim-fallback") or value.startswith("fallback"):
         return "manager_fallback"
     if value.startswith("claim-context") or value.startswith("context"):
@@ -523,6 +543,74 @@ def _classify_claim_kind(claim_id: Any, declared_kind: Any = "") -> str:
     return "unknown"
 
 
+_RAW_SALVAGED_CLAIM_META_SHELL_RE = re.compile(
+    r"claim-paper-context|claim-context|claim-paper-fallback|claim-fallback|claim-recovery|"
+    r"context_derived|context_synthesized|raw_salvaged|"
+    r"^\s*(?:what\s+(?:is|are|does|do)\b|how\s+(?:does|do|is|are)\b|why\s+(?:does|do|is|are)\b)|"
+    r"\bfrom the (?:title|abstract|introduction)\b|"
+    r"\bprovided snippets?\b|\bwe do not have\b|\bwe don't have\b|\bno direct experimental results\b|"
+    r"\bthat could be (?:a|an)\b|"
+    r"\bclaim[_ -]?type\s*=|\bcoverage[_ -]?tags\s*=|\bimportance\s*=",
+    re.IGNORECASE,
+)
+_RAW_SALVAGED_SOURCE_PREFIX_RE = re.compile(
+    r"^\s*from\s+(?:the\s+)?"
+    r"(?:title|abstract|introduction|methodology|method|experiments?|evaluation|results?|comparison|ablation|conclusion)"
+    r"(?:\s+and\s+(?:the\s+)?"
+    r"(?:title|abstract|introduction|methodology|method|experiments?|evaluation|results?|comparison|ablation|conclusion))*"
+    r"\s*:\s*",
+    re.IGNORECASE,
+)
+_RAW_SALVAGED_SCHEMA_SUFFIX_RE = re.compile(
+    r"\s+(?:claim[_ -]?type\s*=|coverage[_ -]?tags\s*=|importance\s*=|but also should include\b|actually,\s+cov\b).*$",
+    re.IGNORECASE | re.DOTALL,
+)
+_RAW_SALVAGED_TRAILING_META_RE = re.compile(
+    r"(?:\s+this\s+is\s+(?:a\s+|an\s+)?(?:broad\s+)?"
+    r"(?:contribution|empirical|comparison|method|limitation|scope)\s+claim\.?"
+    r"|\s+this\s+is\s+broad,?\s+from\s+(?:the\s+)?"
+    r"(?:title|abstract|introduction|methodology|method|experiments?|evaluation|results?|comparison|ablation|conclusion)\.?)\s*$",
+    re.IGNORECASE,
+)
+
+
+def _clean_raw_salvaged_claim_text(claim_text: str) -> str:
+    text = str(claim_text or "").strip()
+    if not text:
+        return ""
+    text = _RAW_SALVAGED_SOURCE_PREFIX_RE.sub("", text).strip()
+    text = _RAW_SALVAGED_SCHEMA_SUFFIX_RE.sub("", text).strip()
+    text = _RAW_SALVAGED_TRAILING_META_RE.sub("", text).strip()
+    return _normalize_text(text, max_length=500)
+
+
+def _should_canonicalize_raw_salvaged_claim(item: Dict[str, Any], claim_id: str, claim_text: str) -> bool:
+    lowered = str(claim_id or "").strip().lower()
+    if lowered.startswith(
+        (
+            "claim-context",
+            "claim-paper-context",
+            "claim-fallback",
+            "claim-paper-fallback",
+            "claim-recovery",
+            "claim-paper-recovery",
+            "recovery",
+            "context",
+        )
+    ):
+        return False
+    claim_kind = str((item or {}).get("claim_kind") or "").strip().lower()
+    origin_kind = str((item or {}).get("claim_origin_kind") or "").strip().lower()
+    if claim_kind != "paper_extracted" or origin_kind != "raw_salvaged_claim_agent_output":
+        return False
+    text = str(claim_text or "").strip()
+    if len(text) < 24:
+        return False
+    if _RAW_SALVAGED_CLAIM_META_SHELL_RE.search(text):
+        return False
+    return True
+
+
 def _normalize_claim_item(item: Any, fallback_index: int) -> Optional[Dict[str, Any]]:
     if not isinstance(item, dict):
         return None
@@ -530,6 +618,15 @@ def _normalize_claim_item(item: Any, fallback_index: int) -> Optional[Dict[str, 
     if not claim_text:
         return None
     claim_id = _normalize_text(item.get("claim_id"), max_length=80) or _slugify("claim", claim_text, fallback_index)
+    origin_kind = str((item or {}).get("claim_origin_kind") or "").strip().lower()
+    if origin_kind == "raw_salvaged_claim_agent_output":
+        cleaned_claim_text = _clean_raw_salvaged_claim_text(claim_text)
+        if cleaned_claim_text:
+            claim_text = cleaned_claim_text
+    original_claim_id = claim_id
+    canonicalized_from_raw_salvage = _should_canonicalize_raw_salvaged_claim(item, claim_id, claim_text)
+    if canonicalized_from_raw_salvage:
+        claim_id = _slugify("claim", claim_text, fallback_index)
     claim_type = _infer_claim_type(item, claim_text)
     coverage_tags = _normalize_claim_coverage_tags(item, claim_text, claim_type)
     claim_kind = _classify_claim_kind(claim_id, item.get("claim_kind"))
@@ -554,6 +651,9 @@ def _normalize_claim_item(item: Any, fallback_index: int) -> Optional[Dict[str, 
         value = _normalize_text(item.get(field), max_length=120)
         if value:
             normalized[field] = value
+    if canonicalized_from_raw_salvage:
+        normalized["original_claim_id"] = original_claim_id
+        normalized["paper_claim_canonicalized_from_raw_salvage"] = True
     return normalized
 
 
@@ -648,6 +748,22 @@ def _normalize_evidence_item(item: Any, fallback_index: int) -> Optional[Dict[st
     negative_actionability = _normalize_text(item.get("negative_evidence_actionability"), max_length=80)
     if negative_actionability:
         normalized["negative_evidence_actionability"] = negative_actionability
+    review_negative_label = _normalize_text(item.get("review_negative_label"), max_length=80)
+    if review_negative_label:
+        normalized["review_negative_label"] = review_negative_label
+    review_negative_reason = _normalize_text(item.get("review_negative_reason"), max_length=160)
+    if review_negative_reason:
+        normalized["review_negative_reason"] = review_negative_reason
+    if item.get("review_negative_checked") is not None:
+        normalized["review_negative_checked"] = bool(item.get("review_negative_checked"))
+    if item.get("review_negative_relation_score") is not None:
+        normalized["review_negative_relation_score"] = _normalize_float(
+            item.get("review_negative_relation_score"),
+            default=0.0,
+        )
+    negative_quote_candidate_status = _normalize_text(item.get("negative_quote_candidate_status"), max_length=80)
+    if negative_quote_candidate_status:
+        normalized["negative_quote_candidate_status"] = negative_quote_candidate_status
     verified_source_bucket = _normalize_text(item.get("verified_source_bucket"), max_length=80)
     if verified_source_bucket:
         normalized["verified_source_bucket"] = verified_source_bucket
@@ -665,6 +781,52 @@ def _normalize_evidence_item(item: Any, fallback_index: int) -> Optional[Dict[st
     )
     normalized["support_quality_reason"] = _normalize_text(item.get("support_quality_reason"), max_length=240)
     return normalized
+
+
+_MODEL_CLAIMED_EVIDENCE_VERIFICATION_FIELDS = frozenset(
+    {
+        "verified_grounding_label",
+        "verified_grounding_reason",
+        "verified_source_span_start",
+        "verified_source_span_end",
+        "verified_quote_match_type",
+        "verified_locator_quality",
+        "verified_source_bucket",
+        "verified_claim_overlap_score",
+        "semantic_grounding_label",
+        "semantic_grounding_reasons",
+        "semantic_alignment_score",
+        "semantic_grounding_checked",
+        "quote_evidence_semantic_mismatch",
+        "quote_bank_canonicalized",
+        "quote_bank_claim_overlap_fallback_used",
+        "quote_bank_claim_overlap_fallback_quote_id",
+        "quote_bank_claim_overlap_fallback_source_bucket",
+        "quote_bank_claim_overlap_fallback_score",
+        "semantic_weak_promotion_used",
+        "semantic_weak_promotion_reason",
+        "strength_promotion_from_medium_used",
+        "strength_promotion_reason",
+        "review_negative_checked",
+        "review_negative_label",
+        "review_negative_reason",
+        "review_negative_relation_score",
+    }
+)
+
+
+def _strip_model_claimed_evidence_verification_fields(item: Dict[str, Any]) -> Dict[str, Any]:
+    """Remove verifier-only fields from newly emitted ordinary evidence."""
+    cleaned = dict(item or {})
+    stripped = False
+    for key in _MODEL_CLAIMED_EVIDENCE_VERIFICATION_FIELDS:
+        if key in cleaned:
+            cleaned.pop(key, None)
+            stripped = True
+    cleaned["runtime_evidence_verification_required"] = True
+    if stripped:
+        cleaned["model_claimed_verification_stripped"] = True
+    return cleaned
 
 
 def _normalize_quote_with_offsets(text: str) -> Tuple[str, List[int]]:
@@ -988,6 +1150,194 @@ def _evidence_has_negative_intent(evidence: Dict[str, Any]) -> bool:
         stance in {"contradicts", "contradict", "refutes", "refute", "weakens", "weaken", "undermines", "undermine", "partially_contradicts", "partially_refutes", "negative", "missing", "not_grounded", "unsupported", "opposes", "oppose"}
         or strength == "missing"
     )
+
+
+REVIEW_NEGATIVE_VERIFIED_LABEL = "review_negative_verified"
+
+_REVIEW_NEGATIVE_POSITIVE_CONTEXT_RE = re.compile(
+    r"\b(?:address(?:es|ed|ing)?|overcom(?:e|es|ing)|mitigat(?:e|es|ing)|solve(?:s|d|ing)?|"
+    r"tackl(?:e|es|ed|ing)|alleviat(?:e|es|ed|ing))\b[^.!?]{0,100}\b(?:limitation|limitations|challenge|challenges|issue|issues|problem|problems)\b|"
+    r"\b(?:present|propose|introduce|develop)\b[^.!?]{0,80}\b(?:novel|new|effective|efficient|robust|viewpoint|approach|method)\b|"
+    r"\b(?:outperform(?:s|ed|ing)?|improv(?:e|es|ed|ement)|enhanc(?:e|es|ed|ing)|boost(?:s|ed|ing)?|"
+    r"achiev(?:e|es|ed|ing)|guarantee(?:s|d)?|superior)\b",
+    re.IGNORECASE,
+)
+_REVIEW_NEGATIVE_PRIOR_WORK_RE = re.compile(
+    r"\b(?:prior work|previous work|existing method|existing methods|related work|baseline method|baseline methods|"
+    r"et al\.|\((?:19|20)\d{2}[a-z]?\)|(?:19|20)\d{2}\))\b[^.!?]{0,160}"
+    r"\b(?:introduc(?:e|es|ed)|propos(?:e|es|ed)|present(?:s|ed)?|address(?:es|ed|ing)?|"
+    r"overcom(?:e|es|ing)|fail(?:s|ed)?|lack(?:s|ed|ing)?|do(?:es)? not)\b",
+    re.IGNORECASE,
+)
+_REVIEW_NEGATIVE_RESOURCE_CONTEXT_RE = re.compile(
+    r"\b(?:computational|compute|resource|resources|memory|budget)\b[^.!?]{0,80}"
+    r"\b(?:limitation|limitations|constraint|constraints|limited|prioriti[sz]e|prioriti[sz]ed|select|choose|chosen)\b|"
+    r"\b(?:due to|because of|given)\b[^.!?]{0,80}\b(?:resource|compute|computational|budget)\b",
+    re.IGNORECASE,
+)
+_REVIEW_NEGATIVE_CONCRETE_GAP_RE = re.compile(
+    r"\b(?:we|our|this paper|this work|the paper|the method|the model|the system|the experiments?|the evaluation)\b"
+    r"[^.!?]{0,140}\b(?:do(?:es)? not|did not|cannot|not|no|without|lack(?:s|ed|ing)?|missing|absent|"
+    r"insufficient|limited|only evaluated|not evaluated|not compared|not provided|not reported|not included|not tested|not released)\b|"
+    r"\b(?:evaluation|experiment|experiments|comparison|baseline|baselines|ablation|implementation|hyperparameter|"
+    r"hyperparameters|code|runtime|latency|memory|robustness|generalization|generalisation|output quality|reproducibility)\b"
+    r"[^.!?]{0,100}\b(?:not|no|without|missing|absent|limited|insufficient|omitted|unavailable|not evaluated|not compared|"
+    r"not provided|not reported|not included|not tested|not released)\b",
+    re.IGNORECASE,
+)
+_REVIEW_NEGATIVE_SCOPE_RELATION_RE = re.compile(
+    r"\b(?:only evaluated on|only tested on|limited to|restricted to|only applies|only applicable|only valid|"
+    r"does not generalize|does not generalise|out of scope|assumes?|assumption requires?|requires? [^.!?]{0,60}assumption)\b",
+    re.IGNORECASE,
+)
+_REVIEW_NEGATIVE_BROAD_CLAIM_RE = re.compile(
+    r"\b(?:general|generali[sz]e|robust|robustness|across|various|diverse|all|any|broad|universal|"
+    r"state-of-the-art|sota|outperform|scalable|transfer|out-of-domain|cross-domain)\b",
+    re.IGNORECASE,
+)
+_REVIEW_NEGATIVE_AUTHOR_LIMITATION_RE = re.compile(
+    r"\b(?:limitation|limitations|limited|future work|threats? to validity|we leave|we plan|we will|"
+    r"we hope|we intend|we focus|out of scope)\b|"
+    r"\b(?:we|our|this paper|this work)\b[^.!?]{0,100}\b"
+    r"(?:do not|does not|did not|cannot|don't|doesn't)\s+"
+    r"(?:evaluate|report|compare|include|test|measure|judge|assess|provide|release)\b",
+    re.IGNORECASE,
+)
+
+
+def _review_negative_assessment(
+    label: str,
+    reason: str,
+    relation_score: float,
+) -> Dict[str, Any]:
+    return {
+        "review_negative_checked": True,
+        "review_negative_label": label,
+        "review_negative_reason": reason,
+        "review_negative_relation_score": round(relation_score, 4),
+    }
+
+
+def _has_review_negative_semantic_intent(evidence: Dict[str, Any]) -> bool:
+    """Recognize concrete current-paper gaps even when model stance is wrong."""
+    if not isinstance(evidence, dict):
+        return False
+    quote = str(evidence.get("raw_quote") or evidence.get("evidence") or "")
+    if quote and _REVIEW_NEGATIVE_AUTHOR_LIMITATION_RE.search(quote):
+        return False
+    if _evidence_has_negative_intent(evidence):
+        return True
+    neg_type = _negative_evidence_type_for_record(evidence)
+    if neg_type not in TRUE_PAPER_NEGATIVE_EVIDENCE_TYPES:
+        return False
+    if not _REVIEW_NEGATIVE_CONCRETE_GAP_RE.search(quote):
+        return False
+    if _REVIEW_NEGATIVE_POSITIVE_CONTEXT_RE.search(quote):
+        return False
+    if _REVIEW_NEGATIVE_PRIOR_WORK_RE.search(quote) and not _INTRO_NEGATIVE_SELF_ANCHOR_RE.search(quote):
+        return False
+    if _REVIEW_NEGATIVE_AUTHOR_LIMITATION_RE.search(quote):
+        return False
+    return True
+
+
+def _assess_review_negative_relation(state: Dict[str, Any], evidence: Dict[str, Any]) -> Dict[str, Any]:
+    """Decide whether a grounded negative-looking quote is a reviewer flaw.
+
+    Paper quote existence is a grounding fact.  This gate is the separate review
+    relation: the quote must weaken a target claim or ground a concrete reviewer
+    concern.  Author self-limitations, prior-work limitations, and positive
+    "we address limitations" text are not verified negative evidence.
+    """
+
+    quote = str(evidence.get("raw_quote") or evidence.get("evidence") or "")
+    claim_text = _claim_text_for_evidence(state or {}, str(evidence.get("claim_id") or ""))
+    evidence_text = str(evidence.get("evidence") or "")
+    source_text = " ".join(
+        str(evidence.get(key) or "")
+        for key in ("source", "source_locator", "support_source_bucket", "verified_source_bucket")
+    )
+    relation_text = " ".join([claim_text, evidence_text])
+    relation_score = _semantic_alignment_score(relation_text, quote)
+    neg_type = _negative_evidence_type_for_record(evidence)
+
+    if not (_has_review_negative_semantic_intent(evidence) or neg_type in NEGATIVE_EVIDENCE_TYPES_ALL):
+        return _review_negative_assessment("not_negative_evidence", "record_has_no_negative_intent", relation_score)
+    if str(evidence.get("verified_grounding_label") or "") not in VERIFIED_PAPER_GROUNDED_LABELS:
+        return _review_negative_assessment("insufficient_paper_grounding", "quote_not_paper_grounded", relation_score)
+    semantic_label = str(evidence.get("semantic_grounding_label") or "")
+    if semantic_label == "semantic_author_limitation":
+        reason = (
+            f"{neg_type}_is_author_self_limitation"
+            if neg_type
+            else "author_scope_or_future_work_note"
+        )
+        return _review_negative_assessment("author_limitation_only", reason, relation_score)
+    if semantic_label != "semantic_negative_verified":
+        return _review_negative_assessment("insufficient_semantic_negative", "semantic_negative_verification_missing", relation_score)
+    if neg_type in {"neutral_control_context", "generic_gap", "bibliographic_or_title_noise", "neutral_instruction_noise"}:
+        return _review_negative_assessment("insufficient_claim_relation", f"negative_type_{neg_type}_not_review_negative", relation_score)
+
+    quote_l = quote.lower()
+    self_anchor = bool(_INTRO_NEGATIVE_SELF_ANCHOR_RE.search(quote))
+    author_limitation = bool(_REVIEW_NEGATIVE_AUTHOR_LIMITATION_RE.search(quote_l))
+    concrete_gap = bool(_REVIEW_NEGATIVE_CONCRETE_GAP_RE.search(quote))
+    broad_claim = bool(_REVIEW_NEGATIVE_BROAD_CLAIM_RE.search(claim_text))
+    scope_relation = bool(_REVIEW_NEGATIVE_SCOPE_RELATION_RE.search(quote))
+
+    if _REVIEW_NEGATIVE_POSITIVE_CONTEXT_RE.search(quote):
+        return _review_negative_assessment("positive_or_neutral_support", "quote_describes_addressing_or_positive_result", relation_score)
+    if _REVIEW_NEGATIVE_PRIOR_WORK_RE.search(quote) and not self_anchor:
+        return _review_negative_assessment("prior_work_limitation", "quote_describes_prior_or_external_work", relation_score)
+    if _REVIEW_NEGATIVE_RESOURCE_CONTEXT_RE.search(quote):
+        if not concrete_gap:
+            return _review_negative_assessment("resource_or_scope_context", "resource_context_without_current_paper_gap", relation_score)
+
+    if neg_type in TRUE_PAPER_NEGATIVE_EVIDENCE_TYPES:
+        if author_limitation:
+            return _review_negative_assessment("author_limitation_only", f"{neg_type}_is_author_self_limitation", relation_score)
+        if concrete_gap or neg_type in {"direct_contradiction", "negative_result", "result_claim_mismatch", "evaluation_protocol_risk"}:
+            return _review_negative_assessment(REVIEW_NEGATIVE_VERIFIED_LABEL, f"{neg_type}_grounds_current_paper_concern", relation_score)
+        if relation_score >= 0.08:
+            return _review_negative_assessment(REVIEW_NEGATIVE_VERIFIED_LABEL, f"{neg_type}_has_claim_relation", relation_score)
+        return _review_negative_assessment("insufficient_claim_relation", f"{neg_type}_lacks_current_claim_relation", relation_score)
+
+    if neg_type == "scope_overclaim":
+        if concrete_gap or scope_relation or broad_claim:
+            return _review_negative_assessment(REVIEW_NEGATIVE_VERIFIED_LABEL, "scope_overclaim_weakens_broad_claim", relation_score)
+        return _review_negative_assessment("author_limitation_only", "scope_overclaim_without_claim_weakening_relation", relation_score)
+
+    if neg_type == "scope_limitation":
+        if scope_relation and broad_claim:
+            return _review_negative_assessment(REVIEW_NEGATIVE_VERIFIED_LABEL, "scope_limitation_weakens_broad_claim", relation_score)
+        if self_anchor or author_limitation:
+            return _review_negative_assessment("author_limitation_only", "author_scope_or_future_work_note", relation_score)
+        return _review_negative_assessment("insufficient_claim_relation", "scope_limitation_without_review_relation", relation_score)
+
+    return _review_negative_assessment("insufficient_claim_relation", "no_review_negative_relation", relation_score)
+
+
+def _apply_review_negative_relation_label(state: Dict[str, Any], evidence: Dict[str, Any]) -> None:
+    if not isinstance(evidence, dict):
+        return
+    if not (_has_review_negative_semantic_intent(evidence) or str(evidence.get("negative_evidence_type") or "").strip()):
+        return
+    evidence.update(_assess_review_negative_relation(state or {}, evidence))
+
+
+def _review_negative_label_for_record(item: Dict[str, Any], state: Dict[str, Any]) -> str:
+    if not isinstance(item, dict):
+        return ""
+    existing_label = str(item.get("review_negative_label") or "").strip()
+    if existing_label:
+        return existing_label
+    if str(item.get("semantic_grounding_label") or "").strip() != "semantic_negative_verified":
+        return ""
+    return str(_assess_review_negative_relation(state or {}, item).get("review_negative_label") or "")
+
+
+def _is_review_negative_verified_evidence_record(item: Dict[str, Any], state: Dict[str, Any]) -> bool:
+    return _review_negative_label_for_record(item, state) == REVIEW_NEGATIVE_VERIFIED_LABEL
 
 
 # P0-1 Medium Promotion Calibration thresholds (semantic_alignment_score):
@@ -1325,7 +1675,25 @@ def _should_promote_verified_medium_support(evidence: Dict[str, Any]) -> bool:
     return _classify_medium_support_promotion_tier(evidence)["tier"] == "strong"
 
 
+_UNTRUSTED_VERIFIER_SOURCE_LABELS = {
+    "fallback",
+    "fallback-extraction",
+    "model-output",
+    "model output",
+    "model_generated",
+    "manager_model",
+    "system recovery salvage",
+    "system_meta",
+    "system-meta",
+    "quote-bank-negative-grounding",
+}
+
+
 def _has_trusted_existing_grounding(evidence: Dict[str, Any]) -> bool:
+    source = str((evidence or {}).get("source") or "").strip().lower()
+    source_locator = str((evidence or {}).get("source_locator") or "").strip().lower()
+    if source in _UNTRUSTED_VERIFIER_SOURCE_LABELS or source_locator in _UNTRUSTED_VERIFIER_SOURCE_LABELS:
+        return False
     if str(evidence.get("verified_grounding_label") or "") not in VERIFIED_PAPER_GROUNDED_LABELS:
         return False
     if str(evidence.get("semantic_grounding_label") or "") not in {
@@ -1412,7 +1780,8 @@ def _assess_quote_semantic_grounding(state: Dict[str, Any], evidence: Dict[str, 
 
     score = _semantic_alignment_score(check_text, quote)
     has_anchor_match = bool((check_numbers & quote_numbers) or (check_tables & quote_tables))
-    negative_intent = _evidence_has_negative_intent(evidence)
+    author_limitation_quote = bool(_REVIEW_NEGATIVE_AUTHOR_LIMITATION_RE.search(quote))
+    negative_intent = _has_review_negative_semantic_intent(evidence)
     quote_has_negative_anchor = bool(_SEMANTIC_NEGATIVE_TERMS_RE.search(quote))
 
     claim_overlap_verified = _has_verified_claim_overlap_support(evidence, min_score=2)
@@ -1420,7 +1789,10 @@ def _assess_quote_semantic_grounding(state: Dict[str, Any], evidence: Dict[str, 
     semantic_weak_promotion_used = False
     semantic_weak_promotion_reason = ""
 
-    if negative_intent:
+    if _evidence_has_negative_intent(evidence) and author_limitation_quote:
+        label = "semantic_author_limitation"
+        reasons.append("author_self_limitation_or_future_work_note")
+    elif negative_intent:
         if not quote_has_negative_anchor:
             reasons.append("quote_lacks_negative_anchor")
         if reasons:
@@ -1476,6 +1848,7 @@ def _verify_evidence_grounding_against_state(state: Dict[str, Any], evidence: Di
     item["final_strength"] = str(item.get("strength") or "")
     item["final_support_depth"] = str(item.get("support_depth") or "")
     if _has_trusted_existing_grounding(item):
+        _apply_review_negative_relation_label(state, item)
         _apply_programmatic_source_locator(state, item)
         _apply_final_support_promotion_and_guard(item)
         item["support_depth"] = _support_depth_label(item)
@@ -1575,6 +1948,7 @@ def _verify_evidence_grounding_against_state(state: Dict[str, Any], evidence: Di
     item.update(verification)
     semantic = _assess_quote_semantic_grounding(state, item)
     item.update(semantic)
+    _apply_review_negative_relation_label(state, item)
     if item.get("verified_grounding_label") not in VERIFIED_PAPER_GROUNDED_LABELS and item.get("strength") == "strong":
         item["strength"] = "medium"
         item["support_quality_adjustment"] = "downgraded_unverified_quote_grounding"
@@ -1649,6 +2023,8 @@ def _is_usable_support_grounding(evidence: Dict[str, Any]) -> bool:
         and not str(evidence.get("verified_quote_match_type") or "").strip()
         and not bool(evidence.get("semantic_grounding_checked"))
     ):
+        if evidence.get("runtime_evidence_verification_required") or evidence.get("model_claimed_verification_stripped"):
+            return False
         return _is_legacy_non_abstract_support_grounding(evidence)
     if label not in VERIFIED_PAPER_GROUNDED_LABELS:
         return False
@@ -1725,6 +2101,29 @@ def _support_observability_record(evidence: Dict[str, Any]) -> Dict[str, Any]:
 
 def _is_real_paper_claim_id(claim_id: Any, declared_kind: Any = "") -> bool:
     return _classify_claim_kind(claim_id, declared_kind) == "paper_extracted"
+
+
+def _is_real_paper_claim_id_for_negative(claim_id: Any, declared_kind: Any = "") -> bool:
+    """Claim gate for negative-evidence binding.
+
+    Negative evidence must bind to an ordinary real paper claim, never to a
+    context/fallback/recovery scaffold.  Raw-salvaged fallback claims can still
+    be used by the diagnosis/search target gate, but they no longer count as
+    final verified reviewer-negative evidence.
+    """
+    value = str(claim_id or "").strip().lower()
+    if value.startswith(
+        (
+            "claim-paper-context",
+            "claim-context",
+            "claim-paper-fallback",
+            "claim-fallback",
+            "claim-recovery",
+            "claim-paper-recovery",
+        )
+    ):
+        return False
+    return _is_real_paper_claim_id(claim_id, declared_kind)
 
 
 def _is_specific_locator(locator: str) -> bool:
@@ -1971,7 +2370,11 @@ def _real_claim_ids_from_state(state: Dict[str, Any]) -> set[str]:
         claim_id = str(item.get("claim_id", "") or "")
         if not claim_id:
             continue
-        if _is_real_paper_claim_id(claim_id, item.get("claim_kind") if isinstance(item, dict) else ""):
+        if (
+            isinstance(item, dict)
+            and _is_real_paper_claim_id(claim_id, item.get("claim_kind"))
+            and not _claim_gap_should_be_not_assessable(item)
+        ):
             real_ids.add(claim_id)
     return real_ids
 
@@ -2256,6 +2659,21 @@ def _normalize_flaw_item(item: Any, fallback_index: int) -> Optional[Dict[str, A
         normalized["source"] = source
     if grounding_status:
         normalized["grounding_status"] = grounding_status
+    weakness_type = _normalize_text(item.get("weakness_type") or item.get("flaw_type"), max_length=80)
+    if weakness_type:
+        normalized["weakness_type"] = weakness_type
+    required_evidence_type = _normalize_text(item.get("required_evidence_type"), max_length=80)
+    if required_evidence_type:
+        normalized["required_evidence_type"] = required_evidence_type
+    criterion = _normalize_text(item.get("criterion") or item.get("review_criterion"), max_length=80)
+    if criterion:
+        normalized["criterion"] = criterion
+    source_stage = _normalize_text(item.get("source_stage"), max_length=80)
+    if source_stage:
+        normalized["source_stage"] = source_stage
+    paper_side_rationale = _normalize_text(item.get("paper_side_rationale"), max_length=360)
+    if paper_side_rationale:
+        normalized["paper_side_rationale"] = paper_side_rationale
     negative_evidence_type = _normalize_text(item.get("negative_evidence_type"), max_length=80)
     if negative_evidence_type:
         normalized["negative_evidence_type"] = negative_evidence_type
@@ -2687,6 +3105,7 @@ def _claim_gap_should_be_not_assessable(claim: Dict[str, Any]) -> bool:
     """
     claim_id = str(claim.get("claim_id") or "").strip().lower()
     origin_kind = str(claim.get("claim_origin_kind") or "").strip().lower()
+    canonicalized_raw_salvage = bool(claim.get("paper_claim_canonicalized_from_raw_salvage"))
     origin = " ".join(
         str(claim.get(key) or "")
         for key in ("claim_origin", "claim_source", "source_stage", "provenance")
@@ -2694,10 +3113,13 @@ def _claim_gap_should_be_not_assessable(claim: Dict[str, Any]) -> bool:
     return (
         claim_id.startswith("claim-paper-context-")
         or claim_id.startswith("claim-paper-fallback-")
-        or origin_kind in {"context_synthesized", "raw_salvaged_claim_agent_output"}
+        or (
+            origin_kind in {"context_synthesized", "raw_salvaged_claim_agent_output"}
+            and not canonicalized_raw_salvage
+        )
         or "context_derived" in origin
-        or "raw_salvage" in origin
-        or "malformed_claim_agent_output" in origin
+        or ("raw_salvage" in origin and not canonicalized_raw_salvage)
+        or ("malformed_claim_agent_output" in origin and not canonicalized_raw_salvage)
     )
 
 
@@ -3018,7 +3440,12 @@ def _decision_real_claim_ids(state: Dict[str, Any]) -> set[str]:
     return {
         str(item.get("claim_id") or "")
         for item in state.get("claims", []) or []
-        if item.get("claim_id") and _is_real_paper_claim_id(item.get("claim_id"), item.get("claim_kind"))
+        if (
+            isinstance(item, dict)
+            and item.get("claim_id")
+            and _is_real_paper_claim_id(item.get("claim_id"), item.get("claim_kind"))
+            and not _claim_gap_should_be_not_assessable(item)
+        )
     }
 
 
@@ -3183,6 +3610,17 @@ _CLAIM_REQ_SCOPE_RE = re.compile(
     r"across|diverse|various|all\b|any\b|universal|broad|scal(?:e|es|able|ability))\b",
     re.IGNORECASE,
 )
+_CLAIM_REQ_ROBUSTNESS_RE = re.compile(
+    r"\b(robust(?:ness)?|generaliz(?:e|es|ed|ation)|generalisation|"
+    r"unseen|out-of-domain|ood|cross-domain|external|corrupt(?:ed|ion)|"
+    r"stress test|transfer(?:able|ability)|real-world)\b",
+    re.IGNORECASE,
+)
+_CLAIM_REQ_EFFICIENCY_RE = re.compile(
+    r"\b(efficient|efficiency|scal(?:e|es|able|ability)|runtime|latency|"
+    r"memory|parameters?|flops|compute|computational cost|cost-effective|practical)\b",
+    re.IGNORECASE,
+)
 _CLAIM_REQ_METHOD_RE = re.compile(
     r"\b(method|approach|model|framework|algorithm|architecture|objective|"
     r"training|optimization|loss|theorem|proof|assumption)\b",
@@ -3195,17 +3633,23 @@ _CLAIM_REQ_REPRO_RE = re.compile(
 )
 _SUPPORT_BASELINE_RE = re.compile(
     r"\b(baseline|baselines|compare|comparison|compared|state-of-the-art|sota|"
-    r"against|outperform|surpass|better than|competitive)\b",
+    r"against|outperform|surpass|better than|competitive|"
+    r"benchmark|benchmarks|versus|prior (?:work|method|methods|approach|approaches)|"
+    r"previous (?:work|method|methods|approach|approaches)|"
+    r"existing (?:work|method|methods|approach|approaches))\b",
     re.IGNORECASE,
 )
 _SUPPORT_ABLATION_RE = re.compile(
     r"\b(ablation|ablat(?:e|ed|ion|ions)|component analysis|module analysis|"
-    r"without (?:the )?\w+ module|remove(?:d|s)? (?:the )?\w+)\b",
+    r"without (?:the )?\w+ module|remove(?:d|s)? (?:the )?\w+|"
+    r"with and without|w/o\b|"
+    r"different \w+ (?:operation|operations|configuration|configurations|variant|variants|setting|settings|component|components)|"
+    r"(?:trained|evaluated|tested) with different)\b",
     re.IGNORECASE,
 )
 _SUPPORT_SCOPE_RE = re.compile(
     r"\b(across|multiple|several|diverse|various|unseen|out-of-domain|ood|"
-    r"generaliz(?:e|es|ed|ation)|robustness|stress test|cross-domain|external)\b",
+    r"generaliz(?:e|es|ed|ation)|robust(?:ness)?|stress test|cross-domain|external)\b",
     re.IGNORECASE,
 )
 _SUPPORT_REPRO_RE = re.compile(
@@ -3213,13 +3657,20 @@ _SUPPORT_REPRO_RE = re.compile(
     r"compute setup|code|reproduc(?:e|ible|ibility)|release)\b",
     re.IGNORECASE,
 )
+_SUPPORT_EFFICIENCY_RE = re.compile(
+    r"\b(runtime|latency|memory|parameters?|flops|compute|computational cost|"
+    r"wall-clock|throughput|efficiency|efficient|scalability|scalable)\b",
+    re.IGNORECASE,
+)
 
 _REQUIREMENT_TO_NEGATIVE_TYPE = {
     "empirical_result": "insufficient_evaluation",
     "baseline_or_comparison": "missing_baseline",
     "ablation_or_component": "missing_ablation",
+    "robustness_or_generalization": "missing_robustness_or_generalization",
     "scope_coverage": "scope_overclaim",
     "reproducibility_detail": "reproducibility_gap",
+    "efficiency_cost": "efficiency_cost_gap",
     "method_detail": "method_support_gap",
 }
 
@@ -3227,10 +3678,28 @@ _REQUIREMENT_LABELS = {
     "empirical_result": "result/table/experiment evidence",
     "baseline_or_comparison": "baseline or comparison evidence",
     "ablation_or_component": "ablation or component-isolation evidence",
+    "robustness_or_generalization": "robustness or generalization evidence",
     "scope_coverage": "scope or generalization coverage evidence",
     "reproducibility_detail": "implementation/reproducibility detail",
+    "efficiency_cost": "runtime, memory, or compute-cost evidence",
     "method_detail": "method or technical detail",
 }
+
+
+# Prompt-leakage / re-narration wrappers echo our internal claim ids or context provenance inside
+# the claim text instead of stating a real paper claim; such "claims" must not become diagnosis targets.
+_CLAIM_NEGATIVE_TARGET_LEAKAGE_RE = re.compile(
+    r"claim-paper-context|claim-context|claim-paper-fallback|claim-fallback|claim-recovery|"
+    r"context_derived|context_synthesized|raw_salvaged",
+    re.IGNORECASE,
+)
+_CLAIM_NEGATIVE_TARGET_META_SHELL_RE = re.compile(
+    r"^\s*(?:what\s+(?:is|are|does|do)\b|how\s+(?:does|do|is|are)\b|why\s+(?:does|do|is|are)\b)|"
+    r"\bfrom the (?:title|abstract|introduction)\b|"
+    r"\bthat could be (?:a|an)\b|"
+    r"\bclaim[_ -]?type\s*=|\bcoverage[_ -]?tags\s*=|\bimportance\s*=",
+    re.IGNORECASE,
+)
 
 
 def _claim_requirement_text(claim: Dict[str, Any]) -> str:
@@ -3257,7 +3726,47 @@ def _is_claim_requirement_auditable_claim(claim: Dict[str, Any], real_claim_ids:
     if _claim_gap_should_be_not_assessable(claim):
         return False
     origin_kind = str(claim.get("claim_origin_kind") or "").strip().lower()
-    if origin_kind in {"context_synthesized", "raw_salvaged_claim_agent_output", "recovery_marker"}:
+    if origin_kind in {"context_synthesized", "recovery_marker"}:
+        return False
+    if origin_kind == "raw_salvaged_claim_agent_output" and not bool(claim.get("paper_claim_canonicalized_from_raw_salvage")):
+        return False
+    return True
+
+
+def _is_real_paper_negative_target(claim: Dict[str, Any], real_claim_ids: set[str]) -> bool:
+    """Eligibility for hard-negative DIAGNOSIS targets (record-based).
+
+    Looser than ``_is_claim_requirement_auditable_claim`` on purpose: it ADMITS high-quality
+    raw-salvaged paper claims (``claim_kind=paper_extracted`` recovered from malformed agent
+    output, which may carry a ``claim-paper-fallback-*`` id) so a real paper claim can still be
+    diagnosed for paper-side weaknesses.  It still excludes context-synthesized scaffolds and
+    recovery markers.  This gate governs DIAGNOSIS only; a claim *status patch* against a
+    fallback/salvage target stays blocked by recovery_validator._is_fallback_recovery_claim.
+    """
+    claim_id = str(claim.get("claim_id") or "")
+    if not claim_id or claim_id not in real_claim_ids:
+        return False
+    lowered = claim_id.lower()
+    # Exclude context / recovery scaffolds; fallback/salvage ids that classify as paper_extracted
+    # (so they are in real_claim_ids) are allowed only under the stricter checks below.
+    if lowered.startswith(("claim-paper-context-", "claim-context-", "claim-recovery", "claim-paper-recovery")):
+        return False
+    origin_kind = str(claim.get("claim_origin_kind") or "").strip().lower()
+    if origin_kind in {"context_synthesized", "recovery_marker", "fallback_synthesized", "paper_context_synthesized"}:
+        return False
+    # Fallback ids are admitted ONLY when they are genuinely raw-salvaged real paper claims, not
+    # generic manager fallbacks: a fallback id without the salvage origin is not a trustworthy claim.
+    if lowered.startswith(("claim-paper-fallback", "claim-fallback")) and origin_kind != "raw_salvaged_claim_agent_output":
+        return False
+    # Reject re-narration / prompt-leakage wrappers whose text echoes our internal claim ids or
+    # context-derived provenance instead of stating a real paper claim.
+    text = _claim_requirement_text(claim)
+    if _CLAIM_NEGATIVE_TARGET_LEAKAGE_RE.search(text):
+        return False
+    if _CLAIM_NEGATIVE_TARGET_META_SHELL_RE.search(text):
+        return False
+    # Require substantive paper-claim text to be a meaningful diagnosis target.
+    if len(text.strip()) < 12:
         return False
     return True
 
@@ -3285,10 +3794,14 @@ def _claim_required_evidence_types(claim: Dict[str, Any]) -> List[str]:
         add("baseline_or_comparison")
     if _CLAIM_REQ_ABLATION_RE.search(text):
         add("ablation_or_component")
+    if _CLAIM_REQ_ROBUSTNESS_RE.search(text):
+        add("robustness_or_generalization")
     if _CLAIM_REQ_SCOPE_RE.search(text):
         add("scope_coverage")
     if _CLAIM_REQ_REPRO_RE.search(text):
         add("reproducibility_detail")
+    if _CLAIM_REQ_EFFICIENCY_RE.search(text):
+        add("efficiency_cost")
     if lowered_type == "method" or (_CLAIM_REQ_METHOD_RE.search(text) and not requirements):
         add("method_detail")
     if lowered_type == "contribution" and not requirements:
@@ -3326,8 +3839,12 @@ def _claim_support_satisfies_requirement(item: Dict[str, Any], claim: Dict[str, 
         return section == "ablation" or bool(_SUPPORT_ABLATION_RE.search(combined))
     if requirement == "scope_coverage":
         return bool(_SUPPORT_SCOPE_RE.search(combined)) and section in {"result", "table_or_figure", "ablation", "method"}
+    if requirement == "robustness_or_generalization":
+        return bool(_SUPPORT_SCOPE_RE.search(combined)) and section in {"result", "table_or_figure", "ablation"}
     if requirement == "reproducibility_detail":
         return bool(_SUPPORT_REPRO_RE.search(combined))
+    if requirement == "efficiency_cost":
+        return bool(_SUPPORT_EFFICIENCY_RE.search(combined))
     if requirement == "method_detail":
         return section in {"method", "theory_or_proof"}
     return False
@@ -3386,6 +3903,7 @@ def _claim_requirement_audit(state: Dict[str, Any]) -> Dict[str, Any]:
         else:
             status = "unsupported_gap"
         audits.append({
+            "gap_id": _slugify("claim-requirement-gap", f"{claim_id}-{'-'.join(missing)}", idx + 1),
             "claim_id": claim_id,
             "claim": _normalize_text(claim.get("claim") or claim.get("text"), max_length=240),
             "claim_type": str(claim.get("claim_type") or ""),
@@ -3444,6 +3962,580 @@ def _claim_requirement_gap_questions(requirement_audit: Dict[str, Any], max_item
             "missing_negative_types": item.get("missing_negative_types", []),
         })
     return questions
+
+
+_HARD_NEGATIVE_DIAGNOSTIC_CHECKS = {
+    "empirical_result": {
+        "negative_evidence_type": "insufficient_evaluation",
+        "criterion": "empirical_adequacy",
+        "check": "Does the paper provide concrete experiment/result/table evidence for this empirical claim?",
+        "true_flaw_condition": "The claim depends on empirical performance, but the paper-side evidence shows evaluation is absent, too narrow, or insufficient for the claim.",
+    },
+    "baseline_or_comparison": {
+        "negative_evidence_type": "missing_baseline",
+        "criterion": "empirical_adequacy",
+        "check": "Does the paper compare against appropriate baselines or prior methods for this comparative claim?",
+        "true_flaw_condition": "The claim is comparative, but the paper-side evidence shows missing, weak, or unfair baseline comparison.",
+    },
+    "ablation_or_component": {
+        "negative_evidence_type": "missing_ablation",
+        "criterion": "empirical_adequacy",
+        "check": "Does the paper isolate the claimed component/module with ablation or component analysis?",
+        "true_flaw_condition": "The contribution claim relies on a component, but the paper-side evidence shows no ablation/component isolation.",
+    },
+    "scope_coverage": {
+        "negative_evidence_type": "scope_overclaim",
+        "criterion": "significance_contribution",
+        "check": "Does the tested scope match the breadth of the claim?",
+        "true_flaw_condition": "The claim is broad/general, but paper-side evidence explicitly limits the evaluated setting or contradicts the claimed scope.",
+    },
+    "robustness_or_generalization": {
+        "negative_evidence_type": "missing_robustness_or_generalization",
+        "criterion": "empirical_adequacy",
+        "check": "Does the paper test robustness, transfer, out-of-domain, or generalization claims in the relevant settings?",
+        "true_flaw_condition": "The claim asserts robustness/generalization, but paper-side evidence shows no robustness, transfer, external, or out-of-domain evaluation.",
+    },
+    "reproducibility_detail": {
+        "negative_evidence_type": "reproducibility_gap",
+        "criterion": "clarity_reproducibility",
+        "check": "Does the paper provide enough implementation/training/data detail to support reproducibility-sensitive claims?",
+        "true_flaw_condition": "The paper-side evidence shows missing or insufficient implementation, data split, or training details for reproducing the claim.",
+    },
+    "efficiency_cost": {
+        "negative_evidence_type": "efficiency_cost_gap",
+        "criterion": "practicality_efficiency",
+        "check": "Does the paper provide runtime, memory, parameter, latency, FLOP, or compute-cost evidence for efficiency/scalability claims?",
+        "true_flaw_condition": "The claim asserts efficiency, scalability, or practicality, but paper-side evidence omits or contradicts runtime, memory, latency, or compute-cost support.",
+    },
+    "method_detail": {
+        "negative_evidence_type": "method_support_gap",
+        "criterion": "technical_soundness",
+        "check": "Does the paper provide method details or assumptions sufficient for this method claim?",
+        "true_flaw_condition": "The method claim is central, but the paper-side evidence shows an unsupported assumption, incomplete mechanism, or missing technical detail.",
+    },
+}
+
+
+_TARGETED_NEGATIVE_SEARCH_QUESTIONS = {
+    "empirical_result": {
+        "search_question": "Does the paper provide concrete experiment, result, table, or metric evidence that is sufficient for this empirical claim?",
+        "expected_quote_cues": ["experiment", "result", "accuracy", "performance", "Table", "Figure", "metric", "dataset"],
+        "target_locator_hint": "Experiments / Results / Evaluation / Table or Figure",
+    },
+    "baseline_or_comparison": {
+        "search_question": "Does the paper compare this claimed improvement against appropriate baselines or prior methods?",
+        "expected_quote_cues": ["baseline", "compare", "state-of-the-art", "prior method", "outperform", "Table"],
+        "target_locator_hint": "Experiments / Baselines / Results tables",
+    },
+    "ablation_or_component": {
+        "search_question": "Does the paper isolate the claimed component, module, or contribution with an ablation or component analysis?",
+        "expected_quote_cues": ["ablation", "component", "variant", "without", "module", "contribution", "analysis"],
+        "target_locator_hint": "Ablation / Analysis / Experiments",
+    },
+    "scope_coverage": {
+        "search_question": "Does the evaluated scope match the breadth of this claim, or does the paper explicitly limit the setting?",
+        "expected_quote_cues": ["dataset", "domain", "generalize", "scope", "limitation", "only", "setting"],
+        "target_locator_hint": "Experiments / Discussion / Limitations",
+    },
+    "robustness_or_generalization": {
+        "search_question": "Does the paper test the robustness, transfer, out-of-domain, unseen, or real-world generalization claimed here?",
+        "expected_quote_cues": ["robustness", "generalization", "unseen", "out-of-domain", "OOD", "external", "corruption", "stress"],
+        "target_locator_hint": "Robustness / Generalization / Experiments / Limitations",
+    },
+    "reproducibility_detail": {
+        "search_question": "Does the paper provide implementation, training, data split, or hyperparameter detail needed to reproduce this claim?",
+        "expected_quote_cues": ["implementation", "hyperparameter", "training", "data split", "code", "reproduce", "details"],
+        "target_locator_hint": "Method / Implementation Details / Appendix",
+    },
+    "efficiency_cost": {
+        "search_question": "Does the paper report runtime, memory, parameters, latency, FLOPs, or compute cost for this efficiency/scalability claim?",
+        "expected_quote_cues": ["runtime", "latency", "memory", "parameters", "FLOPs", "compute", "cost", "scalability"],
+        "target_locator_hint": "Experiments / Efficiency / Runtime / Resource Analysis",
+    },
+    "method_detail": {
+        "search_question": "Does the paper provide method details or assumptions sufficient to support this method claim?",
+        "expected_quote_cues": ["method", "objective", "assumption", "algorithm", "architecture", "theorem", "proof"],
+        "target_locator_hint": "Method / Approach / Theory",
+    },
+}
+
+
+def _claim_support_profile_for_diagnosis(state: Dict[str, Any], claim_id: str) -> Dict[str, Any]:
+    """Summarize verified support available to Critique without adding tasks.
+
+    This profile is diagnostic context for model judgment. It does not create
+    evidence gaps and must not route the Evidence Agent.
+    """
+    from .support_quality import derive_support_quality, evidence_section_bucket
+
+    strong_ids: List[str] = []
+    verified_support_ids: List[str] = []
+    empirical_ids: List[str] = []
+    method_ids: List[str] = []
+    table_or_figure_ids: List[str] = []
+    ablation_ids: List[str] = []
+    negative_ids: List[str] = []
+    quote_ids: set[str] = set()
+    source_buckets: Counter[str] = Counter()
+    for item in state.get("evidence_map", []) or []:
+        if not isinstance(item, dict):
+            continue
+        if str(item.get("claim_id") or "") != claim_id:
+            continue
+        evidence_id = str(item.get("evidence_id") or "")
+        if _is_paper_negative_evidence_record(item):
+            if evidence_id:
+                negative_ids.append(evidence_id)
+            continue
+        if not _is_real_bound_support(item, {claim_id}):
+            continue
+        if evidence_id:
+            verified_support_ids.append(evidence_id)
+        quote_id = str(item.get("quote_id") or "")
+        if quote_id:
+            quote_ids.add(quote_id)
+        bucket = evidence_section_bucket(item)
+        source_buckets[bucket] += 1
+        quality = derive_support_quality(item, {})
+        if str(item.get("strength") or "") == "strong" and evidence_id:
+            strong_ids.append(evidence_id)
+        if bucket in {"result", "table_or_figure", "ablation"} and evidence_id:
+            empirical_ids.append(evidence_id)
+        if bucket in {"method", "theory_or_proof"} and evidence_id:
+            method_ids.append(evidence_id)
+        if bucket == "table_or_figure" and evidence_id:
+            table_or_figure_ids.append(evidence_id)
+        if bucket == "ablation" and evidence_id:
+            ablation_ids.append(evidence_id)
+        if quality.get("is_table_or_figure_based") and evidence_id and evidence_id not in table_or_figure_ids:
+            table_or_figure_ids.append(evidence_id)
+        if quality.get("is_ablation_based") and evidence_id and evidence_id not in ablation_ids:
+            ablation_ids.append(evidence_id)
+    return {
+        "verified_support_count": len(verified_support_ids),
+        "strong_support_count": len(strong_ids),
+        "empirical_support_count": len(empirical_ids),
+        "method_support_count": len(method_ids),
+        "table_or_figure_support_count": len(table_or_figure_ids),
+        "ablation_support_count": len(ablation_ids),
+        "independent_quote_group_count": len(quote_ids),
+        "verified_support_ids": verified_support_ids[:6],
+        "strong_support_ids": strong_ids[:6],
+        "negative_evidence_ids": negative_ids[:4],
+        "source_bucket_counts": dict(source_buckets),
+    }
+
+
+def _hard_negative_diagnostic_checks_for_claim(
+    claim: Dict[str, Any],
+    audit_item: Optional[Dict[str, Any]] = None,
+) -> List[Dict[str, Any]]:
+    requirements = list(audit_item.get("required_evidence_types") or []) if isinstance(audit_item, dict) else []
+    if not requirements:
+        requirements = _claim_required_evidence_types(claim)
+    missing = set(audit_item.get("missing_requirements") or []) if isinstance(audit_item, dict) else set()
+    satisfied = set(audit_item.get("satisfied_requirements") or []) if isinstance(audit_item, dict) else set()
+    checks: List[Dict[str, Any]] = []
+    for requirement in requirements:
+        template = _HARD_NEGATIVE_DIAGNOSTIC_CHECKS.get(requirement)
+        if not template:
+            continue
+        if requirement in missing:
+            status = "missing_verified_support"
+        elif requirement in satisfied:
+            status = "verified_support_present"
+        else:
+            status = "needs_model_judgment"
+        checks.append({
+            "requirement": requirement,
+            "negative_evidence_type": template["negative_evidence_type"],
+            "criterion": template["criterion"],
+            "check": template["check"],
+            "support_status": status,
+            "true_flaw_condition": template["true_flaw_condition"],
+        })
+    if not checks:
+        text = _claim_requirement_text(claim)
+        if _CLAIM_REQ_EMPIRICAL_RE.search(text):
+            template = _HARD_NEGATIVE_DIAGNOSTIC_CHECKS["empirical_result"]
+            checks.append({
+                "requirement": "empirical_result",
+                "negative_evidence_type": template["negative_evidence_type"],
+                "criterion": template["criterion"],
+                "check": template["check"],
+                "support_status": "needs_model_judgment",
+                "true_flaw_condition": template["true_flaw_condition"],
+            })
+        elif _CLAIM_REQ_METHOD_RE.search(text):
+            template = _HARD_NEGATIVE_DIAGNOSTIC_CHECKS["method_detail"]
+            checks.append({
+                "requirement": "method_detail",
+                "negative_evidence_type": template["negative_evidence_type"],
+                "criterion": template["criterion"],
+                "check": template["check"],
+                "support_status": "needs_model_judgment",
+                "true_flaw_condition": template["true_flaw_condition"],
+            })
+    return checks[:4]
+
+
+def _targeted_negative_search_tasks(
+    state: Dict[str, Any],
+    claims: Optional[Sequence[Dict[str, Any]]] = None,
+    max_items: int = 4,
+) -> List[Dict[str, Any]]:
+    """Build quote-search tasks for real paper negative evidence formation.
+
+    These are Evidence Agent tasks, not flaws. They tell the worker what paper-side
+    weakness to check for and require a copied quote/locator before anything can
+    become verified negative evidence.
+    """
+    real_claim_ids = _decision_real_claim_ids(state)
+    source_claims = list(claims or state.get("claims", []) or [])
+    quote_guided_tasks = _quote_bank_guided_targeted_negative_tasks(
+        state,
+        claims=source_claims,
+        real_claim_ids=real_claim_ids,
+        max_items=max_items,
+    )
+    audit = _claim_requirement_audit(state)
+    audit_by_claim = {
+        str(item.get("claim_id") or ""): item
+        for item in audit.get("claim_requirement_audit", []) or []
+        if isinstance(item, dict)
+    }
+    candidate_claims: List[Dict[str, Any]] = []
+    seen: set[str] = set()
+    for source in source_claims:
+        if not isinstance(source, dict):
+            continue
+        claim_id = str(source.get("claim_id") or "")
+        if not claim_id or claim_id in seen:
+            continue
+        if not _is_real_paper_negative_target(source, real_claim_ids):
+            continue
+        requirements = _claim_required_evidence_types(source)
+        audit_item = audit_by_claim.get(claim_id, {})
+        missing = list(audit_item.get("missing_requirements") or [])
+        if not requirements and not missing:
+            continue
+        candidate_claims.append(source)
+        seen.add(claim_id)
+
+    primary_ids = set(_decision_primary_claim_ids(state))
+
+    def _claim_priority(claim: Dict[str, Any]) -> Tuple[int, int, str]:
+        claim_id = str(claim.get("claim_id") or "")
+        audit_item = audit_by_claim.get(claim_id, {})
+        missing = list(audit_item.get("missing_requirements") or [])
+        requirements = _claim_required_evidence_types(claim)
+        support_profile = _claim_support_profile_for_diagnosis(state, claim_id)
+        empirical_bonus = 1 if any(
+            req in {"baseline_or_comparison", "ablation_or_component", "empirical_result"}
+            for req in (missing or requirements)
+        ) else 0
+        primary_bonus = 2 if claim_id in primary_ids else 0
+        low_support_bonus = 1 if int(support_profile.get("verified_support_count") or 0) == 0 else 0
+        importance_bonus = 1 if str(claim.get("importance") or "").lower() in {"high", "critical"} else 0
+        return (len(missing) + empirical_bonus + primary_bonus + low_support_bonus + importance_bonus, len(requirements), claim_id)
+
+    candidate_claims.sort(key=_claim_priority, reverse=True)
+    tasks: List[Dict[str, Any]] = []
+    used_pairs: set[Tuple[str, str]] = set()
+    for claim in candidate_claims:
+        claim_id = str(claim.get("claim_id") or "")
+        audit_item = audit_by_claim.get(claim_id, {})
+        requirements = list(audit_item.get("missing_requirements") or [])
+        if not requirements:
+            requirements = _claim_required_evidence_types(claim)
+        support_profile = _claim_support_profile_for_diagnosis(state, claim_id)
+        for requirement in requirements:
+            template = _HARD_NEGATIVE_DIAGNOSTIC_CHECKS.get(requirement)
+            search = _TARGETED_NEGATIVE_SEARCH_QUESTIONS.get(requirement, {})
+            if not template:
+                continue
+            pair = (claim_id, requirement)
+            if pair in used_pairs:
+                continue
+            used_pairs.add(pair)
+            negative_type = template["negative_evidence_type"]
+            tasks.append({
+                "task_id": _slugify("neg-search", f"{claim_id}-{negative_type}", len(tasks) + 1),
+                "claim_id": claim_id,
+                "claim": _normalize_text(claim.get("claim") or claim.get("text"), max_length=220),
+                "negative_type": negative_type,
+                "required_evidence_type": requirement,
+                "search_question": search.get("search_question") or template["check"],
+                "expected_quote_cues": list(search.get("expected_quote_cues") or [])[:8],
+                "target_locator_hint": search.get("target_locator_hint") or "Relevant method, evaluation, discussion, table, or figure section",
+                "support_status": "missing_verified_support" if requirement in set(audit_item.get("missing_requirements") or []) else "needs_paper_quote_check",
+                "available_support_ids": list(support_profile.get("verified_support_ids") or [])[:4],
+                "strong_support_ids": list(support_profile.get("strong_support_ids") or [])[:4],
+                "priority": _claim_priority(claim)[0] + (1 if requirement in {"baseline_or_comparison", "ablation_or_component"} else 0),
+                "source": "claim_evidence_obligation",
+                "quote_grounding_contract": (
+                    "Only emit negative evidence if a copied paper raw_quote plus specific source_locator directly grounds this negative_type for this claim. "
+                    "If no such quote is visible, emit unresolved/not_assessable for this task."
+                ),
+            })
+            if len(tasks) >= max_items:
+                break
+        if len(tasks) >= max_items:
+            break
+    tasks.sort(key=lambda item: int(item.get("priority") or 0), reverse=True)
+    # Targeted negative search is an Evidence Agent quote-verification path.
+    # Requirement gaps without a concrete candidate quote remain visible through
+    # diagnosis-pending potential concerns, but they should not consume Evidence
+    # turns as reviewer-discovered negative evidence tasks.
+    if not quote_guided_tasks:
+        return []
+    merged_tasks: List[Dict[str, Any]] = []
+    seen_task_pairs: set[Tuple[str, str, str]] = set()
+    for item in list(quote_guided_tasks) + list(tasks):
+        pair = (
+            str(item.get("claim_id") or ""),
+            str(item.get("negative_type") or ""),
+            str(item.get("quote_id") or ""),
+        )
+        if pair in seen_task_pairs:
+            continue
+        seen_task_pairs.add(pair)
+        merged_tasks.append(item)
+        if len(merged_tasks) >= max_items:
+            break
+    return merged_tasks[:max_items]
+
+
+def _quote_bank_guided_targeted_negative_tasks(
+    state: Dict[str, Any],
+    *,
+    claims: Sequence[Dict[str, Any]],
+    real_claim_ids: set[str],
+    max_items: int = 2,
+) -> List[Dict[str, Any]]:
+    """Ask Evidence Agent to verify true negative quote-bank candidates.
+
+    This does not create evidence. It only turns a program-extracted candidate
+    quote into an Evidence Agent search task so the model must copy the quote,
+    locator, claim id, and negative type before the verifier can count it.
+    """
+    claim_by_id = {
+        str(item.get("claim_id") or ""): item
+        for item in (claims or state.get("claims", []) or [])
+        if isinstance(item, dict) and str(item.get("claim_id") or "")
+    }
+    eligible_claims = [
+        item for item in claim_by_id.values()
+        if _is_real_paper_negative_target(item, real_claim_ids)
+    ]
+    if not eligible_claims:
+        return []
+
+    def _quote_guided_claim_score(claim: Dict[str, Any], raw_quote: str, neg_type: str) -> float:
+        claim_text = _claim_requirement_text(claim)
+        score = _semantic_alignment_score(claim_text, raw_quote)
+        claim_blob = claim_text.lower()
+        claim_type = str(claim.get("claim_type") or "").strip().lower()
+        quote_blob = str(raw_quote or "").lower()
+        if neg_type in {"insufficient_evaluation", "result_claim_mismatch", "negative_result"}:
+            if claim_type in {"empirical", "comparison"}:
+                score += 0.18
+            if re.search(r"\b(experiment|evaluation|result|performance|accuracy|quality|output|benchmark|baseline|metric)\b", claim_blob):
+                score += 0.12
+            if re.search(r"\b(output|quality|accurate|accuracy|evaluate|evaluation|result|performance)\b", quote_blob):
+                score += 0.08
+        elif neg_type in {"missing_baseline", "unfair_or_weak_baseline"}:
+            if claim_type in {"empirical", "comparison"}:
+                score += 0.14
+            if re.search(r"\b(compare|comparison|baseline|state-of-the-art|sota|outperform)\b", claim_blob):
+                score += 0.12
+        elif neg_type in {"missing_ablation", "insufficient_ablation"}:
+            if claim_type in {"empirical", "method"}:
+                score += 0.1
+            if re.search(r"\b(component|module|ablation|contribution|architecture)\b", claim_blob):
+                score += 0.12
+        return score
+
+    scored: List[Tuple[int, float, int, Dict[str, Any]]] = []
+    seen_quotes: set[str] = set()
+    for index, entry in enumerate(_quote_bank_entries_for_grounding(state or {})):
+        if not isinstance(entry, dict):
+            continue
+        if str(entry.get("source_bucket") or "") != "negative_or_gap":
+            continue
+        raw_quote = str(entry.get("raw_quote") or "").strip()
+        if not raw_quote:
+            continue
+        quote_id = str(entry.get("quote_id") or "").strip()
+        quote_key = quote_id or _quote_bank_dedupe_key(raw_quote)
+        if quote_key in seen_quotes:
+            continue
+        neg_type = _negative_evidence_type_for_record(entry)
+        if neg_type not in TRUE_PAPER_NEGATIVE_EVIDENCE_TYPES:
+            continue
+        if _REVIEW_NEGATIVE_POSITIVE_CONTEXT_RE.search(raw_quote):
+            continue
+        if _REVIEW_NEGATIVE_PRIOR_WORK_RE.search(raw_quote) and not _INTRO_NEGATIVE_SELF_ANCHOR_RE.search(raw_quote):
+            continue
+        if neg_type in {"reproducibility_gap", "method_support_gap"} and _REVIEW_NEGATIVE_AUTHOR_LIMITATION_RE.search(raw_quote):
+            continue
+        best_claim = max(
+            eligible_claims,
+            key=lambda claim: _quote_guided_claim_score(claim, raw_quote, neg_type),
+        )
+        claim_id = str(best_claim.get("claim_id") or "")
+        overlap = _quote_guided_claim_score(best_claim, raw_quote, neg_type)
+        type_priority = _negative_evidence_type_priority(neg_type)
+        scored.append((type_priority, -overlap, index, {
+            "task_id": _slugify("neg-search-quote", f"{claim_id}-{neg_type}-{quote_id or index}", len(scored) + 1),
+            "claim_id": claim_id,
+            "claim": _normalize_text(best_claim.get("claim") or best_claim.get("text"), max_length=220),
+            "negative_type": neg_type,
+            "required_evidence_type": _negative_type_to_required_evidence_type(neg_type),
+            "search_question": (
+                "Verify whether this paper quote directly grounds a current-paper reviewer concern "
+                f"of type {neg_type} for the target claim."
+            ),
+            "expected_quote_cues": _negative_quote_cues(raw_quote),
+            "target_locator_hint": str(entry.get("source_locator") or "Negative/gap evidence excerpt"),
+            "quote_id": quote_id,
+            "candidate_raw_quote": _normalize_text(raw_quote, max_length=220),
+            "support_status": "candidate_quote_needs_model_emission",
+            "available_support_ids": [],
+            "strong_support_ids": [],
+            "priority": 100 - type_priority,
+            "source": "quote_bank_guided_review_negative_search",
+            "quote_grounding_contract": (
+                "Use this candidate only if you can copy the raw_quote exactly from the Evidence Quote Bank or visible paper excerpt. "
+                "The Evidence Agent must emit an evidence_map item with this claim_id, quote_id, raw_quote, source_locator, negative_evidence_type, and stance='missing' or 'contradicts'. "
+                "If the quote does not directly weaken the claim, return unresolved/not_assessable instead."
+            ),
+        }))
+        seen_quotes.add(quote_key)
+    scored.sort(key=lambda item: (item[0], item[1], item[2]))
+    tasks: List[Dict[str, Any]] = []
+    used_types: set[str] = set()
+    for _, _, _, task in scored:
+        neg_type = str(task.get("negative_type") or "")
+        if neg_type in used_types:
+            continue
+        used_types.add(neg_type)
+        tasks.append(task)
+        if len(tasks) >= max_items:
+            break
+    if len(tasks) < max_items:
+        for _, _, _, task in scored:
+            if task in tasks:
+                continue
+            tasks.append(task)
+            if len(tasks) >= max_items:
+                break
+    return tasks[:max_items]
+
+
+def _negative_type_to_required_evidence_type(negative_type: str) -> str:
+    for requirement, mapped_type in _REQUIREMENT_TO_NEGATIVE_TYPE.items():
+        if mapped_type == negative_type:
+            return requirement
+    return "review_negative_quote"
+
+
+def _negative_quote_cues(raw_quote: str) -> List[str]:
+    tokens = [
+        token.lower()
+        for token in _SEMANTIC_TOKEN_RE.findall(str(raw_quote or ""))
+        if len(token) >= 4 and token.lower() not in _SEMANTIC_STOPWORDS
+    ]
+    cues: List[str] = []
+    for token in tokens:
+        if token not in cues:
+            cues.append(token)
+        if len(cues) >= 6:
+            break
+    return cues
+
+
+def _hard_negative_diagnosis_targets(
+    state: Dict[str, Any],
+    claims: Optional[Sequence[Dict[str, Any]]] = None,
+    max_items: int = 4,
+) -> List[Dict[str, Any]]:
+    """Build model-judgment targets for true paper-side weakness diagnosis.
+
+    This is intentionally view-only. It gives Critique Agent reviewer-style
+    checks over real claims but does not create live evidence gaps or recovery
+    targets by itself.
+    """
+    real_claim_ids = _decision_real_claim_ids(state)
+    audit = _claim_requirement_audit(state)
+    audit_by_claim = {
+        str(item.get("claim_id") or ""): item
+        for item in audit.get("claim_requirement_audit", []) or []
+        if isinstance(item, dict)
+    }
+    candidate_claims: List[Dict[str, Any]] = []
+    seen: set[str] = set()
+    for source in (claims or []):
+        if not isinstance(source, dict):
+            continue
+        claim_id = str(source.get("claim_id") or "")
+        if not claim_id or claim_id in seen or not _is_real_paper_negative_target(source, real_claim_ids):
+            continue
+        candidate_claims.append(source)
+        seen.add(claim_id)
+    for gap_item in audit.get("claim_requirement_gap_items", []) or []:
+        claim_id = str(gap_item.get("claim_id") or "")
+        if not claim_id or claim_id in seen:
+            continue
+        source_claim = next(
+            (
+                item for item in state.get("claims", []) or []
+                if isinstance(item, dict) and str(item.get("claim_id") or "") == claim_id
+            ),
+            None,
+        )
+        if source_claim and _is_real_paper_negative_target(source_claim, real_claim_ids):
+            candidate_claims.append(source_claim)
+            seen.add(claim_id)
+    primary_ids = set(_decision_primary_claim_ids(state))
+
+    def _priority(claim: Dict[str, Any]) -> Tuple[int, int, int]:
+        claim_id = str(claim.get("claim_id") or "")
+        audit_item = audit_by_claim.get(claim_id, {})
+        missing_count = len(audit_item.get("missing_requirements") or [])
+        support_profile = _claim_support_profile_for_diagnosis(state, claim_id)
+        empirical_gap_bonus = 1 if any(
+            req in {"empirical_result", "baseline_or_comparison", "ablation_or_component"}
+            for req in (audit_item.get("missing_requirements") or [])
+        ) else 0
+        primary_bonus = 1 if claim_id in primary_ids else 0
+        low_support_bonus = 1 if int(support_profile.get("verified_support_count") or 0) == 0 else 0
+        return (missing_count + empirical_gap_bonus + primary_bonus + low_support_bonus, primary_bonus, missing_count)
+
+    candidate_claims.sort(key=_priority, reverse=True)
+    targets: List[Dict[str, Any]] = []
+    for claim in candidate_claims:
+        claim_id = str(claim.get("claim_id") or "")
+        audit_item = audit_by_claim.get(claim_id)
+        checks = _hard_negative_diagnostic_checks_for_claim(claim, audit_item)
+        if not checks:
+            continue
+        targets.append({
+            "claim_id": claim_id,
+            "claim": _normalize_text(claim.get("claim") or claim.get("text"), max_length=260),
+            "claim_type": str(claim.get("claim_type") or ""),
+            "importance": str(claim.get("importance") or ""),
+            "coverage_tags": _normalize_list_of_strings(claim.get("coverage_tags"), max_items=6, max_length=80),
+            "support_profile": _claim_support_profile_for_diagnosis(state, claim_id),
+            "diagnostic_checks": checks,
+            "model_judgment_rule": (
+                "Judge whether the paper itself has a true weakness for this claim. "
+                "A missing requirement is only a search target, not a flaw unless paper-side evidence or verified absence supports it."
+            ),
+        })
+        if len(targets) >= max_items:
+            break
+    return targets
 
 
 def _decision_real_strong_support_quality(state: Dict[str, Any]) -> Dict[str, Any]:
@@ -4668,10 +5760,13 @@ def _state_contamination_targets(
 def _negative_grounding_conflict_is_semantic_rejection(conflict: Dict[str, Any]) -> bool:
     if not isinstance(conflict, dict):
         return False
-    if str(conflict.get("reason") or "") != "negative_evidence_id_not_verified":
+    reason = str(conflict.get("reason") or "")
+    if reason == "negative_evidence_id_not_review_negative":
+        return True
+    if reason != "negative_evidence_id_not_verified":
         return False
     semantic_label = str(conflict.get("semantic_grounding_label") or "").strip()
-    return semantic_label not in {"", "semantic_negative_verified", "semantic_support_verified"}
+    return semantic_label not in {"", "semantic_negative_verified"}
 
 
 def _auto_bind_unlinked_negative_evidence_flaws(view: Dict[str, Any], negative_evidence_ids: set[str]) -> List[str]:
@@ -5024,7 +6119,20 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
                     flaw_id = str(flaw.get("flaw_id") or "")
                     if flaw_id:
                         verified_potential_concern_ids.append(flaw_id)
-                    if any(neg_type in {"scope_limitation", "missing_ablation", "missing_baseline", "insufficient_evaluation", "reproducibility_gap"} for neg_type in flaw_type_counts):
+                    if any(
+                        neg_type in {
+                            "scope_limitation",
+                            "missing_ablation",
+                            "missing_baseline",
+                            "unfair_or_weak_baseline",
+                            "insufficient_evaluation",
+                            "missing_robustness_or_generalization",
+                            "evaluation_protocol_risk",
+                            "efficiency_cost_gap",
+                            "reproducibility_gap",
+                        }
+                        for neg_type in flaw_type_counts
+                    ):
                         reason = "limitation_type_stays_potential_concern"
                     elif any(neg_type in {"direct_contradiction", "negative_result"} for neg_type in flaw_type_counts):
                         reason = "not_confirmed_stays_potential_concern"
@@ -5080,6 +6188,47 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
         for item in contamination_targets
         if str(item.get("target_gate_label") or "") == "weak_target"
     )
+    diagnosis_pending_type_counts = dict(requirement_audit.get("claim_requirement_missing_type_counts", {}) or {})
+    diagnosis_pending_count = int(requirement_audit.get("claim_requirement_missing_total", 0) or 0)
+    recorded_diagnosis_pending = [
+        item for item in view.get("diagnosis_pending_concerns", []) or []
+        if isinstance(item, dict) and str(item.get("status") or "").strip().lower() == "recorded"
+    ]
+    review_negative_label_counts: Counter[str] = Counter()
+    semantic_negative_without_review_relation_count = 0
+    quote_bank_salvage_generated_negative_count = 0
+    scope_limitation_as_verified_negative_count = 0
+    review_negative_false_positive_samples: List[Dict[str, Any]] = []
+    for record in view.get("evidence_map", []) or []:
+        if not isinstance(record, dict) or not _is_paper_negative_evidence_record(record):
+            continue
+        source = str(record.get("source") or "").strip().lower()
+        if source == "quote-bank-negative-grounding":
+            quote_bank_salvage_generated_negative_count += 1
+        semantic_label = str(record.get("semantic_grounding_label") or "").strip()
+        review_assessment: Dict[str, Any] = {}
+        review_label = str(record.get("review_negative_label") or "").strip()
+        if not review_label and semantic_label == "semantic_negative_verified":
+            review_assessment = _assess_review_negative_relation(view, record)
+            review_label = str(review_assessment.get("review_negative_label") or "")
+        if review_label:
+            review_negative_label_counts[review_label] += 1
+        if semantic_label == "semantic_negative_verified" and review_label != REVIEW_NEGATIVE_VERIFIED_LABEL:
+            semantic_negative_without_review_relation_count += 1
+            if len(review_negative_false_positive_samples) < 4:
+                review_negative_false_positive_samples.append({
+                    "evidence_id": str(record.get("evidence_id") or ""),
+                    "claim_id": str(record.get("claim_id") or ""),
+                    "review_negative_label": review_label,
+                    "review_negative_reason": str(record.get("review_negative_reason") or review_assessment.get("review_negative_reason") or ""),
+                    "negative_evidence_type": _negative_evidence_type_for_record(record),
+                    "raw_quote": _normalize_text(record.get("raw_quote") or record.get("evidence"), max_length=180),
+                })
+        if (
+            review_label == REVIEW_NEGATIVE_VERIFIED_LABEL
+            and _negative_evidence_type_for_record(record) == "scope_limitation"
+        ):
+            scope_limitation_as_verified_negative_count += 1
     view["decision_hygiene"] = {
         "real_strong_support_total": sum(support_counts.values()),
         "real_strong_support_by_claim": support_counts,
@@ -5089,6 +6238,17 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
         "claim_requirement_missing_type_counts": requirement_audit.get("claim_requirement_missing_type_counts", {}),
         "claim_requirement_gap_items": requirement_audit.get("claim_requirement_gap_items", [])[:8],
         "claim_requirement_audit": requirement_audit.get("claim_requirement_audit", [])[:12],
+        # Claim-requirement gaps are diagnosis-pending potential concerns:
+        # deterministic coverage facts, not quote-grounded verified negatives.
+        "diagnosis_pending_potential_concern_count": diagnosis_pending_count,
+        "diagnosis_pending_potential_concern_claim_count": requirement_audit.get("claims_with_requirement_gaps", 0),
+        "diagnosis_pending_potential_concern_type_counts": diagnosis_pending_type_counts,
+        "diagnosis_pending_concern_recorded_count": len(recorded_diagnosis_pending),
+        "diagnosis_pending_concern_recorded_claim_count": len({
+            str(item.get("claim_id") or "")
+            for item in recorded_diagnosis_pending
+            if str(item.get("claim_id") or "")
+        }),
         **context_support_diagnostics,
         **support_quality,
         "support_survival_trace": support_survival_trace,
@@ -5176,6 +6336,17 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
         "blocked_fallback_contamination_target_count": contamination_gate_counts.get("fallback_target", 0),
         "blocked_empty_contamination_target_count": contamination_gate_counts.get("empty_target", 0),
         "negative_evidence_candidate_count": len(negative_evidence_ids),
+        "review_negative_verified_count": int(review_negative_label_counts.get(REVIEW_NEGATIVE_VERIFIED_LABEL, 0)),
+        "paper_text_negative_candidate_count": sum(review_negative_label_counts.values()),
+        "author_limitation_only_count": int(review_negative_label_counts.get("author_limitation_only", 0)),
+        "prior_work_limitation_count": int(review_negative_label_counts.get("prior_work_limitation", 0)),
+        "positive_or_neutral_negative_candidate_count": int(review_negative_label_counts.get("positive_or_neutral_support", 0)),
+        "resource_or_scope_context_negative_candidate_count": int(review_negative_label_counts.get("resource_or_scope_context", 0)),
+        "semantic_negative_without_review_relation_count": semantic_negative_without_review_relation_count,
+        "scope_limitation_as_verified_negative_count": scope_limitation_as_verified_negative_count,
+        "quote_bank_salvage_generated_negative_count": quote_bank_salvage_generated_negative_count,
+        "review_negative_label_counts": dict(review_negative_label_counts),
+        "review_negative_false_positive_samples": review_negative_false_positive_samples,
         "negative_evidence_linked_to_flaw_count": len(linked_negative_evidence_ids),
         "negative_evidence_unlinked_to_flaw_count": max(0, len(negative_evidence_ids) - len(linked_negative_evidence_ids)),
         "negative_evidence_binding_retry_candidate_count": max(0, len(negative_evidence_ids) - len(linked_negative_evidence_ids)),
@@ -5229,6 +6400,8 @@ def _grounded_active_flaws_for_decision(state: Dict[str, Any], severities: set[s
         if _is_fallback_or_meta_flaw(flaw):
             continue
         if not flaw.get("evidence_ids"):
+            continue
+        if _classify_flaw_final_view_layer(flaw, state) != "grounded_weakness":
             continue
         flaws.append(flaw)
     return flaws
@@ -5285,6 +6458,7 @@ def infer_final_recommendation_view(state: Dict[str, Any], manager_payload: Opti
         and flaw.get("severity") in {"critical", "major"}
         and flaw.get("status") not in {"downgraded", "retracted"}
         and not _is_fallback_or_meta_flaw(flaw)
+        and _flaw_has_negative_grounding(flaw, decision_state)
     ]
 
     support_ready = (
@@ -5559,6 +6733,8 @@ def normalize_review_update_payload(payload: Any, required_fields: Optional[Iter
     evidence_json_parse_status = _normalize_text(payload.get("evidence_json_parse_status"), max_length=80)
     evidence_json_failure_type = _normalize_text(payload.get("evidence_json_failure_type"), max_length=80)
     evidence_json_parse_error = _normalize_text(payload.get("evidence_json_parse_error"), max_length=240)
+    evidence_json_raw_head = _normalize_text(payload.get("evidence_json_raw_head"), max_length=360)
+    evidence_json_raw_tail = _normalize_text(payload.get("evidence_json_raw_tail"), max_length=360)
     evidence_json_partial_recovery = bool(payload.get("evidence_json_partial_recovery", False))
     evidence_json_fallback_payload_used = bool(payload.get("evidence_json_fallback_payload_used", False))
     try:
@@ -5599,6 +6775,7 @@ def normalize_review_update_payload(payload: Any, required_fields: Optional[Iter
         "confidence": payload.get("confidence"),
         "blocked_reason": _normalize_text(payload.get("blocked_reason")),
         "missing_requirements": _normalize_list_of_strings(payload.get("missing_requirements")),
+        "missing_negative_types": _normalize_list_of_strings(payload.get("missing_negative_types")),
         "_recovery_patch_source": _normalize_text(payload.get("_recovery_patch_source"), max_length=40),
         "recovery_terminal": bool(payload.get("recovery_terminal") or payload.get("terminal_recovery_block")),
         "recovery_terminal_reason": _normalize_text(
@@ -5609,6 +6786,7 @@ def normalize_review_update_payload(payload: Any, required_fields: Optional[Iter
         "recovery_patch_operation": _normalize_text(payload.get("recovery_patch_operation"), max_length=80),
         "mark_contested": bool(payload.get("mark_contested") or payload.get("contested_relation")),
         "contested_relation": payload.get("contested_relation") if isinstance(payload.get("contested_relation"), dict) else {},
+        "diagnosis_pending_concern": payload.get("diagnosis_pending_concern") if isinstance(payload.get("diagnosis_pending_concern"), dict) else {},
         "_emission_failure_code": _normalize_text(payload.get("_emission_failure_code"), max_length=80),
         "_emission_failure_message": _normalize_text(payload.get("_emission_failure_message"), max_length=240),
         "evidence_id_scope_turn": evidence_id_scope_turn,
@@ -5617,10 +6795,28 @@ def normalize_review_update_payload(payload: Any, required_fields: Optional[Iter
         "evidence_json_parse_status": evidence_json_parse_status,
         "evidence_json_failure_type": evidence_json_failure_type,
         "evidence_json_parse_error": evidence_json_parse_error,
+        "evidence_json_raw_head": evidence_json_raw_head,
+        "evidence_json_raw_tail": evidence_json_raw_tail,
         "evidence_json_partial_recovery": evidence_json_partial_recovery,
         "evidence_json_fallback_payload_used": evidence_json_fallback_payload_used,
         "evidence_json_raw_chars": evidence_json_raw_chars,
         "evidence_json_prompt_chars": evidence_json_prompt_chars,
+        "negative_quote_bank_salvage_blocked": bool(payload.get("negative_quote_bank_salvage_blocked", False)),
+        "negative_quote_bank_salvage_block_reason": _normalize_text(
+            payload.get("negative_quote_bank_salvage_block_reason"),
+            max_length=120,
+        ),
+        "targeted_negative_search_not_assessable": copy.deepcopy(
+            payload.get("targeted_negative_search_not_assessable")
+        )
+        if isinstance(payload.get("targeted_negative_search_not_assessable"), dict)
+        else {},
+        "targeted_negative_search_not_assessable_count": max(
+            0,
+            int(payload.get("targeted_negative_search_not_assessable_count") or 0)
+            if str(payload.get("targeted_negative_search_not_assessable_count") or "").strip().isdigit()
+            else 0,
+        ),
     }
 
     if required_fields:
@@ -5688,6 +6884,7 @@ def normalize_manager_payload(payload: Any, available_agents: Optional[Iterable[
     progression_gate_triggered = bool(payload.get("progression_gate_triggered", False))
     support_formation_pass_triggered = bool(payload.get("support_formation_pass_triggered", False))
     negative_evidence_formation_required = bool(payload.get("negative_evidence_formation_required", False))
+    targeted_negative_search_required = bool(payload.get("targeted_negative_search_required", False))
     negative_evidence_binding_retry_required = bool(payload.get("negative_evidence_binding_retry_required", False))
     support_formation_pass_reason = _normalize_text(payload.get("support_formation_pass_reason"), max_length=160)
     support_formation_pass_from_action = _normalize_text(payload.get("support_formation_pass_from_action"), max_length=80)
@@ -5829,6 +7026,12 @@ def normalize_manager_payload(payload: Any, available_agents: Optional[Iterable[
     evidence_json_parse_error = _normalize_text(
         payload.get("evidence_json_parse_error"), max_length=240
     )
+    evidence_json_raw_head = _normalize_text(
+        payload.get("evidence_json_raw_head"), max_length=360
+    )
+    evidence_json_raw_tail = _normalize_text(
+        payload.get("evidence_json_raw_tail"), max_length=360
+    )
     evidence_json_partial_recovery = bool(payload.get("evidence_json_partial_recovery", False))
     evidence_json_fallback_payload_used = bool(payload.get("evidence_json_fallback_payload_used", False))
     evidence_json_raw_chars = _safe_int(payload.get("evidence_json_raw_chars", 0))
@@ -5903,6 +7106,8 @@ def normalize_manager_payload(payload: Any, available_agents: Optional[Iterable[
         "progression_gate_triggered": progression_gate_triggered,
         "support_formation_pass_triggered": support_formation_pass_triggered,
         "negative_evidence_formation_required": negative_evidence_formation_required,
+        "targeted_negative_search_required": targeted_negative_search_required,
+        "targeted_negative_search_task_count": _safe_int(payload.get("targeted_negative_search_task_count", 0)),
         "negative_evidence_binding_retry_required": negative_evidence_binding_retry_required,
         "support_formation_pass_reason": support_formation_pass_reason,
         "support_formation_pass_from_action": support_formation_pass_from_action,
@@ -5979,6 +7184,8 @@ def normalize_manager_payload(payload: Any, available_agents: Optional[Iterable[
         "evidence_json_parse_status": evidence_json_parse_status,
         "evidence_json_failure_type": evidence_json_failure_type,
         "evidence_json_parse_error": evidence_json_parse_error,
+        "evidence_json_raw_head": evidence_json_raw_head,
+        "evidence_json_raw_tail": evidence_json_raw_tail,
         "evidence_json_partial_recovery": evidence_json_partial_recovery,
         "evidence_json_fallback_payload_used": evidence_json_fallback_payload_used,
         "evidence_json_raw_chars": evidence_json_raw_chars,
@@ -6160,6 +7367,10 @@ def _build_recovery_state_delta(before: Dict[str, Any], after: Dict[str, Any]) -
         for key in _RECOVERY_STATE_DELTA_KEYS
     }
     contested_relation_delta = len(after.get("contested_relations", []) or []) - len(before.get("contested_relations", []) or [])
+    diagnosis_pending_concern_delta = (
+        len(after.get("diagnosis_pending_concerns", []) or [])
+        - len(before.get("diagnosis_pending_concerns", []) or [])
+    )
     improved_keys = [key for key in _RECOVERY_BURDEN_DELTA_KEYS if delta.get(key, 0) < 0]
     worsened_keys = [key for key in _RECOVERY_BURDEN_DELTA_KEYS if delta.get(key, 0) > 0]
     tolerated_worsened_keys: List[str] = []
@@ -6181,6 +7392,8 @@ def _build_recovery_state_delta(before: Dict[str, Any], after: Dict[str, Any]) -
         "negative_recovery_commit": bool(worsened_keys and not improved_keys),
         "contested_relation_delta": contested_relation_delta,
         "contested_relation_added": contested_relation_delta > 0,
+        "diagnosis_pending_concern_delta": diagnosis_pending_concern_delta,
+        "diagnosis_pending_concern_added": diagnosis_pending_concern_delta > 0,
     }
 
 
@@ -6192,6 +7405,8 @@ def _recovery_patch_operation(parsed_patch: Dict[str, Any], validation: Dict[str
     new_status = str(validation.get("new_status") or parsed_patch.get("new_status") or "").lower()
     if target_type in {"claim", "flaw"} and validation.get("mark_contested"):
         return "mark_contested"
+    if target_type == "claim_requirement_gap" and validation.get("diagnosis_pending_concern"):
+        return "record_diagnosis_pending_concern"
     if target_type == "evidence_link" and new_status in {"unbound", "invalid_claim_id"}:
         return "rebind_evidence"
     if target_type == "gap" and new_status == "resolved":
@@ -6233,6 +7448,8 @@ def _recovery_patch_target_gate_label(parsed_patch: Dict[str, Any], validation: 
         )
     ):
         return "negative_verified_target"
+    if target_type == "claim_requirement_gap" and validation.get("diagnosis_pending_concern"):
+        return "diagnosis_pending_target"
     if target_type == "flaw" and terminal_reason == ASSESSMENT_LIMITATION_NO_EFFECT_TERMINAL_REASON:
         return "real_target"
     if target_type == "flaw" and validation.get("verified_negative_flaw_target"):
@@ -6278,6 +7495,9 @@ def _build_recovery_patch_log(parsed_patch: Dict[str, Any], validation: Dict[str
     relation_payload = parsed_patch.get("contested_relation") or raw_payload.get("contested_relation") or {}
     if not isinstance(relation_payload, dict):
         relation_payload = {}
+    diagnosis_payload = parsed_patch.get("diagnosis_pending_concern") or raw_payload.get("diagnosis_pending_concern") or {}
+    if not isinstance(diagnosis_payload, dict):
+        diagnosis_payload = {}
     return {
         "recovery_attempted": parsed_patch.get("is_recovery_payload", False),
         "recovery_validated": patch_validated,
@@ -6301,6 +7521,7 @@ def _build_recovery_patch_log(parsed_patch: Dict[str, Any], validation: Dict[str
         "resolved_conflict_count": int(validation.get("resolved_conflict_count", 0) or 0),
         "required_fix": validation.get("required_fix", ""),
         "missing_requirements": list(validation.get("missing_requirements", parsed_patch.get("missing_requirements", [])) or []),
+        "missing_negative_types": list(validation.get("missing_negative_types", parsed_patch.get("missing_negative_types", [])) or []),
         "recovery_patch_source": parsed_patch.get("recovery_patch_source", "none"),
         "recovery_terminal": recovery_terminal,
         "recovery_terminal_reason": terminal_reason,
@@ -6314,6 +7535,25 @@ def _build_recovery_patch_log(parsed_patch: Dict[str, Any], validation: Dict[str
         ),
         "contested_relation_final_view": str(relation_payload.get("final_view") or ""),
         "contested_relation_status": str(relation_payload.get("status") or ""),
+        "diagnosis_pending_concern_claim_id": str(
+            validation.get("claim_requirement_gap_claim_id")
+            or diagnosis_payload.get("claim_id")
+            or ""
+        ),
+        "diagnosis_pending_concern_missing_requirements": list(
+            validation.get("missing_requirements")
+            or diagnosis_payload.get("missing_requirements")
+            or parsed_patch.get("missing_requirements")
+            or []
+        ),
+        "diagnosis_pending_concern_missing_negative_types": list(
+            validation.get("missing_negative_types")
+            or diagnosis_payload.get("missing_negative_types")
+            or parsed_patch.get("missing_negative_types")
+            or []
+        ),
+        "diagnosis_pending_concern_final_view": str(diagnosis_payload.get("final_view") or ""),
+        "diagnosis_pending_concern_status": str(diagnosis_payload.get("status") or ""),
         "recovery_state_delta": {},
         "recovery_consistency_improved": False,
         "negative_recovery_commit": False,
@@ -6404,6 +7644,42 @@ def _flaw_limitation_patch_is_no_effect(state: Dict[str, Any], validation: Dict[
     target_id = str(validation.get("target_id") or "").strip()
     if not target_id:
         return False
+    flaw_record = next(
+        (
+            item for item in state.get("flaw_candidates", []) or []
+            if isinstance(item, dict) and str(item.get("flaw_id") or "").strip() == target_id
+        ),
+        None,
+    )
+    evidence_by_id = {
+        str(item.get("evidence_id") or ""): item
+        for item in state.get("evidence_map", []) or []
+        if isinstance(item, dict) and item.get("evidence_id")
+    }
+    supporting_ids = [str(item or "").strip() for item in validation.get("supporting_evidence_ids", []) or [] if str(item or "").strip()]
+    if flaw_record and supporting_ids:
+        related_claim_ids = [
+            str(item or "").strip()
+            for item in flaw_record.get("related_claim_ids", []) or []
+            if str(item or "").strip()
+        ]
+        for evidence_id in supporting_ids:
+            record = evidence_by_id.get(evidence_id)
+            claim_id = str((record or {}).get("claim_id") or "").strip()
+            if claim_id:
+                related_claim_ids.append(claim_id)
+        has_real_negative_claim = any(_is_real_paper_claim_id_for_negative(claim_id) for claim_id in dict.fromkeys(related_claim_ids))
+        supporting_types = {
+            _negative_evidence_type_for_record(evidence_by_id.get(evidence_id, {}))
+            for evidence_id in supporting_ids
+        }
+        has_actionable_supporting_negative = any(
+            neg_type in ACTIONABLE_NEGATIVE_EVIDENCE_TYPES
+            and neg_type not in LIMITATION_NEGATIVE_EVIDENCE_TYPES
+            for neg_type in supporting_types
+        )
+        if related_claim_ids and not has_real_negative_claim and not has_actionable_supporting_negative:
+            return True
     try:
         view_state = copy.deepcopy(state or {})
         view_state.pop("decision_hygiene", None)
@@ -6415,7 +7691,11 @@ def _flaw_limitation_patch_is_no_effect(state: Dict[str, Any], validation: Dict[
             continue
         layer = str(flaw.get("final_view_flaw_layer") or "").strip()
         conflicts = flaw.get("hygiene_negative_grounding_conflicts") or []
-        return layer == "assessment_limitation" and not bool(conflicts)
+        if layer != "assessment_limitation":
+            return False
+        if not conflicts:
+            return True
+        return all(_negative_grounding_conflict_is_semantic_rejection(conflict) for conflict in conflicts)
     return False
 
 
@@ -6452,7 +7732,11 @@ def _duplicate_contested_relation_patch(state: Dict[str, Any], parsed_patch: Dic
 def _apply_recovery_update(state: Dict[str, Any], payload: Dict[str, Any]) -> Dict[str, Any]:
     parsed_patch = parse_recovery_payload(payload)
     _refresh_stale_claim_downgrade_old_status(state, parsed_patch)
-    validation = validate_recovery_patch(state, parsed_patch)
+    validation_state = state
+    if str(parsed_patch.get("target_type") or "").strip().lower() == "claim_requirement_gap":
+        validation_state = copy.deepcopy(state or {})
+        validation_state["claim_requirement_audit"] = _claim_requirement_audit(validation_state)
+    validation = validate_recovery_patch(validation_state, parsed_patch)
     merged = copy.deepcopy(state)
     merged["_latest_patch_log"] = _build_recovery_patch_log(parsed_patch, validation)
 
@@ -6464,6 +7748,10 @@ def _apply_recovery_update(state: Dict[str, Any], payload: Dict[str, Any]) -> Di
     new_status = str(validation.get("new_status") or parsed_patch.get("new_status") or "").lower()
     patch_operation = str(merged["_latest_patch_log"].get("recovery_patch_operation") or "")
     relation_only_mark_contested = bool(patch_operation == "mark_contested" and validation.get("mark_contested"))
+    record_diagnosis_pending_concern = bool(
+        patch_operation == "record_diagnosis_pending_concern"
+        and validation.get("diagnosis_pending_concern")
+    )
     if _flaw_limitation_patch_is_no_effect(state, validation, new_status):
         merged["_latest_patch_log"].update(
             {
@@ -6543,7 +7831,7 @@ def _apply_recovery_update(state: Dict[str, Any], payload: Dict[str, Any]) -> Di
         target_entity_id = str(validation.get("target_id") or parsed_patch.get("target_id") or "")
 
     try:
-        if relation_only_mark_contested:
+        if relation_only_mark_contested or record_diagnosis_pending_concern:
             pass
         elif target_field == "current_hypotheses":
             hypotheses = list(merged.get("current_hypotheses", []) or [])
@@ -6591,6 +7879,97 @@ def _apply_recovery_update(state: Dict[str, Any], payload: Dict[str, Any]) -> Di
         merged["_latest_patch_log"]["recovery_failure_code"] = "CHECKER_TOO_STRICT"
         merged["_latest_patch_log"]["recovery_failure_message"] = f"Recovery state commit failed: {exc}"
         return merged
+
+    if record_diagnosis_pending_concern:
+        gap_item = validation.get("target_item") or {}
+        raw_payload = parsed_patch.get("raw_payload") or {}
+        concern_payload = parsed_patch.get("diagnosis_pending_concern") or raw_payload.get("diagnosis_pending_concern") or {}
+        if not isinstance(concern_payload, dict):
+            concern_payload = {}
+        claim_id = str(
+            validation.get("claim_requirement_gap_claim_id")
+            or concern_payload.get("claim_id")
+            or gap_item.get("claim_id")
+            or parsed_patch.get("target_id")
+            or ""
+        ).strip()
+        missing_requirements = [
+            str(item or "").strip()
+            for item in (
+                validation.get("missing_requirements")
+                or concern_payload.get("missing_requirements")
+                or gap_item.get("missing_requirements")
+                or []
+            )
+            if str(item or "").strip()
+        ]
+        missing_negative_types = [
+            str(item or "").strip()
+            for item in (
+                validation.get("missing_negative_types")
+                or concern_payload.get("missing_negative_types")
+                or gap_item.get("missing_negative_types")
+                or []
+            )
+            if str(item or "").strip()
+        ]
+        if claim_id and missing_requirements:
+            existing = [
+                item for item in merged.get("diagnosis_pending_concerns", []) or []
+                if isinstance(item, dict)
+            ]
+            existing_keys = {
+                (
+                    str(item.get("claim_id") or "").strip(),
+                    tuple(str(req or "").strip() for req in item.get("missing_requirements", []) or [] if str(req or "").strip()),
+                )
+                for item in existing
+            }
+            concern_key = (claim_id, tuple(missing_requirements))
+            if concern_key not in existing_keys:
+                concern = {
+                    "concern_id": _slugify(
+                        "diagnosis-pending",
+                        f"{claim_id}-{'-'.join(missing_requirements)}",
+                        len(existing) + 1,
+                    ),
+                    "claim_id": claim_id,
+                    "claim": _normalize_text(gap_item.get("claim") or concern_payload.get("claim"), max_length=240),
+                    "missing_requirements": missing_requirements[:6],
+                    "missing_negative_types": missing_negative_types[:6],
+                    "reason": (
+                        parsed_patch.get("reason_for_change")
+                        or concern_payload.get("reason")
+                        or "Claim requirement audit found missing verified support coverage."
+                    ),
+                    "final_view": str(concern_payload.get("final_view") or "potential_concern"),
+                    "status": "recorded",
+                    "grounding_status": "diagnosis_pending_verification",
+                    "basis": str(validation.get("audit_basis") or gap_item.get("audit_basis") or "claim_requirement_vs_verified_support"),
+                    "source": "claim_requirement_audit",
+                }
+                merged["diagnosis_pending_concerns"] = (existing + [concern])[-12:]
+                merged["_latest_patch_log"].update(
+                    {
+                        "diagnosis_pending_concern_claim_id": claim_id,
+                        "diagnosis_pending_concern_missing_requirements": concern["missing_requirements"],
+                        "diagnosis_pending_concern_missing_negative_types": concern["missing_negative_types"],
+                        "diagnosis_pending_concern_final_view": concern["final_view"],
+                        "diagnosis_pending_concern_status": concern["status"],
+                    }
+                )
+                recovery_revisions: List[Dict[str, Any]] = []
+                _append_revision_event(
+                    recovery_revisions,
+                    "claim_requirement_gap",
+                    claim_id,
+                    "diagnosis_pending_concern",
+                    "",
+                    "recorded",
+                    reason="recovery_patch_committed",
+                )
+                merged["revision_log"] = (merged.get("revision_log", []) + recovery_revisions)[-40:]
+                merged = _update_state_summaries(merged)
 
     if merged["_latest_patch_log"].get("recovery_patch_operation") == "mark_contested":
         mark_target_type = str(validation.get("target_type") or parsed_patch.get("target_type") or "").strip().lower()
@@ -6758,7 +8137,11 @@ def merge_review_state(state: Dict[str, Any], payload: Dict[str, Any]) -> Dict[s
 
     normalized_payload["evidence_map"] = _validate_evidence_bindings_for_state(
         merged,
-        normalized_payload.get("evidence_map", []),
+        [
+            _strip_model_claimed_evidence_verification_fields(item)
+            for item in normalized_payload.get("evidence_map", []) or []
+            if isinstance(item, dict)
+        ],
     )
     normalized_payload["evidence_map"] = _verify_evidence_items_for_state(
         merged,
@@ -6776,7 +8159,7 @@ def merge_review_state(state: Dict[str, Any], payload: Dict[str, Any]) -> Dict[s
         normalized_payload.get("evidence_map", []),
         key="evidence_id",
         entity_type="evidence",
-        tracked_fields=("claim_id", "evidence", "source", "source_locator", "raw_quote", "agent_raw_quote", "quote_id", "quote_bank_canonicalized", "quote_bank_claim_overlap_fallback_used", "quote_bank_claim_overlap_fallback_quote_id", "quote_bank_claim_overlap_fallback_source_bucket", "quote_bank_claim_overlap_fallback_score", "source_span_start", "source_span_end", "strength", "stance", "binding_status", "binding_confidence", "binding_rationale", "grounded_judge_label", "grounded_judge_reason", "verified_grounding_label", "verified_grounding_reason", "verified_source_span_start", "verified_source_span_end", "verified_quote_match_type", "verified_locator_quality", "verified_source_bucket", "verified_claim_overlap_score", "semantic_grounding_label", "semantic_grounding_reasons", "semantic_alignment_score", "semantic_grounding_checked", "quote_evidence_semantic_mismatch", "semantic_weak_promotion_used", "semantic_weak_promotion_reason", "support_source_bucket", "negative_evidence_type", "negative_evidence_actionability", "claim_status_downgrade_allowed", "support_quality", "support_quality_reason", "support_quality_adjustment", "strength_promotion_from_medium_used", "strength_promotion_reason", "original_evidence_id", "evidence_id_collision_preserved", "evidence_id_collision_reason"),
+        tracked_fields=("claim_id", "evidence", "source", "source_locator", "raw_quote", "agent_raw_quote", "quote_id", "quote_bank_canonicalized", "quote_bank_claim_overlap_fallback_used", "quote_bank_claim_overlap_fallback_quote_id", "quote_bank_claim_overlap_fallback_source_bucket", "quote_bank_claim_overlap_fallback_score", "source_span_start", "source_span_end", "strength", "stance", "binding_status", "binding_confidence", "binding_rationale", "grounded_judge_label", "grounded_judge_reason", "verified_grounding_label", "verified_grounding_reason", "verified_source_span_start", "verified_source_span_end", "verified_quote_match_type", "verified_locator_quality", "verified_source_bucket", "verified_claim_overlap_score", "semantic_grounding_label", "semantic_grounding_reasons", "semantic_alignment_score", "semantic_grounding_checked", "quote_evidence_semantic_mismatch", "semantic_weak_promotion_used", "semantic_weak_promotion_reason", "review_negative_checked", "review_negative_label", "review_negative_reason", "review_negative_relation_score", "negative_quote_candidate_status", "runtime_evidence_verification_required", "model_claimed_verification_stripped", "support_source_bucket", "negative_evidence_type", "negative_evidence_actionability", "claim_status_downgrade_allowed", "support_quality", "support_quality_reason", "support_quality_adjustment", "strength_promotion_from_medium_used", "strength_promotion_reason", "original_evidence_id", "evidence_id_collision_preserved", "evidence_id_collision_reason"),
         max_items=64,
     )
     merged["evidence_map"] = _retain_evidence_items(merged.get("evidence_map", []), max_items=12)
@@ -6788,7 +8171,7 @@ def merge_review_state(state: Dict[str, Any], payload: Dict[str, Any]) -> Dict[s
         normalized_payload.get("flaw_candidates", []),
         key="flaw_id",
         entity_type="flaw",
-        tracked_fields=("title", "description", "severity", "status", "related_claim_ids", "evidence_ids", "negative_evidence_ids", "verified_negative_evidence_ids", "grounding_status", "source"),
+        tracked_fields=("title", "description", "severity", "status", "related_claim_ids", "evidence_ids", "negative_evidence_ids", "verified_negative_evidence_ids", "grounding_status", "weakness_type", "required_evidence_type", "criterion", "paper_side_rationale", "source_stage", "source"),
         max_items=8,
     )
     revision_events.extend(flaw_revisions)
@@ -6942,10 +8325,19 @@ def build_turn_action(
 
 
 def _manager_requires_negative_evidence_formation(manager_payload: Dict[str, Any]) -> bool:
-    policy_source = str((manager_payload or {}).get("policy_source") or "").strip()
+    payload = manager_payload or {}
+    # A hard-negative *diagnosis* turn (DRMAS_HARDNEG_DIAGNOSIS on) is NOT a negative-formation turn:
+    # it sets negative_evidence_formation_required=False and routes Critique to analyze_flaws. Without
+    # this guard it would be miscounted as formation because it reuses the hard_negative_discovery_override
+    # policy_source.
+    if payload.get("hard_negative_diagnosis_required"):
+        return False
+    policy_source = str(payload.get("policy_source") or "").strip()
+    if policy_source == "targeted_negative_search_override" and not payload.get("targeted_negative_search_required"):
+        return False
     return bool(
-        (manager_payload or {}).get("negative_evidence_formation_required")
-        or policy_source in {"negative_evidence_formation_override", "hard_negative_discovery_override"}
+        payload.get("negative_evidence_formation_required")
+        or policy_source in {"negative_evidence_formation_override", "hard_negative_discovery_override", "targeted_negative_search_override", "compact_negative_pass_override"}
     )
 
 
@@ -7025,9 +8417,6 @@ def infer_review_mode(explicit_mode: Optional[str], agent_ids: List[str], max_st
 
 
 def compact_review_state_for_prompt(state: Dict[str, Any]) -> Dict[str, Any]:
-    requirement_audit = state.get("claim_requirement_audit")
-    if not isinstance(requirement_audit, dict):
-        requirement_audit = _claim_requirement_audit(state)
     return {
         "turn_id": state.get("turn_id", 0),
         "mode": state.get("mode", "s4"),
@@ -7045,7 +8434,6 @@ def compact_review_state_for_prompt(state: Dict[str, Any]) -> Dict[str, Any]:
         "last_focus": state.get("last_focus", ""),
         "active_focus": state.get("active_focus", state.get("last_focus", "")),
         "claim_coverage": claim_coverage_summary(state),
-        "claim_requirement_gaps": requirement_audit.get("claim_requirement_gap_items", [])[:4],
         "claims": state.get("claims", [])[:5],
         "evidence_map": _compact_evidence_for_prompt(state.get("evidence_map", []), max_items=6),
         "flaw_candidates": state.get("flaw_candidates", [])[:5],
@@ -7227,13 +8615,15 @@ _EVIDENCE_NEGATIVE_ANCHOR_PATTERNS: List[Tuple[str, re.Pattern[str]]] = [
         re.compile(
             r"\b("
             r"no\s+(?:ablation|baseline|comparison|evaluation)|"
-            r"missing\s+(?:ablation|baseline|comparison|evaluation|implementation|hyperparameter|details?)|"
+            r"missing\s+(?:ablation|baseline|comparison|evaluation|implementation|hyperparameter|details?|runtime|latency|memory|compute|cost)|"
             r"not\s+(?:evaluated|compared|significant|consistent|reproducible)|no\s+significant|"
-            r"without\s+(?:an?\s+|the\s+)?(?:baseline|comparison)(?:\s+(?:to|with|against))?|"
-            r"(?:do|does|did)\s+not\s+(?:report|provide|include|evaluate|compare|validate|establish|show)\b|"
-            r"lack(?:s|ed|ing)?\s+(?:ablation|baseline|comparison|evaluation|implementation|detail|hyperparameter|component analysis)|"
-            r"insufficient\s+(?:evaluation|experiment|baseline|comparison|detail|implementation)|"
+            r"without\s+(?:an?\s+|the\s+)?(?:baseline|comparison|robustness|generalization|runtime|latency|memory|compute|cost)(?:\s+(?:to|with|against))?|"
+            r"(?:do|does|did)\s+not\s+(?:report|provide|include|evaluate|compare|validate|establish|show|measure)\b|"
+            r"lack(?:s|ed|ing)?\s+(?:ablation|baseline|comparison|evaluation|implementation|detail|hyperparameter|component analysis|robustness|generalization|runtime|latency|memory|compute|cost)|"
+            r"insufficient\s+(?:evaluation|experiment|baseline|comparison|detail|implementation|robustness|generalization)|"
             r"single\s+dataset|only\s+evaluated|limited\s+to\s+(?:one|two|a single)|"
+            r"unfair\s+(?:comparison|baseline)|weak\s+baseline|oracle|leakage|train[- ]test|test[- ]set|validation[- ]set|"
+            r"runtime|latency|memory|parameters?|flops|compute|computational\s+cost|"
             r"implementation\s+details?|hyperparameters?|reproducib(?:ility|le)|"
             r"mixed\s+results?|marginal\s+improvements?|inconsistent\s+results?|"
             r"worse|underperform(?:s|ed)?|fail(?:s|ed)?\s+to\s+(?:show|evaluate|compare|generalize|generalise)|"
@@ -7284,6 +8674,15 @@ _NEG_TYPE_MISSING_BASELINE_RE = re.compile(
     r"not (?:reported|included|provided)[^.!?]{0,100}\b(baseline|comparison))\b",
     re.IGNORECASE,
 )
+_NEG_TYPE_UNFAIR_OR_WEAK_BASELINE_RE = re.compile(
+    r"\b(unfair (?:comparison|baseline|evaluation)|weak baseline|weak baselines|"
+    r"baseline(?:s)? (?:are|is|was|were)?\s*(?:weak|outdated|not tuned|untuned|unfair|inadequate)|"
+    r"(?:uses?|used|chooses?|chosen|compares? against) (?:a |an |the )?(?:weak|outdated|untuned|non[- ]competitive) baseline|"
+    r"not (?:tuned|optimized) (?:for|on) (?:the )?(?:baseline|baselines)|"
+    r"different (?:backbone|architecture|training budget|data split|protocol|setting) (?:for|between) (?:the )?(?:baseline|baselines|methods)|"
+    r"(?:baseline|comparison)[^.!?]{0,120}(?:unfair|weak|outdated|untuned|not tuned|different (?:backbone|training budget|protocol|setting)))\b",
+    re.IGNORECASE,
+)
 _NEG_TYPE_INSUFFICIENT_EVALUATION_RE = re.compile(
     r"\b(not evaluated|insufficient evaluation|limited evaluation|evaluation is limited|"
     r"small-scale evaluation|few datasets?|limited datasets?|insufficient experiments?|"
@@ -7291,6 +8690,25 @@ _NEG_TYPE_INSUFFICIENT_EVALUATION_RE = re.compile(
     r"do(?:es)? not (?:evaluate|test|validate)|no evaluation|"
     r"do(?:es)? not judge (?:whether|if) (?:the )?output is accurate|"
     r"not tested on (?:real|external|out-of-domain|unseen))\b",
+    re.IGNORECASE,
+)
+_NEG_TYPE_MISSING_ROBUSTNESS_GENERALIZATION_RE = re.compile(
+    r"\b(no (?:robustness|generalization|generalisation|out-of-domain|ood|cross-domain|stress) (?:test|evaluation|experiment|benchmark)|"
+    r"missing (?:robustness|generalization|generalisation|out-of-domain|ood|cross-domain|stress) (?:test|evaluation|experiment|benchmark)|"
+    r"(?:robustness|generalization|generalisation|transferability|out-of-domain|ood|cross-domain)[^.!?]{0,120}(?:not (?:tested|evaluated|validated)|missing|absent|limited)|"
+    r"not (?:tested|evaluated|validated) (?:on|under|against) (?:unseen|out-of-domain|ood|cross-domain|external|corrupted|noisy)|"
+    r"only evaluated on (?:in-domain|seen|clean|single-domain)|"
+    r"limited (?:robustness|generalization|generalisation|transferability) evaluation)\b",
+    re.IGNORECASE,
+)
+_NEG_TYPE_EVALUATION_PROTOCOL_RISK_RE = re.compile(
+    r"\b(train[- ]test leakage|data leakage|test[- ]set leakage|label leakage|"
+    r"oracle (?:information|access|features?|labels?)|uses? (?:the )?test set (?:for|to) (?:tuning|select|selection|validation)|"
+    r"(?:tune|tuned|select|selected) (?:hyperparameters?|models?|checkpoints?) on (?:the )?test set|"
+    r"(?:validation|test) split (?:is|was)?\s*(?:not specified|unclear|missing)|"
+    r"unfair evaluation protocol|protocol (?:bias|risk|leakage|mismatch)|"
+    r"metric (?:mismatch|does not match|is inappropriate|not appropriate)|"
+    r"best(?:-| )case (?:selection|reporting)|cherry[- ]pick(?:ed|ing))\b",
     re.IGNORECASE,
 )
 _NEG_TYPE_REPRODUCIBILITY_GAP_RE = re.compile(
@@ -7305,6 +8723,15 @@ _NEG_TYPE_REPRODUCIBILITY_GAP_RE = re.compile(
     r"insufficient (?:implementation|training|data split|compute setup|hyperparameter)s? details?|"
     r"insufficient details? (?:for|to) reproduc(?:e|tion|ibility)|"
     r"cannot reproduce)\b",
+    re.IGNORECASE,
+)
+_NEG_TYPE_EFFICIENCY_COST_GAP_RE = re.compile(
+    r"\b(no (?:runtime|latency|memory|parameter|parameters|flops|compute|computational cost|efficiency) (?:analysis|evaluation|report|measurement|comparison)|"
+    r"missing (?:runtime|latency|memory|parameter|parameters|flops|compute|computational cost|efficiency) (?:analysis|evaluation|report|measurement|comparison)|"
+    r"(?:runtime|latency|memory|parameters?|flops|compute|computational cost|efficiency)[^.!?]{0,120}(?:not (?:reported|measured|provided|evaluated|compared)|missing|omitted)|"
+    r"high (?:runtime|latency|memory|computational cost|compute cost)|"
+    r"computationally expensive|requires? substantial compute|requires? large memory|"
+    r"(?:scalability|scalable|efficient|efficiency)[^.!?]{0,120}(?:not (?:evaluated|reported|measured)|missing|unclear))\b",
     re.IGNORECASE,
 )
 _NEG_TYPE_SCOPE_OVERCLAIM_RE = re.compile(
@@ -7389,10 +8816,18 @@ def _classify_negative_evidence_type(quote: str) -> str:
         return "negative_result"
     if _NEG_TYPE_MISSING_ABLATION_RE.search(quote):
         return "missing_ablation"
+    if _NEG_TYPE_UNFAIR_OR_WEAK_BASELINE_RE.search(quote):
+        return "unfair_or_weak_baseline"
     if _NEG_TYPE_MISSING_BASELINE_RE.search(quote):
         return "missing_baseline"
+    if _NEG_TYPE_EVALUATION_PROTOCOL_RISK_RE.search(quote):
+        return "evaluation_protocol_risk"
+    if _NEG_TYPE_MISSING_ROBUSTNESS_GENERALIZATION_RE.search(quote):
+        return "missing_robustness_or_generalization"
     if _NEG_TYPE_INSUFFICIENT_EVALUATION_RE.search(quote):
         return "insufficient_evaluation"
+    if _NEG_TYPE_EFFICIENCY_COST_GAP_RE.search(quote):
+        return "efficiency_cost_gap"
     if _NEG_TYPE_REPRODUCIBILITY_GAP_RE.search(quote):
         return "reproducibility_gap"
     if _NEG_TYPE_RESULT_CLAIM_MISMATCH_RE.search(quote):
@@ -7411,7 +8846,9 @@ def _classify_negative_evidence_type(quote: str) -> str:
 NOISE_NEGATIVE_TYPES = frozenset({"bibliographic_or_title_noise", "neutral_instruction_noise"})
 NEGATIVE_EVIDENCE_TYPES_ALL = frozenset(
     {"direct_contradiction", "negative_result", "missing_ablation", "missing_baseline",
-     "insufficient_evaluation", "reproducibility_gap", "scope_overclaim", "result_claim_mismatch",
+     "unfair_or_weak_baseline", "insufficient_evaluation", "missing_robustness_or_generalization",
+     "evaluation_protocol_risk", "efficiency_cost_gap",
+     "reproducibility_gap", "method_support_gap", "scope_overclaim", "result_claim_mismatch",
      "scope_limitation", "neutral_control_context", "generic_gap",
      "bibliographic_or_title_noise", "neutral_instruction_noise"}
 )
@@ -7421,12 +8858,52 @@ ACTIONABLE_NEGATIVE_EVIDENCE_TYPES = frozenset(
         "negative_result",
         "missing_ablation",
         "missing_baseline",
+        "unfair_or_weak_baseline",
         "insufficient_evaluation",
+        "missing_robustness_or_generalization",
+        "evaluation_protocol_risk",
+        "efficiency_cost_gap",
+        "method_support_gap",
         "scope_overclaim",
         "result_claim_mismatch",
     }
 )
 LIMITATION_NEGATIVE_EVIDENCE_TYPES = frozenset({"scope_limitation", "reproducibility_gap", "generic_gap"})
+TRUE_PAPER_NEGATIVE_EVIDENCE_TYPES = frozenset(
+    {
+        "direct_contradiction",
+        "negative_result",
+        "missing_ablation",
+        "missing_baseline",
+        "unfair_or_weak_baseline",
+        "insufficient_evaluation",
+        "missing_robustness_or_generalization",
+        "evaluation_protocol_risk",
+        "efficiency_cost_gap",
+        "result_claim_mismatch",
+        "reproducibility_gap",
+        "method_support_gap",
+    }
+)
+SECONDARY_NEGATIVE_EVIDENCE_TYPES = frozenset({"scope_overclaim", "scope_limitation", "generic_gap"})
+
+
+def _negative_evidence_type_priority(negative_type: str) -> int:
+    """Rank paper-side negative types by diagnostic value.
+
+    True negatives are paper flaws or direct claim-support failures.  Scope /
+    limitation-style signals are kept as fallback context, but they should not
+    displace concrete missing-evaluation, result-mismatch, or contradiction
+    evidence in the Critique prompt.
+    """
+    value = str(negative_type or "").strip()
+    if value in TRUE_PAPER_NEGATIVE_EVIDENCE_TYPES:
+        return 0
+    if value == "scope_overclaim":
+        return 1
+    if value in {"scope_limitation", "generic_gap"}:
+        return 2
+    return 3
 
 
 def _negative_evidence_type_for_record(record: Dict[str, Any]) -> str:
@@ -7535,6 +9012,15 @@ def _apply_claim_aware_negative_reclassification(view: Dict[str, Any]) -> None:
 # This filter drops such candidates BEFORE they reach the Critique Agent / quote bank.
 # It only ever removes low-quality candidates; it never fabricates or upgrades anything.
 _NEG_QUOTE_HYGIENE_ENABLED = os.environ.get("DRMAS_NEG_QUOTE_HYGIENE", "").strip().lower() in {"1", "true", "on", "yes", "aggressive"}
+
+# Hard-negative claim-centric diagnosis gate (env DRMAS_HARDNEG_DIAGNOSIS, default off).
+# When OFF (default), the Critique state slice carries neither the legacy live claim_requirement_gaps
+# (kept decoupled) nor the new hard_negative_diagnosis_targets block, so default Critique behavior
+# matches the validated mainline. When ON, the claim-centric model-judgment targets are injected for
+# Mac multi-seed A/B. Pairs with review_prompts._HARDNEG_DIAGNOSIS_ENABLED (same env var), which
+# gates the matching critique prompt additions.
+_HARDNEG_DIAGNOSIS_ENABLED = os.environ.get("DRMAS_HARDNEG_DIAGNOSIS", "").strip().lower() in {"1", "true", "on", "yes"}
+_TARGETED_NEGATIVE_SEARCH_ENABLED = os.environ.get("DRMAS_TARGETED_NEGATIVE_SEARCH", "").strip().lower() in {"1", "true", "on", "yes"}
 
 _NEG_QUOTE_SECTION_HEADER_RE = re.compile(r"\\section\*?\{[^}]*\}|\\(?:sub)*section\b", re.IGNORECASE)
 _NEG_QUOTE_BARE_HEADER_RE = re.compile(
@@ -7999,7 +9485,7 @@ def _build_critique_negative_quote_bank(body: str, max_quotes: int = 6) -> List[
                 continue
             if _is_low_quality_negative_quote(quote):
                 continue
-            score = 0 if neg_type in ACTIONABLE_NEGATIVE_EVIDENCE_TYPES else 1
+            score = _negative_evidence_type_priority(neg_type)
             candidates.append((score, match.start(), quote))
     candidates.sort(key=lambda item: (item[0], item[1]))
     ordered_candidates: List[Tuple[int, int, str]] = []
@@ -8038,6 +9524,10 @@ def _build_critique_negative_quote_bank(body: str, max_quotes: int = 6) -> List[
             "source_span_start": span_start,
             "source_span_end": span_end,
             "negative_evidence_type": neg_type,
+            "negative_evidence_actionability": (
+                "true_paper_negative" if neg_type in TRUE_PAPER_NEGATIVE_EVIDENCE_TYPES
+                else "secondary_scope_or_limitation"
+            ),
             "copy_rule": "Copy raw_quote exactly; use only for paper-side negative evidence.",
         })
     return quote_bank
@@ -8268,9 +9758,6 @@ def _render_manager_state_slice(state: Dict[str, Any]) -> Dict[str, Any]:
     negative_evidence = negative_binding["negative_evidence_candidates"]
     unlinked_negative_evidence = negative_binding["unlinked_negative_evidence_candidates"]
     claim_coverage = claim_coverage_summary(state)
-    requirement_audit = state.get("claim_requirement_audit")
-    if not isinstance(requirement_audit, dict):
-        requirement_audit = _claim_requirement_audit(state)
     recovery_hydration = _recovery_hydration_slice(state, max_targets=2)
     for _verbose_key in (
         "negative_evidence_type_counts",
@@ -8278,7 +9765,7 @@ def _render_manager_state_slice(state: Dict[str, Any]) -> Dict[str, Any]:
         "verified_limitation_negative_flaw_count",
     ):
         recovery_hydration.pop(_verbose_key, None)
-    return {
+    manager_slice = {
         "phase": state.get("phase", "normal_review"),
         "phase_turn_index": state.get("phase_turn_index", 0),
         "phase_enter_reason": state.get("phase_enter_reason", ""),
@@ -8292,8 +9779,6 @@ def _render_manager_state_slice(state: Dict[str, Any]) -> Dict[str, Any]:
         "active_focus": state.get("active_focus", state.get("last_focus", "")),
         "risk_profile": copy.deepcopy(state.get("risk_profile", {})),
         "claim_coverage": claim_coverage,
-        "claim_requirement_gaps": requirement_audit.get("claim_requirement_gap_items", [])[:4],
-        "claim_requirement_missing_type_counts": requirement_audit.get("claim_requirement_missing_type_counts", {}),
         "open_unresolved_questions": open_unresolved[:5],
         "evidence_gaps": _open_evidence_gaps(state)[:5],
         "negative_evidence_candidates": negative_evidence[:4],
@@ -8308,6 +9793,7 @@ def _render_manager_state_slice(state: Dict[str, Any]) -> Dict[str, Any]:
         "pending_user_question": state.get("pending_user_question", ""),
         "clarification_needed": state.get("clarification_needed", False),
     }
+    return manager_slice
 
 
 def _filter_items_by_ids(items: Sequence[Dict[str, Any]], key: str, target_ids: Optional[Sequence[str]], fallback_limit: int) -> List[Dict[str, Any]]:
@@ -8353,7 +9839,14 @@ def _render_claim_state_slice(state: Dict[str, Any], action_type: str = "extract
     }
 
 
-def _render_evidence_state_slice(state: Dict[str, Any], target_claim_ids: Optional[Sequence[str]] = None, target_evidence_ids: Optional[Sequence[str]] = None, target_flaw_ids: Optional[Sequence[str]] = None, action_type: str = "verify_evidence") -> Dict[str, Any]:
+def _render_evidence_state_slice(
+    state: Dict[str, Any],
+    target_claim_ids: Optional[Sequence[str]] = None,
+    target_evidence_ids: Optional[Sequence[str]] = None,
+    target_flaw_ids: Optional[Sequence[str]] = None,
+    action_type: str = "verify_evidence",
+    targeted_negative_search_required: bool = False,
+) -> Dict[str, Any]:
     selected_claims = _filter_items_by_ids(state.get("claims", []), "claim_id", target_claim_ids, 4)
     real_claim_ids = _real_claim_ids_from_state(state)
     omitted_fallback_claim_ids = [
@@ -8523,15 +10016,12 @@ def _render_evidence_state_slice(state: Dict[str, Any], target_claim_ids: Option
         if item.get("claim_id") in real_claim_ids
     ]
     support_diversity_by_claim, independent_support_needs, quote_ids_to_avoid_by_claim, first_support_needs = support_diversity_for_claims(allowed_claim_ids)
-    requirement_audit = state.get("claim_requirement_audit")
-    if not isinstance(requirement_audit, dict):
-        requirement_audit = _claim_requirement_audit(state)
-    allowed_set = {str(item) for item in allowed_claim_ids if str(item)}
-    claim_requirement_gaps = [
-        item for item in requirement_audit.get("claim_requirement_gap_items", [])
-        if not allowed_set or str(item.get("claim_id") or "") in allowed_set
-    ][:4]
-    return {
+    targeted_negative_search_tasks = (
+        _targeted_negative_search_tasks(state, claims=claims, max_items=1)
+        if targeted_negative_search_required and _TARGETED_NEGATIVE_SEARCH_ENABLED
+        else []
+    )
+    evidence_slice = {
         "active_focus": state.get("active_focus", state.get("last_focus", "")),
         "action_type": action_type,
         "allowed_claim_ids": allowed_claim_ids,
@@ -8553,18 +10043,20 @@ def _render_evidence_state_slice(state: Dict[str, Any], target_claim_ids: Option
         "support_diversity_by_claim": support_diversity_by_claim,
         "first_support_needs": first_support_needs,
         "independent_support_needs": independent_support_needs,
-        "claim_requirement_gaps": claim_requirement_gaps,
-        "claim_requirement_instruction": (
-            "For each claim_requirement_gap, search for the required evidence type "
-            "(empirical result, baseline/comparison, ablation, scope coverage, reproducibility, or method detail). "
-            "If the paper text contains no such verified quote, emit an unresolved question; do not invent a negative quote."
-        ),
         "quote_ids_to_avoid_by_claim": quote_ids_to_avoid_by_claim,
         "evidence_gaps": _open_evidence_gaps(state)[:5],
         "unresolved_questions": unresolved,
         "conflict_summary": state.get("conflict_summary", [])[:3],
         "current_hypotheses": state.get("current_hypotheses", [])[:4] if action_type in {"request_evidence_recheck", "challenge_previous_hypothesis"} else [],
     }
+    if targeted_negative_search_tasks:
+        evidence_slice["targeted_negative_search_tasks"] = targeted_negative_search_tasks
+        evidence_slice["targeted_negative_search_rule"] = (
+            "For each task, either return quote-grounded negative evidence with claim_id, raw_quote, "
+            "source_locator, negative_evidence_type, and targeted_negative_search_task_id, or return "
+            "an unresolved/not_assessable question. Do not count not_found as negative evidence."
+        )
+    return evidence_slice
 
 
 def _render_critique_state_slice(state: Dict[str, Any], target_claim_ids: Optional[Sequence[str]] = None, target_flaw_ids: Optional[Sequence[str]] = None, target_evidence_ids: Optional[Sequence[str]] = None, action_type: str = "analyze_flaws") -> Dict[str, Any]:
@@ -8590,7 +10082,7 @@ def _render_critique_state_slice(state: Dict[str, Any], target_claim_ids: Option
         for item in state.get("evidence_map", []) or []:
             if not isinstance(item, dict):
                 continue
-            if _is_paper_negative_evidence_record(item):
+            if _is_grounded_paper_negative_evidence_record(item, state):
                 cid = str(item.get("claim_id") or "").strip()
                 if cid and cid not in negative_evidence_claim_ids:
                     negative_evidence_claim_ids.append(cid)
@@ -8609,7 +10101,7 @@ def _render_critique_state_slice(state: Dict[str, Any], target_claim_ids: Option
         item for item in state.get("evidence_map", []) or []
         if not claim_ids or item.get("claim_id") in claim_ids or str(item.get("evidence_id") or "") in target_evidence_id_set
     ]
-    negative_evidence = [item for item in evidence if _is_paper_negative_evidence_record(item)]
+    negative_evidence = [item for item in evidence if _is_grounded_paper_negative_evidence_record(item, state)]
     negative_binding = _negative_evidence_binding_view(state)
     unlinked_negative_evidence_ids = {
         str(item.get("evidence_id") or "")
@@ -8623,21 +10115,13 @@ def _render_critique_state_slice(state: Dict[str, Any], target_claim_ids: Option
     strong_support_by_claim: Dict[str, List[str]] = {}
     for item in evidence:
         claim_id = str(item.get("claim_id") or "")
-        if _is_paper_negative_evidence_record(item):
+        if _is_grounded_paper_negative_evidence_record(item, state):
             negative_evidence_by_claim.setdefault(claim_id, []).append(str(item.get("evidence_id") or ""))
         if item.get("strength") == "strong" and item.get("stance") in {"supports", "partially_supports"}:
             strong_support_by_claim.setdefault(claim_id, []).append(str(item.get("evidence_id") or ""))
     target_evidence = _prioritize_critique_evidence(evidence, target_evidence_id_set)
     recovery_hydration = _recovery_hydration_slice(state)
-    requirement_audit = state.get("claim_requirement_audit")
-    if not isinstance(requirement_audit, dict):
-        requirement_audit = _claim_requirement_audit(state)
-    target_claim_set = {str(item) for item in (target_claim_ids or []) if str(item)}
-    claim_requirement_gaps = [
-        item for item in requirement_audit.get("claim_requirement_gap_items", [])
-        if not target_claim_set or str(item.get("claim_id") or "") in target_claim_set
-    ][:4]
-    return {
+    critique_slice = {
         "active_focus": state.get("active_focus", state.get("last_focus", "")),
         "action_type": action_type,
         "claims": claims[:4],
@@ -8646,11 +10130,6 @@ def _render_critique_state_slice(state: Dict[str, Any], target_claim_ids: Option
         "unlinked_negative_evidence_candidates": unlinked_negative_evidence[:4],
         "negative_evidence_by_claim": {claim_id: ids[:4] for claim_id, ids in negative_evidence_by_claim.items()},
         "strong_support_by_claim": {claim_id: ids[:4] for claim_id, ids in strong_support_by_claim.items()},
-        "claim_requirement_gaps": claim_requirement_gaps,
-        "claim_requirement_gap_rule": (
-            "A claim_requirement_gap is a claim-evidence mismatch opportunity, not a grounded weakness. "
-            "Promote it to a flaw only if you can cite verified paper evidence or a precise missing-artifact rationale; otherwise keep it as assessment limitation."
-        ),
         "invalid_negative_grounding_conflicts": negative_binding["invalid_negative_grounding_conflicts"][:4],
         "recovery_hydration": recovery_hydration,
         "grounded_flaw_binding_rule": "If a flaw is based on negative_evidence_candidates, cite that id in both evidence_ids and negative_evidence_ids.",
@@ -8659,6 +10138,16 @@ def _render_critique_state_slice(state: Dict[str, Any], target_claim_ids: Option
         "conflict_summary": state.get("conflict_summary", [])[:4],
         "revision_summary": state.get("revision_summary", [])[:4],
     }
+    # Gated, default off: only surface the claim-centric diagnosis targets when the
+    # hard-negative diagnosis experiment is enabled. When off, the slice matches the
+    # validated mainline (no claim_requirement_gaps live-wiring, no diagnosis targets).
+    if _HARDNEG_DIAGNOSIS_ENABLED:
+        critique_slice["hard_negative_diagnosis_targets"] = _hard_negative_diagnosis_targets(state, claims=claims, max_items=4)
+        critique_slice["hard_negative_diagnosis_rule"] = (
+            "Critique must first judge real paper-side weaknesses against these claim-level checks. "
+            "Quote-bank entries are grounding material, not flaw triggers. If a diagnosis lacks verified negative evidence, keep it candidate with grounding_status=diagnosis_pending_verification."
+        )
+    return critique_slice
 
 
 def _render_general_reviewer_state_slice(state: Dict[str, Any], action_type: str = "summarize_progress", target_claim_ids: Optional[Sequence[str]] = None, target_evidence_ids: Optional[Sequence[str]] = None, target_flaw_ids: Optional[Sequence[str]] = None) -> Dict[str, Any]:
@@ -8737,6 +10226,48 @@ def _prompt_quote_bank_entries(quote_bank: Sequence[Dict[str, Any]], max_items: 
     return entries
 
 
+def _prompt_targeted_negative_quote_entries(quote_bank: Sequence[Dict[str, Any]], max_items: int = 4) -> List[Dict[str, Any]]:
+    entries: List[Dict[str, Any]] = []
+    for item in quote_bank[:max_items]:
+        if not isinstance(item, dict):
+            continue
+        raw_quote = _normalize_text(item.get("raw_quote"), max_length=140)
+        if not raw_quote:
+            continue
+        negative_type = _normalize_text(
+            item.get("negative_evidence_type") or _classify_negative_evidence_type(raw_quote),
+            max_length=80,
+        )
+        entries.append({
+            "quote_id": str(item.get("quote_id") or ""),
+            "source_locator": str(item.get("source_locator") or ""),
+            "negative_hint": negative_type,
+            "raw_quote": raw_quote,
+        })
+    return entries
+
+
+def _prompt_targeted_negative_tasks(tasks: Sequence[Dict[str, Any]], max_items: int = 1) -> List[Dict[str, Any]]:
+    compact: List[Dict[str, Any]] = []
+    for item in tasks[:max_items]:
+        if not isinstance(item, dict):
+            continue
+        compact.append({
+            "task_id": str(item.get("task_id") or ""),
+            "claim_id": str(item.get("claim_id") or ""),
+            "claim": _normalize_text(item.get("claim"), max_length=90),
+            "negative_type": str(item.get("negative_type") or ""),
+            "required_evidence_type": str(item.get("required_evidence_type") or ""),
+            "search_question": _normalize_text(item.get("search_question"), max_length=90),
+            "quote_cues": _normalize_list_of_strings(item.get("expected_quote_cues"), max_items=3, max_length=24),
+            "locator_hint": _normalize_text(item.get("target_locator_hint"), max_length=80),
+            "quote_id": str(item.get("quote_id") or ""),
+            "candidate_raw_quote": _normalize_text(item.get("candidate_raw_quote"), max_length=160),
+            "source": str(item.get("source") or ""),
+        })
+    return compact
+
+
 def _prompt_negative_quote_bank_entries(quote_bank: Sequence[Dict[str, Any]], max_items: int = 5) -> List[Dict[str, Any]]:
     """Return negative quote-bank entries for Critique Agent grounding.
 
@@ -8755,7 +10286,7 @@ def _prompt_negative_quote_bank_entries(quote_bank: Sequence[Dict[str, Any]], ma
         neg_type = _negative_evidence_type_for_record(item)
         if neg_type == "neutral_control_context":
             continue
-        score = 0 if neg_type in ACTIONABLE_NEGATIVE_EVIDENCE_TYPES else 1
+        score = _negative_evidence_type_priority(neg_type)
         scored.append((score, idx, item))
     def _prompt_safe_negative_quote_text(item: Dict[str, Any], neg_type: str) -> str:
         raw_quote = str(item.get("raw_quote") or "").strip()
@@ -8796,10 +10327,14 @@ def _prompt_negative_quote_bank_entries(quote_bank: Sequence[Dict[str, Any]], ma
             "source_locator": str(item.get("source_locator") or ""),
             "negative_evidence_type": neg_type,
             "negative_evidence_actionability": (
-                "actionable" if neg_type in ACTIONABLE_NEGATIVE_EVIDENCE_TYPES else "limitation_or_gap"
+                "true_paper_negative" if neg_type in TRUE_PAPER_NEGATIVE_EVIDENCE_TYPES
+                else "secondary_scope_or_limitation"
             ),
             "raw_quote": prompt_quote,
-            "copy_rule": "If used for a flaw, cite this quote_id in negative_evidence_ids and explain the paper-side weakness; do not treat neutral controls as flaws.",
+            "copy_rule": (
+                "If used for a flaw, cite this quote_id in negative_evidence_ids and explain the paper-side weakness. "
+                "Prefer true_paper_negative entries; use secondary scope/limitation entries only as assessment limitations or last-resort concerns."
+            ),
         })
     return entries
 
@@ -8807,12 +10342,14 @@ def _prompt_negative_quote_bank_entries(quote_bank: Sequence[Dict[str, Any]], ma
 def render_evidence_observation(task: Dict[str, Any], manager_payload: Optional[Dict[str, Any]] = None) -> str:
     state = compact_review_state_for_prompt(task["review_state"])
     manager_payload = manager_payload if manager_payload is not None else {}
+    targeted_negative_requested = bool(manager_payload.get("targeted_negative_search_required", False))
     evidence_slice = _render_evidence_state_slice(
         state,
         target_claim_ids=manager_payload.get("target_claim_ids", []),
         target_evidence_ids=manager_payload.get("target_evidence_ids", []),
         target_flaw_ids=manager_payload.get("target_flaw_ids", []),
         action_type=manager_payload.get("action_type", "verify_evidence"),
+        targeted_negative_search_required=targeted_negative_requested,
     )
     evidence_context_target_claim_ids = (
         evidence_slice.get("evidence_focus_preferred_claim_ids")
@@ -8821,7 +10358,7 @@ def render_evidence_observation(task: Dict[str, Any], manager_payload: Optional[
     )
     evidence_context, evidence_context_meta = _render_evidence_context_with_meta(
         task,
-        max_length=2300,
+        max_length=650 if targeted_negative_requested else 2300,
         state=state,
         target_claim_ids=evidence_context_target_claim_ids,
     )
@@ -8829,11 +10366,35 @@ def render_evidence_observation(task: Dict[str, Any], manager_payload: Optional[
     evidence_context_meta_for_log = {k: v for k, v in evidence_context_meta.items() if k != "evidence_quote_bank"}
     manager_payload.update(evidence_context_meta_for_log)
     task["_latest_evidence_context_meta"] = dict(evidence_context_meta)
+    if targeted_negative_requested and _TARGETED_NEGATIVE_SEARCH_ENABLED:
+        state_with_current_meta = copy.deepcopy(state)
+        state_with_current_meta["_latest_evidence_context_meta"] = dict(evidence_context_meta)
+        current_target_claims = evidence_slice.get("target_claims") or [
+            item for item in state_with_current_meta.get("claims", []) or []
+            if isinstance(item, dict)
+        ]
+        refreshed_tasks = _targeted_negative_search_tasks(
+            state_with_current_meta,
+            claims=current_target_claims,
+            max_items=1,
+        )
+        if refreshed_tasks:
+            evidence_slice["targeted_negative_search_tasks"] = refreshed_tasks
+            evidence_slice["targeted_negative_search_refreshed_from_current_quote_bank"] = True
     omitted_fallback_claim_ids = evidence_slice.get("fallback_claim_targets_omitted", [])
     manager_payload["fallback_claim_targets_omitted"] = omitted_fallback_claim_ids
     manager_payload["fallback_claim_targets_omitted_count"] = len(omitted_fallback_claim_ids)
     manager_payload["fallback_targets_replaced_with_real_candidates"] = bool(
         evidence_slice.get("fallback_targets_replaced_with_real_candidates", False)
+    )
+    targeted_negative_search_tasks = evidence_slice.get("targeted_negative_search_tasks", []) or []
+    manager_payload["targeted_negative_search_required"] = bool(
+        manager_payload.get("targeted_negative_search_required", False)
+    )
+    manager_payload["targeted_negative_search_task_count"] = len(targeted_negative_search_tasks)
+    manager_payload["targeted_negative_search_active_tasks"] = _prompt_targeted_negative_tasks(
+        targeted_negative_search_tasks,
+        max_items=1,
     )
     for key in (
         "evidence_focus_mode",
@@ -8873,7 +10434,26 @@ def render_evidence_observation(task: Dict[str, Any], manager_payload: Optional[
             specificity_bonus = -1 if _is_specific_locator(locator) else 0
             return (avoid_penalty, same_bucket_penalty, specificity_bonus)
         evidence_quote_bank = sorted(evidence_quote_bank, key=_independent_quote_priority)
-    prompt_quote_bank = _prompt_quote_bank_entries(evidence_quote_bank)
+    targeted_negative_mode = bool(targeted_negative_search_tasks)
+    if targeted_negative_requested and not targeted_negative_mode:
+        manager_payload["targeted_negative_search_required"] = False
+        manager_payload["negative_evidence_formation_required"] = False
+        manager_payload["targeted_negative_search_no_task_blocked"] = True
+        if str(manager_payload.get("policy_source") or "") == "targeted_negative_search_override":
+            manager_payload["policy_source"] = "targeted_negative_search_no_task_blocked"
+        notes = list(manager_payload.get("policy_notes") or [])
+        notes.append(
+            "Targeted negative search was skipped because no quote-guided reviewer-negative task survived gating."
+        )
+        manager_payload["policy_notes"] = list(dict.fromkeys(str(note) for note in notes if str(note)))[:8]
+    if targeted_negative_mode:
+        negative_quote_bank = list(evidence_context_meta.get("critique_negative_quote_bank", []) or [])
+        prompt_quote_bank = _prompt_targeted_negative_quote_entries(
+            list(negative_quote_bank) + list(evidence_quote_bank),
+            max_items=2,
+        )
+    else:
+        prompt_quote_bank = _prompt_quote_bank_entries(evidence_quote_bank)
     preferred_claim_ids = evidence_slice.get("evidence_focus_preferred_claim_ids", [])
     targeting_guidance = ""
     if evidence_slice.get("evidence_focus_applied") and preferred_claim_ids:
@@ -8890,7 +10470,7 @@ def render_evidence_observation(task: Dict[str, Any], manager_payload: Optional[
             f"{json.dumps({'evidence_quote_bank': prompt_quote_bank}, ensure_ascii=False, indent=2)}\n\n"
         )
     first_support_block = ""
-    if first_support_needs:
+    if first_support_needs and not targeted_negative_mode:
         first_support_payload = {
             "first_support_needs": first_support_needs[:4],
             "rule": (
@@ -8916,17 +10496,6 @@ def render_evidence_observation(task: Dict[str, Any], manager_payload: Optional[
             "# Independent Evidence Diversification\n"
             f"{json.dumps(independent_payload, ensure_ascii=False, indent=2)}\n\n"
         )
-    requirement_gap_block = ""
-    claim_requirement_gaps = evidence_slice.get("claim_requirement_gaps", []) or []
-    if claim_requirement_gaps:
-        requirement_payload = {
-            "claim_requirement_gaps": claim_requirement_gaps[:4],
-            "rule": evidence_slice.get("claim_requirement_instruction", ""),
-        }
-        requirement_gap_block = (
-            "# Claim Requirement Evidence Gaps\n"
-            f"{json.dumps(requirement_payload, ensure_ascii=False, indent=2)}\n\n"
-        )
     target_flaw_block = ""
     if evidence_slice.get("target_flaws"):
         target_flaw_payload = {
@@ -8936,6 +10505,19 @@ def render_evidence_observation(task: Dict[str, Any], manager_payload: Optional[
         target_flaw_block = (
             "# Evidence Target Flaws\n"
             f"{json.dumps(target_flaw_payload, ensure_ascii=False, indent=2)}\n\n"
+        )
+    targeted_negative_block = ""
+    if targeted_negative_search_tasks:
+        targeted_negative_payload = {
+            "targeted_negative_search_tasks": _prompt_targeted_negative_tasks(targeted_negative_search_tasks, max_items=1),
+            "rule": (
+                "Attempt only the first task. Use a copied quote from the quote bank or excerpt. "
+                "No direct quote means evidence_map=[] plus one not_assessable unresolved object."
+            ),
+        }
+        targeted_negative_block = (
+            "# Targeted Negative Search Tasks\n"
+            f"{json.dumps(targeted_negative_payload, ensure_ascii=False, indent=2)}\n\n"
         )
     open_check_payload = {
         key: evidence_slice.get(key, [])[:5]
@@ -8953,12 +10535,28 @@ def render_evidence_observation(task: Dict[str, Any], manager_payload: Optional[
         "allowed_claim_ids": evidence_slice.get("allowed_claim_ids", [])[:4],
         "target_evidence_ids": manager_payload.get("target_evidence_ids", [])[:4],
     }
+    if targeted_negative_mode:
+        targeted_contract = (
+            "# Targeted Negative Output Contract\n"
+            "First token must be <json>. Output one compact JSON object only. "
+            "Use at most one copied raw_quote. No direct negative quote means evidence_map=[] and one not_assessable unresolved object. "
+            "Never convert positive support or author claims into negative evidence.\n\n"
+        )
+        return (
+            f"{_render_review_header(task)}\n"
+            f"# Evidence Action Context\n{json.dumps(action_payload, ensure_ascii=False, indent=2)}\n\n"
+            f"{quote_bank_block}"
+            f"# Evidence-Relevant Paper Excerpt\n{evidence_context}\n\n"
+            f"{targeted_negative_block}"
+            f"{targeted_contract}"
+            f"# Recent Turn Log\n{_render_recent_turn_summary(task, max_items=1)}\n"
+        )
     return (
         f"{_render_review_header(task)}\n"
         f"# Evidence Action Context\n{json.dumps(action_payload, ensure_ascii=False, indent=2)}\n\n"
         f"{first_support_block}"
+        f"{targeted_negative_block}"
         f"{target_flaw_block}"
-        f"{requirement_gap_block}"
         f"{quote_bank_block}"
         f"{independent_support_block}"
         f"{open_check_block}"
@@ -9005,16 +10603,30 @@ def render_critique_observation(task: Dict[str, Any], manager_payload: Optional[
             "# Critique Negative Quote Bank\n"
             f"{json.dumps({'negative_quote_bank': negative_quote_bank}, ensure_ascii=False, indent=2)}\n\n"
         )
+    hard_negative_target_block = ""
+    if critique_slice.get("hard_negative_diagnosis_targets"):
+        hard_negative_target_block = (
+            "# Hard-Negative Diagnosis Targets\n"
+            f"{json.dumps({'hard_negative_diagnosis_targets': critique_slice.get('hard_negative_diagnosis_targets', [])}, ensure_ascii=False, indent=2)}\n\n"
+            "# Hard-Negative Diagnosis Rules\n"
+            "First use reviewer judgment over the listed claim, existing support_profile, and diagnostic_checks. "
+            "A true flaw is a paper-side failure such as missing/weak baseline, missing ablation, insufficient evaluation, result-claim mismatch, method assumption gap, or reproducibility gap. "
+            "Do not start from negative-sounding words. Do not treat scope/future-work/excerpt limits as grounded weaknesses. "
+            "If you diagnose a plausible flaw but cannot cite verified negative evidence, output it only as status=candidate with grounding_status=diagnosis_pending_verification and omit negative_evidence_ids.\n\n"
+        )
     negative_grounding_rules_block = ""
     if negative_quote_bank:
         negative_grounding_rules_block = (
             "# Critique Negative Grounding Rules\n"
             "Use a quote from negative_quote_bank only when it states a paper-side weakness. "
-            "If you create a flaw from such a quote, copy the quote_id into both evidence_ids "
-            "and negative_evidence_ids, preserve negative_evidence_type, and explain why the quote "
-            "grounds the weakness. Actionable types are missing_ablation, missing_baseline, "
-            "insufficient_evaluation, negative_result, and direct_contradiction. Scope/reproducibility "
-            "quotes are assessment limitations unless the paper itself frames them as a concrete failure. "
+            "A quote-bank item is candidate grounding, not a verified negative evidence id; "
+            "if no existing evidence has review_negative_verified, create only a candidate flaw "
+            "with grounding_status=diagnosis_pending_verification and omit negative_evidence_ids. "
+            "First look for true paper negatives: missing_ablation, missing_baseline, "
+            "unfair_or_weak_baseline, insufficient_evaluation, missing_robustness_or_generalization, "
+            "evaluation_protocol_risk, efficiency_cost_gap, result_claim_mismatch, negative_result, "
+            "direct_contradiction, and concrete reproducibility_gap. Scope/future-work/limitation quotes are fallback evidence only: "
+            "use them after true negatives are absent, and route them to assessment limitations unless the paper itself frames a concrete claim failure. "
             "Do not turn generic gaps, external-baseline unavailability, neutral with/without controls, "
             "or system/context limitations into grounded weaknesses.\n\n"
         )
@@ -9022,6 +10634,7 @@ def render_critique_observation(task: Dict[str, Any], manager_payload: Optional[
         f"{_render_review_header(task)}\n"
         f"# Critique Focus\n{_render_focus_context(state, fallback_focus=focus)}\n\n"
         f"# Critique-Relevant Paper Evidence Context\n{critique_context}\n\n"
+        f"{hard_negative_target_block}"
         f"{negative_quote_block}"
         f"{negative_grounding_rules_block}"
         f"# Critique State Slice\n{json.dumps(critique_slice, ensure_ascii=False, indent=2)}\n\n"
@@ -9096,7 +10709,7 @@ def _is_system_generated_evidence_record(item: Dict[str, Any]) -> bool:
     evidence_id = str(item.get("evidence_id") or "").strip().lower()
     binding_status = str(item.get("binding_status") or "").strip().lower()
     return (
-        source in {"system recovery salvage", "fallback-extraction", "system_meta", "system-meta"}
+        source in {"system recovery salvage", "fallback-extraction", "system_meta", "system-meta", "quote-bank-negative-grounding"}
         or evidence_id.startswith("evidence-recovery-")
         or evidence_id.startswith("evidence-fallback-")
         or binding_status in {"fallback_unverified", "fallback_bound"}
@@ -9115,7 +10728,7 @@ def _is_paper_negative_evidence_record(item: Dict[str, Any]) -> bool:
     return (
         _is_negative_evidence_record(item)
         and not _is_system_generated_evidence_record(item)
-        and _is_real_paper_claim_id(item.get("claim_id"))
+        and _is_real_paper_claim_id_for_negative(item.get("claim_id"))
     )
 
 
@@ -9128,18 +10741,99 @@ def _state_requires_verified_grounding(state: Dict[str, Any]) -> bool:
     )
 
 
+def _claim_text_locatable_in_paper(
+    claim_text: str,
+    paper_text: str,
+    *,
+    min_content_tokens: int = 4,
+    min_overlap_ratio: float = 0.6,
+) -> bool:
+    """Whether a claim's content words are actually present in the paper body.
+
+    Conservative locatability check used to gate raw-salvaged-claim
+    canonicalization on the negative path: a canonicalized salvage claim may
+    only host verified negative evidence if its text is locatable in the paper,
+    so hallucinated / meta / truncated salvage text cannot be promoted into a
+    fake reviewer-discovered negative.  Returns False when either side is empty
+    so callers decide the fallback explicitly.
+    """
+    claim_norm = re.sub(r"\s+", " ", str(claim_text or "")).strip().lower()
+    paper_norm = re.sub(r"\s+", " ", str(paper_text or "")).strip().lower()
+    if not claim_norm or not paper_norm:
+        return False
+    claim_tokens = [
+        tok
+        for tok in re.findall(r"[a-z0-9]+", claim_norm)
+        if len(tok) >= 4 and tok not in _SEMANTIC_STOPWORDS
+    ]
+    distinct = list(dict.fromkeys(claim_tokens))
+    if len(distinct) < min_content_tokens:
+        return False
+    paper_tokens = set(re.findall(r"[a-z0-9]+", paper_norm))
+    present = sum(1 for tok in distinct if tok in paper_tokens)
+    return (present / len(distinct)) >= min_overlap_ratio
+
+
+def _claim_obj_by_id(state: Dict[str, Any], claim_id: str) -> Optional[Dict[str, Any]]:
+    target = str(claim_id or "").strip()
+    if not target:
+        return None
+    for claim in (state or {}).get("claims", []) or []:
+        if isinstance(claim, dict) and str(claim.get("claim_id") or "").strip() == target:
+            return claim
+    return None
+
+
+def _salvage_negative_blocked_by_unlocatable_claim(item: Dict[str, Any], state: Dict[str, Any]) -> bool:
+    """Block a negative whose host claim is a raw-salvaged claim not locatable in the paper.
+
+    Only fires for canonicalized raw-salvaged claims and only when paper_text is
+    available (runtime); offline recomputation over states with stripped
+    paper_text keeps the prior behaviour so dashboards stay consistent.
+    """
+    claim_obj = _claim_obj_by_id(state, str(item.get("claim_id") or ""))
+    if claim_obj is None:
+        return False
+    is_raw_salvage = bool(claim_obj.get("paper_claim_canonicalized_from_raw_salvage")) or (
+        str(claim_obj.get("claim_origin_kind") or "").strip().lower()
+        == "raw_salvaged_claim_agent_output"
+    )
+    if not is_raw_salvage:
+        return False
+    paper_text = str((state or {}).get("paper_text") or "")
+    if not paper_text:
+        return False
+    return not _claim_text_locatable_in_paper(str(claim_obj.get("claim") or ""), paper_text)
+
+
 def _is_grounded_paper_negative_evidence_record(item: Dict[str, Any], state: Dict[str, Any]) -> bool:
     if not _is_paper_negative_evidence_record(item):
         return False
-    if not _state_requires_verified_grounding(state):
-        return True
-    if not _is_verified_paper_grounded_evidence(item):
+    claim_id = str(item.get("claim_id") or "").strip()
+    if claim_id not in _real_claim_ids_from_state(state or {}):
         return False
+    # Fix#3: a canonicalized raw-salvaged claim may only host a counted negative
+    # if its text is locatable in the paper body (blocks hallucinated/meta salvage
+    # from becoming a fake reviewer-discovered negative).
+    if _salvage_negative_blocked_by_unlocatable_claim(item, state or {}):
+        return False
+    if item.get("runtime_evidence_verification_required") or item.get("model_claimed_verification_stripped"):
+        if not _has_trusted_existing_grounding(item):
+            return False
+    else:
+        if not _state_requires_verified_grounding(state):
+            return True
+        if not _is_verified_paper_grounded_evidence(item):
+            return False
+        if not _has_trusted_existing_grounding(item):
+            return False
     semantic_label = str(item.get("semantic_grounding_label") or "").strip()
-    if semantic_label not in {"semantic_negative_verified", "semantic_support_verified"}:
+    if semantic_label != "semantic_negative_verified":
         return False
     neg_type = _negative_evidence_type_for_record(item)
     if neg_type in {"neutral_control_context", "generic_gap", "bibliographic_or_title_noise", "neutral_instruction_noise"}:
+        return False
+    if not _is_review_negative_verified_evidence_record(item, state):
         return False
     return True
 
@@ -9151,11 +10845,13 @@ def _compact_evidence_for_prompt(items: Sequence[Dict[str, Any]], max_items: int
 
     def score(pair: tuple[int, Dict[str, Any]]) -> tuple[int, int]:
         idx, item = pair
-        if _is_paper_negative_evidence_record(item):
+        if str(item.get("review_negative_label") or "") == REVIEW_NEGATIVE_VERIFIED_LABEL:
             return (0, idx)
         if item.get("strength") == "strong" and item.get("stance") in {"supports", "partially_supports"}:
             return (1, idx)
-        return (2, idx)
+        if _is_paper_negative_evidence_record(item):
+            return (2, idx)
+        return (3, idx)
 
     selected = {idx for idx, _ in sorted(indexed, key=score)[:max_items]}
     return [item for idx, item in indexed if idx in selected]
@@ -9169,7 +10865,7 @@ def _prioritize_critique_evidence(items: Sequence[Dict[str, Any]], target_eviden
         evidence_id = str(item.get("evidence_id") or "")
         if evidence_id in target_evidence_ids:
             return (0, idx)
-        if _is_paper_negative_evidence_record(item):
+        if str(item.get("review_negative_label") or "") == REVIEW_NEGATIVE_VERIFIED_LABEL:
             return (1, idx)
         if item.get("strength") == "strong" and item.get("stance") in {"supports", "partially_supports"}:
             return (2, idx)
@@ -9272,12 +10968,20 @@ def _flaw_negative_grounding_conflicts(flaw: Dict[str, Any], state: Dict[str, An
                 "source": str(record.get("source") or ""),
             })
         elif not _is_grounded_paper_negative_evidence_record(record, state):
+            review_label = _review_negative_label_for_record(record, state)
+            semantic_label = str(record.get("semantic_grounding_label") or "")
             conflicts.append({
                 "flaw_id": str(flaw.get("flaw_id") or ""),
                 "evidence_id": eid,
-                "reason": "negative_evidence_id_not_verified",
+                "reason": (
+                    "negative_evidence_id_not_review_negative"
+                    if semantic_label == "semantic_negative_verified" and review_label and review_label != REVIEW_NEGATIVE_VERIFIED_LABEL
+                    else "negative_evidence_id_not_verified"
+                ),
                 "verified_grounding_label": str(record.get("verified_grounding_label") or ""),
-                "semantic_grounding_label": str(record.get("semantic_grounding_label") or ""),
+                "semantic_grounding_label": semantic_label,
+                "review_negative_label": review_label,
+                "review_negative_reason": str(record.get("review_negative_reason") or ""),
                 "negative_evidence_type": _negative_evidence_type_for_record(record),
             })
     return conflicts
@@ -9453,6 +11157,59 @@ def _verified_negative_evidence_ids_for_flaw(flaw: Dict[str, Any], state: Dict[s
     return _flaw_valid_negative_evidence_ids(flaw, state)
 
 
+def _explicit_negative_potential_false_positive_reason(record: Dict[str, Any]) -> str:
+    quote = str(record.get("raw_quote") or record.get("evidence") or "")
+    locator_text = " ".join(str(record.get(key) or "") for key in ("source", "source_locator"))
+    full_text = " ".join([quote, locator_text]).strip()
+    if not full_text:
+        return "missing_negative_anchor_text"
+    self_anchor = bool(_INTRO_NEGATIVE_SELF_ANCHOR_RE.search(quote))
+    concrete_gap = bool(_REVIEW_NEGATIVE_CONCRETE_GAP_RE.search(quote))
+    if _REVIEW_NEGATIVE_PRIOR_WORK_RE.search(quote) and not self_anchor:
+        return "prior_work_limitation"
+    if _REVIEW_NEGATIVE_POSITIVE_CONTEXT_RE.search(quote) and not concrete_gap:
+        return "positive_or_neutral_support"
+    if _REVIEW_NEGATIVE_RESOURCE_CONTEXT_RE.search(quote) and not concrete_gap:
+        return "resource_or_scope_context"
+    if _REVIEW_NEGATIVE_AUTHOR_LIMITATION_RE.search(full_text):
+        return "author_limitation_only"
+    return ""
+
+
+def _explicit_negative_record_can_surface_as_potential(record: Dict[str, Any], state: Dict[str, Any]) -> bool:
+    if not isinstance(record, dict):
+        return False
+    if record.get("model_claimed_verification_stripped"):
+        return False
+    if (
+        record.get("runtime_evidence_verification_required")
+        and str(record.get("verified_grounding_label") or "") not in VERIFIED_PAPER_GROUNDED_LABELS
+    ):
+        return False
+    if _is_system_generated_evidence_record(record):
+        return False
+    source = str(record.get("source") or "").strip().lower()
+    source_locator = str(record.get("source_locator") or "").strip().lower()
+    if source in _UNTRUSTED_VERIFIER_SOURCE_LABELS or source_locator in _UNTRUSTED_VERIFIER_SOURCE_LABELS:
+        return False
+    neg_type = _negative_evidence_type_for_record(record)
+    if neg_type in {"neutral_control_context", "generic_gap", "bibliographic_or_title_noise", "neutral_instruction_noise"}:
+        return False
+    real_claim_ids = _real_claim_ids_from_state(state or {})
+    claim_id = str(record.get("claim_id") or "").strip()
+    if real_claim_ids and claim_id not in real_claim_ids:
+        return False
+    semantic_label = str(record.get("semantic_grounding_label") or "").strip()
+    review_label = _review_negative_label_for_record(record, state)
+    if review_label:
+        return False
+    if semantic_label not in {"", "semantic_unjudged"}:
+        return False
+    if _explicit_negative_potential_false_positive_reason(record):
+        return False
+    return bool(_normalize_text(record.get("raw_quote") or record.get("evidence"), max_length=240))
+
+
 def _classify_flaw_final_view_layer(flaw: Dict[str, Any], state: Dict[str, Any]) -> str:
     if not isinstance(flaw, dict):
         return "assessment_limitation"
@@ -9480,16 +11237,14 @@ def _classify_flaw_final_view_layer(flaw: Dict[str, Any], state: Dict[str, Any])
     explicit_negative_ids = _flaw_explicit_negative_evidence_ids(flaw)
     if explicit_negative_ids:
         by_id = _evidence_records_by_id(state)
+        has_unverified_review_candidate = False
         for eid in explicit_negative_ids:
             record = by_id.get(str(eid))
             if not isinstance(record, dict):
                 continue
-            neg_type = _negative_evidence_type_for_record(record)
-            if neg_type not in {"neutral_control_context", "generic_gap", "bibliographic_or_title_noise", "neutral_instruction_noise"}:
-                return "potential_concern"
-        return "assessment_limitation"
-    if flaw.get("evidence_ids"):
-        return "potential_concern"
+            if _explicit_negative_record_can_surface_as_potential(record, state):
+                has_unverified_review_candidate = True
+        return "potential_concern" if has_unverified_review_candidate else "assessment_limitation"
     return "assessment_limitation"
 
 
@@ -9641,8 +11396,19 @@ def _readable_negative_evidence_type(negative_type: str) -> str:
 
 def _negative_evidence_weakened_dimension(negative_type: str, text: str) -> str:
     value = str(negative_type or "").strip()
-    if value in {"missing_ablation", "missing_baseline", "insufficient_evaluation", "negative_result"}:
+    if value in {
+        "missing_ablation",
+        "missing_baseline",
+        "unfair_or_weak_baseline",
+        "insufficient_evaluation",
+        "evaluation_protocol_risk",
+        "negative_result",
+    }:
         return "the empirical support for the claim"
+    if value == "missing_robustness_or_generalization":
+        return "the robustness or generalization support for the claim"
+    if value == "efficiency_cost_gap":
+        return "the efficiency, scalability, or compute-cost support"
     if value == "direct_contradiction":
         return "the claim's stated conclusion"
     if value == "result_claim_mismatch":
@@ -9922,7 +11688,12 @@ def _criterion_citation(claim_ids: Sequence[str], evidence_ids: Sequence[str]) -
     return f" [{sig}]" if sig else ""
 
 
-def _active_flaws_for_criterion(state: Dict[str, Any], pattern: str) -> List[Dict[str, Any]]:
+def _active_flaws_for_criterion(
+    state: Dict[str, Any],
+    pattern: str,
+    *,
+    review_negative_verified_only: bool = False,
+) -> List[Dict[str, Any]]:
     rx = re.compile(pattern, re.I)
     flaws = []
     for flaw in state.get("flaw_candidates", []) or []:
@@ -9932,10 +11703,24 @@ def _active_flaws_for_criterion(state: Dict[str, Any], pattern: str) -> List[Dic
             continue
         if _is_fallback_or_meta_flaw(flaw):
             continue
+        if review_negative_verified_only and not _flaw_has_negative_grounding(flaw, state):
+            continue
         text = f"{flaw.get('title', '')} {flaw.get('description', '')}"
         if rx.search(text):
             flaws.append(flaw)
     return flaws
+
+
+def _pending_flaws_for_criterion(
+    state: Dict[str, Any],
+    pattern: str,
+    verified_flaws: Sequence[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    verified_ids = {str(flaw.get("flaw_id") or "") for flaw in verified_flaws if isinstance(flaw, dict)}
+    return [
+        flaw for flaw in _active_flaws_for_criterion(state, pattern)
+        if str(flaw.get("flaw_id") or "") not in verified_ids
+    ]
 
 
 def _format_criterion_line(
@@ -9977,11 +11762,21 @@ def _render_criterion_assessments(state: Dict[str, Any]) -> Tuple[str, List[Dict
     abstract_support = support_by_sections("abstract")
     high_claims = [claim for claim in claims if claim.get("importance") == "high"] or claims[:2]
 
-    novelty_flaws = _active_flaws_for_criterion(state, r"novel|original|incremental|prior work|related work")
-    significance_flaws = _active_flaws_for_criterion(state, r"significance|impact|contribution|importance|useful|meaningful")
-    soundness_flaws = _active_flaws_for_criterion(state, r"sound|method|assumption|valid|technical|algorithm|objective|theory")
-    empirical_flaws = _active_flaws_for_criterion(state, r"experiment|evaluation|baseline|ablation|dataset|metric|table|figure|empirical|result")
-    clarity_flaws = _active_flaws_for_criterion(state, r"clarity|clear|reproduc|implementation|detail|code|hyperparameter|presentation")
+    novelty_pattern = r"novel|original|incremental|prior work|related work"
+    significance_pattern = r"significance|impact|contribution|importance|useful|meaningful"
+    soundness_pattern = r"sound|method|assumption|valid|technical|algorithm|objective|theory"
+    empirical_pattern = r"experiment|evaluation|baseline|ablation|dataset|metric|table|figure|empirical|result"
+    clarity_pattern = r"clarity|clear|reproduc|implementation|detail|code|hyperparameter|presentation"
+    novelty_flaws = _active_flaws_for_criterion(state, novelty_pattern, review_negative_verified_only=True)
+    significance_flaws = _active_flaws_for_criterion(state, significance_pattern, review_negative_verified_only=True)
+    soundness_flaws = _active_flaws_for_criterion(state, soundness_pattern, review_negative_verified_only=True)
+    empirical_flaws = _active_flaws_for_criterion(state, empirical_pattern, review_negative_verified_only=True)
+    clarity_flaws = _active_flaws_for_criterion(state, clarity_pattern, review_negative_verified_only=True)
+    pending_novelty_flaws = _pending_flaws_for_criterion(state, novelty_pattern, novelty_flaws)
+    pending_significance_flaws = _pending_flaws_for_criterion(state, significance_pattern, significance_flaws)
+    pending_soundness_flaws = _pending_flaws_for_criterion(state, soundness_pattern, soundness_flaws)
+    pending_empirical_flaws = _pending_flaws_for_criterion(state, empirical_pattern, empirical_flaws)
+    pending_clarity_flaws = _pending_flaws_for_criterion(state, clarity_pattern, clarity_flaws)
 
     def flaw_evidence_ids(flaws: Sequence[Dict[str, Any]]) -> List[str]:
         ids: List[str] = []
@@ -10013,6 +11808,9 @@ def _render_criterion_assessments(state: Dict[str, Any]) -> Tuple[str, List[Dict
         status = "mixed" if novelty_evidence else "not_assessable"
         rationale = "Novelty concerns are present, but ungrounded concerns are treated as assessment limits unless tied to paper evidence."
         emit("Novelty / Originality", status, rationale, novelty_claims, novelty_evidence or flaw_evidence_ids(novelty_flaws), novelty_flaws)
+    elif pending_novelty_flaws:
+        status = "mixed" if novelty_evidence else "not_assessable"
+        emit("Novelty / Originality", status, "Novelty concerns are diagnosis-pending and are not treated as grounded weaknesses without review-negative evidence.", novelty_claims, novelty_evidence, pending_novelty_flaws)
     elif novelty_evidence:
         emit("Novelty / Originality", "positive", "The main contribution is identifiable from grounded claims/evidence, but this is not a global novelty proof.", novelty_claims, novelty_evidence)
     else:
@@ -10025,6 +11823,8 @@ def _render_criterion_assessments(state: Dict[str, Any]) -> Tuple[str, List[Dict
     elif significance_evidence:
         status = "mixed" if significance_flaws else "positive"
         emit("Significance / Contribution", status, "The contribution signal is based on verified real-claim support rather than unverified artifacts.", significance_claims, significance_evidence, significance_flaws)
+    elif pending_significance_flaws:
+        emit("Significance / Contribution", "not_assessable", "Contribution concerns are diagnosis-pending and need review-negative verification before they can count as paper weaknesses.", significance_claims, (), pending_significance_flaws)
     else:
         emit("Significance / Contribution", "not_assessable", "The state lacks enough bound support to judge contribution strength.", significance_claims, ())
 
@@ -10034,6 +11834,9 @@ def _render_criterion_assessments(state: Dict[str, Any]) -> Tuple[str, List[Dict
         status = "negative" if flaw_evidence_ids(soundness_flaws) else "mixed"
         rationale = "Technical concerns remain active; ungrounded concerns should be read as provisional."
         emit("Technical Soundness", status, rationale, method_claims, method_evidence or flaw_evidence_ids(soundness_flaws), soundness_flaws)
+    elif pending_soundness_flaws:
+        status = "mixed" if method_evidence else "not_assessable"
+        emit("Technical Soundness", status, "Technical concerns are diagnosis-pending; without review-negative evidence they remain follow-up questions.", method_claims, method_evidence, pending_soundness_flaws)
     elif method_evidence:
         emit("Technical Soundness", "positive", "Method-level evidence supports the reviewed technical claims.", method_claims, method_evidence)
     else:
@@ -10045,6 +11848,9 @@ def _render_criterion_assessments(state: Dict[str, Any]) -> Tuple[str, List[Dict
         status = "negative" if flaw_evidence_ids(empirical_flaws) else "mixed"
         rationale = "Empirical concerns remain active; missing table/result grounding should be treated cautiously."
         emit("Empirical Adequacy", status, rationale, empirical_claims, empirical_evidence or flaw_evidence_ids(empirical_flaws), empirical_flaws)
+    elif pending_empirical_flaws:
+        status = "mixed" if empirical_evidence else "not_assessable"
+        emit("Empirical Adequacy", status, "Empirical concerns are diagnosis-pending; the current state has not verified them as paper-negative evidence.", empirical_claims, empirical_evidence, pending_empirical_flaws)
     elif empirical_evidence:
         emit("Empirical Adequacy", "positive", "Result/table/ablation evidence is present for at least part of the empirical story.", empirical_claims, empirical_evidence)
     else:
@@ -10054,6 +11860,9 @@ def _render_criterion_assessments(state: Dict[str, Any]) -> Tuple[str, List[Dict
     if clarity_flaws:
         status = "negative" if flaw_evidence_ids(clarity_flaws) else "mixed"
         emit("Clarity / Reproducibility", status, "Clarity or reproducibility concerns were identified; ungrounded concerns remain provisional.", (), clarity_evidence or flaw_evidence_ids(clarity_flaws), clarity_flaws)
+    elif pending_clarity_flaws:
+        status = "mixed" if clarity_evidence else "not_assessable"
+        emit("Clarity / Reproducibility", status, "Clarity or reproducibility concerns are diagnosis-pending until review-negative evidence verifies them.", (), clarity_evidence, pending_clarity_flaws)
     elif clarity_evidence:
         emit("Clarity / Reproducibility", "mixed", "Some method or result details are grounded, but reproducibility-specific evidence is not fully established.", (), clarity_evidence)
     else:
@@ -10562,6 +12371,15 @@ def _classify_revision_events(revision_events: List[Dict[str, Any]], worker_payl
                 "reason": reason or "mark_contested",
                 "success": True,
             })
+        elif field == 'diagnosis_pending_concern' and new_value == 'recorded':
+            commit_applied = True
+            commit_details.append({
+                "target_id": entity,
+                "old_status": "open",
+                "new_status": "recorded",
+                "reason": reason or "record_diagnosis_pending_concern",
+                "success": True,
+            })
 
         # Check for retractions
         if new_value in RETRACT_VALUES and entity not in retracted_items:
@@ -10779,6 +12597,25 @@ def _first_worker_emission_failure(worker_payloads: Sequence[Dict[str, Any]]) ->
     return "", ""
 
 
+def _targeted_negative_not_assessable_trace(worker_payloads: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
+    traces: List[Dict[str, Any]] = []
+    for worker in worker_payloads or []:
+        payload = (worker or {}).get("payload", {}) or {}
+        trace = payload.get("targeted_negative_search_not_assessable")
+        if isinstance(trace, dict) and trace:
+            traces.append(trace)
+    first = traces[0] if traces else {}
+    return {
+        "targeted_negative_not_assessable_count": len(traces),
+        "targeted_negative_not_assessable_claim_id": str(first.get("target_id") or ""),
+        "targeted_negative_not_assessable_task_id": str(first.get("targeted_negative_search_task_id") or ""),
+        "targeted_negative_not_assessable_type": str(first.get("negative_evidence_type") or ""),
+        "targeted_negative_not_assessable_required_type": str(first.get("required_evidence_type") or ""),
+        "targeted_negative_not_assessable_reason": str(first.get("hygiene_status_reason") or ""),
+        "targeted_negative_not_assessable_traces": copy.deepcopy(traces[:4]),
+    }
+
+
 def _is_patch_recovery_attempt(
     action_type: str,
     effective_action_type: str,
@@ -10897,21 +12734,33 @@ def _compute_recovery_layer_fields(
     negative_recovery_commit = bool(state_delta.get("negative_recovery_commit", False))
     operation = str(turn_patch_log.get("recovery_patch_operation") or "")
     contested_relation_added = bool(state_delta.get("contested_relation_added", False))
+    diagnosis_pending_concern_added = bool(state_delta.get("diagnosis_pending_concern_added", False))
+    diagnosis_pending_recorded = bool(
+        state_mutation_applied
+        and operation == "record_diagnosis_pending_concern"
+        and diagnosis_pending_concern_added
+    )
     hygiene_delta_improved = bool(
         state_mutation_applied
         and not negative_recovery_commit
-        and (consistency_improved or (operation == "mark_contested" and contested_relation_added))
+        and (
+            consistency_improved
+            or (operation == "mark_contested" and contested_relation_added)
+        )
     )
     no_effect_commit = bool(
         state_mutation_applied
         and has_status_transition
         and not consistency_improved
         and not contested_relation_added
+        and not diagnosis_pending_concern_added
         and not negative_recovery_commit
     )
 
     if hygiene_delta_improved:
         layer = "hygiene_delta_improved"
+    elif diagnosis_pending_recorded:
+        layer = "diagnosis_pending_recorded"
     elif state_mutation_applied:
         layer = "state_mutation_applied_no_hygiene_delta" if no_effect_commit else "state_mutation_applied"
     elif committed:
@@ -10929,6 +12778,7 @@ def _compute_recovery_layer_fields(
         "recovery_layer_committed": committed,
         "recovery_layer_state_mutation_applied": state_mutation_applied,
         "recovery_layer_hygiene_delta_improved": hygiene_delta_improved,
+        "recovery_layer_diagnosis_pending_recorded": diagnosis_pending_recorded,
         "recovery_effective_repair": hygiene_delta_improved,
         "recovery_no_effect_commit": no_effect_commit,
         "recovery_harmful_commit_risk": bool(state_mutation_applied and negative_recovery_commit),
@@ -11039,6 +12889,7 @@ def build_turn_log(
     fallback_contradiction_emitted = bool(manager_payload.get("fallback_contradiction_emitted", False) or worker_fallback_contradiction)
     turn_claim_kind_counts = _claim_kind_counts(state.get("claims", []) or [])
     support_survival_trace = _build_payload_support_survival_trace(turn_id, manager_payload, worker_payloads, state)
+    targeted_not_assessable_trace = _targeted_negative_not_assessable_trace(worker_payloads)
     return {
         "turn_id": turn_id,
         "turn_index": turn_id,
@@ -11085,9 +12936,33 @@ def build_turn_log(
         "support_formation_pass_triggered": bool(manager_payload.get("support_formation_pass_triggered", False)),
         "support_formation_pass_reason": manager_payload.get("support_formation_pass_reason", ""),
         "support_formation_pass_from_action": manager_payload.get("support_formation_pass_from_action", ""),
+        "hard_negative_diagnosis_required": bool(manager_payload.get("hard_negative_diagnosis_required", False)),
+        "targeted_negative_search_required": bool(manager_payload.get("targeted_negative_search_required", False)),
+        "targeted_negative_search_task_count": manager_payload.get("targeted_negative_search_task_count", 0),
+        "targeted_negative_search_no_task_blocked": bool(manager_payload.get("targeted_negative_search_no_task_blocked", False)),
+        **targeted_not_assessable_trace,
         "negative_evidence_formation_required": bool(
-            manager_payload.get("negative_evidence_formation_required", False)
-            or manager_payload.get("policy_source") == "negative_evidence_formation_override"
+            not manager_payload.get("hard_negative_diagnosis_required", False)
+            and (
+                manager_payload.get("negative_evidence_formation_required", False)
+                or manager_payload.get("policy_source") in {
+                    "negative_evidence_formation_override",
+                    "hard_negative_discovery_override",
+                    "compact_negative_pass_override",
+                }
+                or (
+                    manager_payload.get("policy_source") == "targeted_negative_search_override"
+                    and manager_payload.get("targeted_negative_search_required", False)
+                )
+            )
+        ),
+        "compact_negative_pass_required": bool(
+            manager_payload.get("compact_negative_pass_required", False)
+            or manager_payload.get("policy_source") == "compact_negative_pass_override"
+        ),
+        "negative_pass_mode": manager_payload.get(
+            "negative_pass_mode",
+            "compact" if manager_payload.get("policy_source") == "compact_negative_pass_override" else "",
         ),
         "negative_evidence_binding_retry_required": bool(manager_payload.get("negative_evidence_binding_retry_required", False)),
         "blocked_aggressive_recovery_action": manager_payload.get("blocked_aggressive_recovery_action", ""),
@@ -11180,6 +13055,8 @@ def build_turn_log(
         "evidence_json_fallback_payload_used": bool(manager_payload.get("evidence_json_fallback_payload_used", False)),
         "evidence_json_raw_chars": int(manager_payload.get("evidence_json_raw_chars", 0) or 0),
         "evidence_json_prompt_chars": int(manager_payload.get("evidence_json_prompt_chars", 0) or 0),
+        "evidence_json_raw_head": str(manager_payload.get("evidence_json_raw_head", ""))[:360],
+        "evidence_json_raw_tail": str(manager_payload.get("evidence_json_raw_tail", ""))[:360],
         "evidence_focus_mode": manager_payload.get("evidence_focus_mode", ""),
         "evidence_focus_applied": bool(manager_payload.get("evidence_focus_applied", False)),
         "evidence_focus_reason": manager_payload.get("evidence_focus_reason", ""),
@@ -11255,6 +13132,8 @@ def build_turn_log(
         "recovery_target_commit_allowed": bool(turn_patch_log.get("recovery_target_commit_allowed", False)),
         "old_status": turn_patch_log.get("old_status", ""),
         "new_status": turn_patch_log.get("new_status", ""),
+        "missing_requirements": turn_patch_log.get("missing_requirements", []),
+        "missing_negative_types": turn_patch_log.get("missing_negative_types", []),
         "recovery_state_delta": copy.deepcopy(turn_patch_log.get("recovery_state_delta", {})),
         "recovery_consistency_improved": bool(turn_patch_log.get("recovery_consistency_improved", False)),
         "negative_recovery_commit": bool(turn_patch_log.get("negative_recovery_commit", False)),
@@ -11275,6 +13154,11 @@ def build_turn_log(
         ),
         "contested_relation_final_view": turn_patch_log.get("contested_relation_final_view", ""),
         "contested_relation_status": turn_patch_log.get("contested_relation_status", ""),
+        "diagnosis_pending_concern_claim_id": turn_patch_log.get("diagnosis_pending_concern_claim_id", ""),
+        "diagnosis_pending_concern_missing_requirements": turn_patch_log.get("diagnosis_pending_concern_missing_requirements", []),
+        "diagnosis_pending_concern_missing_negative_types": turn_patch_log.get("diagnosis_pending_concern_missing_negative_types", []),
+        "diagnosis_pending_concern_final_view": turn_patch_log.get("diagnosis_pending_concern_final_view", ""),
+        "diagnosis_pending_concern_status": turn_patch_log.get("diagnosis_pending_concern_status", ""),
         "sticky_target_id": state.get("sticky_target_id", ""),
         "sticky_target_type": state.get("sticky_target_type", ""),
         "sticky_target_active": bool(state.get("sticky_target_active", False)),

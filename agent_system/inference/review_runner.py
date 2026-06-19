@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
+import copy
 import json
 import os
 import re
+import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence
+from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from agent_system.review_prompts import (
     CLAIM_PROMPT,
@@ -15,11 +18,13 @@ from agent_system.review_prompts import (
     GENERAL_REVIEWER_PROMPT,
     MANAGER_PROMPT,
     RECOVERY_PATCH_PROMPT,
+    TARGETED_NEGATIVE_EVIDENCE_PROMPT,
 )
 from agent_system import review_manager_policy as review_policy
 from agent_system.environments.env_package.review.envs import ReviewEnv
 from agent_system.environments.env_package.review.state import (
     MANAGER_ACTION_TYPES,
+    REVIEW_NEGATIVE_VERIFIED_LABEL,
     _classify_negative_evidence_type,
     build_turn_action,
     build_decision_hygiene_view,
@@ -39,6 +44,10 @@ from agent_system.environments.env_package.review.support_quality import derive_
 
 PromptFn = Callable[[str, str], str]
 GenerateFn = Callable[[str, str], str]
+
+
+def _timestamp() -> str:
+    return time.strftime("%Y-%m-%d %H:%M:%S")
 
 
 def _generate_many(generate_fn: GenerateFn, requests: Sequence[tuple[str, str]]) -> List[str]:
@@ -84,11 +93,18 @@ MAX_TEAM_RESPONSE_CHARS = 700
 MAX_MANAGER_OBSERVATION_CHARS = 5200
 MAX_WORKER_OBSERVATION_CHARS = 4200
 MAX_EVIDENCE_WORKER_OBSERVATION_CHARS = 3600
+MAX_TARGETED_NEGATIVE_WORKER_OBSERVATION_CHARS = 2600
 
 RECOVERY_TURN_MODES = {"normal_evidence", "recovery_patch"}
 REVIEW_PHASES = {"normal_review", "recovery"}
 RECOVERY_ACTION_TYPES = {"challenge_previous_hypothesis", "request_evidence_recheck"}
 RECOVERY_PATCH_ACTION_TYPES = {"challenge_previous_hypothesis"}
+_DIAGPENDING_RECOVERY_ENABLED = os.environ.get("DRMAS_DIAGPENDING_RECOVERY", "").strip().lower() in {
+    "1",
+    "true",
+    "on",
+    "yes",
+}
 
 
 def _clip_text(text: str, limit: int) -> str:
@@ -180,9 +196,15 @@ def _latest_turn_completed_normal_recheck(recent_turn_logs: Sequence[Dict[str, A
 def _latest_turn_was_negative_evidence_formation(recent_turn_logs: Sequence[Dict[str, Any]]) -> bool:
     latest_turn = list(recent_turn_logs or [])[-1] if recent_turn_logs else {}
     policy_source = str(latest_turn.get("policy_source") or "")
+    policy_requires_negative = policy_source in {"negative_evidence_formation_override", "compact_negative_pass_override"}
+    targeted_requires_negative = (
+        policy_source == "targeted_negative_search_override"
+        and bool(latest_turn.get("targeted_negative_search_required"))
+    )
     return bool(
         latest_turn.get("negative_evidence_formation_required")
-        or policy_source in {"negative_evidence_formation_override", "hard_negative_discovery_override"}
+        or policy_requires_negative
+        or targeted_requires_negative
     )
 
 
@@ -328,6 +350,67 @@ def _recovery_claim_text_has_prompt_leakage(claim: Dict[str, Any]) -> bool:
     )
 
 
+def _negative_binding_claim_text_has_meta_shell(claim: Dict[str, Any]) -> bool:
+    text = str((claim or {}).get("claim") or (claim or {}).get("text") or "").strip().lower()
+    if not text:
+        return True
+    if any(
+        marker in text
+        for marker in (
+            "claim-paper-context",
+            "claim-context",
+            "claim-paper-fallback",
+            "claim-fallback",
+            "claim-recovery",
+            "context_synthesized",
+            "context_derived",
+            "raw_salvaged",
+            "claim_type=",
+            "coverage_tags=",
+            "importance=",
+        )
+    ):
+        return True
+    if re.search(r"^\s*(?:what\s+(?:is|are|does|do)\b|how\s+(?:does|do|is|are)\b|why\s+(?:does|do|is|are)\b)", text):
+        return True
+    if re.search(r"\bfrom the (?:title|abstract|introduction)\b|\bthat could be (?:a|an)\b", text):
+        return True
+    return False
+
+
+def _is_negative_binding_claim_target(claim: Dict[str, Any]) -> bool:
+    """Allow real paper claims to host negative evidence without enabling status patches."""
+    claim_id = str((claim or {}).get("claim_id") or "").strip()
+    if not claim_id:
+        return False
+    lowered = claim_id.lower()
+    if lowered.startswith(
+        (
+            "claim-context",
+            "claim-recovery",
+            "claim-paper-context",
+            "claim-paper-recovery",
+            "claim-paper-fallback",
+            "claim-fallback",
+        )
+    ):
+        return False
+    if _recovery_claim_text_has_prompt_leakage(claim) or _negative_binding_claim_text_has_meta_shell(claim):
+        return False
+    origin_kind = str((claim or {}).get("claim_origin_kind") or "").strip().lower()
+    canonicalized_raw_salvage = bool((claim or {}).get("paper_claim_canonicalized_from_raw_salvage"))
+    if origin_kind in {
+        "context_synthesized",
+        "recovery_marker",
+        "fallback_synthesized",
+        "paper_context_synthesized",
+    }:
+        return False
+    if origin_kind == "raw_salvaged_claim_agent_output" and not canonicalized_raw_salvage:
+        return False
+    return True
+
+
 def _is_recovery_strong_claim_target(claim: Dict[str, Any]) -> bool:
     claim_id = str((claim or {}).get("claim_id") or "").strip()
     if not claim_id or _is_recovery_weak_claim_id(claim_id):
@@ -355,12 +438,103 @@ def _is_recovery_strong_claim_target(claim: Dict[str, Any]) -> bool:
     return True
 
 
+def _is_recovery_contested_claim_target(claim: Dict[str, Any]) -> bool:
+    """Return True when a claim can anchor a non-destructive contested relation.
+
+    This is intentionally wider than ``_is_recovery_claim_status_target``:
+    canonicalized raw-salvaged paper claims may host a contested relation, but
+    still cannot be downgraded by claim-status recovery unless the stricter
+    status target gate admits them.
+    """
+    claim_id = str((claim or {}).get("claim_id") or "").strip()
+    if not claim_id or _is_recovery_weak_claim_id(claim_id):
+        return False
+    if _recovery_claim_text_has_prompt_leakage(claim) or _negative_binding_claim_text_has_meta_shell(claim):
+        return False
+    origin_kind = str((claim or {}).get("claim_origin_kind") or "").strip().lower()
+    claim_kind = str((claim or {}).get("claim_kind") or "").strip().lower()
+    origin = " ".join(
+        str((claim or {}).get(key) or "")
+        for key in ("claim_origin", "claim_source", "source_stage", "provenance")
+    ).lower()
+    if origin_kind in {
+        "context_synthesized",
+        "recovery_marker",
+        "fallback_synthesized",
+        "paper_context_synthesized",
+    }:
+        return False
+    paper_salvaged_fallback = (
+        claim_id.lower().startswith("claim-paper-fallback")
+        and claim_kind == "paper_extracted"
+        and origin_kind == "raw_salvaged_claim_agent_output"
+        and "context_derived" not in origin
+    )
+    if origin_kind == "raw_salvaged_claim_agent_output":
+        return bool((claim or {}).get("paper_claim_canonicalized_from_raw_salvage")) or paper_salvaged_fallback
+    if any(marker in origin for marker in ("context_derived", "raw_salvage", "malformed_claim_agent_output")):
+        return False
+    return True
+
+
 def _is_recovery_claim_status_target(claim: Dict[str, Any]) -> bool:
     """Return True for claims that can safely receive status-changing recovery."""
     claim_id = str((claim or {}).get("claim_id") or "").strip().lower()
     if claim_id.startswith("claim-paper-fallback"):
         return False
     return _is_recovery_strong_claim_target(claim)
+
+
+def _flaw_has_real_recovery_claim_target(
+    flaw: Dict[str, Any],
+    claim_lookup: Dict[str, Dict[str, Any]],
+    evidence_lookup: Dict[str, Dict[str, Any]],
+) -> bool:
+    """Return whether a flaw is connected to at least one real recovery claim.
+
+    Quote-bank or scope-limitation flaws attached only to fallback/context
+    claims should not produce recovery patches. They are assessment limitations,
+    not real paper-side repairs.
+    """
+    candidate_claim_ids: List[str] = []
+    for raw in (flaw or {}).get("related_claim_ids", []) or []:
+        claim_id = str(raw or "").strip()
+        if claim_id:
+            candidate_claim_ids.append(claim_id)
+    for raw_eid in (
+        list((flaw or {}).get("evidence_ids") or [])
+        + list((flaw or {}).get("negative_evidence_ids") or [])
+        + list((flaw or {}).get("hard_negative_evidence_ids") or [])
+        + list((flaw or {}).get("contradicting_evidence_ids") or [])
+    ):
+        record = evidence_lookup.get(str(raw_eid or "").strip())
+        claim_id = str((record or {}).get("claim_id") or "").strip()
+        if claim_id:
+            candidate_claim_ids.append(claim_id)
+    if not candidate_claim_ids:
+        return True
+    for claim_id in dict.fromkeys(candidate_claim_ids):
+        if _is_recovery_claim_status_target(claim_lookup.get(claim_id, {})) or _is_recovery_contested_claim_target(claim_lookup.get(claim_id, {})):
+            return True
+    return False
+
+
+def _blocked_non_real_flaw_target_payload(flaw_id: str) -> Dict[str, Any]:
+    return normalize_review_update_payload(
+        {
+            "action": "blocked",
+            "target_type": "flaw",
+            "target_id": flaw_id,
+            "blocked_reason": (
+                "Target flaw is attached only to fallback/context claim targets; "
+                "downgrading it would be a no-effect recovery patch rather than a real paper-side repair."
+            ),
+            "missing_requirements": ["real paper claim target with verified negative grounding"],
+            "recovery_terminal": True,
+            "recovery_terminal_reason": _ASSESSMENT_LIMITATION_NO_EFFECT_TERMINAL_REASON,
+            "recovery_repeat_allowed": False,
+        }
+    )
 
 
 _VERIFIED_RECOVERY_LABELS = {"paper_grounded_exact", "paper_grounded_normalized"}
@@ -388,7 +562,10 @@ _NEGATIVE_QUOTE_ANCHOR_RE = re.compile(
     r"\b(no\s+significant|not\s+significant|does\s+not|do\s+not|did\s+not|"
     r"lack|lacks|lacking|missing|without|insufficient|not\s+evaluated|"
     r"not\s+compare|no\s+ablation|component\s+analysis|single\s+dataset|"
-    r"only\s+evaluated|implementation\s+details?|hyperparameters?|reproducib(?:ility|le)|"
+    r"only\s+evaluated|unfair\s+(?:comparison|baseline)|weak\s+baseline|"
+    r"robustness|generalization|generalisation|out-of-domain|ood|oracle|leakage|train[- ]test|"
+    r"runtime|latency|memory|parameters?|flops|compute|computational\s+cost|"
+    r"implementation\s+details?|hyperparameters?|reproducib(?:ility|le)|"
     r"mixed\s+results?|inconsistent\s+results?|marginal\s+improvements?|"
     r"fail|fails|failed|worse|underperform|limitation|limitations)\b",
     re.IGNORECASE,
@@ -400,12 +577,34 @@ _ACTIONABLE_NEGATIVE_EVIDENCE_TYPES = frozenset(
         "negative_result",
         "missing_ablation",
         "missing_baseline",
+        "unfair_or_weak_baseline",
         "insufficient_evaluation",
+        "missing_robustness_or_generalization",
+        "evaluation_protocol_risk",
+        "efficiency_cost_gap",
+        "method_support_gap",
         "scope_overclaim",
         "result_claim_mismatch",
     }
 )
 _LIMITATION_NEGATIVE_EVIDENCE_TYPES = frozenset({"scope_limitation", "reproducibility_gap", "generic_gap"})
+_TRUE_PAPER_NEGATIVE_EVIDENCE_TYPES = frozenset(
+    {
+        "direct_contradiction",
+        "negative_result",
+        "missing_ablation",
+        "missing_baseline",
+        "unfair_or_weak_baseline",
+        "insufficient_evaluation",
+        "missing_robustness_or_generalization",
+        "evaluation_protocol_risk",
+        "efficiency_cost_gap",
+        "result_claim_mismatch",
+        "reproducibility_gap",
+        "method_support_gap",
+    }
+)
+_SECONDARY_NEGATIVE_EVIDENCE_TYPES = frozenset({"scope_overclaim", "scope_limitation", "generic_gap"})
 _PROTECTED_POTENTIAL_CONCERN_TERMINAL_REASON = "verified_actionable_negative_concern_preserved"
 _ASSESSMENT_LIMITATION_NO_EFFECT_TERMINAL_REASON = "assessment_limitation_no_effect_preserved"
 _PROTECTED_POTENTIAL_CONCERN_BLOCKED_REASON = (
@@ -434,6 +633,17 @@ def _negative_evidence_record_type(item: Dict[str, Any]) -> str:
 
 def _negative_evidence_record_is_actionable(item: Dict[str, Any]) -> bool:
     return _negative_evidence_record_type(item) in _ACTIONABLE_NEGATIVE_EVIDENCE_TYPES
+
+
+def _negative_evidence_type_priority(negative_type: str) -> int:
+    value = str(negative_type or "").strip()
+    if value in _TRUE_PAPER_NEGATIVE_EVIDENCE_TYPES:
+        return 0
+    if value == "scope_overclaim":
+        return 1
+    if value in _SECONDARY_NEGATIVE_EVIDENCE_TYPES:
+        return 2
+    return 3
 
 
 _BROAD_CLAIM_RE = re.compile(
@@ -476,6 +686,56 @@ _INSUFFICIENT_EVAL_SCOPE_QUOTE_RE = re.compile(
     r"not (?:yet )?(?:evaluated|validated|tested)|small-scale evaluation|few datasets?|no evaluation)\b",
     re.IGNORECASE,
 )
+_ROBUSTNESS_SCOPE_CLAIM_RE = re.compile(
+    r"\b(robust(?:ness)?|generaliz(?:e|es|ed|ation)|generalisation|unseen|"
+    r"out-of-domain|ood|cross-domain|external|corrupt(?:ed|ion)|stress|"
+    r"transfer(?:able|ability)|real-world)\b",
+    re.IGNORECASE,
+)
+_ROBUSTNESS_GAP_QUOTE_RE = re.compile(
+    r"\b(no (?:robustness|generalization|generalisation|out-of-domain|ood|cross-domain|stress) (?:test|evaluation|experiment)|"
+    r"missing (?:robustness|generalization|generalisation|out-of-domain|ood|cross-domain|stress) (?:test|evaluation|experiment)|"
+    r"not (?:tested|evaluated|validated) (?:on|under|against) (?:unseen|out-of-domain|ood|cross-domain|external|corrupted|noisy)|"
+    r"only evaluated on (?:in-domain|seen|clean|single-domain)|"
+    r"limited (?:robustness|generalization|generalisation|transferability) evaluation)\b",
+    re.IGNORECASE,
+)
+_BASELINE_FAIRNESS_CLAIM_RE = re.compile(
+    r"\b(baseline|baselines|comparison|compare|compared|state-of-the-art|sota|"
+    r"outperform|surpass|competitive)\b",
+    re.IGNORECASE,
+)
+_UNFAIR_BASELINE_QUOTE_RE = re.compile(
+    r"\b(unfair (?:comparison|baseline|evaluation)|weak baselines?|"
+    r"(?:baseline|baselines) (?:are|is|was|were)?\s*(?:weak|outdated|not tuned|untuned|unfair|inadequate)|"
+    r"(?:weak|outdated|untuned|non[- ]competitive) baseline|"
+    r"not (?:tuned|optimized) (?:for|on) (?:the )?(?:baseline|baselines)|"
+    r"different (?:backbone|architecture|training budget|data split|protocol|setting) (?:for|between) (?:the )?(?:baseline|baselines|methods))\b",
+    re.IGNORECASE,
+)
+_PROTOCOL_RISK_QUOTE_RE = re.compile(
+    r"\b(train[- ]test leakage|data leakage|test[- ]set leakage|label leakage|"
+    r"oracle (?:information|access|features?|labels?)|"
+    r"(?:tune|tuned|select|selected) (?:hyperparameters?|models?|checkpoints?) on (?:the )?test set|"
+    r"(?:validation|test) split (?:is|was)?\s*(?:not specified|unclear|missing)|"
+    r"unfair evaluation protocol|protocol (?:bias|risk|leakage|mismatch)|"
+    r"metric (?:mismatch|does not match|is inappropriate|not appropriate)|"
+    r"best(?:-| )case (?:selection|reporting)|cherry[- ]pick(?:ed|ing))\b",
+    re.IGNORECASE,
+)
+_EFFICIENCY_SCOPE_CLAIM_RE = re.compile(
+    r"\b(efficient|efficiency|scal(?:e|es|able|ability)|runtime|latency|"
+    r"memory|parameters?|flops|compute|computational cost|cost-effective|practical)\b",
+    re.IGNORECASE,
+)
+_EFFICIENCY_COST_QUOTE_RE = re.compile(
+    r"\b(no (?:runtime|latency|memory|parameter|parameters|flops|compute|computational cost|efficiency) (?:analysis|evaluation|report|measurement|comparison)|"
+    r"missing (?:runtime|latency|memory|parameter|parameters|flops|compute|computational cost|efficiency) (?:analysis|evaluation|report|measurement|comparison)|"
+    r"(?:runtime|latency|memory|parameters?|flops|compute|computational cost|efficiency)[^.!?]{0,120}(?:not (?:reported|measured|provided|evaluated|compared)|missing|omitted)|"
+    r"high (?:runtime|latency|memory|computational cost|compute cost)|computationally expensive|"
+    r"requires? substantial compute|requires? large memory)\b",
+    re.IGNORECASE,
+)
 _REPRO_SCOPE_CLAIM_RE = re.compile(
     r"\b(reproduc(?:e|ible|ibility)|implementation|hyperparameter|training detail|"
     r"code|open-source|release(?:d)?|data split|compute setup|method detail)\b",
@@ -494,6 +754,14 @@ def _promote_scope_limitation_for_broad_claim(negative_type: str, claim_text: st
         return negative_type
     claim = str(claim_text or "")
     quote = str(raw_quote or "")
+    if _BASELINE_FAIRNESS_CLAIM_RE.search(claim) and _UNFAIR_BASELINE_QUOTE_RE.search(quote):
+        return "unfair_or_weak_baseline"
+    if _PROTOCOL_RISK_QUOTE_RE.search(quote):
+        return "evaluation_protocol_risk"
+    if _ROBUSTNESS_SCOPE_CLAIM_RE.search(claim) and _ROBUSTNESS_GAP_QUOTE_RE.search(quote):
+        return "missing_robustness_or_generalization"
+    if _EFFICIENCY_SCOPE_CLAIM_RE.search(claim) and _EFFICIENCY_COST_QUOTE_RE.search(quote):
+        return "efficiency_cost_gap"
     if _RESULT_SCOPE_CLAIM_RE.search(claim) and _RESULT_MISMATCH_SCOPE_QUOTE_RE.search(quote):
         return "result_claim_mismatch"
     if _EVAL_SCOPE_CLAIM_RE.search(claim) and _INSUFFICIENT_EVAL_SCOPE_QUOTE_RE.search(quote):
@@ -538,7 +806,7 @@ def _real_claim_ids_from_state(state: Optional[Dict[str, Any]]) -> List[str]:
         if not isinstance(claim, dict):
             continue
         claim_id = str(claim.get("claim_id") or "").strip()
-        if not claim_id or claim_id.startswith(("claim-context", "claim-fallback", "claim-recovery")):
+        if not claim_id or not _is_negative_binding_claim_target(claim):
             continue
         ids.append(claim_id)
     return list(dict.fromkeys(ids))
@@ -675,11 +943,15 @@ def _select_negative_quote_bank_entries(
             neg_type = _negative_quote_entry_type(item)
         score = _runner_overlap_score(target_text, raw_quote) if target_text else 0.0
         scope_specificity = 1 if neg_type in _LIMITATION_NEGATIVE_EVIDENCE_TYPES and _CONCRETE_SCOPE_LIMIT_QUOTE_RE.search(raw_quote) else 0
-        priority = 3 if neg_type in _ACTIONABLE_NEGATIVE_EVIDENCE_TYPES else 2 if explicit_negative_bucket else 1
-        candidates.append((priority, scope_specificity, score, item))
+        # Lower type rank is better: concrete paper flaws / claim-support
+        # failures first, claim-aware scope-overclaim next, old limitation/gap
+        # evidence only as fallback.  Within the same class, prefer target
+        # overlap and concrete locators.
+        type_rank = _negative_evidence_type_priority(neg_type)
+        candidates.append((type_rank, -scope_specificity, -score, item))
     if not candidates:
         return []
-    candidates.sort(key=lambda pair: (pair[0], pair[1], pair[2]), reverse=True)
+    candidates.sort(key=lambda pair: (pair[0], pair[1], pair[2]))
     selected: List[Dict[str, Any]] = []
     seen_quote_ids: set[str] = set()
     seen_raw_keys: set[str] = set()
@@ -745,7 +1017,7 @@ def _negative_salvage_target_flaw_updates(
     updates: List[Dict[str, Any]] = []
     actionable = negative_evidence_type in _ACTIONABLE_NEGATIVE_EVIDENCE_TYPES
     severity = "major" if actionable else "minor"
-    grounding_status = "verified_actionable_candidate" if actionable else "grounded_candidate"
+    grounding_status = "review_negative_candidate" if actionable else "quote_candidate_needs_review_relation"
     readable_type = _readable_negative_type_for_runner(negative_evidence_type)
     compact_claim = _compact_runner_text(claim_text, max_length=140)
     compact_quote = _compact_runner_text(raw_quote, max_length=220)
@@ -755,21 +1027,29 @@ def _negative_salvage_target_flaw_updates(
     if compact_claim and compact_quote:
         quote_prefix = f"{compact_locator} reports" if compact_locator else "paper quote reports"
         flaw_text = (
-            f"Verified {readable_type} against claim '{compact_claim}': "
-            f"{quote_prefix} '{compact_quote}'. Keep as a potential concern unless Critique confirms severity."
+            f"Candidate {readable_type} quote for claim '{compact_claim}': "
+            f"{quote_prefix} '{compact_quote}'. Keep only if review-semantic verification shows a current-paper weakness."
         )
     elif negative_evidence_type == "direct_contradiction":
-        flaw_text = "Verified paper quote appears to contradict or invalidate a target claim; keep as an actionable candidate pending critique confirmation."
+        flaw_text = "Candidate paper quote may contradict or invalidate a target claim; keep only after review-semantic verification."
     elif negative_evidence_type == "negative_result":
-        flaw_text = "Verified paper quote reports a negative or weaker result relevant to the target claim; keep as an actionable candidate pending critique confirmation."
+        flaw_text = "Candidate paper quote reports a negative or weaker result; keep only if it weakens the target claim."
     elif negative_evidence_type == "missing_ablation":
-        flaw_text = "Verified paper quote indicates a missing comparison, baseline, evaluation, or ablation relevant to the target claim."
+        flaw_text = "Candidate paper quote may indicate a missing comparison, baseline, evaluation, or ablation relevant to the target claim."
+    elif negative_evidence_type == "unfair_or_weak_baseline":
+        flaw_text = "Candidate paper quote may indicate the baseline or comparison protocol is weak, unfair, untuned, or non-competitive for the target claim."
+    elif negative_evidence_type == "missing_robustness_or_generalization":
+        flaw_text = "Candidate paper quote may indicate missing or limited robustness, transfer, out-of-domain, or generalization evaluation for the target claim."
+    elif negative_evidence_type == "evaluation_protocol_risk":
+        flaw_text = "Candidate paper quote may indicate an evaluation protocol risk, such as leakage, oracle information, metric mismatch, or unfair selection."
+    elif negative_evidence_type == "efficiency_cost_gap":
+        flaw_text = "Candidate paper quote may indicate missing or adverse runtime, memory, latency, parameter, FLOP, or compute-cost evidence for the target claim."
     elif negative_evidence_type == "scope_overclaim":
-        flaw_text = "Verified paper quote narrows the scope of a broad target claim; keep as an actionable potential concern pending critique confirmation."
+        flaw_text = "Candidate paper quote may narrow the scope of a broad target claim; keep only if it directly weakens that claim."
     elif negative_evidence_type == "result_claim_mismatch":
-        flaw_text = "Verified paper quote suggests the reported result is weaker than the target claim; keep as an actionable potential concern pending critique confirmation."
+        flaw_text = "Candidate paper quote may suggest the reported result is weaker than the target claim."
     else:
-        flaw_text = "Target flaw has a verified negative_or_gap quote candidate; keep as candidate until critique confirms severity."
+        flaw_text = "Target flaw has a negative-looking quote candidate; keep it candidate-only until review-semantic verification confirms a paper weakness."
     for raw in (manager_payload or {}).get("target_flaw_ids", []) or []:
         flaw_id = str(raw or "").strip()
         if not flaw_id:
@@ -835,7 +1115,7 @@ def _negative_quote_bank_salvage_payload(
         "evidence_id": evidence_id,
         "claim_id": claim_id,
         "evidence": (
-            "Paper-grounded limitation/gap quote for hard-negative review: "
+            "Candidate paper quote for review-negative checking: "
             f"{raw_quote[:220]}"
         ),
         "source": "quote-bank-negative-grounding",
@@ -851,7 +1131,8 @@ def _negative_quote_bank_salvage_payload(
         "claim_status_downgrade_allowed": claim_status_downgrade_allowed,
         "binding_status": "bound_real_claim",
         "binding_confidence": 0.72,
-        "binding_rationale": "Deterministic hard-negative salvage from program-extracted negative_or_gap quote bank.",
+        "binding_rationale": "Deterministic candidate from program-extracted negative_or_gap quote bank; review-semantic verification is required before it counts as negative evidence.",
+        "negative_quote_bank_salvage_status": "candidate_needs_review_relation",
         "grounded_judge_label": "paper_grounded",
         "grounded_judge_reason": "Quote was copied from the ReviewState evidence quote bank; semantic verification is applied during state merge.",
     }
@@ -859,12 +1140,21 @@ def _negative_quote_bank_salvage_payload(
 
 def _is_verified_negative_evidence_for_recovery(item: Dict[str, Any]) -> bool:
     semantic_label = str(item.get("semantic_grounding_label") or "").strip()
-    return (
+    if not (
         isinstance(item, dict)
         and str(item.get("stance") or "").strip().lower() in _NEGATIVE_RECOVERY_STANCES
         and str(item.get("verified_grounding_label") or "") in _VERIFIED_RECOVERY_LABELS
-        and semantic_label in _VERIFIED_RECOVERY_SEMANTIC_LABELS
-    )
+        and semantic_label == "semantic_negative_verified"
+    ):
+        return False
+    review_label = str(item.get("review_negative_label") or "").strip()
+    if review_label:
+        return review_label == REVIEW_NEGATIVE_VERIFIED_LABEL
+    source = str(item.get("source") or "").strip().lower()
+    has_quote_material = bool(str(item.get("raw_quote") or "").strip() or str(item.get("quote_id") or "").strip())
+    if source == "quote-bank-negative-grounding" or has_quote_material or item.get("review_negative_checked"):
+        return False
+    return True
 
 
 def _allows_claim_status_downgrade_from_recovery(item: Dict[str, Any]) -> bool:
@@ -1086,7 +1376,7 @@ def _mark_contested_patch_from_verified_negative_flaw(
     )
     for claim_id in dict.fromkeys(candidate_claim_ids):
         claim = claim_lookup.get(claim_id)
-        if not _is_recovery_strong_claim_target(claim or {}):
+        if not _is_recovery_contested_claim_target(claim or {}):
             continue
         old_status = str((claim or {}).get("status") or "uncertain").strip().lower()
         if old_status not in {"supported", "partially_supported", "uncertain"}:
@@ -1670,6 +1960,33 @@ def _apply_recovery_phase_protocol(
         else:
             notes.append("Recovery phase did not upgrade recheck to patch because no verified-negative claim or downgradeable flaw target is available.")
             normalized["policy_notes"] = list(dict.fromkeys(notes))[:8]
+            if completed_recheck and not verified_negative_flaw_ready:
+                normalized["phase"] = "normal_review"
+                normalized["phase_enter_reason"] = ""
+                normalized["phase_hold_reason"] = ""
+                normalized["phase_exit_reason"] = (
+                    normalized.get("phase_exit_reason")
+                    or "Recovery phase exited after one evidence recheck because no verifier-confirmed negative target was available."
+                )
+                normalized["decision"] = "continue"
+                normalized["action_type"] = "analyze_flaws" if "analyze_flaws" in allowed_actions else "summarize_progress"
+                normalized["effective_action_type"] = normalized["action_type"]
+                normalized["turn_mode"] = "normal_evidence"
+                normalized["recovery_patch_mode_entered"] = False
+                normalized["finalize_blocked_by_phase"] = False
+                normalized["selected_agents"] = [
+                    agent for agent in ["Critique Agent"] if agent in worker_ids
+                ][:worker_limit] if normalized["action_type"] == "analyze_flaws" else []
+                normalized["target_flaw_ids"] = []
+                normalized["target_evidence_ids"] = []
+                notes.append(
+                    "Recovery recheck did not produce a verifier-confirmed negative target; returning to normal flaw analysis instead of repeating recheck."
+                )
+                normalized["policy_notes"] = list(dict.fromkeys(notes))[:8]
+                if normalized.get("policy_source") in {"", "manager_model", "recovery_phase_override", "evidence_progress_override", "s4_recovery_relevant_override"}:
+                    normalized["policy_source"] = "recovery_recheck_exit_to_flaw_analysis"
+                normalized.setdefault("policy_source", "recovery_recheck_exit_to_flaw_analysis")
+                return _apply_turn_mode(normalized)
 
     if (
         normalized.get("decision") == "finalize"
@@ -1711,7 +2028,7 @@ def _apply_recovery_phase_protocol(
         if normalized.get("policy_source") in {"", "manager_model", "recovery_phase_override", "evidence_progress_override"}:
             normalized["policy_source"] = "recovery_target_exhausted_override"
         return _apply_turn_mode(normalized)
-    if str(normalized.get("policy_source") or "").strip() in {"negative_evidence_formation_override", "hard_negative_discovery_override"}:
+    if str(normalized.get("policy_source") or "").strip() in {"negative_evidence_formation_override", "compact_negative_pass_override"}:
         normalized["negative_evidence_formation_required"] = True
     if worker_ids:
         normalized["selected_agents"] = _pick_workers_for_action(recovery_action, worker_ids, worker_limit) or list(worker_ids[:worker_limit])
@@ -1972,7 +2289,11 @@ def _extract_complete_json_objects_from_array(payload_text: str, array_key: str)
     return objects
 
 
-def extract_evidence_partial_payload(text: str) -> Dict[str, Any]:
+def _payload_text_has_empty_evidence_array(payload_text: str) -> bool:
+    return bool(re.search(r'"evidence_map"\s*:\s*\[\s*\]', str(payload_text or "")))
+
+
+def extract_evidence_partial_payload(text: str, *, allow_empty_not_assessable: bool = False) -> Dict[str, Any]:
     raw = str(text or "")
     json_start = raw.find("<json>")
     json_end = raw.find("</json>")
@@ -1985,12 +2306,31 @@ def extract_evidence_partial_payload(text: str) -> Dict[str, Any]:
         payload_text = raw[first_brace:]
     payload_text = _strip_json_wrappers(payload_text)
     evidence_items = _extract_complete_json_objects_from_array(payload_text, "evidence_map")
+    unresolved_items = _extract_complete_json_objects_from_array(payload_text, "unresolved_questions")
     if not evidence_items:
+        if allow_empty_not_assessable and unresolved_items and _payload_text_has_empty_evidence_array(payload_text):
+            safe_unresolved: List[Dict[str, Any]] = []
+            for item in unresolved_items[:2]:
+                if not isinstance(item, dict):
+                    continue
+                status = str(item.get("status") or "").strip().lower()
+                if status and status != "not_assessable":
+                    continue
+                safe_unresolved.append({**item, "status": "not_assessable"})
+            if safe_unresolved:
+                return {
+                    "evidence_map": [],
+                    "conflict_notes": _extract_complete_json_objects_from_array(payload_text, "conflict_notes"),
+                    "unresolved_questions": safe_unresolved,
+                    "dialogue_summary": "Partially recovered targeted negative not-assessable result from malformed Evidence Agent JSON.",
+                    "recommendation": "undecided",
+                    "partial_json_recovery": True,
+                }
         raise ValueError("No complete evidence_map items could be recovered.")
     return {
         "evidence_map": evidence_items,
         "conflict_notes": _extract_complete_json_objects_from_array(payload_text, "conflict_notes"),
-        "unresolved_questions": [],
+        "unresolved_questions": unresolved_items if allow_empty_not_assessable else [],
         "dialogue_summary": "Partially recovered complete evidence items from malformed Evidence Agent JSON.",
         "recommendation": "undecided",
         "partial_json_recovery": True,
@@ -2019,13 +2359,35 @@ def parse_agent_payload(
     manager_payload: Optional[Dict[str, Any]] = None,
 ) -> tuple[Dict[str, Any], bool]:
     recovery_patch_mode = _normalize_turn_mode((manager_payload or {}).get("turn_mode")) == "recovery_patch"
+    targeted_negative_mode = bool((manager_payload or {}).get("targeted_negative_search_required"))
+    raw_prefix = str(raw_text or "").lstrip().lower()
+    if (
+        agent_id == "Evidence Agent"
+        and targeted_negative_mode
+        and not raw_prefix.startswith(("<json>", "{"))
+        and _looks_like_prompt_or_schema_echo(raw_text)
+    ):
+        try:
+            partial_payload = extract_evidence_partial_payload(
+                raw_text,
+                allow_empty_not_assessable=True,
+            )
+            normalized = normalize_agent_payload(agent_id, partial_payload, available_workers=available_workers)
+            normalized["_partial_json_recovery"] = True
+            return normalized, True
+        except Exception:
+            pass
+        raise ValueError("Targeted negative Evidence Agent output echoed prompt/schema text instead of direct JSON.")
     try:
         payload = extract_tagged_json(raw_text)
         return normalize_agent_payload(agent_id, payload, available_workers=available_workers), False
     except Exception as original_exc:
         if agent_id == "Evidence Agent" and not recovery_patch_mode:
             try:
-                partial_payload = extract_evidence_partial_payload(raw_text)
+                partial_payload = extract_evidence_partial_payload(
+                    raw_text,
+                    allow_empty_not_assessable=bool((manager_payload or {}).get("targeted_negative_search_required")),
+                )
                 normalized = normalize_agent_payload(agent_id, partial_payload, available_workers=available_workers)
                 normalized["_partial_json_recovery"] = True
                 return normalized, True
@@ -2084,6 +2446,10 @@ def _record_evidence_json_contract_status(
         "evidence_json_raw_chars": len(str(raw_text or "")),
         "evidence_json_prompt_chars": len(str(prompt_text or "")),
     }
+    if status not in {"json_valid", "partial_recovered"}:
+        raw_value = str(raw_text or "")
+        fields["evidence_json_raw_head"] = raw_value[:360]
+        fields["evidence_json_raw_tail"] = raw_value[-360:] if len(raw_value) > 360 else raw_value
     trace_worker.update(fields)
     manager_payload.update(fields)
 
@@ -2266,6 +2632,8 @@ def _build_target_brief(task: Dict[str, Any], manager_payload: Dict[str, Any]) -
 
 
 def _resolve_prompt_template(agent_id: str, manager_payload: Optional[Dict[str, Any]] = None) -> str:
+    if agent_id == "Evidence Agent" and isinstance(manager_payload, dict) and manager_payload.get("targeted_negative_search_required"):
+        return TARGETED_NEGATIVE_EVIDENCE_PROMPT
     if agent_id == "Evidence Agent" and isinstance(manager_payload, dict) and _is_negative_evidence_formation_turn(manager_payload):
         return AGENT_SPECS[agent_id].prompt
     if isinstance(manager_payload, dict) and (
@@ -2335,19 +2703,61 @@ def build_worker_observation(task: Dict[str, Any], manager_payload: Dict[str, An
         mode_block += "Patch Mode Requirement: inactive; follow the action type with normal structured review updates.\n\n"
     negative_evidence_required = bool(
         manager_payload.get("negative_evidence_formation_required")
-        or manager_payload.get("policy_source") == "negative_evidence_formation_override"
+        or manager_payload.get("policy_source") in {
+            "negative_evidence_formation_override",
+            "compact_negative_pass_override",
+        }
+        or (
+            manager_payload.get("policy_source") == "targeted_negative_search_override"
+            and manager_payload.get("targeted_negative_search_required")
+        )
     )
     negative_mode_block = ""
     if negative_evidence_required:
-        negative_mode_block = (
-            "# Negative Evidence Formation Mode\n"
-            "negative_evidence_formation_required=true\n"
-            "Primary task: find a copied paper quote that contradicts, weakens, or demonstrates missing support for the target flaw and target claim. "
-            "Do not add more positive support unless no direct negative quote exists; if no direct quote exists, emit an unresolved question instead of fabricating evidence.\n\n"
+        if manager_payload.get("policy_source") == "compact_negative_pass_override":
+            negative_mode_block = (
+                "# Compact Negative Pass\n"
+                "negative_evidence_formation_required=true\n"
+                "Primary task: use visible verified paper quotes to bind, downgrade, or classify targeted concerns in this critique turn. "
+                "If no quote directly supports a paper-side weakness, keep the item as a potential concern or assessment limitation; "
+                "do not fabricate negative evidence and do not create broad standalone questions.\n\n"
+            )
+        else:
+            negative_mode_block = (
+                "# Negative Evidence Formation Mode\n"
+                "negative_evidence_formation_required=true\n"
+                "Primary task: find a copied paper quote that contradicts, weakens, or demonstrates missing support for the target flaw and target claim. "
+                "Do not add more positive support unless no direct negative quote exists; if no direct quote exists, emit an unresolved question instead of fabricating evidence.\n\n"
+            )
+    targeted_negative_search_block = ""
+    if manager_payload.get("targeted_negative_search_required") and agent_id == "Evidence Agent":
+        targeted_negative_search_block = (
+            "# Targeted Negative Search Mode\n"
+            "targeted_negative_search_required=true\n"
+            "Primary task: use the visible Targeted Negative Search Tasks to decide what paper-side weakness to check. "
+            "For each attempted task, either output a negative evidence item with copied raw_quote, specific source_locator, "
+            "claim_id, negative_evidence_type, required_evidence_type, and targeted_negative_search_task_id, or output an "
+            "unresolved question with status=not_assessable. Do not treat not_found as negative evidence and do not add positive support in this mode.\n\n"
+        )
+    # Gated, default off: the manager only sets hard_negative_diagnosis_required when the
+    # DRMAS_HARDNEG_DIAGNOSIS experiment is enabled. Keying off the flag (not the always-present
+    # hard_negative_discovery_override policy_source) keeps default Critique behavior at baseline.
+    hard_negative_diagnosis_required = bool(
+        manager_payload.get("hard_negative_diagnosis_required")
+    )
+    hard_negative_diagnosis_block = ""
+    if hard_negative_diagnosis_required and agent_id == "Critique Agent":
+        hard_negative_diagnosis_block = (
+            "# Hard-Negative Diagnosis Mode\n"
+            "hard_negative_diagnosis_required=true\n"
+            "Primary task: use model judgment to test the target real claims for true paper-side weaknesses. "
+            "Do not start from negative-sounding words. Use quote-bank or existing evidence only after diagnosing a real baseline, ablation, evaluation, result-claim, method, or reproducibility problem.\n\n"
         )
     routing = (
         f"{mode_block}"
         f"{negative_mode_block}"
+        f"{targeted_negative_search_block}"
+        f"{hard_negative_diagnosis_block}"
         "# Manager Focus\n"
         f"Action Type: {manager_payload.get('action_type', 'extract_claims')}\n"
         f"Effective Action Type: {manager_payload.get('effective_action_type') or manager_payload.get('action_type', 'extract_claims')}\n"
@@ -2363,6 +2773,16 @@ def build_worker_observation(task: Dict[str, Any], manager_payload: Dict[str, An
         f"# Targeted Review Objects\n{target_brief}"
     )
     if agent_id == "Evidence Agent":
+        if manager_payload.get("targeted_negative_search_required"):
+            targeted_routing = (
+                f"{mode_block}"
+                f"{targeted_negative_search_block}"
+                "# Manager Focus\n"
+                f"Action Type: {manager_payload.get('action_type', 'verify_evidence')}\n"
+                f"Focus: {_clip_text(focus, 180)}\n"
+                f"Target Claim IDs: {manager_payload.get('target_claim_ids', [])}\n"
+            )
+            return _clip_text(f"{base}\n\n{targeted_routing}", MAX_TARGETED_NEGATIVE_WORKER_OBSERVATION_CHARS)
         compact_target_brief = "\n".join(
             [
                 f"Target Claim IDs: {manager_payload.get('target_claim_ids', [])}",
@@ -2374,6 +2794,7 @@ def build_worker_observation(task: Dict[str, Any], manager_payload: Dict[str, An
         compact_routing = (
             f"{mode_block}"
             f"{negative_mode_block}"
+            f"{targeted_negative_search_block}"
             "# Manager Focus\n"
             f"Action Type: {manager_payload.get('action_type', 'extract_claims')}\n"
             f"Effective Action Type: {manager_payload.get('effective_action_type') or manager_payload.get('action_type', 'extract_claims')}\n"
@@ -2390,10 +2811,78 @@ def build_worker_observation(task: Dict[str, Any], manager_payload: Dict[str, An
 
 def _is_negative_evidence_formation_turn(manager_payload: Dict[str, Any]) -> bool:
     policy_source = str(manager_payload.get("policy_source") or "").strip()
+    policy_requires_negative = policy_source in {"negative_evidence_formation_override", "compact_negative_pass_override"}
+    targeted_requires_negative = (
+        policy_source == "targeted_negative_search_override"
+        and bool(manager_payload.get("targeted_negative_search_required"))
+    )
     return bool(
         manager_payload.get("negative_evidence_formation_required")
-        or policy_source in {"negative_evidence_formation_override", "hard_negative_discovery_override"}
+        or policy_requires_negative
+        or targeted_requires_negative
     )
+
+
+def _targeted_negative_trace_from_unresolved(
+    manager_payload: Dict[str, Any],
+    payload: Dict[str, Any],
+    reason: str,
+) -> tuple[Dict[str, Any], int]:
+    tasks = [
+        item for item in manager_payload.get("targeted_negative_search_active_tasks", []) or []
+        if isinstance(item, dict)
+    ]
+    task = tasks[0] if tasks else {}
+    unresolved = {}
+    for item in payload.get("unresolved_questions", []) or []:
+        if not isinstance(item, dict):
+            continue
+        status = str(item.get("status") or "").strip().lower()
+        if status == "not_assessable":
+            unresolved = item
+            break
+    target_id = str(
+        unresolved.get("target_id")
+        or unresolved.get("claim_id")
+        or task.get("claim_id")
+        or ((manager_payload.get("target_claim_ids") or [""])[0])
+        or ""
+    ).strip()
+    task_id = str(
+        unresolved.get("targeted_negative_search_task_id")
+        or task.get("task_id")
+        or ""
+    ).strip()
+    negative_type = str(
+        unresolved.get("negative_evidence_type")
+        or task.get("negative_type")
+        or ""
+    ).strip()
+    required_type = str(
+        unresolved.get("required_evidence_type")
+        or task.get("required_evidence_type")
+        or ""
+    ).strip()
+    question = str(unresolved.get("question") or "").strip()
+    if not question:
+        question = (
+            f"Targeted negative search for {negative_type or 'paper-negative evidence'} "
+            f"on claim {target_id or 'unknown'} did not yield a visible copied quote with locator."
+        )
+    trace = {
+        "question": question,
+        "status": "not_assessable",
+        "target_type": str(unresolved.get("target_type") or "claim"),
+        "target_id": target_id,
+        "target_classification": "targeted_negative_search",
+        "targeted_negative_search_task_id": task_id,
+        "negative_evidence_type": negative_type,
+        "required_evidence_type": required_type,
+        "source": str(unresolved.get("source") or "targeted_negative_search_sidechannel"),
+        "hygiene_status_reason": str(unresolved.get("hygiene_status_reason") or reason),
+        "related_claim_ids": [target_id] if target_id else [],
+    }
+    return trace, 1 if target_id or task_id or negative_type else 0
 
 
 def _enforce_negative_evidence_formation_payload(
@@ -2405,7 +2894,13 @@ def _enforce_negative_evidence_formation_payload(
     if worker_id != "Evidence Agent" or not _is_negative_evidence_formation_turn(manager_payload):
         return worker_payload
     payload = dict(worker_payload or {})
+    sidechannel_trace = payload.get("targeted_negative_search_not_assessable")
+    sidechannel_count = payload.get("targeted_negative_search_not_assessable_count")
     policy_source = str((manager_payload or {}).get("policy_source") or "").strip()
+    targeted_negative_turn = bool(
+        (manager_payload or {}).get("targeted_negative_search_required")
+        or policy_source == "targeted_negative_search_override"
+    )
     evidence_items = [item for item in payload.get("evidence_map", []) or [] if isinstance(item, dict)]
     kept = []
     dropped = []
@@ -2426,20 +2921,23 @@ def _enforce_negative_evidence_formation_payload(
         quote_id = str(item.get("quote_id") or "").strip()
         if quote_id and _negative_evidence_record_type(item) not in {"generic_gap", "neutral_control_context"}:
             existing_quote_ids.add(quote_id)
+    strict_reviewer_negative_turn = policy_source in {"hard_negative_discovery_override", "targeted_negative_search_override"}
     needed_salvage = 0
-    if not grounded_quote_ids:
-        needed_salvage = 1
-    kept_actionable_grounded = [
-        item for item in kept
-        if _negative_evidence_record_is_actionable(item)
-        and str(item.get("quote_id") or "").strip() in grounded_quote_ids
-    ]
-    if len(kept_actionable_grounded) < 1:
-        needed_salvage = max(needed_salvage, 1)
-    if manager_payload.get("negative_evidence_formation_required"):
-        needed_salvage = max(needed_salvage, 2)
-    if policy_source == "hard_negative_discovery_override":
-        needed_salvage = max(needed_salvage, 3)
+    if not strict_reviewer_negative_turn:
+        if not grounded_quote_ids:
+            needed_salvage = 1
+        kept_actionable_grounded = [
+            item for item in kept
+            if _negative_evidence_record_is_actionable(item)
+            and str(item.get("quote_id") or "").strip() in grounded_quote_ids
+        ]
+        if len(kept_actionable_grounded) < 1:
+            needed_salvage = max(needed_salvage, 1)
+        if manager_payload.get("negative_evidence_formation_required"):
+            needed_salvage = max(needed_salvage, 2)
+    elif not kept:
+        payload["negative_quote_bank_salvage_blocked"] = True
+        payload["negative_quote_bank_salvage_block_reason"] = "strict_reviewer_negative_turn_requires_model_emitted_quote"
     if needed_salvage:
         for entry in _select_negative_quote_bank_entries(
             state,
@@ -2497,11 +2995,23 @@ def _enforce_negative_evidence_formation_payload(
                 "Available grounded evidence currently supports only a cautious concern; keep the item open until verified paper-negative evidence is found."
             )
         payload["unresolved_questions"] = notes[:8]
-    if not kept and not payload.get("unresolved_questions"):
+    if targeted_negative_turn and not kept:
+        if not isinstance(sidechannel_trace, dict) or not sidechannel_trace:
+            sidechannel_trace, sidechannel_count = _targeted_negative_trace_from_unresolved(
+                manager_payload,
+                payload,
+                "no_visible_quote_grounded_negative_evidence",
+            )
+        payload["unresolved_questions"] = []
+    if not kept and not payload.get("unresolved_questions") and not targeted_negative_turn:
         payload["unresolved_questions"] = [
             "Verified paper-negative evidence has not yet been located for the target concern."
         ]
-    return normalize_review_update_payload(payload)
+    normalized = normalize_review_update_payload(payload)
+    if isinstance(sidechannel_trace, dict) and sidechannel_trace:
+        normalized["targeted_negative_search_not_assessable"] = sidechannel_trace
+        normalized["targeted_negative_search_not_assessable_count"] = int(sidechannel_count or 1)
+    return normalized
 
 
 def _support_quote_bank_from_state(state: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -3257,6 +3767,12 @@ _PROMPT_ECHO_MARKERS = (
     "must output exactly one",
     "no reasoning text",
     "machine-readable json",
+    "specific json format",
+    "my output should be",
+    "one of two shapes",
+    "found or not_assessable",
+    "no prose",
+    "no markdown",
     "inside ... block",
     "inside a ... block",
     "phase:",
@@ -3382,6 +3898,101 @@ def _blocked_final_view_concern_recovery_payload(flaw_id: str, layer: str) -> Di
     )
 
 
+def _diagnosis_pending_concern_already_exists(state: Dict[str, Any], claim_id: str) -> bool:
+    claim_id = str(claim_id or "").strip()
+    if not claim_id:
+        return False
+    for item in state.get("diagnosis_pending_concerns", []) or []:
+        if not isinstance(item, dict):
+            continue
+        if str(item.get("claim_id") or "").strip() == claim_id and str(item.get("status") or "").strip().lower() == "recorded":
+            return True
+    return False
+
+
+def _claim_requirement_gap_recovery_patch_payload(
+    state: Dict[str, Any],
+    manager_payload: Dict[str, Any],
+) -> Optional[Dict[str, Any]]:
+    if not _DIAGPENDING_RECOVERY_ENABLED:
+        return None
+    try:
+        view_state = copy.deepcopy(state or {})
+        view_state.pop("decision_hygiene", None)
+        view = build_decision_hygiene_view(view_state)
+    except Exception:
+        return None
+    hygiene = view.get("decision_hygiene", {}) if isinstance(view, dict) else {}
+    gaps = [
+        item for item in hygiene.get("claim_requirement_gap_items", []) or []
+        if isinstance(item, dict) and item.get("claim_id") and item.get("missing_requirements")
+    ]
+    if not gaps:
+        return None
+    preferred_claim_ids = [
+        str(item or "").strip()
+        for item in manager_payload.get("target_claim_ids", []) or []
+        if str(item or "").strip()
+    ]
+    ordered_gaps = sorted(
+        enumerate(gaps),
+        key=lambda pair: (
+            0 if str(pair[1].get("claim_id") or "").strip() in preferred_claim_ids else 1,
+            -len(pair[1].get("missing_requirements") or []),
+            pair[0],
+        ),
+    )
+    for _, gap in ordered_gaps:
+        claim_id = str(gap.get("claim_id") or "").strip()
+        if not claim_id or _diagnosis_pending_concern_already_exists(state, claim_id):
+            continue
+        missing_requirements = [
+            str(item or "").strip()
+            for item in gap.get("missing_requirements") or []
+            if str(item or "").strip()
+        ]
+        if not missing_requirements:
+            continue
+        missing_negative_types = [
+            str(item or "").strip()
+            for item in gap.get("missing_negative_types") or []
+            if str(item or "").strip()
+        ]
+        claim_text = str(gap.get("claim") or "").strip()
+        reason = (
+            "Claim-requirement audit found missing verified support coverage; recovery records "
+            "this as a diagnosis-pending potential concern without treating it as quote-grounded negative evidence."
+        )
+        return normalize_review_update_payload(
+            {
+                "action": "apply_recovery_patch",
+                "target_type": "claim_requirement_gap",
+                "target_id": str(gap.get("gap_id") or claim_id),
+                "old_status": "open",
+                "new_status": "recorded",
+                "supporting_evidence_ids": [],
+                "missing_requirements": missing_requirements[:6],
+                "missing_negative_types": missing_negative_types[:6],
+                "reason_for_change": reason,
+                "resolution_expectation": "partially_resolved",
+                "confidence": 0.72,
+                "recovery_patch_operation": "record_diagnosis_pending_concern",
+                "diagnosis_pending_concern": {
+                    "claim_id": claim_id,
+                    "claim": claim_text,
+                    "missing_requirements": missing_requirements[:6],
+                    "missing_negative_types": missing_negative_types[:6],
+                    "reason": reason,
+                    "final_view": "potential_concern",
+                    "status": "recorded",
+                    "grounding_status": "diagnosis_pending_verification",
+                    "basis": "claim_requirement_vs_verified_support",
+                },
+            }
+        )
+    return None
+
+
 def _fallback_recovery_patch_payload(state: Dict[str, Any], manager_payload: Dict[str, Any]) -> Dict[str, Any]:
     target_claim_ids = manager_payload.get("target_claim_ids", [])
     target_flaw_ids = manager_payload.get("target_flaw_ids", [])
@@ -3403,6 +4014,7 @@ def _fallback_recovery_patch_payload(state: Dict[str, Any], manager_payload: Dic
         if isinstance(item, dict) and item.get("evidence_id")
     }
     deferred_terminal_block: Optional[Dict[str, Any]] = None
+    deferred_block: Optional[Dict[str, Any]] = None
 
     for flaw_id in list(target_flaw_ids or []):
         flaw = flaw_lookup.get(flaw_id)
@@ -3421,6 +4033,11 @@ def _fallback_recovery_patch_payload(state: Dict[str, Any], manager_payload: Dic
             for evidence_id in verified_negative_ids
             if _negative_evidence_record_is_actionable(evidence_lookup.get(evidence_id, {}))
         ]
+        if not _flaw_has_real_recovery_claim_target(flaw, claim_lookup, evidence_lookup) and not actionable_negative_ids:
+            blocked = _blocked_non_real_flaw_target_payload(flaw_id)
+            if deferred_terminal_block is None:
+                deferred_terminal_block = blocked
+            continue
         if actionable_negative_ids:
             if old_status == "confirmed":
                 return normalize_review_update_payload(
@@ -3569,24 +4186,43 @@ def _fallback_recovery_patch_payload(state: Dict[str, Any], manager_payload: Dic
                     "confidence": 0.65,
                 }
             )
-        return normalize_review_update_payload(
+        blocked = normalize_review_update_payload(
             {
                 "action": "blocked",
                 "target_type": "flaw",
                 "target_id": flaw_id,
                 "blocked_reason": "Target flaw lacks existing evidence ids for a safe downgrade patch.",
                 "missing_requirements": ["existing evidence id aligned with target flaw"],
-                }
-            )
+            }
+        )
+        if deferred_block is None:
+            deferred_block = blocked
+        continue
 
     if deferred_terminal_block is not None:
         return deferred_terminal_block
+    claimreq_patch = _claim_requirement_gap_recovery_patch_payload(state, manager_payload)
+    if claimreq_patch is not None:
+        return claimreq_patch
+    if deferred_block is not None:
+        return deferred_block
 
     for flaw in state.get("flaw_candidates", []) or []:
         if not isinstance(flaw, dict):
             continue
         status = str(flaw.get("status") or "candidate").strip().lower()
         if status not in {"candidate", "confirmed"}:
+            continue
+        scan_verified_negative_ids = _flaw_verified_negative_evidence_ids_for_recovery(
+            flaw,
+            evidence_lookup,
+        )
+        scan_actionable_negative_ids = [
+            evidence_id
+            for evidence_id in scan_verified_negative_ids
+            if _negative_evidence_record_is_actionable(evidence_lookup.get(evidence_id, {}))
+        ]
+        if not _flaw_has_real_recovery_claim_target(flaw, claim_lookup, evidence_lookup) and not scan_actionable_negative_ids:
             continue
         contested_patch = _mark_contested_patch_from_verified_negative_flaw(
             flaw,
@@ -3611,6 +4247,9 @@ def _fallback_recovery_patch_payload(state: Dict[str, Any], manager_payload: Dic
     if not ordered_claim_ids:
         ordered_claim_ids = _recovery_candidate_claim_ids(state, "challenge_previous_hypothesis")
     if not ordered_claim_ids:
+        claimreq_patch = _claim_requirement_gap_recovery_patch_payload(state, manager_payload)
+        if claimreq_patch is not None:
+            return claimreq_patch
         return normalize_review_update_payload(
             {
                 "action": "blocked",
@@ -3720,6 +4359,10 @@ def _fallback_recovery_patch_payload(state: Dict[str, Any], manager_payload: Dic
                     "confidence": 0.55,
                 }
             )
+
+    claimreq_patch = _claim_requirement_gap_recovery_patch_payload(state, manager_payload)
+    if claimreq_patch is not None:
+        return claimreq_patch
 
     return normalize_review_update_payload(
         {
@@ -3977,6 +4620,8 @@ def _recovery_patch_has_weak_target(worker_payload: Dict[str, Any], state: Dict[
             if isinstance(item, dict) and str(item.get("claim_id") or "").strip()
         }
         return not _is_recovery_strong_claim_target(claim_lookup.get(target_id, {}))
+    if target_type == "claim_requirement_gap":
+        return False
     if target_type in {"flaw", "gap", "evidence_link"}:
         return False
     return True
@@ -4407,6 +5052,120 @@ _CLAIM_CONTEXT_PATTERN = re.compile(
     r"\b(propose|proposes|present|presents|introduce|introduces|comprise|comprises|use|uses|utilize|utilizes|train|trains|evaluate|evaluates|experiment|experiments|benchmark|benchmarks|result|results|demonstrate|demonstrates|outperform|improve|improves|limitation|limited|only|scope|trade[- ]?off)\b",
     re.IGNORECASE,
 )
+_STRUCTURED_RAW_CLAIM_META_RE = re.compile(
+    r"\b(claim agent|evidence agent|review task|provided excerpt|json|schema|prompt|think block|cannot verify|need to extract)\b"
+    r"|\b(?:the\s+)?user\s+(?:asks?|asked|provided|requested|wants|message|goal)\b",
+    re.IGNORECASE,
+)
+
+
+def _structured_raw_claim_has_meta_leakage(text: str) -> bool:
+    return bool(_STRUCTURED_RAW_CLAIM_META_RE.search(str(text or "")))
+
+
+def _iter_balanced_json_object_strings(raw_text: str) -> List[str]:
+    text = str(raw_text or "")
+    objects: List[str] = []
+    for start, char in enumerate(text):
+        if char != "{":
+            continue
+        depth = 0
+        in_string = False
+        escape = False
+        for index in range(start, len(text)):
+            current = text[index]
+            if in_string:
+                if escape:
+                    escape = False
+                elif current == "\\":
+                    escape = True
+                elif current == '"':
+                    in_string = False
+                continue
+            if current == '"':
+                in_string = True
+            elif current == "{":
+                depth += 1
+            elif current == "}":
+                depth -= 1
+                if depth == 0:
+                    objects.append(text[start:index + 1])
+                    break
+    return objects
+
+
+def _claim_dicts_from_malformed_raw_json(raw_text: str) -> List[Dict[str, Any]]:
+    """Recover complete claim objects from a truncated or prose-prefixed JSON reply."""
+    claims: List[Dict[str, Any]] = []
+    seen: set[Tuple[str, str]] = set()
+
+    def add_claim(item: Any) -> None:
+        if not isinstance(item, dict):
+            return
+        claim_text = str(item.get("claim") or item.get("text") or "").strip()
+        if not claim_text:
+            return
+        claim_id = str(item.get("claim_id") or "").strip()
+        key = (claim_id, re.sub(r"\W+", " ", claim_text.lower()).strip())
+        if key in seen:
+            return
+        seen.add(key)
+        claims.append(item)
+
+    def _decode_json_string_fragment(value: str) -> str:
+        try:
+            return json.loads(f'"{value}"')
+        except Exception:
+            return value.replace('\\"', '"').replace("\\\\", "\\")
+
+    def _field(segment: str, name: str) -> str:
+        match = re.search(rf'"{re.escape(name)}"\s*:\s*"((?:\\.|[^"\\])*)"', segment)
+        return _decode_json_string_fragment(match.group(1)).strip() if match else ""
+
+    def _list_field(segment: str, name: str) -> List[str]:
+        match = re.search(rf'"{re.escape(name)}"\s*:\s*\[(.*?)\]', segment, flags=re.DOTALL)
+        if not match:
+            return []
+        values: List[str] = []
+        for item_match in re.finditer(r'"((?:\\.|[^"\\])*)"', match.group(1)):
+            decoded = _decode_json_string_fragment(item_match.group(1)).strip()
+            if decoded:
+                values.append(decoded)
+        return values
+
+    for object_text in _iter_balanced_json_object_strings(raw_text):
+        try:
+            parsed = json.loads(object_text)
+        except Exception:
+            continue
+        if isinstance(parsed, dict) and isinstance(parsed.get("claims"), list):
+            for item in parsed.get("claims", []):
+                add_claim(item)
+        else:
+            add_claim(parsed)
+
+    text = str(raw_text or "")
+    starts = [match.start() for match in re.finditer(r'"claim_id"\s*:\s*"', text)]
+    for offset, start in enumerate(starts):
+        end = starts[offset + 1] if offset + 1 < len(starts) else len(text)
+        segment = text[start:end]
+        claim_id = _field(segment, "claim_id")
+        claim_text = _field(segment, "claim")
+        if not claim_id or not claim_text:
+            continue
+        item: Dict[str, Any] = {
+            "claim_id": claim_id,
+            "claim": claim_text,
+        }
+        for name in ("importance", "status", "claim_type", "evidence_need"):
+            value = _field(segment, name)
+            if value:
+                item[name] = value
+        coverage_tags = _list_field(segment, "coverage_tags")
+        if coverage_tags:
+            item["coverage_tags"] = coverage_tags
+        add_claim(item)
+    return claims
 
 
 def _clean_fallback_claim_text(text: str) -> str:
@@ -4434,6 +5193,54 @@ def _fallback_claim_items_from_raw(
 ) -> List[Dict[str, Any]]:
     existing_ids = {str(item.get("claim_id") or "") for item in state.get("claims", []) if isinstance(item, dict)}
     next_idx = len(existing_ids) + 1
+    structured_candidates = _claim_dicts_from_malformed_raw_json(raw_text)
+    if structured_candidates:
+        claims: List[Dict[str, Any]] = []
+        seen_texts: set[str] = set()
+        for raw_item in structured_candidates[:4]:
+            raw_claim = _clean_fallback_claim_text(raw_item.get("claim") or raw_item.get("text") or "")
+            if not raw_claim or _structured_raw_claim_has_meta_leakage(raw_claim) or len(raw_claim.split()) < 6:
+                continue
+            text_key = re.sub(r"\W+", " ", raw_claim.lower()).strip()
+            if text_key in seen_texts:
+                continue
+            seen_texts.add(text_key)
+            raw_claim_id = str(raw_item.get("claim_id") or "").strip()
+            prefix = "claim-paper-fallback" if paper_claim_salvage else "claim-fallback"
+            claim_id = raw_claim_id or f"{prefix}-{next_idx}"
+            while claim_id in existing_ids or any(item["claim_id"] == claim_id for item in claims):
+                next_idx += 1
+                claim_id = f"{prefix}-{next_idx}"
+            metadata = _claim_metadata_from_context(raw_claim) if paper_claim_salvage else {
+                "claim_type": "other",
+                "coverage_tags": [],
+                "evidence_need": "method/result/table evidence",
+            }
+            if raw_item.get("claim_type"):
+                metadata["claim_type"] = str(raw_item.get("claim_type"))
+            if isinstance(raw_item.get("coverage_tags"), list):
+                metadata["coverage_tags"] = [str(tag) for tag in raw_item.get("coverage_tags", []) if str(tag).strip()]
+            if raw_item.get("evidence_need"):
+                metadata["evidence_need"] = str(raw_item.get("evidence_need"))
+            item = {
+                "claim_id": claim_id,
+                "claim": raw_claim,
+                "importance": str(raw_item.get("importance") or ("high" if not claims else "medium")),
+                "status": str(raw_item.get("status") or "uncertain"),
+                "claim_kind": "paper_extracted" if paper_claim_salvage else "manager_fallback",
+                **metadata,
+            }
+            if paper_claim_salvage:
+                item.update({
+                    "claim_origin_kind": "raw_salvaged_claim_agent_output",
+                    "claim_origin": "malformed_claim_agent_output",
+                    "claim_source": "claim_agent_raw_salvage",
+                })
+            claims.append(item)
+            next_idx += 1
+        if claims:
+            return claims
+
     candidates: List[str] = []
     in_claim_region = False
     for raw_line in str(raw_text or "").splitlines():
@@ -4653,6 +5460,49 @@ def _maybe_augment_claim_payload_with_context_coverage(
     return normalize_review_update_payload(updated, required_fields=["claims"])
 
 
+def _targeted_negative_not_assessable_payload(
+    manager_payload: Dict[str, Any],
+    claim_id: str,
+    reason: str,
+) -> Dict[str, Any]:
+    tasks = [
+        item for item in manager_payload.get("targeted_negative_search_active_tasks", []) or []
+        if isinstance(item, dict)
+    ]
+    task = tasks[0] if tasks else {}
+    target_id = str(task.get("claim_id") or claim_id or "").strip()
+    task_id = str(task.get("task_id") or "").strip()
+    negative_type = str(task.get("negative_type") or "").strip()
+    required_type = str(task.get("required_evidence_type") or "").strip()
+    question = (
+        f"Targeted negative search for {negative_type or 'paper-negative evidence'} "
+        f"on claim {target_id or 'unknown'} did not yield a visible copied quote with locator."
+    )
+    payload = normalize_review_update_payload(
+        {
+            "evidence_map": [],
+            "unresolved_questions": [],
+            "dialogue_summary": reason,
+            "recommendation": "undecided",
+        }
+    )
+    payload["targeted_negative_search_not_assessable"] = {
+        "question": question,
+        "status": "not_assessable",
+        "target_type": "claim",
+        "target_id": target_id,
+        "target_classification": "targeted_negative_search",
+        "targeted_negative_search_task_id": task_id,
+        "negative_evidence_type": negative_type,
+        "required_evidence_type": required_type,
+        "source": "targeted_negative_search_fallback",
+        "hygiene_status_reason": "no_visible_quote_grounded_negative_evidence",
+        "related_claim_ids": [target_id] if target_id else [],
+    }
+    payload["targeted_negative_search_not_assessable_count"] = 1 if target_id or task_id or negative_type else 0
+    return payload
+
+
 def _fallback_worker_payload(
     agent_id: str,
     raw_text: str,
@@ -4698,11 +5548,18 @@ def _fallback_worker_payload(
             required_fields=["claims"],
         )
     if agent_id == "Evidence Agent":
-        real_claim_ids = [
-            str(item.get("claim_id", ""))
-            for item in state.get("claims", [])
-            if item.get("claim_id") and not str(item.get("claim_id", "")).startswith("claim-fallback")
-        ]
+        if manager_payload.get("targeted_negative_search_required"):
+            real_claim_ids = [
+                str(item.get("claim_id", ""))
+                for item in state.get("claims", [])
+                if isinstance(item, dict) and _is_negative_binding_claim_target(item)
+            ]
+        else:
+            real_claim_ids = [
+                str(item.get("claim_id", ""))
+                for item in state.get("claims", [])
+                if item.get("claim_id") and not str(item.get("claim_id", "")).startswith("claim-fallback")
+            ]
         preferred_claim_id = target_claim_ids[0] if target_claim_ids else ""
         if preferred_claim_id not in real_claim_ids:
             preferred_claim_id = real_claim_ids[0] if real_claim_ids else ""
@@ -4715,6 +5572,12 @@ def _fallback_worker_payload(
                 }
             )
         claim_id = preferred_claim_id
+        if manager_payload.get("targeted_negative_search_required"):
+            return _targeted_negative_not_assessable_payload(
+                manager_payload,
+                claim_id,
+                "Targeted negative-search fallback blocked malformed or explanatory model text; no quote-grounded negative evidence was added.",
+            )
         if _looks_like_prompt_or_schema_echo(snippet):
             return _fallback_evidence_blocked_payload(
                 "Evidence fallback output echoed prompt/schema instructions, so no paper-grounded evidence was added."
@@ -5946,6 +6809,7 @@ class ApiReviewGenerator:
         # Other providers in this project have been tested with max_tokens.
         if self.provider == "mimo":
             kwargs["max_completion_tokens"] = self.max_tokens
+            kwargs["extra_body"] = {"enable_thinking": False}
         else:
             kwargs["max_tokens"] = self.max_tokens
         return kwargs
@@ -5990,22 +6854,56 @@ class ApiReviewGenerator:
                 return text
         return ""
 
+    def _call_api_once(self, prompt: str) -> str:
+        response = self.client.chat.completions.create(**self._completion_kwargs(prompt))
+        message = response.choices[0].message
+        return self._message_to_text(message)
+
     def _call_api(self, agent_id: str, prompt: str) -> str:
         """Call the API with retry logic."""
-        import time
         last_error = None
         for attempt in range(self.max_retries):
+            started = time.monotonic()
+            print(
+                f"[{_timestamp()}] [API] request start agent={agent_id} "
+                f"attempt={attempt + 1}/{self.max_retries} prompt_chars={len(str(prompt or ''))}",
+                flush=True,
+            )
             try:
-                response = self.client.chat.completions.create(**self._completion_kwargs(prompt))
-                message = response.choices[0].message
-                text = self._message_to_text(message)
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                    future = pool.submit(self._call_api_once, prompt)
+                    text = future.result(timeout=float(self.timeout) + 5.0)
+                elapsed = time.monotonic() - started
+                print(
+                    f"[{_timestamp()}] [API] request success agent={agent_id} "
+                    f"attempt={attempt + 1}/{self.max_retries} elapsed={elapsed:.1f}s raw_chars={len(str(text or ''))}",
+                    flush=True,
+                )
                 return text
+            except concurrent.futures.TimeoutError as e:
+                elapsed = time.monotonic() - started
+                last_error = TimeoutError(f"API request exceeded outer timeout after {elapsed:.1f}s")
+                print(
+                    f"[{_timestamp()}] [API] request timeout agent={agent_id} "
+                    f"attempt={attempt + 1}/{self.max_retries} elapsed={elapsed:.1f}s",
+                    flush=True,
+                )
             except Exception as e:
+                elapsed = time.monotonic() - started
                 last_error = e
-                if attempt < self.max_retries - 1:
-                    wait = min(self.retry_delay * (2 ** attempt), 30.0)
-                    print(f"[API] Retry {attempt + 1}/{self.max_retries} for {agent_id}: {e}, waiting {wait:.1f}s")
-                    time.sleep(wait)
+                print(
+                    f"[{_timestamp()}] [API] request error agent={agent_id} "
+                    f"attempt={attempt + 1}/{self.max_retries} elapsed={elapsed:.1f}s error={e}",
+                    flush=True,
+                )
+            if attempt < self.max_retries - 1:
+                wait = min(self.retry_delay * (2 ** attempt), 30.0)
+                print(
+                    f"[{_timestamp()}] [API] retry wait agent={agent_id} "
+                    f"next_attempt={attempt + 2}/{self.max_retries} wait={wait:.1f}s",
+                    flush=True,
+                )
+                time.sleep(wait)
         raise RuntimeError(f"API call failed after {self.max_retries} retries for {agent_id}: {last_error}")
 
     def __call__(self, agent_id: str, prompt: str) -> str:

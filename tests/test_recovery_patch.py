@@ -6,8 +6,26 @@ from agent_system.environments.env_package.review.recovery_validator import vali
 from agent_system.environments.env_package.review.state import (
     _build_recovery_state_delta,
     build_decision_hygiene_view,
+    build_turn_log,
     merge_review_state,
 )
+
+
+# Shared full-grounding fields for a genuine reviewer-discovered verified negative.
+# Codex hardened the recovery/grounding gates to require trusted grounding
+# (verified source span + match_type) and an explicit review_negative_verified
+# label; the runtime verifier sets these, so test fixtures must too.
+_VERIFIED_NEGATIVE_FIELDS = {
+    "raw_quote": "Table 5 shows the proposed method underperforms the baseline on 3 of 5 tasks.",
+    "negative_evidence_type": "negative_result",
+    "source": "Section 5 Experiments",
+    "verified_grounding_label": "paper_grounded_exact",
+    "verified_quote_match_type": "quote_bank_raw_canonical",
+    "verified_source_span_start": 10,
+    "verified_source_span_end": 84,
+    "semantic_grounding_label": "semantic_negative_verified",
+    "review_negative_label": "review_negative_verified",
+}
 
 
 @pytest.fixture
@@ -101,6 +119,10 @@ def test_grounded_flaw_downgrade_without_evidence_is_blocked(mock_state):
             "stance": "contradicts",
             "verified_grounding_label": "paper_grounded_exact",
             "semantic_grounding_label": "semantic_negative_verified",
+            "verified_quote_match_type": "quote_bank_raw_canonical",
+            "review_negative_label": "review_negative_verified",
+            "verified_source_span_start": 10,
+            "verified_source_span_end": 80,
         }
     )
     mock_state["flaw_candidates"].append(
@@ -311,11 +333,18 @@ def test_same_turn_recovery_patch_blocks_stale_claim_status_overwrite(mock_state
 
 
 def test_valid_patch_flaw_downgrade_commits(mock_state):
+    # New semantics: a verified actionable negative *candidate* flaw is preserved
+    # (cannot be routed to downgraded -> ACTIONABLE_CONCERN_PRESERVED). The valid
+    # committing path for such a flaw is confirmed->downgraded, which normalizes to
+    # confirmed->candidate (downgrade_final_to_candidate) to de-escalate an
+    # over-confirmed grounded weakness while keeping it an active potential concern.
+    mock_state["flaw_candidates"][0]["status"] = "confirmed"
+    mock_state["evidence_map"][0].update(_VERIFIED_NEGATIVE_FIELDS)
     payload = {
         "action": "apply_recovery_patch",
         "target_type": "flaw",
         "target_id": "f1",
-        "old_status": "candidate",
+        "old_status": "confirmed",
         "new_status": "downgraded",
         "supporting_evidence_ids": ["e1"],
         "conflict_note_ids": ["conf1"],
@@ -327,7 +356,8 @@ def test_valid_patch_flaw_downgrade_commits(mock_state):
     assert new_state["_latest_patch_log"]["recovery_validated"] is True
     assert new_state["_latest_patch_log"]["recovery_committed"] is True
     assert new_state["_latest_patch_log"]["recovery_failure_code"] == "SUCCESS"
-    assert new_state["flaw_candidates"][0]["status"] == "downgraded"
+    assert new_state["_latest_patch_log"]["recovery_patch_operation"] == "downgrade_final_to_candidate"
+    assert new_state["flaw_candidates"][0]["status"] == "candidate"
     assert len(new_state["conflict_notes"]) == 0
 
 
@@ -518,6 +548,10 @@ def test_claim_unsupported_patch_accepts_verified_negative_when_grounding_presen
             evidence["semantic_grounding_label"] = "semantic_negative_verified"
             evidence["raw_quote"] = "The claim fails under the main ablation."
             evidence["quote_id"] = "q-neg"
+            evidence["verified_quote_match_type"] = "quote_bank_id_canonical"
+            evidence["verified_source_span_start"] = 10
+            evidence["verified_source_span_end"] = 80
+            evidence["review_negative_label"] = "review_negative_verified"
 
     new_state = merge_review_state(
         state,
@@ -549,6 +583,10 @@ def test_claim_patch_with_verified_negative_normalizes_mistaken_positive_status(
             "stance": "missing",
             "verified_grounding_label": "paper_grounded_exact",
             "semantic_grounding_label": "semantic_negative_verified",
+            "verified_quote_match_type": "quote_bank_raw_canonical",
+            "review_negative_label": "review_negative_verified",
+            "verified_source_span_start": 10,
+            "verified_source_span_end": 80,
             "raw_quote": "The result remains worse than the strongest baseline.",
             "quote_id": "q-neg-c3",
         }
@@ -647,6 +685,10 @@ def test_fallback_claim_status_patch_is_blocked_even_with_verified_negative_evid
                 "strength": "strong",
                 "verified_grounding_label": "paper_grounded_exact",
                 "semantic_grounding_label": "semantic_negative_verified",
+                "verified_quote_match_type": "quote_bank_raw_canonical",
+                "review_negative_label": "review_negative_verified",
+                "verified_source_span_start": 10,
+                "verified_source_span_end": 80,
                 "negative_evidence_type": "negative_result",
             }
         ],
@@ -691,6 +733,10 @@ def test_mark_contested_patch_commits_without_claim_status_downgrade(mock_state)
                 {
                     "verified_grounding_label": "paper_grounded_exact",
                     "semantic_grounding_label": "semantic_negative_verified",
+                    "verified_quote_match_type": "quote_bank_raw_canonical",
+                    "review_negative_label": "review_negative_verified",
+                    "verified_source_span_start": 10,
+                    "verified_source_span_end": 80,
                     "negative_evidence_type": "scope_overclaim",
                     "raw_quote": "The broad setting is left for future work.",
                 }
@@ -737,6 +783,10 @@ def test_mark_contested_duplicate_relation_is_blocked_as_no_effect(mock_state):
                 {
                     "verified_grounding_label": "paper_grounded_exact",
                     "semantic_grounding_label": "semantic_negative_verified",
+                    "verified_quote_match_type": "quote_bank_raw_canonical",
+                    "review_negative_label": "review_negative_verified",
+                    "verified_source_span_start": 10,
+                    "verified_source_span_end": 80,
                     "negative_evidence_type": "scope_overclaim",
                     "raw_quote": "The broad setting is left for future work.",
                 }
@@ -789,6 +839,10 @@ def test_mark_contested_blocks_claim_status_downgrade_request(mock_state):
                 {
                     "verified_grounding_label": "paper_grounded_exact",
                     "semantic_grounding_label": "semantic_negative_verified",
+                    "verified_quote_match_type": "quote_bank_raw_canonical",
+                    "review_negative_label": "review_negative_verified",
+                    "verified_source_span_start": 10,
+                    "verified_source_span_end": 80,
                     "negative_evidence_type": "scope_overclaim",
                     "raw_quote": "The broad setting is left for future work.",
                 }
@@ -838,6 +892,10 @@ def test_claim_unsupported_patch_blocks_when_verified_positive_support_remains(m
                 {
                     "verified_grounding_label": "paper_grounded_exact",
                     "semantic_grounding_label": "semantic_negative_verified",
+                    "verified_quote_match_type": "quote_bank_raw_canonical",
+                    "review_negative_label": "review_negative_verified",
+                    "verified_source_span_start": 10,
+                    "verified_source_span_end": 80,
                     "negative_evidence_type": "negative_result",
                     "raw_quote": "The main result is worse than the strongest baseline.",
                 }
@@ -894,6 +952,10 @@ def test_mark_contested_blocks_paper_salvaged_claim_patch_without_status_downgra
                 "negative_evidence_type": "negative_result",
                 "verified_grounding_label": "paper_grounded_exact",
                 "semantic_grounding_label": "semantic_negative_verified",
+                "verified_quote_match_type": "quote_bank_raw_canonical",
+                "review_negative_label": "review_negative_verified",
+                "verified_source_span_start": 10,
+                "verified_source_span_end": 80,
             },
         ],
         "flaw_candidates": [],
@@ -957,6 +1019,10 @@ def test_mark_contested_flaw_target_allows_paper_salvaged_relation_without_statu
                 "negative_evidence_type": "negative_result",
                 "verified_grounding_label": "paper_grounded_exact",
                 "semantic_grounding_label": "semantic_negative_verified",
+                "verified_quote_match_type": "quote_bank_raw_canonical",
+                "review_negative_label": "review_negative_verified",
+                "verified_source_span_start": 10,
+                "verified_source_span_end": 80,
             },
         ],
         "flaw_candidates": [
@@ -1002,6 +1068,160 @@ def test_mark_contested_flaw_target_allows_paper_salvaged_relation_without_statu
     assert patch_log["recovery_state_delta"]["contested_relation_added"] is True
     assert patch_log.get("recovery_no_effect_commit") is not True
     assert new_state["contested_relations"][0]["claim_id"] == "claim-paper-fallback-1"
+
+
+def _claim_requirement_gap_state():
+    return {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The method outperforms strong baselines and generalizes across diverse datasets.",
+                "claim_type": "empirical",
+                "importance": "high",
+                "claim_kind": "paper_extracted",
+                "status": "supported",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "e-method-1",
+                "claim_id": "claim-1",
+                "evidence": "The method uses a reranking module.",
+                "source_locator": "Section 3",
+                "raw_quote": "The method uses a reranking module trained with a contrastive objective.",
+                "stance": "supports",
+                "strength": "medium",
+                "binding_status": "bound_real_claim",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_support_verified",
+                "support_source_bucket": "method_or_approach",
+            }
+        ],
+        "flaw_candidates": [],
+        "conflict_notes": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+    }
+
+
+def test_record_diagnosis_pending_concern_commits_without_claim_or_flaw_status_change():
+    state = _claim_requirement_gap_state()
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+    gap = hygiene["claim_requirement_gap_items"][0]
+
+    new_state = merge_review_state(
+        state,
+        {
+            "action": "apply_recovery_patch",
+            "target_type": "claim_requirement_gap",
+            "target_id": gap["gap_id"],
+            "old_status": "open",
+            "new_status": "recorded",
+            "supporting_evidence_ids": [],
+            "missing_requirements": gap["missing_requirements"],
+            "missing_negative_types": gap["missing_negative_types"],
+            "resolution_expectation": "partially_resolved",
+            "recovery_patch_operation": "record_diagnosis_pending_concern",
+            "diagnosis_pending_concern": {
+                "claim_id": "claim-1",
+                "missing_requirements": gap["missing_requirements"],
+                "missing_negative_types": gap["missing_negative_types"],
+                "final_view": "potential_concern",
+            },
+        },
+    )
+
+    patch_log = new_state["_latest_patch_log"]
+    assert new_state["claims"][0]["status"] == "supported"
+    assert new_state["flaw_candidates"] == []
+    assert patch_log["recovery_committed"] is True
+    assert patch_log["recovery_patch_operation"] == "record_diagnosis_pending_concern"
+    assert patch_log["recovery_target_gate_label"] == "diagnosis_pending_target"
+    assert patch_log["recovery_state_delta"]["diagnosis_pending_concern_added"] is True
+    assert new_state["diagnosis_pending_concerns"][0]["claim_id"] == "claim-1"
+    assert new_state["diagnosis_pending_concerns"][0]["grounding_status"] == "diagnosis_pending_verification"
+    assert new_state["diagnosis_pending_concerns"][0]["basis"] == "claim_requirement_vs_verified_support"
+    view = build_decision_hygiene_view(copy.deepcopy(new_state))
+    assert view["decision_hygiene"]["verified_negative_flaw_count"] == 0
+    assert view["decision_hygiene"]["diagnosis_pending_concern_recorded_count"] == 1
+    turn_log = build_turn_log(
+        2,
+        {
+            "action_type": "challenge_previous_hypothesis",
+            "effective_action_type": "challenge_previous_hypothesis",
+            "turn_mode": "recovery_patch",
+        },
+        [{"agent_id": "Critique Agent", "payload": new_state["_latest_patch_log"]}],
+        new_state,
+        revision_events=new_state.get("revision_log", []),
+    )
+    assert turn_log["recovery_effective_repair"] is False
+    assert turn_log["recovery_layer"] == "diagnosis_pending_recorded"
+    assert turn_log["recovery_layer_diagnosis_pending_recorded"] is True
+    assert turn_log["recovery_no_effect_commit"] is False
+    assert turn_log["diagnosis_pending_concern_claim_id"] == "claim-1"
+
+
+def test_record_diagnosis_pending_concern_duplicate_is_no_effect():
+    state = _claim_requirement_gap_state()
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+    gap = hygiene["claim_requirement_gap_items"][0]
+    payload = {
+        "action": "apply_recovery_patch",
+        "target_type": "claim_requirement_gap",
+        "target_id": gap["gap_id"],
+        "old_status": "open",
+        "new_status": "recorded",
+        "supporting_evidence_ids": [],
+        "missing_requirements": gap["missing_requirements"],
+        "missing_negative_types": gap["missing_negative_types"],
+        "resolution_expectation": "partially_resolved",
+        "recovery_patch_operation": "record_diagnosis_pending_concern",
+    }
+
+    first_state = merge_review_state(state, payload)
+    second_state = merge_review_state(first_state, payload)
+
+    patch_log = second_state["_latest_patch_log"]
+    assert len(second_state["diagnosis_pending_concerns"]) == 1
+    assert patch_log["recovery_committed"] is False
+    assert patch_log["recovery_patch_operation"] == "reject_patch"
+    assert patch_log["recovery_failure_code"] == "NO_EFFECT_PATCH"
+
+
+def test_record_diagnosis_pending_concern_rejects_fallback_claim_gap_target():
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-paper-fallback-1",
+                "claim": "The recovered text appears to ask what the paper proposes.",
+                "claim_type": "empirical",
+                "claim_kind": "paper_extracted",
+                "claim_origin_kind": "raw_salvaged_claim_agent_output",
+                "status": "supported",
+            }
+        ],
+        "evidence_map": [],
+        "flaw_candidates": [],
+    }
+
+    new_state = merge_review_state(
+        state,
+        {
+            "action": "apply_recovery_patch",
+            "target_type": "claim_requirement_gap",
+            "target_id": "claim-paper-fallback-1",
+            "old_status": "open",
+            "new_status": "recorded",
+            "missing_requirements": ["baseline_or_comparison"],
+            "recovery_patch_operation": "record_diagnosis_pending_concern",
+        },
+    )
+
+    patch_log = new_state["_latest_patch_log"]
+    assert patch_log["recovery_committed"] is False
+    assert patch_log["recovery_failure_code"] == "UNKNOWN_TARGET"
+    assert "diagnosis_pending_concerns" not in new_state
 
 
 def test_downgraded_flaw_negative_ids_do_not_report_active_misbinding():
@@ -1205,6 +1425,20 @@ def test_recovery_patch_revision_log_supports_flaw_downgrade(mock_state):
     """The same revision-log emission must work for flaw-target patches."""
 
     previous_revision_count = len(mock_state.get("revision_log", []))
+    # New semantics: a verified actionable negative is preserved, so
+    # route_to_assessment_limitation only commits for an UNVERIFIED (not
+    # paper-grounded) negative flaw. Use an unverified typed negative so the
+    # downgrade routes to assessment limitation and emits a revision event.
+    mock_state["evidence_map"][0].update(
+        {
+            "stance": "missing",
+            "strength": "missing",
+            "negative_evidence_type": "missing_baseline",
+            "raw_quote": "We compare only against method A; method B is not included in our experiments.",
+            "source": "Section 5 Experiments",
+        }
+    )
+    mock_state["flaw_candidates"][0]["negative_evidence_ids"] = ["e1"]
 
     new_state = merge_review_state(
         mock_state,
@@ -1234,7 +1468,10 @@ def test_recovery_patch_revision_log_supports_flaw_downgrade(mock_state):
     ), f"missing recovery revision event: {new_events!r}"
 
 
-def test_recovery_delta_counts_negative_grounding_cleanup_as_effective_route_to_limitation():
+def test_recovery_delta_quote_bank_limitation_cleanup_not_counted_as_assessment_limitation():
+    # New semantics: quote-bank-negative-grounding is an UNTRUSTED verifier source, so a
+    # quote-bank scope_limitation flaw downgrade no longer counts as a trusted route to an
+    # assessment limitation (assessment_limitation_flaw_count stays 0, nothing tolerated-worsened).
     before = {
         "claims": [{"claim_id": "c1", "claim": "The method improves accuracy.", "status": "supported"}],
         "evidence_map": [
@@ -1272,8 +1509,8 @@ def test_recovery_delta_counts_negative_grounding_cleanup_as_effective_route_to_
     delta = _build_recovery_state_delta(before, after)
 
     assert delta["delta"]["negative_grounding_conflict_count"] == -1
-    assert delta["delta"]["assessment_limitation_flaw_count"] == 1
-    assert delta["tolerated_worsened_keys"] == ["assessment_limitation_flaw_count"]
+    assert delta["delta"]["assessment_limitation_flaw_count"] == 0
+    assert delta["tolerated_worsened_keys"] == []
     assert delta["worsened_keys"] == []
     assert delta["consistency_improved"] is True
 
@@ -1300,6 +1537,10 @@ def test_recovery_patch_blocks_no_effect_assessment_limitation_downgrade():
                 "source": "quote-bank-negative-grounding",
                 "verified_grounding_label": "paper_grounded_exact",
                 "semantic_grounding_label": "semantic_negative_verified",
+                "verified_quote_match_type": "quote_bank_raw_canonical",
+                "review_negative_label": "review_negative_verified",
+                "verified_source_span_start": 10,
+                "verified_source_span_end": 80,
                 "negative_evidence_type": "scope_limitation",
             }
         ],
@@ -1372,6 +1613,10 @@ def test_recovery_patch_blocks_actionable_candidate_to_assessment_limitation(moc
         {
             "verified_grounding_label": "paper_grounded_exact",
             "semantic_grounding_label": "semantic_negative_verified",
+            "verified_quote_match_type": "quote_bank_raw_canonical",
+            "review_negative_label": "review_negative_verified",
+            "verified_source_span_start": 10,
+            "verified_source_span_end": 80,
             "negative_evidence_type": "negative_result",
             "raw_quote": "The method performs worse than the baseline.",
         }
@@ -1405,6 +1650,10 @@ def test_recovery_patch_normalizes_confirmed_actionable_downgrade_to_candidate(m
         {
             "verified_grounding_label": "paper_grounded_exact",
             "semantic_grounding_label": "semantic_negative_verified",
+            "verified_quote_match_type": "quote_bank_raw_canonical",
+            "review_negative_label": "review_negative_verified",
+            "verified_source_span_start": 10,
+            "verified_source_span_end": 80,
             "negative_evidence_type": "negative_result",
             "raw_quote": "The method performs worse than the baseline.",
         }

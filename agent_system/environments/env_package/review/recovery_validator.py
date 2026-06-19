@@ -27,15 +27,23 @@ RECOVERY_STATUS_TRANSITIONS = {
         "invalid_claim_id": {"unbound"},
         "unbound": {"invalid_claim_id"},
     },
+    "claim_requirement_gap": {
+        "open": {"recorded"},
+    },
 }
 VERIFIED_RECOVERY_GROUNDING_LABELS = {"paper_grounded_exact", "paper_grounded_normalized"}
 VERIFIED_RECOVERY_SEMANTIC_LABELS = {"semantic_support_verified", "semantic_negative_verified"}
+REVIEW_NEGATIVE_VERIFIED_LABEL = "review_negative_verified"
 ACTIONABLE_RECOVERY_NEGATIVE_TYPES = {
     "direct_contradiction",
     "negative_result",
     "missing_ablation",
     "missing_baseline",
+    "unfair_or_weak_baseline",
     "insufficient_evaluation",
+    "missing_robustness_or_generalization",
+    "evaluation_protocol_risk",
+    "efficiency_cost_gap",
     "scope_overclaim",
     "result_claim_mismatch",
 }
@@ -61,6 +69,7 @@ def _base_validation(patch: Dict[str, Any]) -> Dict[str, Any]:
         "current_status": "",
         "matched_conflict_ids": [],
         "missing_requirements": list(patch.get("missing_requirements", []) or []),
+        "missing_negative_types": list(patch.get("missing_negative_types", []) or []),
     }
 
 
@@ -119,6 +128,27 @@ def _match_hypothesis_target(target_id: str, text: str, index: int) -> bool:
     return target_id in plain or plain in target_id or target_id in text
 
 
+def _claim_requirement_gap_items(state: Dict[str, Any]) -> List[Dict[str, Any]]:
+    audit = state.get("claim_requirement_audit")
+    if not isinstance(audit, dict):
+        hygiene = state.get("decision_hygiene")
+        audit = hygiene if isinstance(hygiene, dict) else {}
+    items = audit.get("claim_requirement_gap_items") if isinstance(audit, dict) else []
+    return [item for item in items or [] if isinstance(item, dict)]
+
+
+def _diagnosis_pending_concern_exists(state: Dict[str, Any], claim_id: str) -> bool:
+    claim_id = str(claim_id or "").strip()
+    if not claim_id:
+        return False
+    for item in state.get("diagnosis_pending_concerns", []) or []:
+        if not isinstance(item, dict):
+            continue
+        if str(item.get("claim_id") or "").strip() == claim_id and str(item.get("status") or "").strip().lower() == "recorded":
+            return True
+    return False
+
+
 def _locate_target(state: Dict[str, Any], target_type: str, target_id: str) -> Optional[Dict[str, Any]]:
     if target_type == "claim":
         for idx, item in enumerate(state.get("claims", []) or []):
@@ -170,6 +200,20 @@ def _locate_target(state: Dict[str, Any], target_type: str, target_id: str) -> O
                     "current_status": binding_status,
                     "target_item": item,
                 }
+    elif target_type == "claim_requirement_gap":
+        target = str(target_id or "").strip()
+        for idx, item in enumerate(_claim_requirement_gap_items(state)):
+            claim_id = str(item.get("claim_id") or "").strip()
+            gap_id = str(item.get("gap_id") or "").strip()
+            if target and target not in {claim_id, gap_id}:
+                continue
+            current_status = "recorded" if _diagnosis_pending_concern_exists(state, claim_id) else "open"
+            return {
+                "target_field": "claim_requirement_gap_items",
+                "target_index": idx,
+                "current_status": current_status,
+                "target_item": item,
+            }
     return None
 
 
@@ -263,9 +307,23 @@ def _is_verified_recovery_evidence(item: Dict[str, Any]) -> bool:
 def _is_verified_negative_recovery_evidence(item: Dict[str, Any]) -> bool:
     if not _is_verified_recovery_evidence(item):
         return False
+    if str(item.get("semantic_grounding_label") or "").strip() != "semantic_negative_verified":
+        return False
     stance = str(item.get("stance") or "").strip().lower()
     strength = str(item.get("strength") or "").strip().lower()
-    return stance in {"contradicts", "refutes", "weakens", "does_not_support", "missing", "unsupported", "insufficient"} or strength in {"missing", "insufficient"}
+    if not (
+        stance in {"contradicts", "refutes", "weakens", "does_not_support", "missing", "unsupported", "insufficient"}
+        or strength in {"missing", "insufficient"}
+    ):
+        return False
+    review_label = str(item.get("review_negative_label") or "").strip()
+    if review_label:
+        return review_label == REVIEW_NEGATIVE_VERIFIED_LABEL
+    source = str(item.get("source") or "").strip().lower()
+    has_quote_material = bool(str(item.get("raw_quote") or "").strip() or str(item.get("quote_id") or "").strip())
+    if source == "quote-bank-negative-grounding" or has_quote_material or item.get("review_negative_checked"):
+        return False
+    return True
 
 
 def _negative_recovery_evidence_type(item: Dict[str, Any]) -> str:
@@ -479,7 +537,7 @@ def _validate_claim_unsupported_evidence_semantics(state: Dict[str, Any], eviden
             continue
         negative_like = stance in {"contradicts", "refutes", "does_not_support", "unsupported"} or bool(negative_text_re.search(text))
         if negative_like:
-            if requires_verified and not _is_verified_recovery_evidence(item):
+            if requires_verified and not _is_verified_negative_recovery_evidence(item):
                 unverified_negative_ids.append(str(evidence_id))
             else:
                 negative_ids.append(str(evidence_id))
@@ -529,6 +587,83 @@ def _can_normalize_claim_patch_to_unsupported(state: Dict[str, Any], old_status:
         return False
     return _validate_claim_unsupported_evidence_semantics(state, evidence_ids) is None
 
+
+def _validate_claim_requirement_gap_record_patch(
+    validation: Dict[str, Any],
+    patch: Dict[str, Any],
+    located: Dict[str, Any],
+    *,
+    current_status: str,
+    old_status: str,
+    new_status: str,
+) -> Optional[Dict[str, Any]]:
+    target = located.get("target_item") or {}
+    claim_id = str(target.get("claim_id") or patch.get("target_id") or "").strip()
+    if not claim_id:
+        return _failure(
+            validation,
+            "UNKNOWN_TARGET",
+            "Claim-requirement gap target is missing its claim_id.",
+            "Target an existing claim_requirement_gap item from the decision hygiene view.",
+            validated=False,
+        )
+    if claim_id.startswith(("claim-paper-context", "claim-context", "claim-paper-fallback", "claim-fallback")):
+        return _failure(
+            validation,
+            "BLOCKED_BY_POLICY",
+            "Diagnosis-pending concern recording cannot target fallback/context claim scaffolds.",
+            "Use a real paper claim requirement gap from claim_requirement_audit.",
+            validated=True,
+        )
+    if current_status == new_status:
+        return _failure(
+            validation,
+            "NO_EFFECT_PATCH",
+            f"Claim-requirement gap for '{claim_id}' is already recorded.",
+            "Select an unrecorded claim-requirement gap.",
+            validated=True,
+        )
+    if old_status != "open" or new_status != "recorded":
+        return _failure(
+            validation,
+            "INVALID_STATUS_TRANSITION",
+            f"Recovery does not allow transition claim_requirement_gap:{old_status}->{new_status}.",
+            "Use claim_requirement_gap open->recorded for diagnosis-pending concern recording.",
+            validated=False,
+        )
+    if current_status != old_status:
+        return _failure(
+            validation,
+            "SEMANTIC_MISMATCH",
+            f"Expected current status '{old_status}', but claim-requirement gap currently stores '{current_status}'.",
+            "Refresh the claim_requirement_gap target from the latest ReviewState before retrying.",
+            validated=False,
+        )
+    target_missing = [str(item or "").strip() for item in target.get("missing_requirements") or [] if str(item or "").strip()]
+    patch_missing = [str(item or "").strip() for item in patch.get("missing_requirements") or [] if str(item or "").strip()]
+    if not target_missing:
+        return _failure(
+            validation,
+            "SEMANTIC_MISMATCH",
+            "Claim-requirement gap target has no missing requirements.",
+            "Target a gap item with concrete missing_requirements.",
+            validated=False,
+        )
+    if patch_missing and not set(patch_missing).issubset(set(target_missing)):
+        return _failure(
+            validation,
+            "SEMANTIC_MISMATCH",
+            "Patch missing_requirements do not match the claim-requirement audit target.",
+            "Copy missing_requirements from the selected claim_requirement_gap item.",
+            validated=True,
+        )
+    validation["diagnosis_pending_concern"] = True
+    validation["claim_requirement_gap_claim_id"] = claim_id
+    validation["missing_requirements"] = patch_missing or target_missing
+    validation["missing_negative_types"] = list(patch.get("missing_negative_types") or target.get("missing_negative_types") or [])
+    validation["audit_basis"] = str(target.get("audit_basis") or "claim_requirement_vs_verified_support")
+    return _success(validation, [])
+
 def validate_recovery_patch(state: Dict[str, Any], patch: Dict[str, Any]) -> Dict[str, Any]:
     validation = _base_validation(patch)
     try:
@@ -557,7 +692,7 @@ def validate_recovery_patch(state: Dict[str, Any], patch: Dict[str, Any]) -> Dic
                 validation,
                 "UNKNOWN_TARGET",
                 f"Unsupported recovery target_type: {target_type or 'missing'}.",
-                "Use one of: claim, flaw, hypothesis, gap, evidence_link.",
+                "Use one of: claim, flaw, hypothesis, gap, evidence_link, claim_requirement_gap.",
                 validated=False,
             )
 
@@ -600,6 +735,16 @@ def validate_recovery_patch(state: Dict[str, Any], patch: Dict[str, Any]) -> Dic
         evidence_ids = list(patch.get("supporting_evidence_ids", []) or [])
         requested_mark_contested = _requests_mark_contested_patch(patch)
         mark_contested_patch = _is_mark_contested_patch(patch, current_status)
+
+        if target_type == "claim_requirement_gap":
+            return _validate_claim_requirement_gap_record_patch(
+                validation,
+                patch,
+                located,
+                current_status=current_status,
+                old_status=old_status,
+                new_status=new_status,
+            )
 
         if (
             target_type == "claim"
