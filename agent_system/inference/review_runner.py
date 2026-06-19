@@ -6753,6 +6753,15 @@ class ApiReviewGenerator:
         self.retry_delay = retry_delay
         self.provider = str(provider or "auto").strip().lower()
 
+        # JSON output reliability: small models (e.g. MiMo) tend to emit chain-of-thought
+        # prose instead of the JSON contract, so the Evidence/Critique payloads fail to parse
+        # (~90% fallback). When the provider supports it, response_format=json_object
+        # grammar-constrains the completion to a valid JSON object from the first token, which
+        # removes the "reasoning prose instead of JSON" failure mode. Mode "auto" probes once and
+        # disables itself for the session if the provider rejects the parameter; "on" forces it,
+        # "off" disables it. Env override: DRMAS_JSON_RESPONSE_FORMAT.
+        self._json_response_format_mode = os.environ.get("DRMAS_JSON_RESPONSE_FORMAT", "auto").strip().lower()
+
         resolved_key = api_key or os.environ.get("MIMO_API_KEY") or os.environ.get("DEEPSEEK_API_KEY") or os.environ.get("OPENAI_API_KEY", "")
         resolved_url = (
             base_url
@@ -6812,6 +6821,11 @@ class ApiReviewGenerator:
             kwargs["extra_body"] = {"enable_thinking": False}
         else:
             kwargs["max_tokens"] = self.max_tokens
+        if self._json_response_format_mode in {"auto", "on"}:
+            # Force a valid JSON object (see __init__). The downstream parser accepts a bare
+            # JSON object as well as the legacy <json>...</json> form, so this is compatible
+            # with the existing prompts.
+            kwargs["response_format"] = {"type": "json_object"}
         return kwargs
 
     @staticmethod
@@ -6855,7 +6869,24 @@ class ApiReviewGenerator:
         return ""
 
     def _call_api_once(self, prompt: str) -> str:
-        response = self.client.chat.completions.create(**self._completion_kwargs(prompt))
+        kwargs = self._completion_kwargs(prompt)
+        try:
+            response = self.client.chat.completions.create(**kwargs)
+        except Exception as exc:
+            # Probe-and-fallback: if the provider rejects response_format, disable it for the
+            # rest of the session and retry once without it. Other (transient) errors are
+            # re-raised so the _call_api retry loop handles them normally.
+            if "response_format" in kwargs and self._json_response_format_mode == "auto":
+                self._json_response_format_mode = "off"
+                kwargs.pop("response_format", None)
+                print(
+                    f"[{_timestamp()}] [API] response_format=json_object rejected; "
+                    f"disabling for session ({str(exc)[:120]})",
+                    flush=True,
+                )
+                response = self.client.chat.completions.create(**kwargs)
+            else:
+                raise
         message = response.choices[0].message
         return self._message_to_text(message)
 
