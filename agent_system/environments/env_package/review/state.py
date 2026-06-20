@@ -915,7 +915,7 @@ _SEMANTIC_RESULT_TERMS_RE = re.compile(
 )
 _SEMANTIC_ABSTRACT_MARKER_RE = re.compile(r"\\end\{abstract\}|\\begin\{abstract\}|\babstract\b", re.IGNORECASE)
 _SEMANTIC_NEGATIVE_TERMS_RE = re.compile(
-    r"\b(contradict|contradicts|contradicted|refute|refutes|weakens|weaken|undermine|undermines|unsupported|does not support|not supported|(?:do|does|did)\s+not\s+(?:prove|provide|show|report|evaluate|compare|include|establish)|not\s+(?:proven|proved|provided|reported|evaluated|compared|included|established)|lack|lacks|lacked|lacking|absent|insufficient|without|missing|open question|no significant|not significant|worse|underperform|fail|fails|failed|failure|limitation|limitations|threats? to validity|future work|not evaluated|not compared|no ablation|no baseline|missing baseline|no comparison|no evaluation)\b",
+    r"\b(contradict|contradicts|contradicted|refute|refutes|weakens|weaken|undermine|undermines|unsupported|does not support|not supported|(?:do|does|did)\s+not\s+(?:prove|provide|show|report|evaluate|compare|include|establish)|not\s+(?:proven|proved|provided|reported|evaluated|compared|included|established)|lack|lacks|lacked|lacking|absent|insufficient|without|missing|open question|no significant|not significant|(?:minimal|negligible|limited|marginal|trivial|insignificant)\s+(?:performance\s+|accuracy\s+)?(?:gain|gains|improvement|improvements|benefit|benefits)|yields?\s+(?:minimal|little|marginal|negligible|limited)\s+(?:performance|accuracy|gain|gains|improvement|benefit)|worse|underperform|fail|fails|failed|failure|limitation|limitations|threats? to validity|future work|not evaluated|not compared|no ablation|no baseline|missing baseline|no comparison|no evaluation)\b",
     re.IGNORECASE,
 )
 _GENERIC_LOCATOR_RE = re.compile(
@@ -8626,6 +8626,8 @@ _EVIDENCE_NEGATIVE_ANCHOR_PATTERNS: List[Tuple[str, re.Pattern[str]]] = [
             r"runtime|latency|memory|parameters?|flops|compute|computational\s+cost|"
             r"implementation\s+details?|hyperparameters?|reproducib(?:ility|le)|"
             r"mixed\s+results?|marginal\s+improvements?|inconsistent\s+results?|"
+            r"(?:minimal|negligible|limited|marginal|trivial|insignificant|little)\s+(?:performance\s+|accuracy\s+|quality\s+|empirical\s+)?(?:gain|gains|improvement|improvements|benefit|benefits)|"
+            r"yields?\s+(?:minimal|little|no|marginal|negligible|limited)\s+(?:performance|accuracy|gain|gains|improvement|benefit)|"
             r"worse|underperform(?:s|ed)?|fail(?:s|ed)?\s+to\s+(?:show|evaluate|compare|generalize|generalise)|"
             r"threats?\s+to\s+validity|future\s+work|limitation|limitations"
             r")\b",
@@ -8650,6 +8652,8 @@ _NEG_TYPE_NEGATIVE_RESULT_RE = re.compile(
     r"(?:accuracy|performance|score|result|results|mrr|hits@?\d+|f1|auc|success rate)[^.!?]{0,60}lower than|"
     r"lower (?:accuracy|performance|score|mrr|f1|auc)|"
     r"insufficient (?:performance|accuracy|improvement|gain|gains|result|results)|"
+    r"(?:minimal|negligible|limited|marginal|trivial|insignificant|little)\s+(?:performance\s+|accuracy\s+|quality\s+|empirical\s+)?(?:gain|gains|improvement|improvements|benefit|benefits)|"
+    r"yields?\s+(?:minimal|little|marginal|negligible|limited)\s+(?:performance|accuracy|gain|gains|improvement|benefit)|"
     r"no improvement|degrad(?:e|es|ed|ation)|"
     r"deteriorat(?:e|es|ed|ion)|declin(?:e|es|ed|ing)|poor performance|less accurate|drop in|"
     r"negative result|no significant|not significant)\b",
