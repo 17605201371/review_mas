@@ -3728,6 +3728,20 @@ _REQUIREMENT_TO_NEGATIVE_TYPE = {
     "method_detail": "method_support_gap",
 }
 
+# Route 3 (recall-tuned): reviewer-actionable required-evidence types. A primary claim
+# missing ANY of these — even as a partial gap (some support present but this dimension
+# absent) — is a verified coverage gap, matching what real reviewers raise (missing
+# baseline / ablation / evaluation / robustness / efficiency / scope). method_detail and
+# reproducibility_detail are intentionally excluded as weakly reviewer-relevant.
+_COVERAGE_GAP_ACTIONABLE_REQUIREMENTS = frozenset({
+    "empirical_result",
+    "baseline_or_comparison",
+    "ablation_or_component",
+    "robustness_or_generalization",
+    "scope_coverage",
+    "efficiency_cost",
+})
+
 _REQUIREMENT_LABELS = {
     "empirical_result": "result/table/experiment evidence",
     "baseline_or_comparison": "baseline or comparison evidence",
@@ -3981,15 +3995,22 @@ def _claim_requirement_audit(state: Dict[str, Any]) -> Dict[str, Any]:
     # fully unsupported required-evidence type (zero strong/medium support of that type).
     # Deterministic and paper-defensible; kept strictly parallel to (never merged into)
     # quote-grounded verified negatives.
-    verified_coverage_gap_items = [
-        item
-        for item in missing_claims
-        if item.get("is_primary_claim") and item.get("requirement_status") == "unsupported_gap"
-    ]
+    verified_coverage_gap_items = []
+    for item in missing_claims:
+        if not item.get("is_primary_claim"):
+            continue
+        actionable_missing = [
+            req for req in (item.get("missing_requirements") or [])
+            if req in _COVERAGE_GAP_ACTIONABLE_REQUIREMENTS
+        ]
+        if actionable_missing or item.get("requirement_status") == "unsupported_gap":
+            rec = dict(item)
+            rec["coverage_gap_missing_requirements"] = actionable_missing or list(item.get("missing_requirements") or [])
+            verified_coverage_gap_items.append(rec)
     verified_coverage_gap_type_counts: Counter[str] = Counter()
     for item in verified_coverage_gap_items:
-        for neg_type in item.get("missing_negative_types") or []:
-            verified_coverage_gap_type_counts[neg_type] += 1
+        for req in item.get("coverage_gap_missing_requirements") or []:
+            verified_coverage_gap_type_counts[_REQUIREMENT_TO_NEGATIVE_TYPE.get(req, req)] += 1
     return {
         "claim_requirement_audit": audits,
         "claim_requirement_gap_items": missing_claims,

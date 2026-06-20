@@ -1820,6 +1820,34 @@ def test_verified_coverage_gap_is_primary_unsupported_and_isolated_from_quote_gr
     assert hg["primary_claims_with_requirement_gaps"] == 1
     # Isolation: a coverage gap must NOT pollute any quote-grounded verified count.
     assert hg["review_negative_verified_count"] == 0
+
+
+def test_verified_coverage_gap_includes_partial_actionable_gap():
+    # Route 3 (recall-tuned): a primary claim with SOME support but missing a key actionable
+    # requirement (here a broad "across diverse benchmarks" claim with only single-benchmark
+    # support -> scope_coverage missing) is a verified coverage gap even as a PARTIAL gap —
+    # the dominant real-reviewer scenario (basic experiments done, a key dimension absent).
+    state = {
+        "claims": [{"claim_id": "claim-1", "claim": "The proposed method outperforms strong baselines across diverse benchmarks.", "status": "supported"}],
+        "evidence_map": [{
+            "evidence_id": "e-emp", "claim_id": "claim-1",
+            "evidence": "Table 2 reports 91.0% accuracy of our method on the main benchmark.",
+            "raw_quote": "Table 2 reports 91.0% accuracy of our method on the main benchmark.",
+            "quote_id": "q-emp", "stance": "supports", "strength": "strong",
+            "binding_status": "bound_real_claim",
+            "verified_grounding_label": "paper_grounded_exact", "verified_quote_match_type": "quote_bank_id_canonical",
+            "semantic_grounding_label": "semantic_support_verified", "source": "Table 2", "source_locator": "Table 2",
+        }],
+        "flaw_candidates": [], "unresolved_questions": [], "evidence_gaps": [], "conflict_notes": [],
+    }
+    hg = build_decision_hygiene_view(state)["decision_hygiene"]
+    items = hg["verified_coverage_gap_items"]
+    assert hg["verified_coverage_gap_count"] == 1
+    gap = next(it for it in items if it["claim_id"] == "claim-1")
+    assert gap["requirement_status"] == "partial_gap"  # has support, not fully unsupported
+    actionable = {"scope_coverage", "baseline_or_comparison", "ablation_or_component", "empirical_result", "robustness_or_generalization", "efficiency_cost"}
+    assert any(r in actionable for r in gap.get("coverage_gap_missing_requirements", []))
+    assert hg["review_negative_verified_count"] == 0  # isolation from quote-grounded
     assert hg["verified_negative_flaw_count"] == 0
     assert hg["grounded_weakness_count"] == 0
 
