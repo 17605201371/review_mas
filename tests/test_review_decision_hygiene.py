@@ -5368,7 +5368,7 @@ def test_author_future_work_note_does_not_become_scope_overclaim_concern():
 def test_decision_view_syncs_actionable_flaw_type_to_verified_limitation_evidence():
     state = _negative_type_flaw_state("scope_limitation", status="candidate", severity="major")
     state["claims"][0]["claim"] = "The method generalizes to unseen graph settings."
-    state["evidence_map"][0]["raw_quote"] = "The method is only evaluated on synthetic graphs and does not generalize to unseen graph settings."
+    state["evidence_map"][0]["raw_quote"] = "The method is only evaluated on synthetic graphs in the reported experiments."
     state["evidence_map"][0]["negative_evidence_actionability"] = "actionable_candidate"
     state["flaw_candidates"][0]["negative_evidence_type"] = "scope_overclaim"
     state["flaw_candidates"][0]["flaw"] = "Verified scope overclaim against a broad generalization claim."
@@ -5379,15 +5379,16 @@ def test_decision_view_syncs_actionable_flaw_type_to_verified_limitation_evidenc
     dh = view["decision_hygiene"]
 
     # The flaw's type is synced onto the linked evidence (scope_limitation -> scope_overclaim),
-    # recording the original. scope_overclaim is NOT in the actionable final-view set, so the
-    # flaw is classified as an assessment_limitation rather than an actionable potential concern.
+    # recording the original. Under Route A the evidence verifies as an actionable candidate
+    # ("only evaluated on synthetic graphs" is a concrete scope gap against the broad
+    # generalization claim), so the flaw is surfaced as an actionable potential concern.
     assert evidence["negative_evidence_type"] == "scope_overclaim"
     assert evidence["negative_evidence_type_original"] == "scope_limitation"
     assert evidence["negative_evidence_type_decision_view_reason"] == "linked_actionable_flaw_type_sync"
     assert dh["synced_actionable_negative_type_count"] == 1
-    assert flaw["final_view_flaw_layer"] == "assessment_limitation"
-    assert dh["verified_actionable_negative_flaw_count"] == 0
-    assert dh["potential_concern_count"] == 0
+    assert flaw["final_view_flaw_layer"] == "potential_concern"
+    assert dh["verified_actionable_negative_flaw_count"] == 1
+    assert dh["potential_concern_count"] == 1
     assert dh.get("contamination_negative_evidence_overclaim", 0) == 0
 
 

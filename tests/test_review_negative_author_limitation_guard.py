@@ -125,13 +125,31 @@ def test_problem_motivation_under_own_method_not_verified_negative():
 
 
 def test_problem_motivation_guard_does_not_block_genuine_negative_result():
+    # A genuine data-contradicts-claim negative (the paper's own method below a baseline)
+    # must still verify — neither the problem-motivation guard nor the Route-A whitelist
+    # may over-correct it.
     ev = _negative_evidence(
-        "Relying solely on detection as a pre-training task yields minimal performance gains.",
+        "The proposed method performs worse than the strongest baseline on the main benchmark.",
         "negative_result",
     )
     st = _state(ev)
     assert S._assess_review_negative_relation(st, ev)["review_negative_label"] == "review_negative_verified"
     assert S._is_grounded_paper_negative_evidence_record(ev, st) is True
+
+
+def test_route_a_author_reported_ablation_is_not_reviewer_negative():
+    # Route A core: an author-reported ablation / internal result that is negative-looking
+    # but supports the paper's OWN argument (no baseline/SOTA contradiction, no concrete
+    # reviewer gap, no claim refutation) is a paper observation, NOT a verified negative.
+    ev = _negative_evidence(
+        "Relying solely on detection as a pre-training task yields minimal performance gains.",
+        "negative_result",
+    )
+    st = _state(ev)
+    assessment = S._assess_review_negative_relation(st, ev)
+    assert assessment["review_negative_label"] != "review_negative_verified"
+    assert assessment["review_negative_label"] == "insufficient_claim_relation"
+    assert S._is_grounded_paper_negative_evidence_record(ev, st) is False
 
 
 # --- Codex-audit fix (2): related-work criticism of a CITED prior work

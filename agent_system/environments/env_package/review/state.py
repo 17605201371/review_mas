@@ -1225,6 +1225,28 @@ _REVIEW_NEGATIVE_PROBLEM_MOTIVATION_RE = re.compile(
     r"\b(?:our|proposed|distilled|our method|our model|our approach|our framework|the proposed|our setting|our training)\b",
     re.IGNORECASE,
 )
+# Route A: "the paper's own method underperforms a baseline/SOTA" — a result that
+# contradicts the paper's headline claim (data contradicts the claim). This is a genuine
+# reviewer-discovered negative, distinct from author-reported ablation/variant/control
+# comparisons (which compare the paper's OWN internal configs, not against a baseline/SOTA).
+_OWN_METHOD_WORSE_THAN_BASELINE_RE = re.compile(
+    r"(?:"
+    # own method + underperform (a shortfall verb that is intrinsically negative)
+    r"\b(?:our|proposed|the proposed|the method|our method|our model|our approach|our framework|the model|the approach|method|model)\b"
+    r"[^.!?]{0,60}\bunderperform\w*"
+    r"|"
+    # own method + worse/lower/losing/falls-short THAN/TO a baseline / SOTA
+    r"\b(?:our|proposed|the proposed|the method|our method|our model|our approach|our framework|the model|the approach)\b[^.!?]{0,80}"
+    r"\b(?:worse|lower|losing|loses|lost|inferior|fall[s]? short|fails? to (?:match|beat|outperform))\b[^.!?]{0,50}"
+    r"\b(?:than|to|compared|versus|vs\.?|relative to|below)\b[^.!?]{0,40}"
+    r"\b(?:baseline|baselines|state-of-the-art|state of the art|sota|strongest|prior (?:work|method)|existing (?:method|methods|work))\b"
+    r"|"
+    # a baseline / SOTA is reported above the paper's own method
+    r"\b(?:baseline|baselines|state-of-the-art|state of the art|sota|strongest|prior (?:method|work)|existing (?:method|methods))\b[^.!?]{0,55}"
+    r"\b(?:higher|better|outperform\w*|superior|exceed\w*|surpass\w*)\b"
+    r")",
+    re.IGNORECASE,
+)
 
 
 def _review_negative_assessment(
@@ -1315,28 +1337,36 @@ def _assess_review_negative_relation(state: Dict[str, Any], evidence: Dict[str, 
         if not concrete_gap:
             return _review_negative_assessment("resource_or_scope_context", "resource_context_without_current_paper_gap", relation_score)
 
-    if neg_type in TRUE_PAPER_NEGATIVE_EVIDENCE_TYPES:
+    own_method_underperforms = bool(_OWN_METHOD_WORSE_THAN_BASELINE_RE.search(quote))
+    # Route A: a paper quote is a reviewer-discovered negative ONLY if it contradicts the
+    # paper's own claim — (1) the paper's own method underperforms a baseline/SOTA ("data
+    # contradicts the headline claim"), (2) a concrete reviewer evidence gap on THIS paper
+    # (a required baseline/ablation/evaluation/comparison is missing/not done), or (3) a
+    # broad claim is left scope-restricted. Author-reported ablation/variant/control/
+    # tradeoff results (negative-looking but supporting the paper's OWN argument) match none
+    # of these and fall through to paper_observation. Deterministic missing-evidence
+    # coverage is also carried separately by the Route-3 verified_coverage_gap.
+    direct_contradiction_phrase = bool(_NEG_TYPE_DIRECT_CONTRADICTION_RE.search(quote))
+    contradicts_paper_claim = (
+        own_method_underperforms
+        or concrete_gap
+        or direct_contradiction_phrase
+        or (broad_claim and scope_relation)
+    )
+
+    if neg_type in TRUE_PAPER_NEGATIVE_EVIDENCE_TYPES or neg_type in {"scope_overclaim", "scope_limitation"}:
         if author_limitation:
             return _review_negative_assessment("author_limitation_only", f"{neg_type}_is_author_self_limitation", relation_score)
-        if _REVIEW_NEGATIVE_PROBLEM_MOTIVATION_RE.search(quote) and not concrete_gap:
+        if _REVIEW_NEGATIVE_PROBLEM_MOTIVATION_RE.search(quote) and not contradicts_paper_claim:
             return _review_negative_assessment("author_limitation_only", f"{neg_type}_is_problem_motivation_addressed_by_method", relation_score)
-        if concrete_gap or neg_type in {"direct_contradiction", "negative_result", "result_claim_mismatch", "evaluation_protocol_risk"}:
-            return _review_negative_assessment(REVIEW_NEGATIVE_VERIFIED_LABEL, f"{neg_type}_grounds_current_paper_concern", relation_score)
-        if relation_score >= 0.08:
-            return _review_negative_assessment(REVIEW_NEGATIVE_VERIFIED_LABEL, f"{neg_type}_has_claim_relation", relation_score)
-        return _review_negative_assessment("insufficient_claim_relation", f"{neg_type}_lacks_current_claim_relation", relation_score)
-
-    if neg_type == "scope_overclaim":
-        if concrete_gap or scope_relation or broad_claim:
-            return _review_negative_assessment(REVIEW_NEGATIVE_VERIFIED_LABEL, "scope_overclaim_weakens_broad_claim", relation_score)
-        return _review_negative_assessment("author_limitation_only", "scope_overclaim_without_claim_weakening_relation", relation_score)
-
-    if neg_type == "scope_limitation":
-        if scope_relation and broad_claim:
-            return _review_negative_assessment(REVIEW_NEGATIVE_VERIFIED_LABEL, "scope_limitation_weakens_broad_claim", relation_score)
-        if self_anchor or author_limitation:
-            return _review_negative_assessment("author_limitation_only", "author_scope_or_future_work_note", relation_score)
-        return _review_negative_assessment("insufficient_claim_relation", "scope_limitation_without_review_relation", relation_score)
+        if contradicts_paper_claim:
+            reason = (
+                "own_method_underperforms_baseline"
+                if own_method_underperforms
+                else f"{neg_type}_weakens_overclaimed_paper_claim"
+            )
+            return _review_negative_assessment(REVIEW_NEGATIVE_VERIFIED_LABEL, reason, relation_score)
+        return _review_negative_assessment("insufficient_claim_relation", f"{neg_type}_is_paper_observation_not_claim_contradiction", relation_score)
 
     return _review_negative_assessment("insufficient_claim_relation", "no_review_negative_relation", relation_score)
 
