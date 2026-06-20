@@ -1166,7 +1166,16 @@ _REVIEW_NEGATIVE_PRIOR_WORK_RE = re.compile(
     r"\b(?:prior work|previous work|existing method|existing methods|related work|baseline method|baseline methods|"
     r"et al\.|\((?:19|20)\d{2}[a-z]?\)|(?:19|20)\d{2}\))\b[^.!?]{0,160}"
     r"\b(?:introduc(?:e|es|ed)|propos(?:e|es|ed)|present(?:s|ed)?|address(?:es|ed|ing)?|"
-    r"overcom(?:e|es|ing)|fail(?:s|ed)?|lack(?:s|ed|ing)?|do(?:es)? not)\b",
+    r"overcom(?:e|es|ing)|fail(?:s|ed)?|lack(?:s|ed|ing)?|do(?:es)? not)\b"
+    # Codex-audit fix: LaTeX \cite{...}/\citep/\citet references are external-work context
+    # too. Related-work criticism of a CITED paper (e.g. "\cite{x2024} ... only provides ...
+    # and does not compare ...") is a prior_work_limitation, NOT a verified negative against
+    # THIS paper. Requires a criticism verb after the citation so positive "Following
+    # \cite{x}, we adopt ..." adoption is unaffected.
+    r"|\\cite[tp]?\{[^}]*\}[^.!?]{0,160}"
+    r"\b(?:introduc(?:e|es|ed)|propos(?:e|es|ed)|present(?:s|ed)?|provid(?:e|es|ed)|"
+    r"address(?:es|ed|ing)?|overcom(?:e|es|ing)|fail(?:s|ed)?|lack(?:s|ed|ing)?|"
+    r"do(?:es)? not|only\s+(?:provid|evaluat|consider|focus|support))\b",
     re.IGNORECASE,
 )
 _REVIEW_NEGATIVE_RESOURCE_CONTEXT_RE = re.compile(

@@ -134,6 +134,24 @@ def test_problem_motivation_guard_does_not_block_genuine_negative_result():
     assert S._is_grounded_paper_negative_evidence_record(ev, st) is True
 
 
+# --- Codex-audit fix (2): related-work criticism of a CITED prior work
+#     (\cite{x2024} ... does not compare ...) is a prior_work_limitation, not a
+#     verified negative against THIS paper; a real own-paper gap must still verify. ---
+
+def test_prior_work_cite_criticism_not_verified_negative():
+    ev = _negative_evidence(
+        r"\cite{templeton2024scaling} on the other hand only provides a qualitative "
+        r"evaluation and does not compare to other interpretability methods.",
+        "missing_baseline",
+        source="Section 2 Related Work",
+    )
+    st = _state(ev)
+    assessment = S._assess_review_negative_relation(st, ev)
+    assert assessment["review_negative_label"] == "prior_work_limitation"
+    assert assessment["review_negative_reason"] == "quote_describes_prior_or_external_work"
+    assert S._is_grounded_paper_negative_evidence_record(ev, st) is False
+
+
 # --- Fix#3: raw-salvaged claim must be locatable in the paper to host a negative ---
 
 def _salvage_claim(claim_text):
