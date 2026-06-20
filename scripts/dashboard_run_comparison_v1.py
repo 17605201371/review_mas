@@ -760,6 +760,10 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     out["diagnosis_pending_potential_concern_claim_count"] = _sum(rows, "diagnosis_pending_potential_concern_claim_count")
     out["diagnosis_pending_concern_recorded_count"] = _sum(rows, "diagnosis_pending_concern_recorded_count")
     out["diagnosis_pending_concern_recorded_claim_count"] = _sum(rows, "diagnosis_pending_concern_recorded_claim_count")
+    # Route 3: deterministic verified coverage gap (primary-claim, fully unsupported) —
+    # second verifiable negative dimension, parallel to quote-grounded verified negatives.
+    out["verified_coverage_gap_count"] = _sum(rows, "verified_coverage_gap_count")
+    out["primary_claims_with_requirement_gaps"] = _sum(rows, "primary_claims_with_requirement_gaps")
     diagnosis_pending_type_counts: Counter[str] = Counter()
     for row in rows:
         hygiene = _hygiene(row)
@@ -1598,6 +1602,10 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "diagnosis_pending_type_scope_overclaim",
         "diagnosis_pending_type_result_claim_mismatch",
         "diagnosis_pending_type_method_support_gap",
+    ]),
+    ("Coverage gaps (deterministic · primary-claim · unsupported)", [
+        "verified_coverage_gap_count",
+        "primary_claims_with_requirement_gaps",
     ]),
     ("State contamination", [
         "state_contamination_count",

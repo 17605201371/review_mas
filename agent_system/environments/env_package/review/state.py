@@ -1203,6 +1203,19 @@ _REVIEW_NEGATIVE_AUTHOR_LIMITATION_RE = re.compile(
     r"(?:evaluate|report|compare|include|test|measure|judge|assess|provide|release)\b",
     re.IGNORECASE,
 )
+# Codex-audit fix: problem-motivation / addressed-by-our-method structure.
+# A first-person observation of a difficulty arising under the paper's OWN method or
+# setting (e.g. "we found increased heterogeneity when training with our distilled data")
+# is an author motivation that the paper then solves — NOT a reviewer-discovered final
+# flaw. Absent an independent concrete reviewer gap, such a quote must not auto-verify
+# as a negative concern. Deliberately requires the paper's own-method context
+# (our/proposed/distilled/...) so criticism of a baseline/prior work is unaffected.
+_REVIEW_NEGATIVE_PROBLEM_MOTIVATION_RE = re.compile(
+    r"\b(?:we|our)\b[^.!?]{0,30}\b(?:found|find|observ\w+|notic\w+|identif\w+|reveal\w+|see|saw|show\w*)\b"
+    r"[^.!?]{0,140}\b(?:when|while|with|using|after|during)\b[^.!?]{0,90}"
+    r"\b(?:our|proposed|distilled|our method|our model|our approach|our framework|the proposed|our setting|our training)\b",
+    re.IGNORECASE,
+)
 
 
 def _review_negative_assessment(
@@ -1296,6 +1309,8 @@ def _assess_review_negative_relation(state: Dict[str, Any], evidence: Dict[str, 
     if neg_type in TRUE_PAPER_NEGATIVE_EVIDENCE_TYPES:
         if author_limitation:
             return _review_negative_assessment("author_limitation_only", f"{neg_type}_is_author_self_limitation", relation_score)
+        if _REVIEW_NEGATIVE_PROBLEM_MOTIVATION_RE.search(quote) and not concrete_gap:
+            return _review_negative_assessment("author_limitation_only", f"{neg_type}_is_problem_motivation_addressed_by_method", relation_score)
         if concrete_gap or neg_type in {"direct_contradiction", "negative_result", "result_claim_mismatch", "evaluation_protocol_risk"}:
             return _review_negative_assessment(REVIEW_NEGATIVE_VERIFIED_LABEL, f"{neg_type}_grounds_current_paper_concern", relation_score)
         if relation_score >= 0.08:
@@ -3923,6 +3938,19 @@ def _claim_requirement_audit(state: Dict[str, Any]) -> Dict[str, Any]:
 
     missing_claims = [item for item in audits if item.get("missing_requirements")]
     missing_claims.sort(key=lambda item: int(item.get("diagnostic_priority") or 0), reverse=True)
+    # Route 3: high-precision "verified coverage gap" subset — a primary claim with a
+    # fully unsupported required-evidence type (zero strong/medium support of that type).
+    # Deterministic and paper-defensible; kept strictly parallel to (never merged into)
+    # quote-grounded verified negatives.
+    verified_coverage_gap_items = [
+        item
+        for item in missing_claims
+        if item.get("is_primary_claim") and item.get("requirement_status") == "unsupported_gap"
+    ]
+    verified_coverage_gap_type_counts: Counter[str] = Counter()
+    for item in verified_coverage_gap_items:
+        for neg_type in item.get("missing_negative_types") or []:
+            verified_coverage_gap_type_counts[neg_type] += 1
     return {
         "claim_requirement_audit": audits,
         "claim_requirement_gap_items": missing_claims,
@@ -3930,6 +3958,9 @@ def _claim_requirement_audit(state: Dict[str, Any]) -> Dict[str, Any]:
         "claim_requirement_missing_total": sum(len(item.get("missing_requirements") or []) for item in missing_claims),
         "claims_with_requirement_gaps": len(missing_claims),
         "primary_claims_with_requirement_gaps": sum(1 for item in missing_claims if item.get("is_primary_claim")),
+        "verified_coverage_gap_items": verified_coverage_gap_items,
+        "verified_coverage_gap_count": len(verified_coverage_gap_items),
+        "verified_coverage_gap_type_counts": dict(verified_coverage_gap_type_counts),
     }
 
 
@@ -6238,6 +6269,12 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
         "claim_requirement_missing_type_counts": requirement_audit.get("claim_requirement_missing_type_counts", {}),
         "claim_requirement_gap_items": requirement_audit.get("claim_requirement_gap_items", [])[:8],
         "claim_requirement_audit": requirement_audit.get("claim_requirement_audit", [])[:12],
+        # Route 3: deterministic verified coverage gap — a second, parallel verifiable
+        # negative dimension (primary claim with a fully unsupported required-evidence
+        # type). Strictly separate from the quote-grounded verified negatives below.
+        "verified_coverage_gap_count": requirement_audit.get("verified_coverage_gap_count", 0),
+        "verified_coverage_gap_type_counts": requirement_audit.get("verified_coverage_gap_type_counts", {}),
+        "verified_coverage_gap_items": requirement_audit.get("verified_coverage_gap_items", [])[:8],
         # Claim-requirement gaps are diagnosis-pending potential concerns:
         # deterministic coverage facts, not quote-grounded verified negatives.
         "diagnosis_pending_potential_concern_count": diagnosis_pending_count,

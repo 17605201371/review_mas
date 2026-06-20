@@ -105,6 +105,35 @@ def test_genuine_missing_baseline_still_grounded():
     assert S._is_grounded_paper_negative_evidence_record(ev, st) is True
 
 
+# --- Codex-audit fix: problem-motivation / addressed-by-our-method is NOT a
+#     reviewer-discovered negative. A first-person difficulty observed under the
+#     paper's OWN method/setting (which the paper then solves) must not auto-verify,
+#     but the guard must not block genuine negative results. ---
+
+def test_problem_motivation_under_own_method_not_verified_negative():
+    ev = _negative_evidence(
+        "Worse yet, we found increased data heterogeneity among clients when "
+        "federatively training with our distilled local virtual data.",
+        "negative_result",
+        source="Section 3 Method",
+    )
+    st = _state(ev)
+    assessment = S._assess_review_negative_relation(st, ev)
+    assert assessment["review_negative_label"] == "author_limitation_only"
+    assert assessment["review_negative_reason"] == "negative_result_is_problem_motivation_addressed_by_method"
+    assert S._is_grounded_paper_negative_evidence_record(ev, st) is False
+
+
+def test_problem_motivation_guard_does_not_block_genuine_negative_result():
+    ev = _negative_evidence(
+        "Relying solely on detection as a pre-training task yields minimal performance gains.",
+        "negative_result",
+    )
+    st = _state(ev)
+    assert S._assess_review_negative_relation(st, ev)["review_negative_label"] == "review_negative_verified"
+    assert S._is_grounded_paper_negative_evidence_record(ev, st) is True
+
+
 # --- Fix#3: raw-salvaged claim must be locatable in the paper to host a negative ---
 
 def _salvage_claim(claim_text):

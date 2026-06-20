@@ -1792,6 +1792,38 @@ def test_primary_claim_support_coverage_is_computed_for_first_k_real_claims():
     assert abs(hg["primary_claim_empirical_coverage"] - round(1 / 3, 4)) < 1e-9
 
 
+def test_verified_coverage_gap_is_primary_unsupported_and_isolated_from_quote_grounded():
+    # Route 3: a deterministic "verified coverage gap" = a primary claim with a fully
+    # unsupported required-evidence type. It is a SEPARATE verifiable negative dimension
+    # and must never leak into the quote-grounded verified counts.
+    state = {
+        "claims": [
+            {"claim_id": "claim-1", "claim": "The proposed method outperforms all state-of-the-art baselines across diverse benchmark datasets.", "status": "supported"},
+            {"claim_id": "claim-2", "claim": "Background discussion of related work.", "status": "supported"},
+            {"claim_id": "claim-3", "claim": "Additional background notes.", "status": "supported"},
+            {"claim_id": "claim-4", "claim": "The framework outperforms baselines on benchmark evaluation.", "status": "supported"},
+        ],
+        "evidence_map": [],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+    hg = build_decision_hygiene_view(state)["decision_hygiene"]
+    # claim-1 is primary (first 3 real claims) and fully unsupported on its required
+    # evidence types -> the single high-precision coverage gap.
+    assert hg["verified_coverage_gap_count"] == 1
+    assert {item["claim_id"] for item in hg["verified_coverage_gap_items"]} == {"claim-1"}
+    assert hg["verified_coverage_gap_type_counts"].get("missing_baseline") == 1
+    # claim-4 is also unsupported but NOT primary -> excluded from the high-precision subset.
+    assert hg["claims_with_requirement_gaps"] == 2
+    assert hg["primary_claims_with_requirement_gaps"] == 1
+    # Isolation: a coverage gap must NOT pollute any quote-grounded verified count.
+    assert hg["review_negative_verified_count"] == 0
+    assert hg["verified_negative_flaw_count"] == 0
+    assert hg["grounded_weakness_count"] == 0
+
+
 def test_stance_based_negative_evidence_ids_infers_from_evidence_map():
     state = {
         "claims": [{"claim_id": "claim-1"}],
