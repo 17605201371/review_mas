@@ -1,5 +1,0 @@
-run_base=mimo_v25_claimreq_qhyg_hardneg20_mt7_b4w2_api4_r5t600_20260615_144450
-start_time=2026-06-15 14:44:50 CST
-params=max_turns=7 manager_batch_size=4 max_workers_per_turn=2 api_max_workers=4 api_max_retries=5 api_timeout=600 dataset=hard_negative_20_20260611.parquet mode=s4 model=mimo-v2.5 max_tokens=768 temperature=1.0 top_p=0.95 model_adapter_mode=small_model neg_discovery_mode=default neg_reclassify=off neg_quote_hygiene=1 claim_requirement_audit=on
-launch_mode=background
-pid=25124

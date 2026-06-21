@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # hardneg20 guard3 验证跑批 (P0)
-# 代码版本: 3342192 (negqty recoverycap guard3)
+# 代码版本: run-time git HEAD is recorded in the .meta file
 # 目的: 在 hardneg20 上确认 smoke8 guard3 的 recovery/contested 改善是否成立，
 #       并检查 negative quantity 是否仍然偏低 (smoke8 上比上一轮下降)。
 # 与上一轮 hardneg20 (hygienefilter3, 20260612_162757) 同口径对比: mt7 / b4w2 / mimo-v2.5。
@@ -57,6 +57,26 @@ if [[ "${NEG_QUOTE_HYGIENE}" == "1" || "${NEG_QUOTE_HYGIENE}" == "true" || "${NE
   MODE_SUFFIX="${MODE_SUFFIX}_qhyg"
 fi
 
+# P-A: compact negative pass. This keeps negative detection mandatory but
+# merges scattered negative discovery / formation overrides into critique-side
+# compact passes to reduce turn cost.
+NEGATIVE_PASS_MODE="${DRMAS_NEGATIVE_PASS_MODE:-default}"
+export DRMAS_NEGATIVE_PASS_MODE="${NEGATIVE_PASS_MODE}"
+if [[ "${NEGATIVE_PASS_MODE}" == "compact" || "${NEGATIVE_PASS_MODE}" == "merged" || "${NEGATIVE_PASS_MODE}" == "p-a" || "${NEGATIVE_PASS_MODE}" == "pa" ]]; then
+  MODE_SUFFIX="${MODE_SUFFIX}_compactneg"
+fi
+
+# P26 hard-negative diagnosis: claim-centric model-judgment diagnosis direction (default off).
+# Flips the critique prompt / state-slice diagnosis targets / hard_negative_discovery_override
+# routing to analyze_flaws + hard_negative_diagnosis_required. Pending Mac multi-seed A/B.
+#   DRMAS_HARDNEG_DIAGNOSIS=1 bash run_hardneg20_guard3.sh                              # diagnosis on
+#   DRMAS_NEG_QUOTE_HYGIENE=1 DRMAS_HARDNEG_DIAGNOSIS=1 bash run_hardneg20_guard3.sh    # qhyg + diagnosis
+HARDNEG_DIAGNOSIS="${DRMAS_HARDNEG_DIAGNOSIS:-}"
+export DRMAS_HARDNEG_DIAGNOSIS="${HARDNEG_DIAGNOSIS}"
+if [[ "${HARDNEG_DIAGNOSIS}" == "1" || "${HARDNEG_DIAGNOSIS}" == "true" || "${HARDNEG_DIAGNOSIS}" == "on" || "${HARDNEG_DIAGNOSIS}" == "yes" ]]; then
+  MODE_SUFFIX="${MODE_SUFFIX}_hardnegdiag"
+fi
+
 API_MAX_WORKERS="${API_MAX_WORKERS:-4}"
 API_MAX_RETRIES="${API_MAX_RETRIES:-5}"
 API_TIMEOUT="${API_TIMEOUT:-600}"
@@ -81,11 +101,20 @@ echo "Log:     ${LOG_FILE}"
 
 PYTHON_BIN="${PYTHON_BIN:-/opt/miniconda3/envs/DrMAS/bin/python}"
 PYTHONPATH_VALUE="${PYTHONPATH_VALUE:-/opt/miniconda3/envs/agent/lib/python3.12/site-packages:.}"
+CODE_COMMIT="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
+CODE_DIRTY="unknown"
+if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
+    CODE_DIRTY="dirty"
+  else
+    CODE_DIRTY="clean"
+  fi
+fi
 
 cat > "${META_FILE}" <<EOF
 run_base=${RUN_TAG}
 start_time=$(date '+%Y-%m-%d %H:%M:%S %Z')
-params=max_turns=7 manager_batch_size=4 api_max_workers=${API_MAX_WORKERS} api_max_retries=${API_MAX_RETRIES} api_timeout=${API_TIMEOUT} dataset=${DATASET} mode=s4 model=mimo-v2.5 max_tokens=768 temperature=1.0 top_p=0.95 model_adapter_mode=small_model code_commit=3342192 neg_discovery_mode=${NEG_MODE} neg_reclassify=${NEG_RECLASSIFY:-off} neg_quote_hygiene=${NEG_QUOTE_HYGIENE:-off}
+params=max_turns=7 manager_batch_size=4 api_max_workers=${API_MAX_WORKERS} api_max_retries=${API_MAX_RETRIES} api_timeout=${API_TIMEOUT} dataset=${DATASET} mode=s4 model=mimo-v2.5 max_tokens=768 temperature=1.0 top_p=0.95 model_adapter_mode=small_model code_commit=${CODE_COMMIT} code_dirty=${CODE_DIRTY} neg_discovery_mode=${NEG_MODE} neg_reclassify=${NEG_RECLASSIFY:-off} neg_quote_hygiene=${NEG_QUOTE_HYGIENE:-off} negative_pass_mode=${NEGATIVE_PASS_MODE} hardneg_diagnosis=${HARDNEG_DIAGNOSIS:-off}
 launch_mode=background
 EOF
 

@@ -942,11 +942,8 @@ def _state_is_recovery_relevant(state: Dict[str, Any], recent_turn_logs: Sequenc
         return True
     if _verified_negative_flaw_recovery_targets(state, limit=1):
         return True
-    # Refactor 2026-06-21: verified coverage gap (missing baseline/ablation/eval)
-    # can also trigger recovery, but as lower priority than quote-grounded negative.
-    # Check via simple heuristic: empirical claim without baseline evidence.
-    if _has_empirical_claim_without_baseline_evidence(state):
-        return True
+    # Coverage gap check is ONLY in _has_blocking_recovery_signal (requires turn ≥ 3),
+    # NOT here, to avoid premature recovery trigger before evidence is collected.
     latest_patch_log = state.get("_latest_patch_log", {}) or {}
     if str(latest_patch_log.get("recovery_failure_code") or "").strip():
         return True

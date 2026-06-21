@@ -1,10 +1,12 @@
 """测试 verified_coverage_gap 能触发 recovery
 
-验证 2026-06-21 重构：
-1. _state_is_recovery_relevant 识别 verified_coverage_gap
-2. _has_blocking_recovery_signal 识别 verified_coverage_gap
-3. _choose_blocking_recovery_action 返回 challenge_previous_hypothesis
-4. _claim_requirement_gap_recovery_patch_payload 使用 verified_coverage_gap_items
+验证 2026-06-21 重构 + 2026-06-22 修复：
+1. _has_blocking_recovery_signal 识别 verified_coverage_gap (需要 turn ≥ 3)
+2. _choose_blocking_recovery_action 返回 challenge_previous_hypothesis
+3. _claim_requirement_gap_recovery_patch_payload 使用 verified_coverage_gap_items
+
+注意：coverage gap 检查只在 _has_blocking_recovery_signal (需要 turn ≥ 3)，
+不在 _state_is_recovery_relevant，以避免过早触发 recovery（evidence 还未收集完）。
 """
 import os
 import sys
@@ -26,37 +28,8 @@ from agent_system.inference.review_runner import (
 )
 
 
-def test_state_is_recovery_relevant_with_coverage_gap():
-    """测试 _state_is_recovery_relevant 识别 coverage gap"""
-    state = {
-        "claims": [
-            {
-                "claim_id": "claim-primary-1",
-                "claim_type": "empirical",
-                "importance": "high",
-                "claim_kind": "paper_extracted",
-                "status": "supported",
-            }
-        ],
-        "evidence_map": [
-            {
-                "evidence_id": "ev-1",
-                "claim_id": "claim-primary-1",
-                "support_source_bucket": "method_or_approach",  # 没有 baseline
-                "verified_grounding_label": "paper_grounded_exact",
-                "semantic_grounding_label": "semantic_support_verified",
-            }
-        ],
-    }
-    recent_turn_logs = []
-
-    result = _state_is_recovery_relevant(state, recent_turn_logs)
-    assert result is True, "应该识别 empirical claim 缺 baseline 为 recovery relevant"
-    print("✓ _state_is_recovery_relevant 识别 coverage gap")
-
-
 def test_has_blocking_recovery_signal_with_coverage_gap():
-    """测试 _has_blocking_recovery_signal 识别 coverage gap"""
+    """测试 _has_blocking_recovery_signal 识别 coverage gap (需要 turn ≥ 3)"""
     state = {
         "claims": [
             {
@@ -86,8 +59,42 @@ def test_has_blocking_recovery_signal_with_coverage_gap():
     ]
 
     result = _has_blocking_recovery_signal(state, recent_turn_logs)
-    assert result is True, "应该识别 empirical claim 缺 baseline 为 blocking signal"
+    assert result is True, "应该识别 empirical claim 缺 baseline 为 blocking signal (turn ≥ 3)"
     print("✓ _has_blocking_recovery_signal 识别 coverage gap")
+
+
+def test_has_blocking_recovery_signal_not_triggered_before_turn_3():
+    """测试 turn < 3 时不触发 coverage gap recovery"""
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-primary-1",
+                "claim_type": "empirical",
+                "importance": "high",
+                "claim_kind": "paper_extracted",
+                "status": "supported",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "ev-1",
+                "claim_id": "claim-primary-1",
+                "support_source_bucket": "method_or_approach",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_support_verified",
+            }
+        ],
+        "flaw_candidates": [],
+    }
+    # 只有 2 个 turn logs
+    recent_turn_logs = [
+        {"action_type": "extract_claims"},
+        {"action_type": "verify_evidence"},
+    ]
+
+    result = _has_blocking_recovery_signal(state, recent_turn_logs)
+    assert result is False, "turn < 3 时不应该触发 coverage gap recovery"
+    print("✓ turn < 3 时不触发 coverage gap recovery")
 
 
 def test_choose_blocking_recovery_action_with_coverage_gap():
@@ -219,8 +226,8 @@ if __name__ == "__main__":
     print("运行 coverage gap recovery 测试...\n")
 
     try:
-        test_state_is_recovery_relevant_with_coverage_gap()
         test_has_blocking_recovery_signal_with_coverage_gap()
+        test_has_blocking_recovery_signal_not_triggered_before_turn_3()
         test_choose_blocking_recovery_action_with_coverage_gap()
         test_claim_requirement_gap_recovery_patch_uses_verified_items()
         test_recovery_patch_not_generated_when_flag_disabled()

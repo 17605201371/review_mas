@@ -1,0 +1,5 @@
+run_base=mimo_v25_qhyg_trueneg_smoke8_mt7_b4w2_api4_r5t600_20260616_094629
+start_time=2026-06-16 09:46:29 CST
+params=max_turns=7 manager_batch_size=4 api_max_workers=4 api_max_retries=5 api_timeout=600 dataset=smoke8_sameids_20260604.parquet mode=s4 model=mimo-v2.5 max_tokens=768 temperature=1.0 top_p=0.95 model_adapter_mode=small_model neg_quote_hygiene=1 negative_pass_mode=default true_negative_priority=default
+launch_mode=background
+pid=31449
