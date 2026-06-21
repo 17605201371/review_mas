@@ -3979,7 +3979,7 @@ def _claim_requirement_gap_recovery_patch_payload(
             {
                 "action": "apply_recovery_patch",
                 "target_type": "claim_requirement_gap",
-                "target_id": str(gap.get("gap_id") or claim_id),
+                "target_id": claim_id,  # Use claim_id directly, not gap_id (gap_id is too long and causes UNKNOWN_TARGET)
                 "old_status": "open",
                 "new_status": "recorded",
                 "supporting_evidence_ids": [],
