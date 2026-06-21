@@ -2803,7 +2803,14 @@ def build_worker_observation(task: Dict[str, Any], manager_payload: Dict[str, An
             f"Executed agent: {agent_id}\n\n"
             f"# Targeted Review Objects\n{compact_target_brief}"
         )
-        return _clip_text(f"{compact_routing}\n\n{base}\n\n{routing}", MAX_WORKER_OBSERVATION_CHARS)
+        # Evidence prompt routing de-dup (Codex audit 2026-06-20): the previous layout was
+        # `compact_routing + base + routing`, which repeated the SAME routing / Manager-Focus
+        # / target block twice (nudging MiMo to restate the task — the P0 fallback raw head
+        # was exactly this restatement). Drop the redundant TRAILING `routing`; keep the front
+        # compact_routing so the negative-mode/target block stays inside the clip window (the
+        # long base/paper-excerpt would otherwise push a trailing routing out and _clip_text
+        # truncates from the tail), with base after it.
+        return _clip_text(f"{compact_routing}\n\n{base}", MAX_WORKER_OBSERVATION_CHARS)
     if negative_evidence_required:
         return _clip_text(f"{routing}\n\n{base}", MAX_WORKER_OBSERVATION_CHARS)
     return _clip_text(f"{base}\n\n{routing}", MAX_WORKER_OBSERVATION_CHARS)

@@ -118,6 +118,7 @@ Compact rules:
 - Prefer `Evidence Quote Bank.raw_quote`; otherwise copy 10-40 visible words from the paper excerpt.
 - `raw_quote` must be verbatim paper text. Do not paraphrase a claim as a quote.
 - Prefer result/table/figure/ablation/baseline quotes over abstract/title text when visible.
+- When citing a table or benchmark result, copy the concrete numbers (the method value and the baseline/SOTA value) and the metric/benchmark name verbatim, not just the caption or a paraphrase.
 - Use `strength="strong"` only for concrete method/result/table/figure evidence; use `medium` or `weak` for abstract/title/general text.
 - Use `source_locator` such as `Section 4.2`, `Table 3`, or `Figure 2` when possible.
 - Keep `evidence`, `binding_rationale`, and `support_quality_reason` under 20 words.
@@ -142,6 +143,12 @@ If the task is grounded by a visible copied paper quote, return one `evidence_ma
 evidence_id, claim_id, evidence, source, source_locator, raw_quote, quote_id, strength, stance,
 negative_evidence_type, required_evidence_type, targeted_negative_search_task_id, binding_confidence, binding_rationale.
 Use strength="missing" and stance="missing" unless the quote directly reports worse results.
+For underperformance or result-claim mismatch, copy the specific table row or sentence that
+contains the actual numbers — the paper's OWN method value, the competing baseline/SOTA value,
+and the benchmark/metric name — and set stance="contradicts" with negative_evidence_type
+"negative_result" or "result_claim_mismatch". A paraphrase such as "Table 6 shows the method
+is not best" is NOT acceptable; raw_quote must contain the real compared numbers or the verbatim
+losing row.
 
 If no visible copied quote directly grounds the task, return exactly:
 <json>{"evidence_map":[],"conflict_notes":[],"unresolved_questions":[{"question":"No visible copied quote directly grounds the targeted negative task.","status":"not_assessable","target_type":"claim","target_id":"claim-1","targeted_negative_search_task_id":"task-id"}],"dialogue_summary":"targeted negative search found no quote-grounded evidence","recommendation":"undecided"}</json>
