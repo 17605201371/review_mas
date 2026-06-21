@@ -944,11 +944,9 @@ def _state_is_recovery_relevant(state: Dict[str, Any], recent_turn_logs: Sequenc
         return True
     # Refactor 2026-06-21: verified coverage gap (missing baseline/ablation/eval)
     # can also trigger recovery, but as lower priority than quote-grounded negative.
-    requirement_audit = state.get("claim_requirement_audit") or {}
-    if isinstance(requirement_audit, dict):
-        verified_coverage_gap_items = requirement_audit.get("verified_coverage_gap_items") or []
-        if verified_coverage_gap_items:
-            return True
+    # Check via simple heuristic: empirical claim without baseline evidence.
+    if _has_empirical_claim_without_baseline_evidence(state):
+        return True
     latest_patch_log = state.get("_latest_patch_log", {}) or {}
     if str(latest_patch_log.get("recovery_failure_code") or "").strip():
         return True
@@ -1211,6 +1209,52 @@ def _flaw_ids_by_status(
     return selected
 
 
+
+
+def _has_empirical_claim_without_baseline_evidence(state: Dict[str, Any]) -> bool:
+    """Check if there's an empirical claim without baseline/comparison evidence.
+
+    Lightweight heuristic for coverage gap detection without calling full
+    build_decision_hygiene_view. Used by policy functions during runtime.
+    """
+    claims = [c for c in state.get("claims", []) or [] if isinstance(c, dict)]
+    evidence_map = [e for e in state.get("evidence_map", []) or [] if isinstance(e, dict)]
+
+    # Find empirical claims
+    empirical_claims = [
+        c for c in claims
+        if str(c.get("claim_type") or "").strip() == "empirical"
+        and str(c.get("importance") or "").strip() in {"high", ""}
+        and str(c.get("claim_kind") or "").strip() == "paper_extracted"
+        and str(c.get("status") or "").strip() == "supported"
+    ]
+
+    if not empirical_claims:
+        return False
+
+    # Check if any empirical claim has baseline evidence
+    for claim in empirical_claims:
+        claim_id = str(claim.get("claim_id") or "")
+        if not claim_id:
+            continue
+
+        # Look for baseline/comparison evidence
+        has_baseline = any(
+            str(e.get("claim_id") or "") == claim_id
+            and str(e.get("support_source_bucket") or "").strip() in {
+                "baseline_or_comparison",
+                "ablation_study",
+                "empirical_result",
+            }
+            and str(e.get("verified_grounding_label") or "").startswith("paper_grounded")
+            and str(e.get("semantic_grounding_label") or "") == "semantic_support_verified"
+            for e in evidence_map
+        )
+
+        if not has_baseline:
+            return True  # Found empirical claim without baseline
+
+    return False
 
 
 def _active_unverified_flaw_ids(state: Dict[str, Any], *, limit: int = 2) -> List[str]:
@@ -1477,11 +1521,8 @@ def _choose_blocking_recovery_action(state: Dict[str, Any]) -> str:
         return "challenge_previous_hypothesis"
     # Refactor 2026-06-21: coverage gap (missing baseline/ablation/eval) also
     # triggers challenge, as it requires claim reassessment, not just evidence recheck.
-    requirement_audit = state.get("claim_requirement_audit") or {}
-    if isinstance(requirement_audit, dict):
-        verified_coverage_gap_items = requirement_audit.get("verified_coverage_gap_items") or []
-        if verified_coverage_gap_items:
-            return "challenge_previous_hypothesis"
+    if _has_empirical_claim_without_baseline_evidence(state):
+        return "challenge_previous_hypothesis"
     if _active_unverified_flaw_ids(state, limit=1):
         return "request_evidence_recheck"
     if str(risk.get("readiness") or "") == "needs_targeted_recheck" and state.get("flaw_candidates"):
@@ -1503,11 +1544,8 @@ def _has_blocking_recovery_signal(state: Dict[str, Any], recent_turn_logs: Seque
     if _active_unverified_flaw_ids(state, limit=1):
         return True
     # Refactor 2026-06-21: verified coverage gap as lower-priority blocking signal
-    requirement_audit = state.get("claim_requirement_audit") or {}
-    if isinstance(requirement_audit, dict):
-        verified_coverage_gap_items = requirement_audit.get("verified_coverage_gap_items") or []
-        if verified_coverage_gap_items:
-            return True
+    if _has_empirical_claim_without_baseline_evidence(state):
+        return True
     open_evidence_gaps = _open_evidence_gaps(state)
     if str(risk.get("readiness") or "") == "needs_targeted_recheck" and has_active_flaw:
         return True

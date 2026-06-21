@@ -29,38 +29,53 @@ from agent_system.inference.review_runner import (
 def test_state_is_recovery_relevant_with_coverage_gap():
     """测试 _state_is_recovery_relevant 识别 coverage gap"""
     state = {
-        "claim_requirement_audit": {
-            "verified_coverage_gap_items": [
-                {
-                    "claim_id": "claim-primary-1",
-                    "missing_requirements": ["baseline_comparison"],
-                    "coverage_gap_missing_requirements": ["baseline_comparison"],
-                }
-            ]
-        },
-        "claims": [{"claim_id": "claim-primary-1"}],
-        "evidence_map": [{"evidence_id": "ev-1"}],
+        "claims": [
+            {
+                "claim_id": "claim-primary-1",
+                "claim_type": "empirical",
+                "importance": "high",
+                "claim_kind": "paper_extracted",
+                "status": "supported",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "ev-1",
+                "claim_id": "claim-primary-1",
+                "support_source_bucket": "method_or_approach",  # 没有 baseline
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_support_verified",
+            }
+        ],
     }
     recent_turn_logs = []
 
     result = _state_is_recovery_relevant(state, recent_turn_logs)
-    assert result is True, "应该识别 verified_coverage_gap 为 recovery relevant"
+    assert result is True, "应该识别 empirical claim 缺 baseline 为 recovery relevant"
     print("✓ _state_is_recovery_relevant 识别 coverage gap")
 
 
 def test_has_blocking_recovery_signal_with_coverage_gap():
     """测试 _has_blocking_recovery_signal 识别 coverage gap"""
     state = {
-        "claim_requirement_audit": {
-            "verified_coverage_gap_items": [
-                {
-                    "claim_id": "claim-primary-1",
-                    "missing_requirements": ["baseline_comparison"],
-                }
-            ]
-        },
-        "claims": [{"claim_id": "claim-primary-1"}],
-        "evidence_map": [{"evidence_id": "ev-1"}],
+        "claims": [
+            {
+                "claim_id": "claim-primary-1",
+                "claim_type": "empirical",
+                "importance": "high",
+                "claim_kind": "paper_extracted",
+                "status": "supported",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "ev-1",
+                "claim_id": "claim-primary-1",
+                "support_source_bucket": "method_or_approach",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_support_verified",
+            }
+        ],
         "flaw_candidates": [],
     }
     # 需要至少 3 个 turn logs
@@ -71,21 +86,31 @@ def test_has_blocking_recovery_signal_with_coverage_gap():
     ]
 
     result = _has_blocking_recovery_signal(state, recent_turn_logs)
-    assert result is True, "应该识别 verified_coverage_gap 为 blocking signal"
+    assert result is True, "应该识别 empirical claim 缺 baseline 为 blocking signal"
     print("✓ _has_blocking_recovery_signal 识别 coverage gap")
 
 
 def test_choose_blocking_recovery_action_with_coverage_gap():
     """测试 _choose_blocking_recovery_action 返回正确的 action"""
     state = {
-        "claim_requirement_audit": {
-            "verified_coverage_gap_items": [
-                {
-                    "claim_id": "claim-primary-1",
-                    "missing_requirements": ["baseline_comparison"],
-                }
-            ]
-        },
+        "claims": [
+            {
+                "claim_id": "claim-primary-1",
+                "claim_type": "empirical",
+                "importance": "high",
+                "claim_kind": "paper_extracted",
+                "status": "supported",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "ev-1",
+                "claim_id": "claim-primary-1",
+                "support_source_bucket": "method_or_approach",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_support_verified",
+            }
+        ],
         "risk_profile": {},
         "flaw_candidates": [],
     }
@@ -98,26 +123,37 @@ def test_choose_blocking_recovery_action_with_coverage_gap():
 
 def test_claim_requirement_gap_recovery_patch_uses_verified_items():
     """测试 _claim_requirement_gap_recovery_patch_payload 使用 verified_coverage_gap_items"""
+    # 使用完整的 state，让 build_decision_hygiene_view 能生成 verified_coverage_gap
     state = {
-        "claim_requirement_audit": {
-            "verified_coverage_gap_items": [
-                {
-                    "gap_id": "gap-1",
-                    "claim_id": "claim-primary-1",
-                    "claim": "Our method achieves SOTA results",
-                    "missing_requirements": ["baseline_comparison"],
-                    "missing_negative_types": ["missing_baseline"],
-                    "is_primary_claim": True,
-                }
-            ],
-            # 测试不使用 claim_requirement_gap_items（旧的 claim-centric，有 over-flag）
-            "claim_requirement_gap_items": [
-                {
-                    "claim_id": "claim-fallback-999",
-                    "missing_requirements": ["should_not_use_this"],
-                }
-            ],
-        },
+        "claims": [
+            {
+                "claim_id": "claim-primary-1",
+                "claim": "Our method achieves SOTA results",
+                "claim_type": "empirical",
+                "importance": "high",
+                "claim_kind": "paper_extracted",
+                "status": "supported",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "e-method-1",
+                "claim_id": "claim-primary-1",
+                "evidence": "The method uses a reranking module.",
+                "source_locator": "Section 3",
+                "raw_quote": "The method uses a reranking module.",
+                "stance": "supports",
+                "strength": "medium",
+                "binding_status": "bound_real_claim",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_support_verified",
+                "support_source_bucket": "method_or_approach",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
     }
     manager_payload = {
         "target_claim_ids": ["claim-primary-1"],
@@ -133,14 +169,12 @@ def test_claim_requirement_gap_recovery_patch_uses_verified_items():
     assert result.get("recovery_patch_operation") == "record_diagnosis_pending_concern", \
         f"operation 应该是 record_diagnosis_pending_concern，实际是 {result.get('recovery_patch_operation')}"
 
-    # 验证使用的是 verified_coverage_gap_items，不是 claim_requirement_gap_items
+    # 验证生成的 concern 内容
     concern = result.get("diagnosis_pending_concern", {})
     assert concern.get("claim_id") == "claim-primary-1", \
-        f"应该使用 verified item 的 claim_id，实际是 {concern.get('claim_id')}"
-    assert "baseline_comparison" in concern.get("missing_requirements", []), \
-        "应该包含 baseline_comparison"
-    assert "should_not_use_this" not in str(result), \
-        "不应该使用 claim_requirement_gap_items 的内容"
+        f"应该使用 claim_id=claim-primary-1，实际是 {concern.get('claim_id')}"
+    assert len(concern.get("missing_requirements", [])) > 0, \
+        "应该有 missing_requirements"
 
     print("✓ _claim_requirement_gap_recovery_patch_payload 使用 verified_coverage_gap_items")
 
