@@ -8307,7 +8307,8 @@ def test_claim_requirement_gaps_stay_out_of_live_evidence_observation():
 
 
 def _claim_requirement_gap_recovery_state():
-    return {
+    from agent_system.environments.env_package.review.state import _claim_requirement_audit
+    base_state = {
         "claims": [
             {
                 "claim_id": "claim-1",
@@ -8338,6 +8339,10 @@ def _claim_requirement_gap_recovery_state():
         "evidence_gaps": [],
         "conflict_notes": [],
     }
+    # Refactor 2026-06-21: compute requirement_audit (including verified_coverage_gap_items)
+    # so _claim_requirement_gap_recovery_patch_payload can use it
+    base_state["requirement_audit"] = _claim_requirement_audit(base_state)
+    return base_state
 
 
 def test_fallback_recovery_patch_skips_claim_requirement_gap_by_default(monkeypatch):

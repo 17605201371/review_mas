@@ -3923,15 +3923,13 @@ def _claim_requirement_gap_recovery_patch_payload(
 ) -> Optional[Dict[str, Any]]:
     if not _DIAGPENDING_RECOVERY_ENABLED:
         return None
-    try:
-        view_state = copy.deepcopy(state or {})
-        view_state.pop("decision_hygiene", None)
-        view = build_decision_hygiene_view(view_state)
-    except Exception:
+    # Refactor 2026-06-21: use verified_coverage_gap_items (paper-level, over-flag eliminated)
+    # instead of claim_requirement_gap_items (claim-centric, 56% over-flag).
+    requirement_audit = state.get("requirement_audit") or {}
+    if not isinstance(requirement_audit, dict):
         return None
-    hygiene = view.get("decision_hygiene", {}) if isinstance(view, dict) else {}
     gaps = [
-        item for item in hygiene.get("claim_requirement_gap_items", []) or []
+        item for item in requirement_audit.get("verified_coverage_gap_items", []) or []
         if isinstance(item, dict) and item.get("claim_id") and item.get("missing_requirements")
     ]
     if not gaps:

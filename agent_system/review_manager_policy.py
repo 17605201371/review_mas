@@ -942,6 +942,13 @@ def _state_is_recovery_relevant(state: Dict[str, Any], recent_turn_logs: Sequenc
         return True
     if _verified_negative_flaw_recovery_targets(state, limit=1):
         return True
+    # Refactor 2026-06-21: verified coverage gap (missing baseline/ablation/eval)
+    # can also trigger recovery, but as lower priority than quote-grounded negative.
+    requirement_audit = state.get("requirement_audit") or {}
+    if isinstance(requirement_audit, dict):
+        verified_coverage_gap_items = requirement_audit.get("verified_coverage_gap_items") or []
+        if verified_coverage_gap_items:
+            return True
     latest_patch_log = state.get("_latest_patch_log", {}) or {}
     if str(latest_patch_log.get("recovery_failure_code") or "").strip():
         return True
@@ -1468,6 +1475,13 @@ def _choose_blocking_recovery_action(state: Dict[str, Any]) -> str:
         return "challenge_previous_hypothesis"
     if _verified_negative_flaw_recovery_targets(state, limit=1):
         return "challenge_previous_hypothesis"
+    # Refactor 2026-06-21: coverage gap (missing baseline/ablation/eval) also
+    # triggers challenge, as it requires claim reassessment, not just evidence recheck.
+    requirement_audit = state.get("requirement_audit") or {}
+    if isinstance(requirement_audit, dict):
+        verified_coverage_gap_items = requirement_audit.get("verified_coverage_gap_items") or []
+        if verified_coverage_gap_items:
+            return "challenge_previous_hypothesis"
     if _active_unverified_flaw_ids(state, limit=1):
         return "request_evidence_recheck"
     if str(risk.get("readiness") or "") == "needs_targeted_recheck" and state.get("flaw_candidates"):
@@ -1488,6 +1502,12 @@ def _has_blocking_recovery_signal(state: Dict[str, Any], recent_turn_logs: Seque
         return True
     if _active_unverified_flaw_ids(state, limit=1):
         return True
+    # Refactor 2026-06-21: verified coverage gap as lower-priority blocking signal
+    requirement_audit = state.get("requirement_audit") or {}
+    if isinstance(requirement_audit, dict):
+        verified_coverage_gap_items = requirement_audit.get("verified_coverage_gap_items") or []
+        if verified_coverage_gap_items:
+            return True
     open_evidence_gaps = _open_evidence_gaps(state)
     if str(risk.get("readiness") or "") == "needs_targeted_recheck" and has_active_flaw:
         return True
