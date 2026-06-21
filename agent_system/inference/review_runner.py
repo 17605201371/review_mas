@@ -6163,6 +6163,13 @@ def run_review_episode(
                 review_state["pending_user_question"] = ""
                 review_state["clarification_needed"] = False
 
+        # Extract diagnosis_pending_concern statistics from hygiene view
+        diagnosis_pending_concerns = []
+        diagnosis_pending_concern_count = 0
+        if isinstance(review_state, dict):
+            diagnosis_pending_concerns = review_state.get("diagnosis_pending_concerns", []) or []
+            diagnosis_pending_concern_count = len(diagnosis_pending_concerns)
+
         return {
             "paper_id": obs["paper_id"],
             "mode": plan["mode"],
@@ -6177,6 +6184,8 @@ def run_review_episode(
             "accept_reject_correct": info.get("accept_reject_correct", 0.0),
             "parse_error": info.get("parse_error", ""),
             "runner_trace": runner_trace,
+            "diagnosis_pending_concerns": diagnosis_pending_concerns,
+            "diagnosis_pending_concern_count": diagnosis_pending_concern_count,
         }
     finally:
         env.close()
