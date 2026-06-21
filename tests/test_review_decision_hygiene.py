@@ -1852,6 +1852,37 @@ def test_verified_coverage_gap_includes_partial_actionable_gap():
     assert hg["grounded_weakness_count"] == 0
 
 
+def test_verified_coverage_gap_is_paper_level_not_claim_centric():
+    # Route 3 (paper-level over-flag fix 2026-06-21): if the paper as a whole satisfies an
+    # actionable evidence type on ANY primary claim, a DIFFERENT zero-evidence primary claim
+    # must NOT be reported as missing that type. Audit found 56-62% of claim-centric gaps were
+    # exactly this over-flag (a generic claim with no bound evidence while the paper actually
+    # contains that evidence bound to another claim).
+    state = {
+        "claims": [
+            {"claim_id": "claim-1", "claim": "The proposed method outperforms strong baselines.", "status": "supported"},
+            {"claim_id": "claim-2", "claim": "The method surpasses prior baselines on benchmark datasets.", "status": "supported"},
+        ],
+        "evidence_map": [{
+            "evidence_id": "e-base", "claim_id": "claim-2",
+            "evidence": "Table 3 compares our method against baseline X, outperforming it by 5 points.",
+            "raw_quote": "Table 3 compares our method against baseline X, outperforming it by 5 points.",
+            "quote_id": "q-base", "stance": "supports", "strength": "strong",
+            "binding_status": "bound_real_claim",
+            "verified_grounding_label": "paper_grounded_exact", "verified_quote_match_type": "quote_bank_id_canonical",
+            "semantic_grounding_label": "semantic_support_verified", "source": "Table 3", "source_locator": "Table 3",
+        }],
+        "flaw_candidates": [], "unresolved_questions": [], "evidence_gaps": [], "conflict_notes": [],
+    }
+    hg = build_decision_hygiene_view(state)["decision_hygiene"]
+    gap_claim_ids = {item["claim_id"] for item in hg["verified_coverage_gap_items"]}
+    # claim-1 has zero bound evidence, but the paper satisfies baseline/empirical via claim-2,
+    # so claim-1 must NOT be a verified coverage gap (paper-level, not claim-centric).
+    assert "claim-1" not in gap_claim_ids
+    # the baseline requirement is satisfied somewhere in the paper -> not a paper-level gap.
+    assert hg["verified_coverage_gap_type_counts"].get("missing_baseline", 0) == 0
+
+
 def test_stance_based_negative_evidence_ids_infers_from_evidence_map():
     state = {
         "claims": [{"claim_id": "claim-1"}],

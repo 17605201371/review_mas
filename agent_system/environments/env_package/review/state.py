@@ -3991,21 +3991,33 @@ def _claim_requirement_audit(state: Dict[str, Any]) -> Dict[str, Any]:
 
     missing_claims = [item for item in audits if item.get("missing_requirements")]
     missing_claims.sort(key=lambda item: int(item.get("diagnostic_priority") or 0), reverse=True)
-    # Route 3: high-precision "verified coverage gap" subset — a primary claim with a
-    # fully unsupported required-evidence type (zero strong/medium support of that type).
+    # Route 3 (paper-level, over-flag fix 2026-06-21): a verified coverage gap is an
+    # actionable evidence type that NO primary claim in the WHOLE paper satisfies — i.e.
+    # the paper as a whole lacks that evidence type. This kills the claim-centric over-flag
+    # where a generic primary claim has zero bound evidence while the paper actually contains
+    # that evidence bound to another claim (audit found 56-62% of claim-level gaps were this).
     # Deterministic and paper-defensible; kept strictly parallel to (never merged into)
     # quote-grounded verified negatives.
+    _paper_satisfied_actionable = set()
+    for _audit in audits:
+        if not _audit.get("is_primary_claim"):
+            continue
+        _paper_satisfied_actionable |= {
+            req for req in (_audit.get("satisfied_requirements") or [])
+            if req in _COVERAGE_GAP_ACTIONABLE_REQUIREMENTS
+        }
     verified_coverage_gap_items = []
     for item in missing_claims:
         if not item.get("is_primary_claim"):
             continue
-        actionable_missing = [
+        paper_level_missing = [
             req for req in (item.get("missing_requirements") or [])
             if req in _COVERAGE_GAP_ACTIONABLE_REQUIREMENTS
+            and req not in _paper_satisfied_actionable
         ]
-        if actionable_missing or item.get("requirement_status") == "unsupported_gap":
+        if paper_level_missing:
             rec = dict(item)
-            rec["coverage_gap_missing_requirements"] = actionable_missing or list(item.get("missing_requirements") or [])
+            rec["coverage_gap_missing_requirements"] = paper_level_missing
             verified_coverage_gap_items.append(rec)
     verified_coverage_gap_type_counts: Counter[str] = Counter()
     for item in verified_coverage_gap_items:
