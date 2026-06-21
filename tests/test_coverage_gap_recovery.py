@@ -29,7 +29,7 @@ from agent_system.inference.review_runner import (
 def test_state_is_recovery_relevant_with_coverage_gap():
     """测试 _state_is_recovery_relevant 识别 coverage gap"""
     state = {
-        "requirement_audit": {
+        "claim_requirement_audit": {
             "verified_coverage_gap_items": [
                 {
                     "claim_id": "claim-primary-1",
@@ -51,7 +51,7 @@ def test_state_is_recovery_relevant_with_coverage_gap():
 def test_has_blocking_recovery_signal_with_coverage_gap():
     """测试 _has_blocking_recovery_signal 识别 coverage gap"""
     state = {
-        "requirement_audit": {
+        "claim_requirement_audit": {
             "verified_coverage_gap_items": [
                 {
                     "claim_id": "claim-primary-1",
@@ -78,7 +78,7 @@ def test_has_blocking_recovery_signal_with_coverage_gap():
 def test_choose_blocking_recovery_action_with_coverage_gap():
     """测试 _choose_blocking_recovery_action 返回正确的 action"""
     state = {
-        "requirement_audit": {
+        "claim_requirement_audit": {
             "verified_coverage_gap_items": [
                 {
                     "claim_id": "claim-primary-1",
@@ -99,7 +99,7 @@ def test_choose_blocking_recovery_action_with_coverage_gap():
 def test_claim_requirement_gap_recovery_patch_uses_verified_items():
     """测试 _claim_requirement_gap_recovery_patch_payload 使用 verified_coverage_gap_items"""
     state = {
-        "requirement_audit": {
+        "claim_requirement_audit": {
             "verified_coverage_gap_items": [
                 {
                     "gap_id": "gap-1",

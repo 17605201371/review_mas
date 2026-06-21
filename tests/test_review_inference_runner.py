@@ -8339,9 +8339,9 @@ def _claim_requirement_gap_recovery_state():
         "evidence_gaps": [],
         "conflict_notes": [],
     }
-    # Refactor 2026-06-21: compute requirement_audit (including verified_coverage_gap_items)
+    # Refactor 2026-06-21: compute claim_requirement_audit (including verified_coverage_gap_items)
     # so _claim_requirement_gap_recovery_patch_payload can use it
-    base_state["requirement_audit"] = _claim_requirement_audit(base_state)
+    base_state["claim_requirement_audit"] = _claim_requirement_audit(base_state)
     return base_state
 
 

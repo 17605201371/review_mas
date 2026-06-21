@@ -3925,7 +3925,7 @@ def _claim_requirement_gap_recovery_patch_payload(
         return None
     # Refactor 2026-06-21: use verified_coverage_gap_items (paper-level, over-flag eliminated)
     # instead of claim_requirement_gap_items (claim-centric, 56% over-flag).
-    requirement_audit = state.get("requirement_audit") or {}
+    requirement_audit = state.get("claim_requirement_audit") or {}
     if not isinstance(requirement_audit, dict):
         return None
     gaps = [
