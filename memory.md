@@ -1,6 +1,6 @@
 # Memory - DrMAS Paper Review (Compact)
 
-Last compacted: 2026-06-18.
+Last compacted: 2026-06-22.
 
 This file is the working memory for the paper-review project. Keep it short. Move detailed historical narratives into separate audit/checkpoint docs instead of expanding this file.
 
@@ -62,7 +62,43 @@ MiMo runs should use:
 
 For smoke8, `--api-max-workers 2` is safer. For hardneg20/full39, larger workers can be tried after confirming the endpoint is stable.
 
-## Latest State: 2026-06-18
+## Latest State: 2026-06-22
+
+Active project directory: `/Users/zss/Downloads/zssmas-codex-p26-optimization-20260524`. Do not use `/Users/zss/Downloads/DrMAS-master` for this work; that directory is stale.
+
+Latest Codex code changes:
+
+- Evidence negative-mode contract was tightened in `agent_system/review_prompts.py` and `agent_system/inference/review_runner.py`: negative mode should output either one quote-grounded negative evidence item or a `not_assessable` unresolved question; no positive support in negative mode.
+- Evidence normalization now preserves `negative_type` as `negative_evidence_type`, plus `required_evidence_type` and `targeted_negative_search_task_id`.
+- `state.py` now has a narrow table/list absence verifier for cases such as a DAVIS2017 missing claim when copied table/list text enumerates DAVIS2016/FBMS59/SegTrackV2 but not DAVIS2017. It intentionally blocks locator-only false positives.
+- Recovery layer classification was adjusted so `record_diagnosis_pending_concern` is not misclassified as generic `patch_committed` when revision logs are truncated.
+- Focused tests after these changes: `533 passed` across `tests/test_review_decision_hygiene.py`, `tests/test_recovery_patch.py`, and `tests/test_review_inference_runner.py`.
+
+Latest hardneg20 run:
+
+- Run: `mimo_v25_tablescopefix_hardneg20_mt7_b4w2_api2_r5t600_20260622_214828.jsonl`.
+- Params: MiMo v2.5, hard_negative_20, `max_turns=7`, `max_tokens=2048`, `api_max_workers=2`, retries 5, timeout 600.
+- Completed `20/20`, no API errors/timeouts/retries; avg reward `0.5628`, all final decisions `reject`.
+- Negative/recovery target was not achieved: `review_negative_verified_count=0`, `verified_actionable_negative_flaw_count=0`, `negative_evidence_candidate_count=0`, `potential_concern_count=0`, `grounded_weakness_count=0`.
+- Coverage/pending signal exists: `verified_coverage_gap_count=17`, `diagnosis_pending_potential_concern_count=74`, but `diagnosis_pending_concern_recorded_count=0`.
+- Evidence JSON was stable in this run (`77/77 json_valid`), so JSON parsing is not the current blocker.
+
+Current root-cause judgment:
+
+- The run did not enable the full desired pipeline. `DRMAS_TARGETED_NEGATIVE_SEARCH`, `DRMAS_HARDNEG_DIAGNOSIS`, and `DRMAS_DIAGPENDING_RECOVERY` were effectively off, so this did not test "model diagnosis -> targeted Evidence verification -> recovery lifecycle".
+- Hard-negative turns were weakly targeted: among 37 negative formation turns, target quality was `weak_target=19`, `empty_target=7`, `narrow_real_target=11`; 22 turns emitted zero evidence.
+- Emitted negative-looking records were correctly rejected as author limitations, prior-work/background limitations, positive/neutral observations, or paraphrases without paper grounding.
+- Old xUe1YqEgd6 restored negatives depended on a specific claim mentioning DAVIS2017; the fresh run extracted a broader "standard benchmarks" claim, so "table omits DAVIS2017" no longer bound. This is claim specificity / target construction variance, not a verifier regression.
+- Final reports already render claim-requirement gap concerns, but dashboard `potential_concern_count` does not count those rendered concerns. Keep quote-grounded verified negatives and diagnosis-pending concerns separate, but align metrics with reader-visible concerns.
+
+Next work:
+
+1. Make Critique generate specific diagnosis targets for reviewer-inferred concerns.
+2. Use those targets to drive Evidence Agent verification of tables/lists/results/baselines when possible.
+3. Record diagnosis-pending concerns in recovery lifecycle only as diagnosis-pending, never as quote-grounded verified negative or `recovery_effective_repair`.
+4. Stabilize claim specificity for benchmarks/datasets/metrics so absence verifiers have concrete entities to check.
+
+## Previous State: 2026-06-18
 
 Recent fix after Claude/Codex audit:
 
@@ -204,7 +240,7 @@ Avoid adding weak/noisy types such as novelty/writing/ethics/dataset-bias unless
 Focused review tests:
 
 ```bash
-/Users/zss/Downloads/DrMAS-master/.venv/bin/python -m pytest \
+/opt/miniconda3/envs/DrMAS/bin/python -m pytest \
   tests/test_review_decision_hygiene.py \
   tests/test_review_inference_runner.py \
   tests/test_recovery_replay_harness.py \
@@ -214,7 +250,7 @@ Focused review tests:
 Syntax check:
 
 ```bash
-/Users/zss/Downloads/DrMAS-master/.venv/bin/python -m py_compile \
+/opt/miniconda3/envs/DrMAS/bin/python -m py_compile \
   agent_system/environments/env_package/review/state.py \
   agent_system/inference/review_runner.py \
   scripts/dashboard_run_comparison_v1.py
