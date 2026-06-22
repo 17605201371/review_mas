@@ -742,9 +742,18 @@ def _normalize_evidence_item(item: Any, fallback_index: int) -> Optional[Dict[st
         "strength_promotion_from_medium_used": bool(item.get("strength_promotion_from_medium_used")),
         "strength_promotion_reason": _normalize_text(item.get("strength_promotion_reason"), max_length=120),
     }
-    negative_evidence_type = _normalize_text(item.get("negative_evidence_type"), max_length=80)
+    negative_evidence_type = _normalize_text(
+        item.get("negative_evidence_type") or item.get("negative_type"),
+        max_length=80,
+    )
     if negative_evidence_type:
         normalized["negative_evidence_type"] = negative_evidence_type
+    required_evidence_type = _normalize_text(item.get("required_evidence_type"), max_length=80)
+    if required_evidence_type:
+        normalized["required_evidence_type"] = required_evidence_type
+    targeted_negative_search_task_id = _normalize_text(item.get("targeted_negative_search_task_id"), max_length=120)
+    if targeted_negative_search_task_id:
+        normalized["targeted_negative_search_task_id"] = targeted_negative_search_task_id
     negative_actionability = _normalize_text(item.get("negative_evidence_actionability"), max_length=80)
     if negative_actionability:
         normalized["negative_evidence_actionability"] = negative_actionability
@@ -918,6 +927,30 @@ _SEMANTIC_NEGATIVE_TERMS_RE = re.compile(
     r"\b(contradict|contradicts|contradicted|refute|refutes|weakens|weaken|undermine|undermines|unsupported|does not support|not supported|(?:do|does|did)\s+not\s+(?:prove|provide|show|report|evaluate|compare|include|establish)|not\s+(?:proven|proved|provided|reported|evaluated|compared|included|established)|lack|lacks|lacked|lacking|absent|insufficient|without|missing|open question|no significant|not significant|(?:minimal|negligible|limited|marginal|trivial|insignificant)\s+(?:performance\s+|accuracy\s+)?(?:gain|gains|improvement|improvements|benefit|benefits)|yields?\s+(?:minimal|little|marginal|negligible|limited)\s+(?:performance|accuracy|gain|gains|improvement|benefit)|worse|underperform|fail|fails|failed|failure|limitation|limitations|threats? to validity|future work|not evaluated|not compared|no ablation|no baseline|missing baseline|no comparison|no evaluation)\b",
     re.IGNORECASE,
 )
+_SEMANTIC_ABSENCE_TERMS_RE = re.compile(
+    r"\b(?:does not|do not|did not)\s+(?:include|report|evaluate|compare|test)\b|"
+    r"\b(?:not included|not reported|not evaluated|not compared|not tested|missing|absent|omitted|excluded|no)\b|"
+    r"\bbut\s+not\b|\bfails? to include\b|"
+    r"\bwithout\s+(?:an?\s+|the\s+)?(?:baseline|comparison|ablation|evaluation|dataset|benchmark|metric|result)\b",
+    re.IGNORECASE,
+)
+_SEMANTIC_LIST_OR_TABLE_RE = re.compile(
+    r"\b(?:table|figure|fig\.|dataset|datasets|benchmark|benchmarks|baseline|baselines|"
+    r"metric|metrics|compared methods?)\b|[|&;]",
+    re.IGNORECASE,
+)
+_SEMANTIC_ABSENCE_NEGATIVE_TYPES = frozenset(
+    {
+        "direct_contradiction",
+        "missing_baseline",
+        "missing_ablation",
+        "insufficient_evaluation",
+        "missing_robustness_or_generalization",
+        "efficiency_cost_gap",
+        "result_claim_mismatch",
+        "method_support_gap",
+    }
+)
 _GENERIC_LOCATOR_RE = re.compile(
     r"^(?:results?\s*/\s*evaluation\s+excerpt|limitation.*excerpt|"
     r"negative.*excerpt|evaluation\s+excerpt|excerpt\s*#?\s*\d*|"
@@ -944,6 +977,118 @@ def _semantic_tokens(text: str) -> set[str]:
             continue
         tokens.add(clean)
     return tokens
+
+
+def _absence_target_tokens(text: str) -> set[str]:
+    tokens = _semantic_tokens(text)
+    return {
+        token
+        for token in tokens
+        if (
+            len(token) >= 4
+            and token not in {
+                "missing",
+                "absent",
+                "without",
+                "include",
+                "included",
+                "report",
+                "reported",
+                "evaluate",
+                "evaluated",
+                "compare",
+                "compared",
+                "comparison",
+                "comparisons",
+                "baseline",
+                "baselines",
+                "dataset",
+                "datasets",
+                "benchmark",
+                "benchmarks",
+                "metric",
+                "metrics",
+                "method",
+                "methods",
+                "result",
+                "results",
+                "strong",
+                "stronger",
+                "recent",
+                "competitive",
+                "state",
+                "art",
+            }
+        )
+    }
+
+
+def _is_table_scope_absence_negative(
+    state: Dict[str, Any],
+    evidence: Dict[str, Any],
+    quote: str,
+    claim_text: str,
+    evidence_text: str,
+    source_locator: str,
+) -> bool:
+    """Narrowly verify list/table-scope absence claims.
+
+    This covers reviewer findings such as "the claim names DAVIS2017, but the
+    paper's own result table lists only DAVIS2016/FBMS59/SegTrackV2".  It still
+    requires a copied paper quote with a table/list/result anchor and rejects
+    author limitations, prior-work text, and positive support.
+    """
+
+    if not _evidence_has_negative_intent(evidence):
+        return False
+    neg_type = _negative_evidence_type_for_record(evidence)
+    if neg_type not in _SEMANTIC_ABSENCE_NEGATIVE_TYPES:
+        return False
+    evidence_absence_text = " ".join([evidence_text, str(evidence.get("agent_raw_quote") or "")])
+    combined = " ".join([claim_text, evidence_absence_text])
+    if not _SEMANTIC_ABSENCE_TERMS_RE.search(evidence_absence_text):
+        return False
+    if not _SEMANTIC_LIST_OR_TABLE_RE.search(quote):
+        return False
+    if _REVIEW_NEGATIVE_AUTHOR_LIMITATION_RE.search(quote) or _REVIEW_NEGATIVE_PRIOR_WORK_RE.search(quote):
+        return False
+    if _REVIEW_NEGATIVE_POSITIVE_CONTEXT_RE.search(quote):
+        return False
+    quote_tokens = _semantic_tokens(quote)
+    target_tokens = _absence_target_tokens(combined) - quote_tokens
+    target_tokens = {
+        token
+        for token in target_tokens
+        if any(ch.isdigit() for ch in token) or len(token) >= 6
+    }
+    if not target_tokens:
+        return False
+    claim_tokens = _semantic_tokens(claim_text)
+    evidence_tokens = _semantic_tokens(evidence_text)
+    # Require the missing entity to be explicitly named in the model's evidence
+    # statement.  Claim-only generic words such as "comprehensive evaluation"
+    # are too weak to verify a list/table absence.
+    if not (target_tokens & evidence_tokens):
+        return False
+    if not (target_tokens & (claim_tokens | evidence_tokens)):
+        return False
+    return True
+
+
+def _derive_table_scope_absence_negative_type(evidence: Dict[str, Any]) -> str:
+    text = " ".join(
+        str(evidence.get(key) or "")
+        for key in ("evidence", "agent_raw_quote", "binding_rationale", "source", "source_locator")
+    ).lower()
+    if re.search(r"\bablat(?:e|ed|ion|ions)?\b|component|module|mechanism", text):
+        return "missing_ablation"
+    if re.search(r"\bbaseline|comparison|compare|sota|state-of-the-art|state of the art\b", text):
+        return "missing_baseline"
+    if re.search(r"\bruntime|latency|memory|flops|compute|cost|efficien", text):
+        return "efficiency_cost_gap"
+    if re.search(r"\brobust|generaliz|generalis|out-of-domain|ood|unseen|cross-domain|stress\b", text):
+        return "missing_robustness_or_generalization"
+    return "insufficient_evaluation"
 
 
 def _semantic_numeric_anchors(text: str) -> set[str]:
@@ -1328,6 +1473,14 @@ def _assess_review_negative_relation(state: Dict[str, Any], evidence: Dict[str, 
     concrete_gap = bool(_REVIEW_NEGATIVE_CONCRETE_GAP_RE.search(quote))
     broad_claim = bool(_REVIEW_NEGATIVE_BROAD_CLAIM_RE.search(claim_text))
     scope_relation = bool(_REVIEW_NEGATIVE_SCOPE_RELATION_RE.search(quote))
+    table_scope_absence_negative = _is_table_scope_absence_negative(
+        state,
+        evidence,
+        quote,
+        claim_text,
+        evidence_text,
+        str(evidence.get("source_locator") or ""),
+    )
 
     if _REVIEW_NEGATIVE_POSITIVE_CONTEXT_RE.search(quote):
         return _review_negative_assessment("positive_or_neutral_support", "quote_describes_addressing_or_positive_result", relation_score)
@@ -1350,6 +1503,7 @@ def _assess_review_negative_relation(state: Dict[str, Any], evidence: Dict[str, 
     contradicts_paper_claim = (
         own_method_underperforms
         or concrete_gap
+        or table_scope_absence_negative
         or direct_contradiction_phrase
         or (broad_claim and scope_relation)
     )
@@ -1363,6 +1517,8 @@ def _assess_review_negative_relation(state: Dict[str, Any], evidence: Dict[str, 
             reason = (
                 "own_method_underperforms_baseline"
                 if own_method_underperforms
+                else "table_scope_absence_weakens_claim"
+                if table_scope_absence_negative
                 else f"{neg_type}_weakens_overclaimed_paper_claim"
             )
             return _review_negative_assessment(REVIEW_NEGATIVE_VERIFIED_LABEL, reason, relation_score)
@@ -1837,6 +1993,14 @@ def _assess_quote_semantic_grounding(state: Dict[str, Any], evidence: Dict[str, 
     author_limitation_quote = bool(_REVIEW_NEGATIVE_AUTHOR_LIMITATION_RE.search(quote))
     negative_intent = _has_review_negative_semantic_intent(evidence)
     quote_has_negative_anchor = bool(_SEMANTIC_NEGATIVE_TERMS_RE.search(quote))
+    table_scope_absence_negative = _is_table_scope_absence_negative(
+        state,
+        evidence,
+        quote,
+        claim_text,
+        evidence_text,
+        source_locator,
+    )
 
     claim_overlap_verified = _has_verified_claim_overlap_support(evidence, min_score=2)
 
@@ -1847,9 +2011,16 @@ def _assess_quote_semantic_grounding(state: Dict[str, Any], evidence: Dict[str, 
         label = "semantic_author_limitation"
         reasons.append("author_self_limitation_or_future_work_note")
     elif negative_intent:
-        if not quote_has_negative_anchor:
+        if not quote_has_negative_anchor and not table_scope_absence_negative:
             reasons.append("quote_lacks_negative_anchor")
-        if reasons:
+        if table_scope_absence_negative:
+            label = "semantic_negative_verified"
+            reasons.append("table_scope_absence_verified")
+            current_neg_type = str(evidence.get("negative_evidence_type") or "").strip()
+            if not current_neg_type or current_neg_type == "direct_contradiction":
+                evidence["negative_evidence_type"] = _derive_table_scope_absence_negative_type(evidence)
+                evidence["negative_evidence_type_decision_view_reason"] = "table_scope_absence_type_derived"
+        elif reasons:
             label = "semantic_mismatch"
         elif has_anchor_match or score >= 0.14 or quote_has_negative_anchor:
             label = "semantic_negative_verified"
@@ -12835,7 +13006,6 @@ def _compute_recovery_layer_fields(
     validated = bool(turn_patch_log.get("recovery_validated", False))
     committed = bool(turn_patch_log.get("recovery_committed", False))
     commit_applied = bool(revision_meta.get("commit_applied", False))
-    state_mutation_applied = bool(committed and commit_applied)
 
     commit_details = revision_meta.get("commit_details") or []
     has_status_transition = any(
@@ -12848,8 +13018,16 @@ def _compute_recovery_layer_fields(
     operation = str(turn_patch_log.get("recovery_patch_operation") or "")
     contested_relation_added = bool(state_delta.get("contested_relation_added", False))
     diagnosis_pending_concern_added = bool(state_delta.get("diagnosis_pending_concern_added", False))
+    state_mutation_applied = bool(
+        committed
+        and (
+            commit_applied
+            or contested_relation_added
+            or diagnosis_pending_concern_added
+        )
+    )
     diagnosis_pending_recorded = bool(
-        state_mutation_applied
+        committed
         and operation == "record_diagnosis_pending_concern"
         and diagnosis_pending_concern_added
     )

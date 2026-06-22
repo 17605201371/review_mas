@@ -3872,6 +3872,7 @@ def test_review_negative_semantic_gate_accepts_current_paper_negative_result():
     hygiene = view["decision_hygiene"]
 
     assert ev["semantic_grounding_label"] == "semantic_negative_verified"
+    assert ev["negative_evidence_type"] == "negative_result"
     assert ev["review_negative_label"] == "review_negative_verified"
     assert hygiene["review_negative_verified_count"] == 1
     assert hygiene["verified_negative_flaw_count"] == 1
@@ -5946,6 +5947,202 @@ def test_review_semantic_negative_gate_accepts_current_paper_evaluation_gap():
     }
 
     assert _is_grounded_paper_negative_evidence_record(state["evidence_map"][0], state)
+
+
+def test_review_semantic_negative_gate_accepts_table_scope_absence():
+    table_quote = "Table 2: Results obtained on DAVIS2016, SegTrackV2, and FBMS59."
+    paper_text, quote_bank = _grounding_bank([("quote-table-2", table_quote, "table_or_figure")])
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The method is evaluated on DAVIS2017 and common video benchmarks.",
+                "claim_kind": "paper_extracted",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "e-table-absence",
+                "claim_id": "claim-1",
+                "evidence": "Table 2 does not include DAVIS2017 among the evaluated datasets.",
+                "source": "Table 2",
+                "source_locator": "Table 2",
+                "stance": "missing",
+                "strength": "missing",
+                "raw_quote": table_quote,
+                "quote_id": "quote-table-2",
+                "negative_evidence_type": "insufficient_evaluation",
+            }
+        ],
+        "paper_text": paper_text,
+        "evidence_quote_bank": quote_bank,
+    }
+    evidence = state["evidence_map"][0]
+
+    merged = merge_review_state(state, {"evidence_map": [evidence]})
+    ev = merged["evidence_map"][0]
+
+    assert ev["semantic_grounding_label"] == "semantic_negative_verified"
+    assert "table_scope_absence_verified" in ev["semantic_grounding_reasons"]
+    assert ev["review_negative_label"] == "review_negative_verified"
+    assert ev["review_negative_reason"] == "table_scope_absence_weakens_claim"
+    assert _is_grounded_paper_negative_evidence_record(ev, merged)
+
+
+def test_table_scope_absence_accepts_mislabeled_direct_contradiction():
+    table_quote = (
+        "We report in Table 2 the results obtained by two versions of our LT-MS method "
+        "on the three datasets DAVIS2016, SegTrackV2, and FBMS59."
+    )
+    paper_text, quote_bank = _grounding_bank([("quote-table-2", table_quote, "table_or_figure")])
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The method is evaluated on DAVIS2017.",
+                "claim_kind": "paper_extracted",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "e-table-absence-direct",
+                "claim_id": "claim-1",
+                "evidence": "Table 2 shows DAVIS2016, SegTrackV2, and FBMS59, but does not include DAVIS2017.",
+                "source": "Table 2",
+                "source_locator": "Table 2",
+                "stance": "contradicts",
+                "strength": "missing",
+                "raw_quote": table_quote,
+                "quote_id": "quote-table-2",
+                "negative_evidence_type": "direct_contradiction",
+            }
+        ],
+        "paper_text": paper_text,
+        "evidence_quote_bank": quote_bank,
+    }
+
+    merged = merge_review_state(state, {"evidence_map": state["evidence_map"]})
+    ev = merged["evidence_map"][0]
+
+    assert ev["semantic_grounding_label"] == "semantic_negative_verified"
+    assert ev["negative_evidence_type"] == "insufficient_evaluation"
+    assert ev["negative_evidence_type_decision_view_reason"] == "table_scope_absence_type_derived"
+    assert ev["review_negative_label"] == "review_negative_verified"
+    assert ev["review_negative_reason"] == "table_scope_absence_weakens_claim"
+    assert _is_grounded_paper_negative_evidence_record(ev, merged)
+
+
+def test_table_scope_absence_requires_specific_missing_entity():
+    table_quote = "Table 2: Results obtained on DAVIS2016, SegTrackV2, and FBMS59."
+    paper_text, quote_bank = _grounding_bank([("quote-table-2", table_quote, "table_or_figure")])
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The evaluation is comprehensive.",
+                "claim_kind": "paper_extracted",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "e-vague-absence",
+                "claim_id": "claim-1",
+                "evidence": "Table 2 does not include strong baselines.",
+                "source": "Table 2",
+                "source_locator": "Table 2",
+                "stance": "missing",
+                "strength": "missing",
+                "raw_quote": table_quote,
+                "quote_id": "quote-table-2",
+                "negative_evidence_type": "missing_baseline",
+            }
+        ],
+        "paper_text": paper_text,
+        "evidence_quote_bank": quote_bank,
+    }
+
+    merged = merge_review_state(state, {"evidence_map": state["evidence_map"]})
+    ev = merged["evidence_map"][0]
+
+    assert ev["semantic_grounding_label"] == "semantic_mismatch"
+    assert not _is_grounded_paper_negative_evidence_record(ev, merged)
+
+
+def test_table_scope_absence_rejects_locator_only_result_intro_quote():
+    intro_quote = (
+        "equal, offering valuable insights into the system's overall performance. "
+        "Section 4.3 Results. As outlined in Section 3, our study analyzes the impact of FL."
+    )
+    paper_text, quote_bank = _grounding_bank([("quote-results-intro", intro_quote, "results")])
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The proposed method improves over FedAvg.",
+                "claim_kind": "paper_extracted",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "e-locator-only",
+                "claim_id": "claim-1",
+                "evidence": "Table 3 reports FedGAN at 85.39% while FedAvg achieves 93.96%.",
+                "source": "Table 3",
+                "source_locator": "Table 3",
+                "stance": "contradicts",
+                "strength": "missing",
+                "raw_quote": intro_quote,
+                "quote_id": "quote-results-intro",
+                "negative_evidence_type": "direct_contradiction",
+            }
+        ],
+        "paper_text": paper_text,
+        "evidence_quote_bank": quote_bank,
+    }
+
+    merged = merge_review_state(state, {"evidence_map": state["evidence_map"]})
+    ev = merged["evidence_map"][0]
+
+    assert ev["semantic_grounding_label"] == "semantic_mismatch"
+    assert not _is_grounded_paper_negative_evidence_record(ev, merged)
+
+
+def test_normalize_evidence_item_preserves_negative_type_alias():
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The method is evaluated on DAVIS2017.",
+                "claim_kind": "paper_extracted",
+            }
+        ],
+        "evidence_map": [],
+    }
+    merged = merge_review_state(
+        state,
+        {
+            "evidence_map": [
+                {
+                    "evidence_id": "e-negative-alias",
+                    "claim_id": "claim-1",
+                    "evidence": "Table 2 does not include DAVIS2017.",
+                    "raw_quote": "Table 2: Results obtained on DAVIS2016, SegTrackV2, and FBMS59.",
+                    "source": "Table 2",
+                    "source_locator": "Table 2",
+                    "stance": "missing",
+                    "strength": "missing",
+                    "negative_type": "insufficient_evaluation",
+                    "required_evidence_type": "empirical_result",
+                    "targeted_negative_search_task_id": "neg-search-1",
+                }
+            ]
+        },
+    )
+    ev = merged["evidence_map"][0]
+
+    assert ev["negative_evidence_type"] == "insufficient_evaluation"
+    assert ev["required_evidence_type"] == "empirical_result"
+    assert ev["targeted_negative_search_task_id"] == "neg-search-1"
 
 
 def test_false_review_negative_does_not_promote_final_concern():

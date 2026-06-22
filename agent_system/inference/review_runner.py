@@ -2727,7 +2727,9 @@ def build_worker_observation(task: Dict[str, Any], manager_payload: Dict[str, An
                 "# Negative Evidence Formation Mode\n"
                 "negative_evidence_formation_required=true\n"
                 "Primary task: find a copied paper quote that contradicts, weakens, or demonstrates missing support for the target flaw and target claim. "
-                "Do not add more positive support unless no direct negative quote exists; if no direct quote exists, emit an unresolved question instead of fabricating evidence.\n\n"
+                "Legal outputs in this mode are only: (1) one negative evidence item with copied raw_quote, source_locator, claim_id, "
+                "stance=missing or contradicts, negative_evidence_type, and required_evidence_type; or (2) an unresolved question with status=not_assessable. "
+                "Do not add positive support in this mode. If no direct negative quote exists, emit the unresolved question instead of fabricating evidence.\n\n"
             )
     targeted_negative_search_block = ""
     if manager_payload.get("targeted_negative_search_required") and agent_id == "Evidence Agent":

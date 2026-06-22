@@ -1162,6 +1162,46 @@ def test_record_diagnosis_pending_concern_commits_without_claim_or_flaw_status_c
     assert turn_log["diagnosis_pending_concern_claim_id"] == "claim-1"
 
 
+def test_record_diagnosis_pending_concern_layer_uses_state_delta_without_revision_event():
+    state = _claim_requirement_gap_state()
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+    gap = hygiene["claim_requirement_gap_items"][0]
+
+    new_state = merge_review_state(
+        state,
+        {
+            "action": "apply_recovery_patch",
+            "target_type": "claim_requirement_gap",
+            "target_id": gap["gap_id"],
+            "old_status": "open",
+            "new_status": "recorded",
+            "supporting_evidence_ids": [],
+            "missing_requirements": gap["missing_requirements"],
+            "missing_negative_types": gap["missing_negative_types"],
+            "resolution_expectation": "partially_resolved",
+            "recovery_patch_operation": "record_diagnosis_pending_concern",
+        },
+    )
+
+    turn_log = build_turn_log(
+        2,
+        {
+            "action_type": "challenge_previous_hypothesis",
+            "effective_action_type": "challenge_previous_hypothesis",
+            "turn_mode": "recovery_patch",
+        },
+        [{"agent_id": "Critique Agent", "payload": new_state["_latest_patch_log"]}],
+        new_state,
+        revision_events=[],
+    )
+
+    assert turn_log["recovery_layer"] == "diagnosis_pending_recorded"
+    assert turn_log["recovery_layer_state_mutation_applied"] is True
+    assert turn_log["recovery_layer_diagnosis_pending_recorded"] is True
+    assert turn_log["recovery_effective_repair"] is False
+    assert turn_log["recovery_no_effect_commit"] is False
+
+
 def test_record_diagnosis_pending_concern_duplicate_is_no_effect():
     state = _claim_requirement_gap_state()
     hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
