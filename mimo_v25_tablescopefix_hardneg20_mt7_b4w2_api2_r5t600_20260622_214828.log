@@ -1,0 +1,635 @@
+[API] Initialized: model=mimo-v2.5, provider=mimo, base_url=https://token-plan-sgp.xiaomimimo.com/v1, max_tokens=2048
+[MAIN] Using API backend: model=mimo-v2.5
+[MAIN] model_adapter_mode=small_model (requested=small_model)
+[DEBUG] paper_id: ye3NrNrYOY, paper_text length: 34961
+[DEBUG] paper_text snippet: \title{Temporal Causal Mechanism Transfer for Few-shot Action Recognition}  \begin{abstract} The goa...
+[DEBUG] paper_id: WNxlJJIEVj, paper_text length: 48238
+[DEBUG] paper_text snippet: \title{Contrastive Diffuser: Planning Towards High Return States via Contrastive Learning}  \begin{a...
+[DEBUG] paper_id: uOrfve3prk, paper_text length: 44055
+[DEBUG] paper_text snippet: \title{Towards Unifying Interpretability and Control: Evaluation via Intervention}  \begin{abstract}...
+[DEBUG] paper_id: 7Dub7UXTXN, paper_text length: 17618
+[DEBUG] paper_text snippet: \title{When Are Bias-Free ReLU Networks Effectively Linear Networks?}  \begin{abstract}  We investig...
+[DEBUG] paper_id: 9zEBK3E9bX, paper_text length: 35496
+[DEBUG] paper_text snippet: \title{SPOT: Scalable 3D Pre-training via Occupancy Prediction for Autonomous Driving}  \begin{abstr...
+[DEBUG] paper_id: XyB4VvF01X, paper_text length: 32345
+[DEBUG] paper_text snippet: \title{Graph2Tac: Learning hierarchical representations of math concepts in theorem proving}  \begin...
+[DEBUG] paper_id: GE6iywJtsV, paper_text length: 30553
+[DEBUG] paper_text snippet: \title{Diff-Shape: A Novel Constrained Diffusion Model for Shape-based De Novo Drug Design}  \begin{...
+[DEBUG] paper_id: WpXq5n8yLb, paper_text length: 55540
+[DEBUG] paper_text snippet: \title{Recurrent Drafter for Fast Speculative Decoding in Large Language Models}  \begin{abstract} W...
+[DEBUG] paper_id: NnExMNiTHw, paper_text length: 37839
+[DEBUG] paper_text snippet: \title{SpecDec++: Boosting Speculative Decoding via Adaptive Candidate Lengths}  \begin{abstract} Sp...
+[DEBUG] paper_id: a6SntIisgg, paper_text length: 64928
+[DEBUG] paper_text snippet: \title{LogoRA: Local-Global Representation Alignment for Robust Time Series Classification}  \begin{...
+[DEBUG] paper_id: cklg91aPGk, paper_text length: 32511
+[DEBUG] paper_text snippet: \title{Propagation Alone is Enough for Graph Contrastive Learning}  \begin{abstract} Graph contrasti...
+[DEBUG] paper_id: HPuLU6q7xq, paper_text length: 38828
+[DEBUG] paper_text snippet: \title{Orca: Enhancing Role-Playing Abilities of Large Language Models by Integrating Personality Tr...
+[DEBUG] paper_id: fGXyvmWpw6, paper_text length: 47400
+[DEBUG] paper_text snippet: \title{Federated Virtual Learning on Heterogeneous Data with Local-global Distillation}  \begin{abst...
+[DEBUG] paper_id: QAgwFiIY4p, paper_text length: 49197
+[DEBUG] paper_text snippet: \title{Graph as Point Set}  \begin{abstract} Graph is a fundamental data structure to model intercon...
+[DEBUG] paper_id: TPAj63ax4Y, paper_text length: 49027
+[DEBUG] paper_text snippet: \title{Segment, Select, Correct: A Framework for Weakly-Supervised Referring Segmentation}  \begin{a...
+[DEBUG] paper_id: mHv6wcBb0z, paper_text length: 35109
+[DEBUG] paper_text snippet: \title{Preventing Model Collapse in Deep Canonical Correlation Analysis by Noise Regularization}  \b...
+[DEBUG] paper_id: xUe1YqEgd6, paper_text length: 34518
+[DEBUG] paper_text snippet: \title{Unsupervised motion segmentation in one go: Smooth long-term model over a video}  \begin{abst...
+[DEBUG] paper_id: YXn76HMetm, paper_text length: 36915
+[DEBUG] paper_text snippet: \title{Hyperbolic Active Learning for Semantic Segmentation under Domain Shift}  \begin{abstract}  W...
+[DEBUG] paper_id: KOUAayk5Kx, paper_text length: 32732
+[DEBUG] paper_text snippet: \title{Defying Multi-model Forgetting: Orthogonal Gradient Learning to One-shot Neural Architecture ...
+[DEBUG] paper_id: XH3OiIhtvf, paper_text length: 22365
+[DEBUG] paper_text snippet: \title{Unsupervised Federated Learning for Privacy Preserving in Face Recognition System}  \begin{ab...
+[2026-06-22 21:48:30] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=7991[2026-06-22 21:48:30] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=7991
+
+[2026-06-22 21:48:34] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=4.5s raw_chars=1171
+[2026-06-22 21:48:34] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=7991
+[2026-06-22 21:48:35] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=4.8s raw_chars=1189
+[2026-06-22 21:48:35] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=7991
+[2026-06-22 21:48:39] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=4.4s raw_chars=1224
+[2026-06-22 21:48:40] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=5.4s raw_chars=1108
+[2026-06-22 21:48:40] [API] request start agent=Claim Agent attempt=1/5 prompt_chars=7887
+[2026-06-22 21:48:40] [API] request start agent=Claim Agent attempt=1/5 prompt_chars=7887
+[2026-06-22 21:48:48] [API] request success agent=Claim Agent attempt=1/5 elapsed=7.4s raw_chars=2060
+[2026-06-22 21:48:48] [API] request start agent=Claim Agent attempt=1/5 prompt_chars=7887
+[2026-06-22 21:48:49] [API] request success agent=Claim Agent attempt=1/5 elapsed=8.7s raw_chars=2890
+[2026-06-22 21:48:49] [API] request start agent=Claim Agent attempt=1/5 prompt_chars=7887
+[2026-06-22 21:48:54] [API] request success agent=Claim Agent attempt=1/5 elapsed=6.2s raw_chars=2159
+[2026-06-22 21:48:56] [API] request success agent=Claim Agent attempt=1/5 elapsed=7.5s raw_chars=2377
+[2026-06-22 21:48:57] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285[2026-06-22 21:48:57] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+
+[2026-06-22 21:49:07] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=10.2s raw_chars=3468
+[2026-06-22 21:49:07] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9284
+[2026-06-22 21:49:07] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=10.5s raw_chars=3860
+[2026-06-22 21:49:07] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+[2026-06-22 21:49:16] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=9.5s raw_chars=3622
+[2026-06-22 21:49:17] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=10.0s raw_chars=3567
+[2026-06-22 21:49:17] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826[2026-06-22 21:49:17] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7821
+
+[2026-06-22 21:49:22] [API] request success agent=Evidence Agent attempt=1/5 elapsed=5.3s raw_chars=1741
+[2026-06-22 21:49:22] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+[2026-06-22 21:49:23] [API] request success agent=Evidence Agent attempt=1/5 elapsed=6.4s raw_chars=1967
+[2026-06-22 21:49:23] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+[2026-06-22 21:49:29] [API] request success agent=Evidence Agent attempt=1/5 elapsed=6.8s raw_chars=2306
+[2026-06-22 21:49:31] [API] request success agent=Evidence Agent attempt=1/5 elapsed=7.4s raw_chars=2791
+[2026-06-22 21:49:31] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285[2026-06-22 21:49:31] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+
+[2026-06-22 21:49:40] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=9.1s raw_chars=3209
+[2026-06-22 21:49:40] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+[2026-06-22 21:49:42] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=11.1s raw_chars=4256
+[2026-06-22 21:49:42] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+[2026-06-22 21:49:50] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=10.0s raw_chars=3944
+[2026-06-22 21:49:53] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=11.0s raw_chars=3866
+[2026-06-22 21:49:53] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+[2026-06-22 21:49:53] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+[2026-06-22 21:49:56] [API] request success agent=Evidence Agent attempt=1/5 elapsed=3.5s raw_chars=941
+[2026-06-22 21:49:56] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+[2026-06-22 21:50:00] [API] request success agent=Evidence Agent attempt=1/5 elapsed=6.8s raw_chars=2330
+[2026-06-22 21:50:00] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+[2026-06-22 21:50:04] [API] request success agent=Evidence Agent attempt=1/5 elapsed=7.7s raw_chars=2757
+[2026-06-22 21:50:06] [API] request success agent=Evidence Agent attempt=1/5 elapsed=6.6s raw_chars=1657
+[2026-06-22 21:50:06] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285[2026-06-22 21:50:06] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9284
+
+[2026-06-22 21:50:14] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=7.8s raw_chars=3170
+[2026-06-22 21:50:14] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+[2026-06-22 21:50:16] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=9.7s raw_chars=3781
+[2026-06-22 21:50:16] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+[2026-06-22 21:50:24] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=10.3s raw_chars=4403
+[2026-06-22 21:50:29] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=12.4s raw_chars=3660
+[2026-06-22 21:50:29] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=11673[2026-06-22 21:50:29] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=11673
+
+[2026-06-22 21:50:31] [API] request success agent=Critique Agent attempt=1/5 elapsed=2.3s raw_chars=475
+[2026-06-22 21:50:31] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=11673
+[2026-06-22 21:50:32] [API] request success agent=Critique Agent attempt=1/5 elapsed=2.9s raw_chars=480
+[2026-06-22 21:50:32] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=11671
+[2026-06-22 21:50:36] [API] request success agent=Critique Agent attempt=1/5 elapsed=4.5s raw_chars=662
+[2026-06-22 21:50:38] [API] request success agent=Critique Agent attempt=1/5 elapsed=6.7s raw_chars=2291
+[2026-06-22 21:50:39] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285[2026-06-22 21:50:39] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9284
+
+[2026-06-22 21:50:48] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=9.5s raw_chars=3257
+[2026-06-22 21:50:48] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+[2026-06-22 21:50:49] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=10.2s raw_chars=4007
+[2026-06-22 21:50:49] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+[2026-06-22 21:50:58] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=9.8s raw_chars=3503
+[2026-06-22 21:50:58] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=9.7s raw_chars=3573
+[2026-06-22 21:50:59] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7821[2026-06-22 21:50:59] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+
+[2026-06-22 21:51:05] [API] request success agent=Evidence Agent attempt=1/5 elapsed=6.1s raw_chars=2250
+[2026-06-22 21:51:05] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7825
+[2026-06-22 21:51:06] [API] request success agent=Evidence Agent attempt=1/5 elapsed=7.4s raw_chars=2748
+[2026-06-22 21:51:06] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+[2026-06-22 21:51:10] [API] request success agent=Evidence Agent attempt=1/5 elapsed=4.8s raw_chars=1091
+[2026-06-22 21:51:13] [API] request success agent=Evidence Agent attempt=1/5 elapsed=6.6s raw_chars=2412
+[2026-06-22 21:51:13] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9280[2026-06-22 21:51:13] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+
+[2026-06-22 21:51:21] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=8.6s raw_chars=3294
+[2026-06-22 21:51:21] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+[2026-06-22 21:51:22] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=9.5s raw_chars=3806
+[2026-06-22 21:51:22] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+[2026-06-22 21:51:35] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=13.5s raw_chars=5068
+[2026-06-22 21:51:35] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=12.7s raw_chars=4735
+[2026-06-22 21:51:35] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=8030[2026-06-22 21:51:35] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=11673
+
+[2026-06-22 21:51:37] [API] request success agent=Critique Agent attempt=1/5 elapsed=2.3s raw_chars=341
+[2026-06-22 21:51:37] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=8023
+[2026-06-22 21:51:40] [API] request success agent=Critique Agent attempt=1/5 elapsed=5.2s raw_chars=1536
+[2026-06-22 21:51:40] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=11673
+[2026-06-22 21:51:41] [API] request success agent=Critique Agent attempt=1/5 elapsed=3.1s raw_chars=767
+[2026-06-22 21:51:45] [API] request success agent=Critique Agent attempt=1/5 elapsed=4.9s raw_chars=1078
+[2026-06-22 21:51:45] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=8753[2026-06-22 21:51:45] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=8753
+
+[2026-06-22 21:51:48] [API] request success agent=Evidence Agent attempt=1/5 elapsed=2.4s raw_chars=537
+[2026-06-22 21:51:48] [API] request success agent=Evidence Agent attempt=1/5 elapsed=2.9s raw_chars=414
+[2026-06-22 21:51:48] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285[2026-06-22 21:51:48] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+
+[2026-06-22 21:51:59] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=10.6s raw_chars=4253
+[2026-06-22 21:51:59] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9283
+[2026-06-22 21:52:02] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=13.2s raw_chars=4598
+[2026-06-22 21:52:02] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+[2026-06-22 21:52:10] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=10.4s raw_chars=3803
+[2026-06-22 21:52:14] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=12.2s raw_chars=5016
+[2026-06-22 21:52:14] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7822[2026-06-22 21:52:14] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+
+[2026-06-22 21:52:21] [API] request success agent=Evidence Agent attempt=1/5 elapsed=7.4s raw_chars=2709
+[2026-06-22 21:52:21] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+[2026-06-22 21:52:22] [API] request success agent=Evidence Agent attempt=1/5 elapsed=8.1s raw_chars=3148
+[2026-06-22 21:52:22] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+[2026-06-22 21:52:26] [API] request success agent=Evidence Agent attempt=1/5 elapsed=4.6s raw_chars=1351
+[2026-06-22 21:52:30] [API] request success agent=Evidence Agent attempt=1/5 elapsed=7.8s raw_chars=2724
+[review_reward][unknown][ye3NrNrYOY] reward=0.4793 breakdown={'decision': 0.0, 'section_presence': 1.0, 'length_score': 1.0, 'summary_align': 0.4491, 'strength_align': 0.3165, 'weakness_align': 0.2625, 'suggestion_align': 0.457, 'global_align': 0.2873, 'critique': 0.8721, 'stance_align': 0.7037, 'rating_align': 0.0, 'decision_line_bonus': 0.0, 'audit_id_leak_penalty': 0.0, 'penalty': 0.0, 'total': 0.4793, 'es_coverage': 0.3333, 'es_depth': 0.3333, 'es_empirical': 0.3333, 'es_independent': 0.3333, 'es_flaw_density': 0.0, 'es_support_volume': 0.5, 'evidence_support_score': 0.3}
+[review_reward][unknown][WNxlJJIEVj] reward=0.4108 breakdown={'decision': 0.0, 'section_presence': 1.0, 'length_score': 1.0, 'summary_align': 0.4459, 'strength_align': 0.3762, 'weakness_align': 0.2226, 'suggestion_align': 0.3491, 'global_align': 0.239, 'critique': 1.0, 'stance_align': 0.73, 'rating_align': 0.0, 'decision_line_bonus': 0.0, 'audit_id_leak_penalty': 0.0, 'penalty': 0.0, 'total': 0.4108, 'es_coverage': 0.25, 'es_depth': 0.125, 'es_empirical': 0.0, 'es_independent': 0.0, 'es_flaw_density': 0.0, 'es_support_volume': 0.125, 'evidence_support_score': 0.1125}
+[review_reward][unknown][uOrfve3prk] reward=0.6841 breakdown={'decision': 0.0, 'section_presence': 1.0, 'length_score': 1.0, 'summary_align': 0.4457, 'strength_align': 0.3378, 'weakness_align': 0.1902, 'suggestion_align': 0.2508, 'global_align': 0.2111, 'critique': 1.0, 'stance_align': 0.7778, 'rating_align': 0.0, 'decision_line_bonus': 0.0, 'audit_id_leak_penalty': 0.0, 'penalty': 0.0, 'total': 0.6841, 'es_coverage': 1.0, 'es_depth': 1.0, 'es_empirical': 0.75, 'es_independent': 1.0, 'es_flaw_density': 0.0, 'es_support_volume': 1.0, 'evidence_support_score': 0.8125}
+[review_reward][unknown][7Dub7UXTXN] reward=0.6163 breakdown={'decision': 0.0, 'section_presence': 1.0, 'length_score': 1.0, 'summary_align': 0.6536, 'strength_align': 0.3323, 'weakness_align': 0.1958, 'suggestion_align': 0.2553, 'global_align': 0.3284, 'critique': 1.0, 'stance_align': 0.6319, 'rating_align': 0.0, 'decision_line_bonus': 0.0, 'audit_id_leak_penalty': 0.0, 'penalty': 0.0, 'total': 0.6163, 'es_coverage': 0.75, 'es_depth': 0.75, 'es_empirical': 0.75, 'es_independent': 0.75, 'es_flaw_density': 0.0, 'es_support_volume': 0.75, 'evidence_support_score': 0.6375}
+{"paper_id": "ye3NrNrYOY", "mode": "s4", "reward": 0.4793200666027566, "final_decision": "reject", "model_adapter_mode": "small_model"}
+{"paper_id": "WNxlJJIEVj", "mode": "s4", "reward": 0.4107737260824876, "final_decision": "reject", "model_adapter_mode": "small_model"}
+{"paper_id": "uOrfve3prk", "mode": "s4", "reward": 0.6840744569076618, "final_decision": "reject", "model_adapter_mode": "small_model"}
+{"paper_id": "7Dub7UXTXN", "mode": "s4", "reward": 0.6162516396513952, "final_decision": "reject", "model_adapter_mode": "small_model"}
+[2026-06-22 21:52:31] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=7991[2026-06-22 21:52:31] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=7991
+
+[2026-06-22 21:52:36] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=5.4s raw_chars=1502
+[2026-06-22 21:52:36] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=7991
+[2026-06-22 21:52:36] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=5.4s raw_chars=1431
+[2026-06-22 21:52:36] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=7991
+[2026-06-22 21:52:40] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=3.9s raw_chars=1179
+[2026-06-22 21:52:41] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=4.9s raw_chars=1246
+[2026-06-22 21:52:41] [API] request start agent=Claim Agent attempt=1/5 prompt_chars=7887[2026-06-22 21:52:41] [API] request start agent=Claim Agent attempt=1/5 prompt_chars=7887
+
+[2026-06-22 21:52:46] [API] request success agent=Claim Agent attempt=1/5 elapsed=5.0s raw_chars=1706
+[2026-06-22 21:52:46] [API] request start agent=Claim Agent attempt=1/5 prompt_chars=7887
+[2026-06-22 21:52:47] [API] request success agent=Claim Agent attempt=1/5 elapsed=6.1s raw_chars=1851
+[2026-06-22 21:52:47] [API] request start agent=Claim Agent attempt=1/5 prompt_chars=7887
+[2026-06-22 21:52:52] [API] request success agent=Claim Agent attempt=1/5 elapsed=6.4s raw_chars=1906
+[2026-06-22 21:52:55] [API] request success agent=Claim Agent attempt=1/5 elapsed=8.4s raw_chars=2676
+[2026-06-22 21:52:55] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9284[2026-06-22 21:52:55] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+
+[2026-06-22 21:53:04] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=8.4s raw_chars=3338
+[2026-06-22 21:53:04] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+[2026-06-22 21:53:05] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=9.1s raw_chars=3706
+[2026-06-22 21:53:05] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9284
+[2026-06-22 21:53:13] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=8.9s raw_chars=3210
+[2026-06-22 21:53:15] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=10.4s raw_chars=3886
+[2026-06-22 21:53:15] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7824[2026-06-22 21:53:15] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+
+[2026-06-22 21:53:22] [API] request success agent=Evidence Agent attempt=1/5 elapsed=7.1s raw_chars=2410
+[2026-06-22 21:53:22] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7825
+[2026-06-22 21:53:23] [API] request success agent=Evidence Agent attempt=1/5 elapsed=7.9s raw_chars=2753
+[2026-06-22 21:53:23] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+[2026-06-22 21:53:28] [API] request success agent=Evidence Agent attempt=1/5 elapsed=4.8s raw_chars=1582
+[2026-06-22 21:53:30] [API] request success agent=Evidence Agent attempt=1/5 elapsed=8.0s raw_chars=2181
+[2026-06-22 21:53:30] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285[2026-06-22 21:53:30] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+
+[2026-06-22 21:53:40] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=9.9s raw_chars=3776
+[2026-06-22 21:53:40] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9281
+[2026-06-22 21:53:41] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=11.0s raw_chars=3974
+[2026-06-22 21:53:41] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+[2026-06-22 21:53:51] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=10.8s raw_chars=3655
+[2026-06-22 21:53:51] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=9.9s raw_chars=3906
+[2026-06-22 21:53:51] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826[2026-06-22 21:53:51] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+
+[2026-06-22 21:53:55] [API] request success agent=Evidence Agent attempt=1/5 elapsed=3.8s raw_chars=1190
+[2026-06-22 21:53:55] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+[2026-06-22 21:53:56] [API] request success agent=Evidence Agent attempt=1/5 elapsed=4.6s raw_chars=1435
+[2026-06-22 21:53:56] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7821
+[2026-06-22 21:54:00] [API] request success agent=Evidence Agent attempt=1/5 elapsed=4.6s raw_chars=1379
+[2026-06-22 21:54:04] [API] request success agent=Evidence Agent attempt=1/5 elapsed=7.6s raw_chars=2598
+[2026-06-22 21:54:04] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285[2026-06-22 21:54:04] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+
+[2026-06-22 21:54:13] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=9.3s raw_chars=3747
+[2026-06-22 21:54:13] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+[2026-06-22 21:54:14] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=10.1s raw_chars=3737
+[2026-06-22 21:54:14] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9281
+[2026-06-22 21:54:25] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=11.6s raw_chars=4282
+[2026-06-22 21:54:27] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=13.1s raw_chars=4552
+[2026-06-22 21:54:27] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=11673[2026-06-22 21:54:27] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=11673
+
+[2026-06-22 21:54:29] [API] request success agent=Critique Agent attempt=1/5 elapsed=2.2s raw_chars=512
+[2026-06-22 21:54:29] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=11673
+[2026-06-22 21:54:30] [API] request success agent=Critique Agent attempt=1/5 elapsed=2.5s raw_chars=568
+[2026-06-22 21:54:30] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=11673
+[2026-06-22 21:54:32] [API] request success agent=Critique Agent attempt=1/5 elapsed=2.9s raw_chars=481
+[2026-06-22 21:54:33] [API] request success agent=Critique Agent attempt=1/5 elapsed=2.8s raw_chars=508
+[2026-06-22 21:54:33] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9282[2026-06-22 21:54:33] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+
+[2026-06-22 21:54:43] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=10.0s raw_chars=3956
+[2026-06-22 21:54:43] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9279
+[2026-06-22 21:54:43] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=10.0s raw_chars=3927
+[2026-06-22 21:54:43] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9284
+[2026-06-22 21:54:52] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=9.5s raw_chars=3780
+[2026-06-22 21:54:52] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=9.6s raw_chars=4056
+[2026-06-22 21:54:52] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7825[2026-06-22 21:54:52] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+
+[2026-06-22 21:54:59] [API] request success agent=Evidence Agent attempt=1/5 elapsed=6.2s raw_chars=2510
+[2026-06-22 21:54:59] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+[2026-06-22 21:55:00] [API] request success agent=Evidence Agent attempt=1/5 elapsed=7.3s raw_chars=2826
+[2026-06-22 21:55:00] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+[2026-06-22 21:55:04] [API] request success agent=Evidence Agent attempt=1/5 elapsed=5.8s raw_chars=1893
+[2026-06-22 21:55:05] [API] request success agent=Evidence Agent attempt=1/5 elapsed=5.0s raw_chars=1446
+[2026-06-22 21:55:05] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9284[2026-06-22 21:55:05] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+
+[2026-06-22 21:55:16] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=10.9s raw_chars=3724
+[2026-06-22 21:55:16] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+[2026-06-22 21:55:18] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=13.0s raw_chars=4491
+[2026-06-22 21:55:18] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9284
+[2026-06-22 21:55:27] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=8.9s raw_chars=3506
+[2026-06-22 21:55:28] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=12.1s raw_chars=4177
+[2026-06-22 21:55:28] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=11673
+[2026-06-22 21:55:28] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=11673
+[2026-06-22 21:55:31] [API] request success agent=Critique Agent attempt=1/5 elapsed=2.8s raw_chars=606
+[2026-06-22 21:55:31] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=11672
+[2026-06-22 21:55:33] [API] request success agent=Critique Agent attempt=1/5 elapsed=4.9s raw_chars=1210
+[2026-06-22 21:55:33] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=11673
+[2026-06-22 21:55:34] [API] request success agent=Critique Agent attempt=1/5 elapsed=2.9s raw_chars=595
+[2026-06-22 21:55:35] [API] request success agent=Critique Agent attempt=1/5 elapsed=2.4s raw_chars=480
+[2026-06-22 21:55:36] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285[2026-06-22 21:55:36] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+
+[2026-06-22 21:55:44] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=8.9s raw_chars=3284
+[2026-06-22 21:55:44] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+[2026-06-22 21:55:51] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=15.9s raw_chars=5316
+[2026-06-22 21:55:51] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+[2026-06-22 21:56:02] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=10.8s raw_chars=3980
+[2026-06-22 21:56:05] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=21.0s raw_chars=8179
+[2026-06-22 21:56:06] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826[2026-06-22 21:56:06] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+
+[2026-06-22 21:56:10] [API] request success agent=Evidence Agent attempt=1/5 elapsed=4.5s raw_chars=867
+[2026-06-22 21:56:10] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+[2026-06-22 21:56:13] [API] request success agent=Evidence Agent attempt=1/5 elapsed=7.0s raw_chars=2411
+[2026-06-22 21:56:13] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+[2026-06-22 21:56:16] [API] request success agent=Evidence Agent attempt=1/5 elapsed=5.6s raw_chars=1747
+[2026-06-22 21:56:17] [API] request success agent=Evidence Agent attempt=1/5 elapsed=4.9s raw_chars=1398
+[review_reward][unknown][9zEBK3E9bX] reward=0.5638 breakdown={'decision': 0.0, 'section_presence': 1.0, 'length_score': 1.0, 'summary_align': 0.5131, 'strength_align': 0.3864, 'weakness_align': 0.2812, 'suggestion_align': 0.5189, 'global_align': 0.3232, 'critique': 0.8616, 'stance_align': 0.7581, 'rating_align': 0.0, 'decision_line_bonus': 0.0, 'audit_id_leak_penalty': 0.0, 'penalty': 0.0, 'total': 0.5638, 'es_coverage': 0.6667, 'es_depth': 0.6667, 'es_empirical': 0.6667, 'es_independent': 0.0, 'es_flaw_density': 0.0, 'es_support_volume': 0.3333, 'evidence_support_score': 0.4667}
+[review_reward][unknown][XyB4VvF01X] reward=0.6369 breakdown={'decision': 0.0, 'section_presence': 1.0, 'length_score': 1.0, 'summary_align': 0.5209, 'strength_align': 0.3759, 'weakness_align': 0.2506, 'suggestion_align': 0.3952, 'global_align': 0.2904, 'critique': 1.0, 'stance_align': 0.6607, 'rating_align': 0.0, 'decision_line_bonus': 0.0, 'audit_id_leak_penalty': 0.0, 'penalty': 0.0, 'total': 0.6369, 'es_coverage': 1.0, 'es_depth': 0.8333, 'es_empirical': 0.6667, 'es_independent': 0.3333, 'es_flaw_density': 0.0, 'es_support_volume': 0.6667, 'evidence_support_score': 0.6667}
+[review_reward][unknown][GE6iywJtsV] reward=0.6233 breakdown={'decision': 0.0, 'section_presence': 1.0, 'length_score': 1.0, 'summary_align': 0.6313, 'strength_align': 0.4777, 'weakness_align': 0.1896, 'suggestion_align': 0.3071, 'global_align': 0.338, 'critique': 1.0, 'stance_align': 0.8329, 'rating_align': 0.0, 'decision_line_bonus': 0.0, 'audit_id_leak_penalty': 0.0, 'penalty': 0.0, 'total': 0.6233, 'es_coverage': 1.0, 'es_depth': 0.6667, 'es_empirical': 0.3333, 'es_independent': 0.3333, 'es_flaw_density': 0.0, 'es_support_volume': 0.6667, 'evidence_support_score': 0.5833}
+[review_reward][unknown][WpXq5n8yLb] reward=0.6069 breakdown={'decision': 0.0, 'section_presence': 1.0, 'length_score': 1.0, 'summary_align': 0.2827, 'strength_align': 0.2518, 'weakness_align': 0.2259, 'suggestion_align': 0.2287, 'global_align': 0.287, 'critique': 1.0, 'stance_align': 0.9182, 'rating_align': 0.0, 'decision_line_bonus': 0.0, 'audit_id_leak_penalty': 0.0, 'penalty': 0.0, 'total': 0.6069, 'es_coverage': 0.75, 'es_depth': 0.75, 'es_empirical': 0.75, 'es_independent': 0.5, 'es_flaw_density': 0.0, 'es_support_volume': 0.625, 'evidence_support_score': 0.6}
+{"paper_id": "9zEBK3E9bX", "mode": "s4", "reward": 0.5638309225464151, "final_decision": "reject", "model_adapter_mode": "small_model"}
+{"paper_id": "XyB4VvF01X", "mode": "s4", "reward": 0.636913356421712, "final_decision": "reject", "model_adapter_mode": "small_model"}
+{"paper_id": "GE6iywJtsV", "mode": "s4", "reward": 0.6232889552946644, "final_decision": "reject", "model_adapter_mode": "small_model"}
+{"paper_id": "WpXq5n8yLb", "mode": "s4", "reward": 0.6069162472449257, "final_decision": "reject", "model_adapter_mode": "small_model"}
+[2026-06-22 21:56:18] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=7991[2026-06-22 21:56:18] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=7991
+
+[2026-06-22 21:56:23] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=5.1s raw_chars=1406
+[2026-06-22 21:56:23] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=7991
+[2026-06-22 21:56:28] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=4.8s raw_chars=1218
+[2026-06-22 21:56:28] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=7991
+[2026-06-22 21:56:28] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=10.4s raw_chars=3680
+[2026-06-22 21:56:33] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=4.7s raw_chars=1319
+[2026-06-22 21:56:33] [API] request start agent=Claim Agent attempt=1/5 prompt_chars=7886[2026-06-22 21:56:33] [API] request start agent=Claim Agent attempt=1/5 prompt_chars=7887
+
+[2026-06-22 21:56:38] [API] request success agent=Claim Agent attempt=1/5 elapsed=5.0s raw_chars=1709
+[2026-06-22 21:56:38] [API] request start agent=Claim Agent attempt=1/5 prompt_chars=7887
+[2026-06-22 21:56:39] [API] request success agent=Claim Agent attempt=1/5 elapsed=6.2s raw_chars=1880
+[2026-06-22 21:56:39] [API] request start agent=Claim Agent attempt=1/5 prompt_chars=7887
+[2026-06-22 21:56:46] [API] request success agent=Claim Agent attempt=1/5 elapsed=6.6s raw_chars=2234
+[2026-06-22 21:56:47] [API] request success agent=Claim Agent attempt=1/5 elapsed=9.3s raw_chars=2855
+[2026-06-22 21:56:47] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285[2026-06-22 21:56:47] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+
+[2026-06-22 21:56:56] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=9.0s raw_chars=3063
+[2026-06-22 21:56:56] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+[2026-06-22 21:56:58] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=10.5s raw_chars=3750
+[2026-06-22 21:56:58] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+[2026-06-22 21:57:05] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=8.9s raw_chars=3460
+[2026-06-22 21:57:08] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=9.9s raw_chars=3739
+[2026-06-22 21:57:08] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826[2026-06-22 21:57:08] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7825
+
+[2026-06-22 21:57:14] [API] request success agent=Evidence Agent attempt=1/5 elapsed=6.5s raw_chars=2388
+[2026-06-22 21:57:14] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+[2026-06-22 21:57:16] [API] request success agent=Evidence Agent attempt=1/5 elapsed=7.9s raw_chars=2953
+[2026-06-22 21:57:16] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+[2026-06-22 21:57:21] [API] request success agent=Evidence Agent attempt=1/5 elapsed=6.4s raw_chars=2518
+[2026-06-22 21:57:21] [API] request success agent=Evidence Agent attempt=1/5 elapsed=5.4s raw_chars=1640
+[2026-06-22 21:57:21] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9283[2026-06-22 21:57:21] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+
+[2026-06-22 21:57:28] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=7.0s raw_chars=2914
+[2026-06-22 21:57:28] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+[2026-06-22 21:57:31] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=10.1s raw_chars=3784
+[2026-06-22 21:57:31] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+[2026-06-22 21:57:38] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=9.8s raw_chars=4017
+[2026-06-22 21:57:42] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=10.8s raw_chars=4202
+[2026-06-22 21:57:42] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826[2026-06-22 21:57:42] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+
+[2026-06-22 21:57:48] [API] request success agent=Evidence Agent attempt=1/5 elapsed=5.3s raw_chars=1296
+[2026-06-22 21:57:48] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+[2026-06-22 21:57:50] [API] request success agent=Evidence Agent attempt=1/5 elapsed=7.5s raw_chars=1750
+[2026-06-22 21:57:50] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7825
+[2026-06-22 21:57:51] [API] request success agent=Evidence Agent attempt=1/5 elapsed=3.7s raw_chars=1206
+[2026-06-22 21:57:58] [API] request success agent=Evidence Agent attempt=1/5 elapsed=7.6s raw_chars=2733
+[2026-06-22 21:57:58] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+[2026-06-22 21:57:58] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9283
+[2026-06-22 21:58:06] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=8.0s raw_chars=2770
+[2026-06-22 21:58:06] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+[2026-06-22 21:58:07] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=9.4s raw_chars=3834
+[2026-06-22 21:58:07] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+[2026-06-22 21:58:14] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=8.3s raw_chars=3923
+[2026-06-22 21:58:22] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=15.4s raw_chars=5518
+[2026-06-22 21:58:23] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=11672[2026-06-22 21:58:23] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=11673
+
+[2026-06-22 21:58:25] [API] request success agent=Critique Agent attempt=1/5 elapsed=2.7s raw_chars=429
+[2026-06-22 21:58:25] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=11673
+[2026-06-22 21:58:26] [API] request success agent=Critique Agent attempt=1/5 elapsed=3.6s raw_chars=479
+[2026-06-22 21:58:26] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=11673
+[2026-06-22 21:58:28] [API] request success agent=Critique Agent attempt=1/5 elapsed=2.1s raw_chars=458
+[2026-06-22 21:58:31] [API] request success agent=Critique Agent attempt=1/5 elapsed=4.6s raw_chars=1400
+[2026-06-22 21:58:31] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285[2026-06-22 21:58:31] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9279
+
+[2026-06-22 21:58:40] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=8.8s raw_chars=2883
+[2026-06-22 21:58:40] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+[2026-06-22 21:58:43] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=12.3s raw_chars=4649
+[2026-06-22 21:58:43] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+[2026-06-22 21:58:50] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=9.7s raw_chars=3672
+[2026-06-22 21:58:54] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=11.0s raw_chars=4611
+[2026-06-22 21:58:54] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826[2026-06-22 21:58:54] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7825
+
+[2026-06-22 21:59:00] [API] request success agent=Evidence Agent attempt=1/5 elapsed=5.1s raw_chars=1853
+[2026-06-22 21:59:00] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+[2026-06-22 21:59:03] [API] request success agent=Evidence Agent attempt=1/5 elapsed=8.4s raw_chars=2515
+[2026-06-22 21:59:03] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+[2026-06-22 21:59:05] [API] request success agent=Evidence Agent attempt=1/5 elapsed=5.3s raw_chars=1537
+[2026-06-22 21:59:10] [API] request success agent=Evidence Agent attempt=1/5 elapsed=7.6s raw_chars=2995
+[2026-06-22 21:59:11] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285[2026-06-22 21:59:11] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+
+[2026-06-22 21:59:20] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=9.1s raw_chars=3750
+[2026-06-22 21:59:20] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+[2026-06-22 21:59:20] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=9.5s raw_chars=3463
+[2026-06-22 21:59:20] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+[2026-06-22 21:59:32] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=11.7s raw_chars=4199
+[2026-06-22 21:59:32] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=12.4s raw_chars=4705
+[2026-06-22 21:59:32] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=11673[2026-06-22 21:59:32] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=11673
+
+[2026-06-22 21:59:34] [API] request success agent=Critique Agent attempt=1/5 elapsed=1.8s raw_chars=354
+[2026-06-22 21:59:34] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=11673
+[2026-06-22 21:59:37] [API] request success agent=Critique Agent attempt=1/5 elapsed=5.0s raw_chars=1608
+[2026-06-22 21:59:45] [API] request success agent=Critique Agent attempt=1/5 elapsed=10.9s raw_chars=2425
+[2026-06-22 21:59:45] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9283[2026-06-22 21:59:45] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+
+[2026-06-22 21:59:53] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=7.6s raw_chars=3075
+[2026-06-22 21:59:53] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9284
+[2026-06-22 21:59:54] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=8.5s raw_chars=3454
+[2026-06-22 21:59:54] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9284
+[2026-06-22 22:00:03] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=10.3s raw_chars=4159
+[2026-06-22 22:00:08] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=14.4s raw_chars=5614
+[2026-06-22 22:00:08] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=11671[2026-06-22 22:00:08] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=11673
+
+[2026-06-22 22:00:13] [API] request success agent=Critique Agent attempt=1/5 elapsed=5.1s raw_chars=1343
+[2026-06-22 22:00:13] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=11671
+[2026-06-22 22:00:17] [API] request success agent=Critique Agent attempt=1/5 elapsed=8.4s raw_chars=1505
+[2026-06-22 22:00:21] [API] request success agent=Critique Agent attempt=1/5 elapsed=7.8s raw_chars=2040
+[2026-06-22 22:00:21] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+[2026-06-22 22:00:27] [API] request success agent=Evidence Agent attempt=1/5 elapsed=6.1s raw_chars=1606
+{"paper_id": "NnExMNiTHw", "mode": "s4", "reward": 0.4739412644228883, "final_decision": "reject", "model_adapter_mode": "small_model"}
+{"paper_id": "a6SntIisgg", "mode": "s4", "reward": 0.560642951716172, "final_decision": "reject", "model_adapter_mode": "small_model"}
+{"paper_id": "cklg91aPGk", "mode": "s4", "reward": 0.4897151031548125, "final_decision": "reject", "model_adapter_mode": "small_model"}
+{"paper_id": "HPuLU6q7xq", "mode": "s4", "reward": 0.506414572741739, "final_decision": "reject", "model_adapter_mode": "small_model"}
+[2026-06-22 22:00:28] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=7991[2026-06-22 22:00:28] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=7991
+
+[2026-06-22 22:00:34] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=5.9s raw_chars=1572
+[2026-06-22 22:00:34] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=7991
+[2026-06-22 22:00:37] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=9.5s raw_chars=1462
+[2026-06-22 22:00:37] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=7991
+[2026-06-22 22:00:38] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=4.0s raw_chars=1163
+[2026-06-22 22:00:43] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=5.5s raw_chars=1311
+[2026-06-22 22:00:43] [API] request start agent=Claim Agent attempt=1/5 prompt_chars=7887
+[2026-06-22 22:00:43] [API] request start agent=Claim Agent attempt=1/5 prompt_chars=7887
+[2026-06-22 22:00:51] [API] request success agent=Claim Agent attempt=1/5 elapsed=7.7s raw_chars=2054
+[2026-06-22 22:00:51] [API] request start agent=Claim Agent attempt=1/5 prompt_chars=7886
+[2026-06-22 22:00:53] [API] request success agent=Claim Agent attempt=1/5 elapsed=10.6s raw_chars=2275
+[2026-06-22 22:00:53] [API] request start agent=Claim Agent attempt=1/5 prompt_chars=7887
+[2026-06-22 22:00:57] [API] request success agent=Claim Agent attempt=1/5 elapsed=6.3s raw_chars=2083
+[2026-06-22 22:01:04] [API] request success agent=Claim Agent attempt=1/5 elapsed=10.1s raw_chars=1997
+[2026-06-22 22:01:04] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9278[2026-06-22 22:01:04] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+
+[2026-06-22 22:01:13] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=9.4s raw_chars=3326
+[2026-06-22 22:01:13] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9278
+[2026-06-22 22:01:14] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=10.2s raw_chars=3409
+[2026-06-22 22:01:14] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9283
+[2026-06-22 22:01:23] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=10.2s raw_chars=3766
+[2026-06-22 22:01:25] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=11.3s raw_chars=3553
+[2026-06-22 22:01:25] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+[2026-06-22 22:01:25] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+[2026-06-22 22:01:57] [API] request success agent=Evidence Agent attempt=1/5 elapsed=31.9s raw_chars=4926
+[2026-06-22 22:01:57] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+[2026-06-22 22:02:00] [API] request success agent=Evidence Agent attempt=1/5 elapsed=34.6s raw_chars=2902
+[2026-06-22 22:02:00] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+[2026-06-22 22:02:48] [API] request success agent=Evidence Agent attempt=1/5 elapsed=50.5s raw_chars=2311
+[2026-06-22 22:02:48] [API] request success agent=Evidence Agent attempt=1/5 elapsed=47.9s raw_chars=1432
+[2026-06-22 22:02:48] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285[2026-06-22 22:02:48] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+
+[2026-06-22 22:03:00] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=11.6s raw_chars=3405
+[2026-06-22 22:03:00] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+[2026-06-22 22:03:03] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=15.1s raw_chars=3553
+[2026-06-22 22:03:03] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+[2026-06-22 22:03:57] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=57.2s raw_chars=3683
+[2026-06-22 22:04:13] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=70.4s raw_chars=4018
+[2026-06-22 22:04:14] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7822
+[2026-06-22 22:04:14] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7825
+[2026-06-22 22:04:21] [API] request success agent=Evidence Agent attempt=1/5 elapsed=7.1s raw_chars=290
+[2026-06-22 22:04:21] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+[2026-06-22 22:04:27] [API] request success agent=Evidence Agent attempt=1/5 elapsed=13.6s raw_chars=2412
+[2026-06-22 22:04:27] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+[2026-06-22 22:04:39] [API] request success agent=Evidence Agent attempt=1/5 elapsed=12.1s raw_chars=1081
+[2026-06-22 22:04:45] [API] request success agent=Evidence Agent attempt=1/5 elapsed=23.8s raw_chars=3205
+[2026-06-22 22:04:45] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285[2026-06-22 22:04:45] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+
+[2026-06-22 22:05:45] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=60.3s raw_chars=4270
+[2026-06-22 22:05:45] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9283
+[2026-06-22 22:05:53] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=68.0s raw_chars=4340
+[2026-06-22 22:05:53] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+[2026-06-22 22:05:58] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=12.8s raw_chars=3491
+[2026-06-22 22:06:11] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=17.9s raw_chars=3902
+[2026-06-22 22:06:11] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=11673[2026-06-22 22:06:11] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=11672
+
+[2026-06-22 22:07:04] [API] request success agent=Critique Agent attempt=1/5 elapsed=53.2s raw_chars=554
+[2026-06-22 22:07:04] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=11670
+[2026-06-22 22:07:16] [API] request success agent=Critique Agent attempt=1/5 elapsed=12.3s raw_chars=469
+[2026-06-22 22:07:16] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=11673
+[2026-06-22 22:07:19] [API] request success agent=Critique Agent attempt=1/5 elapsed=68.2s raw_chars=706
+[2026-06-22 22:07:29] [API] request success agent=Critique Agent attempt=1/5 elapsed=12.9s raw_chars=652
+[2026-06-22 22:07:29] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285[2026-06-22 22:07:29] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+
+[2026-06-22 22:08:01] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=31.7s raw_chars=4491
+[2026-06-22 22:08:01] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9281
+[2026-06-22 22:08:08] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=39.1s raw_chars=3819
+[2026-06-22 22:08:08] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9284
+[2026-06-22 22:08:47] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=39.0s raw_chars=4077
+[2026-06-22 22:08:54] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=53.1s raw_chars=3792
+[2026-06-22 22:08:54] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826[2026-06-22 22:08:54] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+
+[2026-06-22 22:09:36] [API] request success agent=Evidence Agent attempt=1/5 elapsed=41.9s raw_chars=2492
+[2026-06-22 22:09:36] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+[2026-06-22 22:09:42] [API] request success agent=Evidence Agent attempt=1/5 elapsed=47.4s raw_chars=2481
+[2026-06-22 22:09:42] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7825
+[2026-06-22 22:10:18] [API] request success agent=Evidence Agent attempt=1/5 elapsed=36.8s raw_chars=1297
+[2026-06-22 22:10:20] [API] request success agent=Evidence Agent attempt=1/5 elapsed=43.9s raw_chars=2985
+[2026-06-22 22:10:20] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285[2026-06-22 22:10:20] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+
+[2026-06-22 22:10:41] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=20.5s raw_chars=4370
+[2026-06-22 22:10:41] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9284
+[2026-06-22 22:10:43] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=22.7s raw_chars=5625
+[2026-06-22 22:10:43] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+[2026-06-22 22:11:56] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=75.6s raw_chars=3692
+[2026-06-22 22:12:01] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=77.7s raw_chars=4928
+[2026-06-22 22:12:01] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=11672[2026-06-22 22:12:01] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=11670
+
+[2026-06-22 22:12:07] [API] request success agent=Critique Agent attempt=1/5 elapsed=5.9s raw_chars=1471
+[2026-06-22 22:12:07] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=11673
+[2026-06-22 22:12:07] [API] request success agent=Critique Agent attempt=1/5 elapsed=6.6s raw_chars=1404
+[2026-06-22 22:12:07] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=11673
+[2026-06-22 22:12:15] [API] request success agent=Critique Agent attempt=1/5 elapsed=8.6s raw_chars=393
+[2026-06-22 22:12:20] [API] request success agent=Critique Agent attempt=1/5 elapsed=12.1s raw_chars=1520
+[2026-06-22 22:12:20] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285[2026-06-22 22:12:20] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+
+[2026-06-22 22:12:35] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=15.2s raw_chars=5505
+[2026-06-22 22:12:35] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9283
+[2026-06-22 22:12:37] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=17.2s raw_chars=4990
+[2026-06-22 22:12:37] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+[2026-06-22 22:12:51] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=14.6s raw_chars=4859
+[2026-06-22 22:12:55] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=19.7s raw_chars=5897
+[2026-06-22 22:12:55] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826[2026-06-22 22:12:55] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+
+[2026-06-22 22:13:01] [API] request success agent=Evidence Agent attempt=1/5 elapsed=5.9s raw_chars=1491
+[2026-06-22 22:13:04] [API] request success agent=Evidence Agent attempt=1/5 elapsed=9.3s raw_chars=2677
+[2026-06-22 22:13:04] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=11673
+[2026-06-22 22:13:10] [API] request success agent=Critique Agent attempt=1/5 elapsed=5.7s raw_chars=1358
+{"paper_id": "fGXyvmWpw6", "mode": "s4", "reward": 0.5335701965357035, "final_decision": "reject", "model_adapter_mode": "small_model"}
+{"paper_id": "QAgwFiIY4p", "mode": "s4", "reward": 0.5512953147228118, "final_decision": "reject", "model_adapter_mode": "small_model"}
+{"paper_id": "TPAj63ax4Y", "mode": "s4", "reward": 0.6753573272020019, "final_decision": "reject", "model_adapter_mode": "small_model"}
+{"paper_id": "mHv6wcBb0z", "mode": "s4", "reward": 0.4059214206828525, "final_decision": "reject", "model_adapter_mode": "small_model"}
+[2026-06-22 22:13:10] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=7991
+[2026-06-22 22:13:10] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=7991
+[2026-06-22 22:13:16] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=5.3s raw_chars=1180
+[2026-06-22 22:13:16] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=7991
+[2026-06-22 22:13:17] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=7.1s raw_chars=1721
+[2026-06-22 22:13:17] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=7991
+[2026-06-22 22:13:21] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=5.4s raw_chars=1483
+[2026-06-22 22:13:22] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=4.5s raw_chars=1264
+[2026-06-22 22:13:22] [API] request start agent=Claim Agent attempt=1/5 prompt_chars=7886[2026-06-22 22:13:22] [API] request start agent=Claim Agent attempt=1/5 prompt_chars=7887
+
+[2026-06-22 22:13:29] [API] request success agent=Claim Agent attempt=1/5 elapsed=7.5s raw_chars=1782
+[2026-06-22 22:13:29] [API] request start agent=Claim Agent attempt=1/5 prompt_chars=7886
+[2026-06-22 22:13:30] [API] request success agent=Claim Agent attempt=1/5 elapsed=8.2s raw_chars=2395
+[2026-06-22 22:13:30] [API] request start agent=Claim Agent attempt=1/5 prompt_chars=7886
+[2026-06-22 22:13:37] [API] request success agent=Claim Agent attempt=1/5 elapsed=7.7s raw_chars=2450
+[2026-06-22 22:13:45] [API] request success agent=Claim Agent attempt=1/5 elapsed=14.3s raw_chars=2382
+[2026-06-22 22:13:45] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285[2026-06-22 22:13:45] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+
+[2026-06-22 22:13:54] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=9.6s raw_chars=3177
+[2026-06-22 22:13:54] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+[2026-06-22 22:13:57] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=12.0s raw_chars=3602
+[2026-06-22 22:13:57] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+[2026-06-22 22:14:05] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=11.2s raw_chars=3221
+[2026-06-22 22:14:10] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=12.9s raw_chars=3803
+[2026-06-22 22:14:10] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7825
+[2026-06-22 22:14:10] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+[2026-06-22 22:14:18] [API] request success agent=Evidence Agent attempt=1/5 elapsed=8.4s raw_chars=2479
+[2026-06-22 22:14:18] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7825
+[2026-06-22 22:14:23] [API] request success agent=Evidence Agent attempt=1/5 elapsed=13.2s raw_chars=4429
+[2026-06-22 22:14:23] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+[2026-06-22 22:14:25] [API] request success agent=Evidence Agent attempt=1/5 elapsed=6.9s raw_chars=2387
+[2026-06-22 22:14:34] [API] request success agent=Evidence Agent attempt=1/5 elapsed=10.7s raw_chars=2745
+[2026-06-22 22:14:34] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9283[2026-06-22 22:14:34] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+
+[2026-06-22 22:14:46] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=12.2s raw_chars=4291
+[2026-06-22 22:14:46] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+[2026-06-22 22:14:46] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=12.5s raw_chars=3855
+[2026-06-22 22:14:46] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9279
+[2026-06-22 22:14:55] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=9.4s raw_chars=3015
+[2026-06-22 22:15:02] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=16.2s raw_chars=4968
+[2026-06-22 22:15:03] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826[2026-06-22 22:15:03] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+
+[2026-06-22 22:15:05] [API] request success agent=Evidence Agent attempt=1/5 elapsed=2.3s raw_chars=280
+[2026-06-22 22:15:05] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+[2026-06-22 22:15:07] [API] request success agent=Evidence Agent attempt=1/5 elapsed=4.8s raw_chars=1204
+[2026-06-22 22:15:07] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+[2026-06-22 22:15:12] [API] request success agent=Evidence Agent attempt=1/5 elapsed=6.6s raw_chars=1655
+[2026-06-22 22:15:16] [API] request success agent=Evidence Agent attempt=1/5 elapsed=8.3s raw_chars=2587
+[2026-06-22 22:15:16] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285[2026-06-22 22:15:16] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+
+[2026-06-22 22:15:27] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=11.4s raw_chars=3997
+[2026-06-22 22:15:27] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+[2026-06-22 22:15:29] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=13.6s raw_chars=3907
+[2026-06-22 22:15:29] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+[2026-06-22 22:15:39] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=11.5s raw_chars=3791
+[2026-06-22 22:15:44] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=14.7s raw_chars=5432
+[2026-06-22 22:15:44] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=11672[2026-06-22 22:15:44] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=11673
+
+[2026-06-22 22:15:47] [API] request success agent=Critique Agent attempt=1/5 elapsed=3.0s raw_chars=510
+[2026-06-22 22:15:47] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=11673
+[2026-06-22 22:15:51] [API] request success agent=Critique Agent attempt=1/5 elapsed=6.3s raw_chars=1453
+[2026-06-22 22:15:51] [API] request success agent=Critique Agent attempt=1/5 elapsed=3.3s raw_chars=647[2026-06-22 22:15:51] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=11673
+
+[2026-06-22 22:15:54] [API] request success agent=Critique Agent attempt=1/5 elapsed=2.9s raw_chars=481
+[2026-06-22 22:15:54] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+[2026-06-22 22:15:54] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9283
+[2026-06-22 22:16:05] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=11.8s raw_chars=4485
+[2026-06-22 22:16:05] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+[2026-06-22 22:16:08] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=14.1s raw_chars=4555
+[2026-06-22 22:16:08] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9280
+[2026-06-22 22:16:17] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=11.4s raw_chars=3620
+[2026-06-22 22:16:20] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=12.6s raw_chars=4623
+[2026-06-22 22:16:21] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826[2026-06-22 22:16:21] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+
+[2026-06-22 22:16:25] [API] request success agent=Evidence Agent attempt=1/5 elapsed=4.2s raw_chars=760
+[2026-06-22 22:16:25] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7824
+[2026-06-22 22:16:29] [API] request success agent=Evidence Agent attempt=1/5 elapsed=8.2s raw_chars=2677
+[2026-06-22 22:16:29] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+[2026-06-22 22:16:31] [API] request success agent=Evidence Agent attempt=1/5 elapsed=6.3s raw_chars=1612
+[2026-06-22 22:16:42] [API] request success agent=Evidence Agent attempt=1/5 elapsed=12.9s raw_chars=2477
+[2026-06-22 22:16:42] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285[2026-06-22 22:16:42] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+
+[2026-06-22 22:16:53] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=11.2s raw_chars=3782
+[2026-06-22 22:16:53] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+[2026-06-22 22:16:58] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=16.5s raw_chars=5813
+[2026-06-22 22:16:58] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+[2026-06-22 22:17:05] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=11.9s raw_chars=4395
+[2026-06-22 22:17:11] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=12.7s raw_chars=4885
+[2026-06-22 22:17:11] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=11673[2026-06-22 22:17:11] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=8029
+
+[2026-06-22 22:17:14] [API] request success agent=Critique Agent attempt=1/5 elapsed=2.4s raw_chars=546
+[2026-06-22 22:17:14] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=11673
+[2026-06-22 22:17:16] [API] request success agent=Critique Agent attempt=1/5 elapsed=2.6s raw_chars=469
+[2026-06-22 22:17:16] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=11673
+[2026-06-22 22:17:18] [API] request success agent=Critique Agent attempt=1/5 elapsed=7.0s raw_chars=1369
+[2026-06-22 22:17:18] [API] request success agent=Critique Agent attempt=1/5 elapsed=2.2s raw_chars=406
+[2026-06-22 22:17:18] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=8754
+[2026-06-22 22:17:22] [API] request success agent=Evidence Agent attempt=1/5 elapsed=3.3s raw_chars=574
+[2026-06-22 22:17:22] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285[2026-06-22 22:17:22] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9279
+
+[2026-06-22 22:17:34] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=11.7s raw_chars=4092
+[2026-06-22 22:17:34] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+[2026-06-22 22:17:41] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=19.5s raw_chars=6409
+[2026-06-22 22:17:41] [API] request start agent=Review Manager Agent attempt=1/5 prompt_chars=9285
+[2026-06-22 22:17:44] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=10.0s raw_chars=3590
+[2026-06-22 22:17:56] [API] request success agent=Review Manager Agent attempt=1/5 elapsed=15.0s raw_chars=5068
+[2026-06-22 22:17:57] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=8030[2026-06-22 22:17:57] [API] request start agent=Critique Agent attempt=1/5 prompt_chars=11673
+
+[2026-06-22 22:18:00] [API] request success agent=Critique Agent attempt=1/5 elapsed=3.1s raw_chars=581
+[2026-06-22 22:18:01] [API] request success agent=Critique Agent attempt=1/5 elapsed=4.0s raw_chars=785
+[2026-06-22 22:18:01] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826[2026-06-22 22:18:01] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=7826
+
+[2026-06-22 22:18:05] [API] request success agent=Evidence Agent attempt=1/5 elapsed=4.5s raw_chars=1424
+[2026-06-22 22:18:07] [API] request success agent=Evidence Agent attempt=1/5 elapsed=5.9s raw_chars=1415
+[2026-06-22 22:18:07] [API] request start agent=Evidence Agent attempt=1/5 prompt_chars=8753
+[2026-06-22 22:18:10] [API] request success agent=Evidence Agent attempt=1/5 elapsed=3.9s raw_chars=868
+{"paper_id": "xUe1YqEgd6", "mode": "s4", "reward": 0.677416970099777, "final_decision": "reject", "model_adapter_mode": "small_model"}
+{"paper_id": "YXn76HMetm", "mode": "s4", "reward": 0.5214094373867222, "final_decision": "reject", "model_adapter_mode": "small_model"}
+{"paper_id": "KOUAayk5Kx", "mode": "s4", "reward": 0.6858797077799242, "final_decision": "reject", "model_adapter_mode": "small_model"}
+{"paper_id": "XH3OiIhtvf", "mode": "s4", "reward": 0.5526735562904889, "final_decision": "reject", "model_adapter_mode": "small_model"}
