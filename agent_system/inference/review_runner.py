@@ -6583,6 +6583,14 @@ def run_review_batch(
                 if review_state.get("simulated_user_reply"):
                     review_state["pending_user_question"] = ""
                     review_state["clarification_needed"] = False
+
+            # Extract diagnosis_pending_concern statistics
+            diagnosis_pending_concerns = []
+            diagnosis_pending_concern_count = 0
+            if isinstance(review_state, dict):
+                diagnosis_pending_concerns = review_state.get("diagnosis_pending_concerns", []) or []
+                diagnosis_pending_concern_count = len(diagnosis_pending_concerns)
+
             results[idx] = {
                 "paper_id": obs["paper_id"],
                 "mode": plan["mode"],
@@ -6597,6 +6605,8 @@ def run_review_batch(
                 "accept_reject_correct": info.get("accept_reject_correct", 0.0),
                 "parse_error": info.get("parse_error", ""),
                 "runner_trace": task["runner_trace"],
+                "diagnosis_pending_concerns": diagnosis_pending_concerns,
+                "diagnosis_pending_concern_count": diagnosis_pending_concern_count,
             }
     finally:
         for env in envs:
