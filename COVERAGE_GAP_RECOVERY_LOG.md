@@ -128,16 +128,43 @@ empirical claim
 - `recovery_harmful_commit_risk = 0`
 - `recovery_no_effect_commit = 0`
 
+### Commit 5: 5b42a3f - 修复时序问题（最关键）
+**时间**: 2026-06-22
+
+**根因**: coverage gap 检查在两处都存在但行为不一致
+- `_state_is_recovery_relevant`: 有 coverage gap 检查，**无 turn 限制**
+- `_has_blocking_recovery_signal`: 有 coverage gap 检查，**需要 turn ≥ 3**
+
+**问题流程** (Turn 3):
+1. `_state_is_recovery_relevant` → True (coverage gap 触发)
+2. 进入 recovery phase
+3. `_has_blocking_recovery_signal` → False (`len(recent_turn_logs)=2 < 3`)
+4. `_choose_blocking_recovery_action` 走其他分支 → `request_evidence_recheck`
+5. **结果**: recovery=recheck 模式，不是 challenge/patch 模式
+
+**修复**: 从 `_state_is_recovery_relevant` 移除 coverage gap 检查，只保留在 `_has_blocking_recovery_signal`
+
+**预期行为**:
+- Turn 1: extract_claims
+- Turn 2: verify_evidence  
+- Turn 3: 正常 workflow（不进入 recovery）
+- Turn 4+: 如果有 coverage gap → `_has_blocking_recovery_signal` → challenge → patch mode
+
+**测试结果**: 全部通过，添加 `test_has_blocking_recovery_signal_not_triggered_before_turn_3`
+
+**final_v3 运行**: 🔄 运行中...
+
 ---
 
 ## 待验证
 
-**final_v2 运行**: 包含所有 4 个修复
+**final_v3 运行**: 包含所有 5 个修复
 - ✓ 字段名正确
 - ✓ 两层架构
 - ✓ 环境变量正确传递
 - ✓ target_id 使用 claim_id
+- ✓ coverage gap 只在 turn≥3 触发
 
 **预期结果**: `diagnosis_pending_concern_count > 0`
 
-**运行状态**: 🔄 运行中，预计 2026-06-22 00:35 完成
+**运行状态**: 🔄 运行中，预计 2026-06-22 00:52 完成
