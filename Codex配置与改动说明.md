@@ -508,6 +508,7 @@ Codex 客户端直连 muyuan.do，不经过 CodexManager 网关。provider 名�
 | Rawchat API Key | `sk-wj9EEsrcNb0TRU6obXKWP0Q6eU10qotb` | rawchat.cn 上游密钥 |
 | Rawchat Aggregate API ID | `ag_6b605f329c21` | aggregate_apis 表主键 |
 | Sharedchat API Key | `sk-eb75cdfb310f416aa5792211acefae75` | new.sharedchat.cc 密钥 |
+| Sharedchat API Key（2） | `sk-c267904868e64861b408f08b598cc042` | new.sharedchat.cc 第二密钥（备用） |
 | Sharedchat Aggregate API ID | `ag_3899d1c97458` | aggregate_apis 表主键（已禁用） |
 | Anyrouter API Key（旧） | `sk-YTjqZ68Armv71bRhR6Wg5MV54nTznNnnXEGs9uSU47d49vuw` | anyrouter.top 密钥（已弃用） |
 | Anyrouter API Key（新） | `sk-w5B2Jv0qvK8Ynn7e01mTixtqNCI0ptAxhxr004I0nodHmtBj` | anyrouter.top 密钥（当前生效） |
