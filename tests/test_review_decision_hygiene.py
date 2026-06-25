@@ -49,6 +49,7 @@ from agent_system.environments.env_package.review.state import (
     _is_paper_negative_evidence_record,
     _is_grounded_paper_negative_evidence_record,
     _render_assessment_limitation_flaws,
+    _render_claim_requirement_gap_concerns,
     _render_potential_concerns,
     _report_visible_text,
     _render_strengths,
@@ -1815,11 +1816,18 @@ def test_verified_coverage_gap_is_primary_unsupported_and_isolated_from_quote_gr
     assert hg["verified_coverage_gap_count"] == 1
     assert {item["claim_id"] for item in hg["verified_coverage_gap_items"]} == {"claim-1"}
     assert hg["verified_coverage_gap_type_counts"].get("missing_baseline") == 1
+    assert hg["coverage_gap_potential_concern_count"] == 1
+    assert hg["reviewer_inferred_potential_concern_count"] == 1
+    assert hg["final_potential_concern_total"] == 1
     # claim-4 is also unsupported but NOT primary -> excluded from the high-precision subset.
     assert hg["claims_with_requirement_gaps"] == 2
     assert hg["primary_claims_with_requirement_gaps"] == 1
     # Isolation: a coverage gap must NOT pollute any quote-grounded verified count.
     assert hg["review_negative_verified_count"] == 0
+    concerns = _render_claim_requirement_gap_concerns(build_decision_hygiene_view(state))
+    assert concerns
+    assert "diagnosis-pending potential concern" in concerns[0]
+    assert "not quote-grounded negative evidence" in concerns[0]
 
 
 def test_verified_coverage_gap_includes_partial_actionable_gap():
@@ -1850,6 +1858,8 @@ def test_verified_coverage_gap_includes_partial_actionable_gap():
     assert hg["review_negative_verified_count"] == 0  # isolation from quote-grounded
     assert hg["verified_negative_flaw_count"] == 0
     assert hg["grounded_weakness_count"] == 0
+    assert hg["coverage_gap_potential_concern_count"] == 1
+    assert hg["final_potential_concern_total"] == 1
 
 
 def test_verified_coverage_gap_is_paper_level_not_claim_centric():

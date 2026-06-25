@@ -709,6 +709,7 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     out["positive_or_neutral_negative_candidate_count"] = _sum(rows, "positive_or_neutral_negative_candidate_count")
     out["resource_or_scope_context_negative_candidate_count"] = _sum(rows, "resource_or_scope_context_negative_candidate_count")
     out["semantic_negative_without_review_relation_count"] = _sum(rows, "semantic_negative_without_review_relation_count")
+    out["semantic_negative_rejected_by_review_relation_count"] = _sum(rows, "semantic_negative_rejected_by_review_relation_count")
     out["scope_limitation_as_verified_negative_count"] = _sum(rows, "scope_limitation_as_verified_negative_count")
     out["quote_bank_salvage_generated_negative_count"] = _sum(rows, "quote_bank_salvage_generated_negative_count")
     out["negative_evidence_linked_to_flaw_count"] = _sum(rows, "negative_evidence_linked_to_flaw_count")
@@ -760,6 +761,9 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     out["diagnosis_pending_potential_concern_claim_count"] = _sum(rows, "diagnosis_pending_potential_concern_claim_count")
     out["diagnosis_pending_concern_recorded_count"] = _sum(rows, "diagnosis_pending_concern_recorded_count")
     out["diagnosis_pending_concern_recorded_claim_count"] = _sum(rows, "diagnosis_pending_concern_recorded_claim_count")
+    out["coverage_gap_potential_concern_count"] = _sum(rows, "coverage_gap_potential_concern_count")
+    out["reviewer_inferred_potential_concern_count"] = _sum(rows, "reviewer_inferred_potential_concern_count")
+    out["final_potential_concern_total"] = _sum(rows, "final_potential_concern_total")
     # Route 3: deterministic verified coverage gap (primary-claim, fully unsupported) —
     # second verifiable negative dimension, parallel to quote-grounded verified negatives.
     out["verified_coverage_gap_count"] = _sum(rows, "verified_coverage_gap_count")
@@ -1554,6 +1558,7 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "positive_or_neutral_negative_candidate_count",
         "resource_or_scope_context_negative_candidate_count",
         "semantic_negative_without_review_relation_count",
+        "semantic_negative_rejected_by_review_relation_count",
         "scope_limitation_as_verified_negative_count",
         "quote_bank_salvage_generated_negative_count",
         "negative_evidence_linked_to_flaw_count",
@@ -1591,6 +1596,9 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "diagnosis_pending_potential_concern_claim_count",
         "diagnosis_pending_concern_recorded_count",
         "diagnosis_pending_concern_recorded_claim_count",
+        "coverage_gap_potential_concern_count",
+        "reviewer_inferred_potential_concern_count",
+        "final_potential_concern_total",
         "diagnosis_pending_type_missing_ablation",
         "diagnosis_pending_type_missing_baseline",
         "diagnosis_pending_type_unfair_or_weak_baseline",
@@ -1605,6 +1613,9 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
     ]),
     ("Coverage gaps (deterministic · primary-claim · unsupported)", [
         "verified_coverage_gap_count",
+        "coverage_gap_potential_concern_count",
+        "reviewer_inferred_potential_concern_count",
+        "final_potential_concern_total",
         "primary_claims_with_requirement_gaps",
     ]),
     ("State contamination", [

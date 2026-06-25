@@ -10,6 +10,7 @@ from agent_system.environments.env_package.review.state import (
     _is_grounded_paper_negative_evidence_record,
     _is_paper_negative_evidence_record,
     _open_evidence_gaps,
+    build_decision_hygiene_view,
     claim_coverage_summary,
     infer_final_decision,
 )
@@ -99,6 +100,15 @@ else:
     _HARD_NEGATIVE_DISCOVERY_VERIFIED_FLAW_TARGET = 2
     _HARD_NEGATIVE_DISCOVERY_MAX_ATTEMPTS = 3
     _HARD_NEGATIVE_DISCOVERY_MIN_REMAINING = 2
+
+
+def _diagpending_recovery_policy_enabled() -> bool:
+    return os.environ.get("DRMAS_DIAGPENDING_RECOVERY", "").strip().lower() in {
+        "1",
+        "true",
+        "on",
+        "yes",
+    }
 
 
 def _configure_compact_negative_pass(
@@ -1214,6 +1224,15 @@ def _has_empirical_claim_without_baseline_evidence(state: Dict[str, Any]) -> boo
     Lightweight heuristic for coverage gap detection without calling full
     build_decision_hygiene_view. Used by policy functions during runtime.
     """
+    if _diagpending_recovery_policy_enabled():
+        try:
+            view = build_decision_hygiene_view(dict(state or {}))
+            hygiene = view.get("decision_hygiene") if isinstance(view, dict) else {}
+            if int((hygiene or {}).get("verified_coverage_gap_count", 0) or 0) > 0:
+                return True
+        except Exception:
+            pass
+
     claims = [c for c in state.get("claims", []) or [] if isinstance(c, dict)]
     evidence_map = [e for e in state.get("evidence_map", []) or [] if isinstance(e, dict)]
 

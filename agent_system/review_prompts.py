@@ -143,6 +143,10 @@ If the task is grounded by a visible copied paper quote, return one `evidence_ma
 evidence_id, claim_id, evidence, source, source_locator, raw_quote, quote_id, strength, stance,
 negative_evidence_type, required_evidence_type, targeted_negative_search_task_id, binding_confidence, binding_rationale.
 Use strength="missing" and stance="missing" unless the quote directly reports worse results.
+For missing-baseline / missing-ablation / insufficient-evaluation coverage tasks, the quote may be a table,
+list, or experiment description that enumerates what the paper actually evaluated. The `evidence` field must
+name the missing dataset, baseline, metric, or component being checked; do not infer a missing entity unless
+it appears in the task or target claim.
 For underperformance or result-claim mismatch, copy the specific table row or sentence that
 contains the actual numbers — the paper's OWN method value, the competing baseline/SOTA value,
 and the benchmark/metric name — and set stance="contradicts" with negative_evidence_type

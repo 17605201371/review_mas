@@ -4488,10 +4488,9 @@ def _targeted_negative_search_tasks(
             continue
         if not _is_real_paper_negative_target(source, real_claim_ids):
             continue
-        requirements = _claim_required_evidence_types(source)
         audit_item = audit_by_claim.get(claim_id, {})
         missing = list(audit_item.get("missing_requirements") or [])
-        if not requirements and not missing:
+        if not missing:
             continue
         candidate_claims.append(source)
         seen.add(claim_id)
@@ -4502,16 +4501,15 @@ def _targeted_negative_search_tasks(
         claim_id = str(claim.get("claim_id") or "")
         audit_item = audit_by_claim.get(claim_id, {})
         missing = list(audit_item.get("missing_requirements") or [])
-        requirements = _claim_required_evidence_types(claim)
         support_profile = _claim_support_profile_for_diagnosis(state, claim_id)
         empirical_bonus = 1 if any(
             req in {"baseline_or_comparison", "ablation_or_component", "empirical_result"}
-            for req in (missing or requirements)
+            for req in missing
         ) else 0
         primary_bonus = 2 if claim_id in primary_ids else 0
         low_support_bonus = 1 if int(support_profile.get("verified_support_count") or 0) == 0 else 0
         importance_bonus = 1 if str(claim.get("importance") or "").lower() in {"high", "critical"} else 0
-        return (len(missing) + empirical_bonus + primary_bonus + low_support_bonus + importance_bonus, len(requirements), claim_id)
+        return (len(missing) + empirical_bonus + primary_bonus + low_support_bonus + importance_bonus, len(missing), claim_id)
 
     candidate_claims.sort(key=_claim_priority, reverse=True)
     tasks: List[Dict[str, Any]] = []
@@ -4521,7 +4519,7 @@ def _targeted_negative_search_tasks(
         audit_item = audit_by_claim.get(claim_id, {})
         requirements = list(audit_item.get("missing_requirements") or [])
         if not requirements:
-            requirements = _claim_required_evidence_types(claim)
+            continue
         support_profile = _claim_support_profile_for_diagnosis(state, claim_id)
         for requirement in requirements:
             template = _HARD_NEGATIVE_DIAGNOSTIC_CHECKS.get(requirement)
@@ -4548,7 +4546,7 @@ def _targeted_negative_search_tasks(
                 "priority": _claim_priority(claim)[0] + (1 if requirement in {"baseline_or_comparison", "ablation_or_component"} else 0),
                 "source": "claim_evidence_obligation",
                 "quote_grounding_contract": (
-                    "Only emit negative evidence if a copied paper raw_quote plus specific source_locator directly grounds this negative_type for this claim. "
+                    "Only emit negative/coverage evidence if a copied paper raw_quote plus specific source_locator directly grounds this negative_type for this claim. "
                     "If no such quote is visible, emit unresolved/not_assessable for this task."
                 ),
             })
@@ -4557,12 +4555,11 @@ def _targeted_negative_search_tasks(
         if len(tasks) >= max_items:
             break
     tasks.sort(key=lambda item: int(item.get("priority") or 0), reverse=True)
-    # Targeted negative search is an Evidence Agent quote-verification path.
-    # Requirement gaps without a concrete candidate quote remain visible through
-    # diagnosis-pending potential concerns, but they should not consume Evidence
-    # turns as reviewer-discovered negative evidence tasks.
-    if not quote_guided_tasks:
-        return []
+    # Targeted negative search is an Evidence Agent verification path.  It can
+    # start either from a candidate negative quote or from a claim requirement
+    # gap.  Requirement-gap tasks still require copied paper text before they
+    # can become verified negative/coverage evidence; otherwise the worker must
+    # return not_assessable and the issue remains diagnosis-pending.
     merged_tasks: List[Dict[str, Any]] = []
     seen_task_pairs: set[Tuple[str, str, str]] = set()
     for item in list(quote_guided_tasks) + list(tasks):
@@ -6464,12 +6461,28 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
     )
     diagnosis_pending_type_counts = dict(requirement_audit.get("claim_requirement_missing_type_counts", {}) or {})
     diagnosis_pending_count = int(requirement_audit.get("claim_requirement_missing_total", 0) or 0)
+    verified_coverage_gap_items_for_metrics = [
+        item for item in requirement_audit.get("verified_coverage_gap_items", []) or []
+        if isinstance(item, dict)
+    ]
+    verified_coverage_gap_count = int(requirement_audit.get("verified_coverage_gap_count", 0) or 0)
+    verified_coverage_gap_claim_ids = {
+        str(item.get("claim_id") or "")
+        for item in verified_coverage_gap_items_for_metrics
+        if str(item.get("claim_id") or "")
+    }
     recorded_diagnosis_pending = [
         item for item in view.get("diagnosis_pending_concerns", []) or []
         if isinstance(item, dict) and str(item.get("status") or "").strip().lower() == "recorded"
     ]
+    recorded_diagnosis_claim_ids = {
+        str(item.get("claim_id") or "")
+        for item in recorded_diagnosis_pending
+        if str(item.get("claim_id") or "")
+    }
     review_negative_label_counts: Counter[str] = Counter()
     semantic_negative_without_review_relation_count = 0
+    semantic_negative_rejected_by_review_relation_count = 0
     quote_bank_salvage_generated_negative_count = 0
     scope_limitation_as_verified_negative_count = 0
     review_negative_false_positive_samples: List[Dict[str, Any]] = []
@@ -6488,7 +6501,10 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
         if review_label:
             review_negative_label_counts[review_label] += 1
         if semantic_label == "semantic_negative_verified" and review_label != REVIEW_NEGATIVE_VERIFIED_LABEL:
-            semantic_negative_without_review_relation_count += 1
+            if review_label:
+                semantic_negative_rejected_by_review_relation_count += 1
+            else:
+                semantic_negative_without_review_relation_count += 1
             if len(review_negative_false_positive_samples) < 4:
                 review_negative_false_positive_samples.append({
                     "evidence_id": str(record.get("evidence_id") or ""),
@@ -6515,7 +6531,7 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
         # Route 3: deterministic verified coverage gap — a second, parallel verifiable
         # negative dimension (primary claim with a fully unsupported required-evidence
         # type). Strictly separate from the quote-grounded verified negatives below.
-        "verified_coverage_gap_count": requirement_audit.get("verified_coverage_gap_count", 0),
+        "verified_coverage_gap_count": verified_coverage_gap_count,
         "verified_coverage_gap_type_counts": requirement_audit.get("verified_coverage_gap_type_counts", {}),
         "verified_coverage_gap_items": requirement_audit.get("verified_coverage_gap_items", [])[:8],
         # Claim-requirement gaps are diagnosis-pending potential concerns:
@@ -6524,11 +6540,20 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
         "diagnosis_pending_potential_concern_claim_count": requirement_audit.get("claims_with_requirement_gaps", 0),
         "diagnosis_pending_potential_concern_type_counts": diagnosis_pending_type_counts,
         "diagnosis_pending_concern_recorded_count": len(recorded_diagnosis_pending),
-        "diagnosis_pending_concern_recorded_claim_count": len({
-            str(item.get("claim_id") or "")
-            for item in recorded_diagnosis_pending
-            if str(item.get("claim_id") or "")
-        }),
+        "diagnosis_pending_concern_recorded_claim_count": len(recorded_diagnosis_claim_ids),
+        # Final-view accounting for reviewer-inferred concerns.  These are
+        # deliberately parallel to quote-grounded potential concerns and must
+        # not be added to ``review_negative_verified_count``.
+        "coverage_gap_potential_concern_count": verified_coverage_gap_count,
+        "reviewer_inferred_potential_concern_count": (
+            verified_coverage_gap_count
+            + len(recorded_diagnosis_claim_ids - verified_coverage_gap_claim_ids)
+        ),
+        "final_potential_concern_total": (
+            flaw_layer_counts.get("potential_concern", 0)
+            + verified_coverage_gap_count
+            + len(recorded_diagnosis_claim_ids - verified_coverage_gap_claim_ids)
+        ),
         **context_support_diagnostics,
         **support_quality,
         "support_survival_trace": support_survival_trace,
@@ -6623,6 +6648,7 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
         "positive_or_neutral_negative_candidate_count": int(review_negative_label_counts.get("positive_or_neutral_support", 0)),
         "resource_or_scope_context_negative_candidate_count": int(review_negative_label_counts.get("resource_or_scope_context", 0)),
         "semantic_negative_without_review_relation_count": semantic_negative_without_review_relation_count,
+        "semantic_negative_rejected_by_review_relation_count": semantic_negative_rejected_by_review_relation_count,
         "scope_limitation_as_verified_negative_count": scope_limitation_as_verified_negative_count,
         "quote_bank_salvage_generated_negative_count": quote_bank_salvage_generated_negative_count,
         "review_negative_label_counts": dict(review_negative_label_counts),
@@ -9404,6 +9430,30 @@ _EVIDENCE_EMPIRICAL_PATTERN = re.compile(
 _EVIDENCE_TABLE_PATTERN = re.compile(r"\b(table|figure|fig\.?)\b", re.IGNORECASE)
 _EVIDENCE_METHOD_PATTERN = re.compile(r"\b(method|methods|methodology|approach|model|framework|algorithm|architecture)\b", re.IGNORECASE)
 _EVIDENCE_SNIPPET_SOURCE_ORDER = ["abstract", "ablation", "comparison", "results", "table_or_figure", "claim_match", "theory_or_proof", "negative_or_gap", "method", "conclusion", "body_start"]
+_TARGETED_NEGATIVE_SNIPPET_SOURCE_ORDER = [
+    "ablation",
+    "comparison",
+    "results",
+    "table_or_figure",
+    "claim_match",
+    "negative_or_gap",
+    "method",
+    "theory_or_proof",
+    "abstract",
+    "conclusion",
+    "body_start",
+]
+_TARGETED_NEGATIVE_REQUIREMENT_SOURCE_ORDER = {
+    "baseline_or_comparison": ["comparison", "table_or_figure", "results", "claim_match"],
+    "ablation_or_component": ["ablation", "table_or_figure", "results", "claim_match"],
+    "empirical_result": ["results", "table_or_figure", "comparison", "claim_match"],
+    "scope_coverage": ["results", "comparison", "negative_or_gap", "table_or_figure", "claim_match"],
+    "robustness_or_generalization": ["results", "comparison", "negative_or_gap", "table_or_figure", "claim_match"],
+    "reproducibility_detail": ["method", "results", "negative_or_gap", "claim_match"],
+    "efficiency_cost": ["results", "table_or_figure", "comparison", "claim_match"],
+    "method_detail": ["method", "claim_match", "theory_or_proof"],
+    "review_negative_quote": ["negative_or_gap", "results", "comparison", "table_or_figure", "claim_match"],
+}
 _EVIDENCE_SNIPPET_BUDGETS = {
     "abstract": 320,
     "ablation": 560,
@@ -9817,17 +9867,55 @@ def _build_critique_negative_quote_bank(body: str, max_quotes: int = 6) -> List[
     return quote_bank
 
 
-def _assemble_evidence_context(snippets: List[Tuple[str, str]], max_length: int, claim_query_terms: Optional[set[str]] = None) -> Tuple[str, List[str]]:
+def _targeted_negative_preferred_sources(tasks: Optional[Sequence[Dict[str, Any]]]) -> List[str]:
+    preferred: List[str] = []
+    for item in tasks or []:
+        if not isinstance(item, dict):
+            continue
+        requirement = str(item.get("required_evidence_type") or "").strip()
+        for source in _TARGETED_NEGATIVE_REQUIREMENT_SOURCE_ORDER.get(requirement, []):
+            if source not in preferred:
+                preferred.append(source)
+    for source in _TARGETED_NEGATIVE_SNIPPET_SOURCE_ORDER:
+        if source not in preferred:
+            preferred.append(source)
+    return preferred
+
+
+def _targeted_negative_cue_source(requirement: str, cue: str) -> str:
+    cue_l = str(cue or "").lower()
+    if re.search(r"\b(table|figure|fig\.?)\b", cue_l):
+        return "table_or_figure"
+    if requirement == "ablation_or_component" or re.search(r"\b(ablation|component|variant|module)\b", cue_l):
+        return "ablation"
+    if requirement == "baseline_or_comparison" or re.search(r"\b(baseline|compare|comparison|state-of-the-art|sota|prior method)\b", cue_l):
+        return "comparison"
+    if requirement in {"empirical_result", "efficiency_cost", "robustness_or_generalization", "scope_coverage"}:
+        return "results"
+    if requirement in {"method_detail", "reproducibility_detail"}:
+        return "method"
+    return "claim_match"
+
+
+def _assemble_evidence_context(
+    snippets: List[Tuple[str, str]],
+    max_length: int,
+    claim_query_terms: Optional[set[str]] = None,
+    source_order: Optional[Sequence[str]] = None,
+    dedupe_snippets: bool = False,
+) -> Tuple[str, List[str]]:
     ordered: List[Tuple[str, str]] = []
-    for wanted_source in _EVIDENCE_SNIPPET_SOURCE_ORDER:
+    order = list(source_order or _EVIDENCE_SNIPPET_SOURCE_ORDER)
+    for wanted_source in order:
         matching = [(source, snippet) for source, snippet in snippets if source == wanted_source]
         matching.sort(key=lambda item: -_claim_overlap_score(item[1], claim_query_terms or set()))
         ordered.extend(matching)
-    ordered.extend((source, snippet) for source, snippet in snippets if source not in _EVIDENCE_SNIPPET_SOURCE_ORDER)
+    ordered.extend((source, snippet) for source, snippet in snippets if source not in order)
 
     parts: List[str] = []
     included_sources: List[str] = []
     source_counts: Dict[str, int] = {}
+    seen_snippet_keys: set[str] = set()
     remaining = max_length
     for source, snippet in ordered:
         if remaining < 100:
@@ -9842,10 +9930,15 @@ def _assemble_evidence_context(snippets: List[Tuple[str, str]], max_length: int,
         rendered_snippet = _truncate_snippet_text(snippet, budget)
         if len(rendered_snippet) < 60:
             continue
+        snippet_key = _quote_bank_dedupe_key(rendered_snippet) if dedupe_snippets else ""
+        if dedupe_snippets and snippet_key and snippet_key in seen_snippet_keys:
+            continue
         part = f"{label}{rendered_snippet}"
         if len(part) > remaining:
             part = _truncate_snippet_text(part, remaining)
         parts.append(part)
+        if dedupe_snippets and snippet_key:
+            seen_snippet_keys.add(snippet_key)
         remaining -= len(part) + 2
         source_counts[source] = source_counts.get(source, 0) + 1
         if source not in included_sources:
@@ -9858,9 +9951,12 @@ def _render_evidence_context_with_meta(
     max_length: int = 2400,
     state: Optional[Dict[str, Any]] = None,
     target_claim_ids: Optional[Sequence[str]] = None,
+    targeted_negative_tasks: Optional[Sequence[Dict[str, Any]]] = None,
 ) -> Tuple[str, Dict[str, Any]]:
     body, cleaned_wrapper = _clean_paper_body(task.get("paper_text", ""))
     claim_query_terms = _claim_query_terms_from_state(state or task.get("review_state", {}) or {}, target_claim_ids)
+    targeted_negative_tasks = [item for item in (targeted_negative_tasks or []) if isinstance(item, dict)]
+    targeted_negative_mode = bool(targeted_negative_tasks)
     if not body:
         meta = {
             "evidence_context_chars": 0,
@@ -9927,6 +10023,23 @@ def _render_evidence_context_with_meta(
         for match in matches:
             add_snippet(source, match.start(), window=760 if source == "results" else 680)
 
+    if targeted_negative_mode:
+        for task_item in targeted_negative_tasks[:2]:
+            requirement = str(task_item.get("required_evidence_type") or "").strip()
+            cues = _normalize_list_of_strings(task_item.get("expected_quote_cues"), max_items=8, max_length=40)
+            locator_hint = str(task_item.get("target_locator_hint") or "")
+            cues.extend(
+                token
+                for token in re.findall(r"[A-Za-z][A-Za-z0-9_-]{3,}", locator_hint)
+                if token.lower() not in _CLAIM_QUERY_STOPWORDS
+            )
+            for cue in list(dict.fromkeys(cues))[:10]:
+                match = re.search(rf"\b{re.escape(cue)}\b", body[fallback_start:], re.IGNORECASE)
+                if not match:
+                    continue
+                source = _targeted_negative_cue_source(requirement, cue)
+                add_snippet(source, fallback_start + match.start(), window=900 if source in {"results", "table_or_figure", "comparison", "ablation"} else 700)
+
     claim_match_count = 0
     for term in sorted(claim_query_terms, key=lambda item: (-len(item), item))[:12]:
         match = re.search(rf"\b{re.escape(term)}\b", body[fallback_start:], re.IGNORECASE)
@@ -9946,7 +10059,13 @@ def _render_evidence_context_with_meta(
     if not snippets:
         snippets.append(("body_start", re.sub(r"\s+", " ", body[:max_length]).strip()))
 
-    context, sources = _assemble_evidence_context(snippets, max_length=max_length, claim_query_terms=claim_query_terms)
+    context, sources = _assemble_evidence_context(
+        snippets,
+        max_length=max_length,
+        claim_query_terms=claim_query_terms,
+        source_order=_targeted_negative_preferred_sources(targeted_negative_tasks) if targeted_negative_mode else None,
+        dedupe_snippets=targeted_negative_mode,
+    )
     quote_bank = _build_evidence_quote_bank(body, max_quotes=12, claim_query_terms=claim_query_terms)
     critique_negative_quote_bank = _build_critique_negative_quote_bank(body, max_quotes=6)
     source_set = set(sources)
@@ -9977,6 +10096,12 @@ def _render_evidence_context_with_meta(
         "evidence_quote_bank_mode": "quote_bank_claim_v2",
         "critique_negative_quote_bank_count": len(critique_negative_quote_bank),
         "critique_negative_quote_bank_types": [item.get("negative_evidence_type", "") for item in critique_negative_quote_bank],
+        "targeted_negative_context_mode": "requirement_first_v1" if targeted_negative_mode else "",
+        "targeted_negative_context_requirements": [
+            str(item.get("required_evidence_type") or "")
+            for item in targeted_negative_tasks
+            if str(item.get("required_evidence_type") or "")
+        ][:4],
     }
     meta["evidence_quote_bank"] = quote_bank
     meta["critique_negative_quote_bank"] = critique_negative_quote_bank
@@ -10336,7 +10461,7 @@ def _render_evidence_state_slice(
     if targeted_negative_search_tasks:
         evidence_slice["targeted_negative_search_tasks"] = targeted_negative_search_tasks
         evidence_slice["targeted_negative_search_rule"] = (
-            "For each task, either return quote-grounded negative evidence with claim_id, raw_quote, "
+            "For each task, either return quote/table/list-grounded evidence with claim_id, raw_quote, "
             "source_locator, negative_evidence_type, and targeted_negative_search_task_id, or return "
             "an unresolved/not_assessable question. Do not count not_found as negative evidence."
         )
@@ -10531,6 +10656,36 @@ def _prompt_targeted_negative_quote_entries(quote_bank: Sequence[Dict[str, Any]]
     return entries
 
 
+def _prioritize_targeted_negative_quote_bank(
+    quote_bank: Sequence[Dict[str, Any]],
+    tasks: Sequence[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    if not quote_bank:
+        return []
+    task_list = [item for item in tasks or [] if isinstance(item, dict)]
+    preferred_sources = _targeted_negative_preferred_sources(task_list)
+    source_rank = {source: index for index, source in enumerate(preferred_sources)}
+    task_quote_ids = {str(item.get("quote_id") or "") for item in task_list if str(item.get("quote_id") or "")}
+    task_negative_types = {str(item.get("negative_type") or "") for item in task_list if str(item.get("negative_type") or "")}
+
+    def _rank(item: Dict[str, Any]) -> Tuple[int, int, int, int]:
+        quote_id = str(item.get("quote_id") or "")
+        source = str(item.get("source_bucket") or "")
+        raw_quote = str(item.get("raw_quote") or "")
+        negative_type = str(item.get("negative_evidence_type") or _classify_negative_evidence_type(raw_quote))
+        return (
+            0 if quote_id and quote_id in task_quote_ids else 1,
+            source_rank.get(source, len(source_rank) + 1),
+            0 if negative_type and negative_type in task_negative_types else 1,
+            -int(item.get("claim_overlap_score") or 0),
+        )
+
+    return sorted(
+        [item for item in quote_bank if isinstance(item, dict)],
+        key=_rank,
+    )
+
+
 def _prompt_targeted_negative_tasks(tasks: Sequence[Dict[str, Any]], max_items: int = 1) -> List[Dict[str, Any]]:
     compact: List[Dict[str, Any]] = []
     for item in tasks[:max_items]:
@@ -10635,6 +10790,7 @@ def render_evidence_observation(task: Dict[str, Any], manager_payload: Optional[
         action_type=manager_payload.get("action_type", "verify_evidence"),
         targeted_negative_search_required=targeted_negative_requested,
     )
+    initial_targeted_negative_tasks = evidence_slice.get("targeted_negative_search_tasks", []) or []
     evidence_context_target_claim_ids = (
         evidence_slice.get("evidence_focus_preferred_claim_ids")
         or evidence_slice.get("allowed_claim_ids")
@@ -10642,9 +10798,10 @@ def render_evidence_observation(task: Dict[str, Any], manager_payload: Optional[
     )
     evidence_context, evidence_context_meta = _render_evidence_context_with_meta(
         task,
-        max_length=650 if targeted_negative_requested else 2300,
+        max_length=1800 if targeted_negative_requested else 2300,
         state=state,
         target_claim_ids=evidence_context_target_claim_ids,
+        targeted_negative_tasks=initial_targeted_negative_tasks,
     )
     evidence_quote_bank = list(evidence_context_meta.get("evidence_quote_bank", []) or [])
     evidence_context_meta_for_log = {k: v for k, v in evidence_context_meta.items() if k != "evidence_quote_bank"}
@@ -10727,14 +10884,18 @@ def render_evidence_observation(task: Dict[str, Any], manager_payload: Optional[
             manager_payload["policy_source"] = "targeted_negative_search_no_task_blocked"
         notes = list(manager_payload.get("policy_notes") or [])
         notes.append(
-            "Targeted negative search was skipped because no quote-guided reviewer-negative task survived gating."
+            "Targeted negative search was skipped because no reviewer-negative verification task survived gating."
         )
         manager_payload["policy_notes"] = list(dict.fromkeys(str(note) for note in notes if str(note)))[:8]
     if targeted_negative_mode:
         negative_quote_bank = list(evidence_context_meta.get("critique_negative_quote_bank", []) or [])
-        prompt_quote_bank = _prompt_targeted_negative_quote_entries(
+        prioritized_quote_bank = _prioritize_targeted_negative_quote_bank(
             list(negative_quote_bank) + list(evidence_quote_bank),
-            max_items=2,
+            targeted_negative_search_tasks,
+        )
+        prompt_quote_bank = _prompt_targeted_negative_quote_entries(
+            prioritized_quote_bank,
+            max_items=3,
         )
     else:
         prompt_quote_bank = _prompt_quote_bank_entries(evidence_quote_bank)
@@ -10795,8 +10956,8 @@ def render_evidence_observation(task: Dict[str, Any], manager_payload: Optional[
         targeted_negative_payload = {
             "targeted_negative_search_tasks": _prompt_targeted_negative_tasks(targeted_negative_search_tasks, max_items=1),
             "rule": (
-                "Attempt only the first task. Use a copied quote from the quote bank or excerpt. "
-                "No direct quote means evidence_map=[] plus one not_assessable unresolved object."
+                "Attempt only the first task. Use a copied quote/table/list/experiment description from the quote bank or excerpt. "
+                "If no task-relevant copied paper text is visible, return evidence_map=[] plus one not_assessable unresolved object."
             ),
         }
         targeted_negative_block = (
@@ -10823,7 +10984,8 @@ def render_evidence_observation(task: Dict[str, Any], manager_payload: Optional[
         targeted_contract = (
             "# Targeted Negative Output Contract\n"
             "First token must be <json>. Output one compact JSON object only. "
-            "Use at most one copied raw_quote. No direct negative quote means evidence_map=[] and one not_assessable unresolved object. "
+            "Use at most one copied raw_quote. For coverage tasks, the quote may enumerate evaluated datasets, baselines, metrics, or components. "
+            "No task-relevant copied paper text means evidence_map=[] and one not_assessable unresolved object. "
             "Never convert positive support or author claims into negative evidence.\n\n"
         )
         return (
@@ -11761,15 +11923,25 @@ def _render_claim_requirement_gap_concerns(state: Dict[str, Any], max_items: int
         audit = _claim_requirement_audit(state)
     lines: List[str] = []
     seen: set[str] = set()
-    for item in audit.get("claim_requirement_gap_items", [])[:max_items]:
+    concern_items = list(audit.get("verified_coverage_gap_items", []) or [])
+    if not concern_items:
+        concern_items = list(audit.get("claim_requirement_gap_items", []) or [])
+    for item in concern_items[:max_items]:
         claim_text = _normalize_text(item.get("claim"), max_length=160)
-        missing = [str(req) for req in item.get("missing_requirements") or []]
+        missing = [
+            str(req) for req in (
+                item.get("coverage_gap_missing_requirements")
+                or item.get("missing_requirements")
+                or []
+            )
+        ]
         labels = [_REQUIREMENT_LABELS.get(req, req.replace("_", " ")) for req in missing]
         if not labels:
             continue
         claim_prefix = f" for claim '{claim_text}'" if claim_text else ""
         line = (
-            "[claim-evidence gap; not as a confirmed paper weakness] "
+            "[diagnosis-pending potential concern; claim-evidence gap; "
+            "not quote-grounded negative evidence; not as a confirmed paper weakness] "
             "The current verified support inventory lacks "
             f"{', '.join(labels)}{claim_prefix}; treat this as a targeted follow-up."
         )

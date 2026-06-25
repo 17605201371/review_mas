@@ -1,6 +1,6 @@
 # Memory - DrMAS Paper Review (Compact)
 
-Last compacted: 2026-06-22.
+Last compacted: 2026-06-25.
 
 This file is the working memory for the paper-review project. Keep it short. Move detailed historical narratives into separate audit/checkpoint docs instead of expanding this file.
 
@@ -62,7 +62,57 @@ MiMo runs should use:
 
 For smoke8, `--api-max-workers 2` is safer. For hardneg20/full39, larger workers can be tried after confirming the endpoint is stable.
 
-## Latest State: 2026-06-22
+## Latest State: 2026-06-25
+
+Active project directory: `/Users/zss/Downloads/zssmas-codex-p26-optimization-20260524`. Do not use `/Users/zss/Downloads/DrMAS-master`; it is stale.
+
+Current effective code changes:
+
+- Final-view metrics now separate quote-grounded negatives from reviewer-inferred concerns:
+  - `coverage_gap_potential_concern_count`
+  - `reviewer_inferred_potential_concern_count`
+  - `final_potential_concern_total`
+- `semantic_negative_without_review_relation_count` now means only unhandled relation leakage. Relation-gated semantic-looking negatives are counted separately as `semantic_negative_rejected_by_review_relation_count`.
+- `record_diagnosis_pending_concern` remains separate from `recovery_effective_repair`; it may commit a state record but must not inflate effective repair.
+- `DRMAS_DIAGPENDING_RECOVERY=1` is a separate optional recovery-recording flag. It is not the same as `DRMAS_HARDNEG_DIAGNOSIS`.
+- Targeted negative search may create tasks from claim requirement gaps, but those tasks still need copied paper text/table/list evidence to become evidence. Otherwise they stay diagnosis-pending/not-assessable.
+
+Latest validated results:
+
+- `mimo_v25_contextfix_targetneg_hardneg20_mt7_b4w2_api2_r5plus8t600_20260625_200722_MERGED20.jsonl`
+  - Dashboard: `mimo_v25_contextfix_targetneg_hardneg20_mt7_b4w2_api2_r5plus8t600_20260625_200722_MERGED20_VS_TABLESCOPEFIX_DASHBOARD.md`
+  - Overall protection: PASS.
+  - `review_negative_verified_count=0`, `verified_actionable_negative_flaw_count=0`.
+  - `verified_coverage_gap_count=12`, `coverage_gap_potential_concern_count=12`, `final_potential_concern_total=12`.
+  - `semantic_negative_without_review_relation_count=0`, `semantic_negative_rejected_by_review_relation_count=1`.
+- `mimo_v25_diagpending_policyfix_smoke8_mt7_b4w2_api2_r8t600_20260625_211433.jsonl`
+  - Dashboard: `mimo_v25_diagpending_policyfix_smoke8_mt7_b4w2_api2_r8t600_20260625_211433_VS_CONTEXTFIX_OFF8_DASHBOARD.md`
+  - Overall protection: PASS.
+  - `review_negative_verified_count=0`, `verified_actionable_negative_flaw_count=0`.
+  - `verified_coverage_gap_count=8`, `coverage_gap_potential_concern_count=8`, `final_potential_concern_total=8`.
+  - `diagnosis_pending_concern_recorded_count=1`, `diagnosis_pending_concern_commit_count=1`, `recovery_committed=1`.
+  - `recovery_effective_repair=0`, `recovery_no_effect_commit=0`, `recovery_harmful_commit_risk=0`.
+  - `semantic_negative_without_review_relation_count=0`, `semantic_negative_rejected_by_review_relation_count=4`.
+
+Interpretation:
+
+- The system is now safer against fake negatives: author self-limitations, internal variant results, and weak paper observations are not counted as verified reviewer negatives.
+- The system still has no quote-grounded verified negative evidence in the latest 8/20 runs. The paper narrative can currently claim clean coverage-gap / diagnosis-pending concern preservation, but not a restored verified-negative recovery lifecycle.
+- Do not loosen the review-negative verifier to raise counts. The next real lever is better reviewer critique discovery plus evidence retrieval, while preserving the strict separation between `review_negative_verified` and reviewer-inferred coverage/diagnosis concerns.
+
+Validation:
+
+```bash
+/opt/miniconda3/envs/DrMAS/bin/python -m pytest \
+  tests/test_review_decision_hygiene.py \
+  tests/test_recovery_patch.py \
+  tests/test_review_inference_runner.py \
+  tests/test_coverage_gap_recovery.py -q
+```
+
+Current result: `539 passed`.
+
+## Previous State: 2026-06-22
 
 Active project directory: `/Users/zss/Downloads/zssmas-codex-p26-optimization-20260524`. Do not use `/Users/zss/Downloads/DrMAS-master` for this work; that directory is stale.
 

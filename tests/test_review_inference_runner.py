@@ -1060,7 +1060,7 @@ def test_hard_negative_diagnosis_target_gate_rejects_low_quality_fallback_and_le
     assert target_ids == set()
 
 
-def test_targeted_negative_search_tasks_skip_claim_obligations_without_quote_candidate():
+def test_targeted_negative_search_tasks_use_claim_obligations_without_quote_candidate_but_filter_scaffolds():
     state = {
         "claims": [
             {
@@ -1098,7 +1098,13 @@ def test_targeted_negative_search_tasks_skip_claim_obligations_without_quote_can
 
     tasks = _targeted_negative_search_tasks(state, max_items=4)
 
-    assert tasks == []
+    assert tasks
+    assert {task["claim_id"] for task in tasks} == {"claim-1"}
+    assert {task["source"] for task in tasks} == {"claim_evidence_obligation"}
+    assert "claim-paper-context-1" not in {task["claim_id"] for task in tasks}
+    assert "claim-paper-fallback-1" not in {task["claim_id"] for task in tasks}
+    assert "claim-7" not in {task["claim_id"] for task in tasks}
+    assert {"missing_baseline", "insufficient_evaluation"} & {task["negative_type"] for task in tasks}
 
 
 def test_targeted_negative_search_tasks_prioritize_true_negative_quote_bank_candidate():
@@ -1249,6 +1255,81 @@ def test_evidence_observation_exposes_targeted_negative_search_tasks_only_when_r
     assert "Evidence State Slice" not in worker_observation
 
 
+def test_targeted_negative_search_uses_claim_requirement_gap_without_negative_quote(monkeypatch):
+    monkeypatch.setattr(review_state_mod, "_TARGETED_NEGATIVE_SEARCH_ENABLED", True)
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The method outperforms strong baselines and validates the key component with an ablation.",
+                "claim_type": "empirical",
+                "importance": "high",
+                "claim_kind": "paper_extracted",
+                "status": "supported",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "evidence-1",
+                "claim_id": "claim-1",
+                "evidence": "Table 2 reports benchmark accuracy.",
+                "raw_quote": "Table 2 reports accuracy on the benchmark.",
+                "source_locator": "Table 2",
+                "source": "table",
+                "strength": "strong",
+                "stance": "supports",
+                "binding_status": "bound_real_claim",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_support_verified",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "turn_id": 2,
+    }
+
+    tasks = _targeted_negative_search_tasks(state, claims=state["claims"], max_items=2)
+
+    assert tasks
+    assert tasks[0]["source"] == "claim_evidence_obligation"
+    assert tasks[0]["claim_id"] == "claim-1"
+    assert tasks[0]["negative_type"] == "missing_ablation"
+    assert tasks[0]["required_evidence_type"] == "ablation_or_component"
+    assert tasks[0]["support_status"] == "missing_verified_support"
+    assert "evidence-1" in tasks[0]["available_support_ids"]
+
+    observation = render_evidence_observation(
+        {
+            "paper_id": "paper-coverage-gap-search",
+            "mode": "s4",
+            "max_turns": 7,
+            "paper_text": (
+                "--- BEGIN PAPER ---\n"
+                "\\begin{abstract} The method improves benchmark performance and mentions experiments briefly.\\end{abstract}\n"
+                "\\section{Results} Table 2 reports accuracy on the benchmark against baseline systems.\n"
+                "\\section{Ablation Study} Table 3 enumerates model variants: full model, without encoder, and without decoder.\n"
+                "--- END PAPER ---"
+            ),
+            "user_goal": "Assess real paper negative evidence.",
+            "review_state": state,
+        },
+        {
+            "action_type": "request_evidence_recheck",
+            "target_claim_ids": ["claim-1"],
+            "negative_evidence_formation_required": True,
+            "targeted_negative_search_required": True,
+        },
+    )
+
+    assert "Targeted Negative Search Tasks" in observation
+    assert "claim_evidence_obligation" in observation
+    assert "missing_ablation" in observation
+    assert "Ablation Study" in observation
+    assert "Table 3 enumerates model variants" in observation
+    assert "not_assessable" in observation
+
+
 def test_targeted_negative_no_task_does_not_count_as_negative_formation(monkeypatch):
     monkeypatch.setattr(review_state_mod, "_TARGETED_NEGATIVE_SEARCH_ENABLED", True)
     task = {
@@ -1283,6 +1364,8 @@ def test_targeted_negative_no_task_does_not_count_as_negative_formation(monkeypa
                     "strength": "strong",
                     "stance": "supports",
                     "binding_status": "bound_real_claim",
+                    "verified_grounding_label": "paper_grounded_exact",
+                    "semantic_grounding_label": "semantic_support_verified",
                 }
             ],
             "flaw_candidates": [],

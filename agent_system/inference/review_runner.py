@@ -93,7 +93,7 @@ MAX_TEAM_RESPONSE_CHARS = 700
 MAX_MANAGER_OBSERVATION_CHARS = 5200
 MAX_WORKER_OBSERVATION_CHARS = 4200
 MAX_EVIDENCE_WORKER_OBSERVATION_CHARS = 3600
-MAX_TARGETED_NEGATIVE_WORKER_OBSERVATION_CHARS = 2600
+MAX_TARGETED_NEGATIVE_WORKER_OBSERVATION_CHARS = 5200
 
 RECOVERY_TURN_MODES = {"normal_evidence", "recovery_patch"}
 REVIEW_PHASES = {"normal_review", "recovery"}
@@ -105,6 +105,18 @@ _DIAGPENDING_RECOVERY_ENABLED = os.environ.get("DRMAS_DIAGPENDING_RECOVERY", "")
     "on",
     "yes",
 }
+
+
+def _diagpending_recovery_enabled() -> bool:
+    raw = os.environ.get("DRMAS_DIAGPENDING_RECOVERY")
+    if raw is None or not str(raw).strip():
+        return bool(_DIAGPENDING_RECOVERY_ENABLED)
+    return str(raw).strip().lower() in {
+        "1",
+        "true",
+        "on",
+        "yes",
+    }
 
 
 def _clip_text(text: str, limit: int) -> str:
@@ -2737,9 +2749,11 @@ def build_worker_observation(task: Dict[str, Any], manager_payload: Dict[str, An
             "# Targeted Negative Search Mode\n"
             "targeted_negative_search_required=true\n"
             "Primary task: use the visible Targeted Negative Search Tasks to decide what paper-side weakness to check. "
-            "For each attempted task, either output a negative evidence item with copied raw_quote, specific source_locator, "
+            "For each attempted task, either output a negative/coverage evidence item with copied raw_quote, specific source_locator, "
             "claim_id, negative_evidence_type, required_evidence_type, and targeted_negative_search_task_id, or output an "
-            "unresolved question with status=not_assessable. Do not treat not_found as negative evidence and do not add positive support in this mode.\n\n"
+            "unresolved question with status=not_assessable. For absence tasks, the raw_quote may be a table/list/experiment description "
+            "that enumerates evaluated datasets, baselines, metrics, or components; the evidence statement must name the missing entity "
+            "from the task or target claim. Do not treat not_found as negative evidence and do not add positive support in this mode.\n\n"
         )
     # Gated, default off: the manager only sets hard_negative_diagnosis_required when the
     # DRMAS_HARDNEG_DIAGNOSIS experiment is enabled. Keying off the flag (not the always-present
@@ -3923,7 +3937,7 @@ def _claim_requirement_gap_recovery_patch_payload(
     state: Dict[str, Any],
     manager_payload: Dict[str, Any],
 ) -> Optional[Dict[str, Any]]:
-    if not _DIAGPENDING_RECOVERY_ENABLED:
+    if not _diagpending_recovery_enabled():
         return None
     # Refactor 2026-06-21: use verified_coverage_gap_items (paper-level, over-flag eliminated)
     # instead of claim_requirement_gap_items (claim-centric, 56% over-flag).

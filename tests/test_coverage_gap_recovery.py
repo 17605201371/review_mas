@@ -12,9 +12,6 @@ import os
 import sys
 from typing import Any, Dict
 
-# 设置环境变量启用 diagpending recovery
-os.environ["DRMAS_DIAGPENDING_RECOVERY"] = "1"
-
 # 导入需要测试的函数
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -128,8 +125,9 @@ def test_choose_blocking_recovery_action_with_coverage_gap():
     print("✓ _choose_blocking_recovery_action 返回 challenge_previous_hypothesis")
 
 
-def test_claim_requirement_gap_recovery_patch_uses_verified_items():
+def test_claim_requirement_gap_recovery_patch_uses_verified_items(monkeypatch):
     """测试 _claim_requirement_gap_recovery_patch_payload 使用 verified_coverage_gap_items"""
+    monkeypatch.setenv("DRMAS_DIAGPENDING_RECOVERY", "1")
     # 使用完整的 state，让 build_decision_hygiene_view 能生成 verified_coverage_gap
     state = {
         "claims": [
