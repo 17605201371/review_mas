@@ -97,6 +97,17 @@ def test_mimo_api_completion_kwargs_disable_thinking(monkeypatch):
     assert "Output only the requested tagged JSON block" in kwargs["messages"][0]["content"]
 
 
+def test_api_response_format_probe_does_not_treat_connection_error_as_rejection():
+    class BadRequest(Exception):
+        status_code = 400
+
+    assert not ApiReviewGenerator._looks_like_response_format_rejection(Exception("Connection error."))
+    assert not ApiReviewGenerator._looks_like_response_format_rejection(Exception("Read timeout"))
+    assert ApiReviewGenerator._looks_like_response_format_rejection(
+        BadRequest("Invalid parameter: response_format is not supported")
+    )
+
+
 def test_evidence_context_uses_latex_sections_for_results_and_tables():
     paper_text = """[Instruction]: Review this paper.
 Format requirements: JSON only.
@@ -1205,15 +1216,13 @@ def test_evidence_observation_exposes_targeted_negative_search_tasks_only_when_r
     )
     assert "targeted_negative_search_tasks" not in off_slice
 
-    observation = render_evidence_observation(
-        task,
-        {
-            "action_type": "request_evidence_recheck",
-            "target_claim_ids": ["claim-1"],
-            "negative_evidence_formation_required": True,
-            "targeted_negative_search_required": True,
-        },
-    )
+    observation_payload = {
+        "action_type": "request_evidence_recheck",
+        "target_claim_ids": ["claim-1"],
+        "negative_evidence_formation_required": True,
+        "targeted_negative_search_required": True,
+    }
+    observation = render_evidence_observation(task, observation_payload)
 
     assert "Targeted Negative Search Tasks" in observation
     assert "targeted_negative_search_tasks" in observation
@@ -1221,7 +1230,7 @@ def test_evidence_observation_exposes_targeted_negative_search_tasks_only_when_r
     assert "Evidence-Relevant Paper Excerpt" in observation
     assert observation.index("Evidence Quote Bank") < observation.index("Targeted Negative Search Tasks")
     assert observation.index("Evidence-Relevant Paper Excerpt") < observation.index("Targeted Negative Search Tasks")
-    assert observation.count('"task_id"') == 1
+    assert len(observation_payload.get("targeted_negative_search_active_tasks") or []) == 1
     assert "quote_bank_guided_review_negative_search" in observation
     assert "candidate_raw_quote" in observation
     assert "We do not include an ablation study" in observation
@@ -1233,26 +1242,603 @@ def test_evidence_observation_exposes_targeted_negative_search_tasks_only_when_r
     assert "First Evidence Formation" not in observation
     assert "Evidence State Slice" not in observation
 
-    worker_observation = build_worker_observation(
-        task,
-        {
-            "action_type": "verify_evidence",
-            "target_claim_ids": ["claim-1"],
-            "negative_evidence_formation_required": True,
-            "targeted_negative_search_required": True,
-            "policy_source": "targeted_negative_search_override",
-        },
-        "Evidence Agent",
-    )
+    worker_payload = {
+        "action_type": "verify_evidence",
+        "target_claim_ids": ["claim-1"],
+        "negative_evidence_formation_required": True,
+        "targeted_negative_search_required": True,
+        "policy_source": "targeted_negative_search_override",
+    }
+    worker_observation = build_worker_observation(task, worker_payload, "Evidence Agent")
     assert "Evidence Quote Bank" in worker_observation
     assert "Evidence-Relevant Paper Excerpt" in worker_observation
     assert "Targeted Negative Search Tasks" in worker_observation
-    assert worker_observation.count('"task_id"') == 1
+    assert len(worker_payload.get("targeted_negative_search_active_tasks") or []) == 1
     assert "quote_bank_guided_review_negative_search" in worker_observation
     assert "candidate_raw_quote" in worker_observation
     assert "We do not include an ablation study" in worker_observation
     assert "First Evidence Formation" not in worker_observation
     assert "Evidence State Slice" not in worker_observation
+
+
+def test_freeform_reviewer_negative_mode_uses_reviewer_prompt_not_single_task(monkeypatch):
+    monkeypatch.setattr(review_state_mod, "_TARGETED_NEGATIVE_SEARCH_ENABLED", True)
+    monkeypatch.setattr(review_state_mod, "_FREEFORM_REVIEWER_NEGATIVE_ENABLED", True)
+    task = {
+        "paper_id": "paper-freeform-reviewer-negative",
+        "mode": "s4",
+        "max_turns": 7,
+        "paper_text": (
+            "--- BEGIN PAPER ---\n"
+            "\\section{Experiments} We evaluate on Dataset-A only and compare against one baseline. "
+            "Table 2 reports accuracy: Ours 71.2, Baseline 72.8 on Dataset-A. "
+            "\\section{Ablation} We do not include an ablation study for the proposed module.\n"
+            "--- END PAPER ---"
+        ),
+        "user_goal": "Assess real paper negative evidence.",
+        "review_state": {
+            "claims": [
+                {
+                    "claim_id": "claim-1",
+                    "claim": "The proposed module outperforms strong baselines and generalizes across datasets.",
+                    "claim_type": "empirical",
+                    "importance": "high",
+                    "claim_kind": "paper_extracted",
+                    "status": "supported",
+                    "coverage_tags": ["empirical", "comparison", "scope"],
+                }
+            ],
+            "evidence_map": [],
+            "flaw_candidates": [],
+            "unresolved_questions": [],
+            "evidence_gaps": [],
+            "conflict_notes": [],
+            "turn_id": 2,
+        },
+    }
+    manager_payload = {
+        "action_type": "verify_evidence",
+        "target_claim_ids": ["claim-1"],
+        "negative_evidence_formation_required": False,
+        "targeted_negative_search_required": False,
+        "freeform_reviewer_negative_discovery_required": True,
+        "freeform_reviewer_negative_enabled": True,
+        "policy_source": "freeform_reviewer_negative_discovery_override",
+    }
+
+    worker_observation = build_worker_observation(task, manager_payload, "Evidence Agent")
+    prompt = review_runner_mod.build_prompt("Evidence Agent", worker_observation, "", 3, manager_payload=manager_payload)
+
+    assert manager_payload["freeform_reviewer_negative_enabled"] is True
+    assert manager_payload["freeform_reviewer_negative_stage"] == "candidate_discovery"
+    assert "Freeform Reviewer Negative Search" in worker_observation
+    assert "claim_context" in worker_observation
+    assert "claim-1" in worker_observation
+    assert "Table 2 reports accuracy" in worker_observation
+    assert "Targeted Negative Search Tasks" not in worker_observation
+    assert "Attempt only the first task" not in worker_observation
+    assert "peer reviewer" in prompt
+    assert "reviewer_negative_candidates" in prompt
+    assert "Return `evidence_map: []`" in prompt
+    assert _resolve_prompt_template("Evidence Agent", manager_payload) == review_prompts_mod.FREEFORM_REVIEWER_NEGATIVE_PROMPT
+
+
+def test_freeform_reviewer_negative_candidate_becomes_targeted_verification_task(monkeypatch):
+    monkeypatch.setattr(review_state_mod, "_TARGETED_NEGATIVE_SEARCH_ENABLED", True)
+    monkeypatch.setattr(review_state_mod, "_FREEFORM_REVIEWER_NEGATIVE_ENABLED", True)
+    task = {
+        "paper_id": "paper-freeform-reviewer-negative-verify",
+        "mode": "s4",
+        "max_turns": 7,
+        "paper_text": (
+            "--- BEGIN PAPER ---\n"
+            "\\section{Experiments} Table 2 reports accuracy on Dataset-A only. "
+            "\\section{Ablation} We evaluate the full model but do not isolate the routing module.\n"
+            "--- END PAPER ---"
+        ),
+        "user_goal": "Assess real paper negative evidence.",
+        "review_state": {
+            "claims": [
+                {
+                    "claim_id": "claim-1",
+                    "claim": "The routing module drives accuracy improvements across datasets.",
+                    "claim_type": "empirical",
+                    "importance": "high",
+                    "claim_kind": "paper_extracted",
+                    "status": "supported",
+                }
+            ],
+            "evidence_map": [
+                {
+                    "evidence_id": "support-1",
+                    "claim_id": "claim-1",
+                    "evidence": "Table 2 reports accuracy on Dataset-A.",
+                    "raw_quote": "Table 2 reports accuracy on Dataset-A only.",
+                    "source_locator": "Table 2",
+                    "source": "table",
+                    "strength": "strong",
+                    "stance": "supports",
+                    "binding_status": "bound_real_claim",
+                    "verified_grounding_label": "paper_grounded_exact",
+                    "semantic_grounding_label": "semantic_support_verified",
+                }
+            ],
+            "reviewer_negative_candidates": [
+                {
+                    "candidate_id": "reviewer-neg-candidate-routing-ablation",
+                    "claim_id": "claim-1",
+                    "claim": "The routing module drives accuracy improvements across datasets.",
+                    "weakness": "The paper may lack an ablation isolating the routing module.",
+                    "negative_type": "missing_ablation",
+                    "required_evidence_type": "ablation_or_component",
+                    "verification_question": "Find copied paper text showing whether the routing module is isolated in an ablation.",
+                    "expected_quote_cues": ["ablation", "routing module", "full model"],
+                    "missing_or_weak_items": ["routing module"],
+                    "status": "pending_quote_verification",
+                }
+            ],
+            "flaw_candidates": [],
+            "unresolved_questions": [],
+            "evidence_gaps": [],
+            "conflict_notes": [],
+            "turn_id": 3,
+        },
+    }
+    manager_payload = {
+        "action_type": "verify_evidence",
+        "target_claim_ids": ["claim-1"],
+        "negative_evidence_formation_required": True,
+        "targeted_negative_search_required": True,
+        "freeform_reviewer_negative_enabled": True,
+        "policy_source": "targeted_negative_search_override",
+    }
+
+    worker_observation = build_worker_observation(task, manager_payload, "Evidence Agent")
+    prompt = review_runner_mod.build_prompt("Evidence Agent", worker_observation, "", 4, manager_payload=manager_payload)
+
+    assert manager_payload["freeform_reviewer_negative_stage"] == "quote_verification"
+    assert "Targeted Negative Search Tasks" in worker_observation
+    assert "freeform_reviewer_negative_candidate" in worker_observation
+    assert "reviewer-neg-candidate-routing-ablation" in worker_observation
+    assert "missing_or_weak_items" in worker_observation
+    assert "routing module" in worker_observation
+    assert "Find copied paper text showing whether the routing module is isolated" in worker_observation
+    assert "Freeform Reviewer Negative Search" not in worker_observation
+    assert _resolve_prompt_template("Evidence Agent", manager_payload) == review_prompts_mod.TARGETED_NEGATIVE_EVIDENCE_PROMPT
+    assert "Only Two Legal Outputs" in prompt
+
+
+def test_targeted_negative_candidate_retrieves_candidate_relevant_paper_window(monkeypatch):
+    monkeypatch.setattr(review_state_mod, "_TARGETED_NEGATIVE_SEARCH_ENABLED", True)
+    monkeypatch.setattr(review_state_mod, "_FREEFORM_REVIEWER_NEGATIVE_ENABLED", True)
+    early_tables = " ".join(
+        f"Table {idx} reports unrelated preprocessing statistics for setup {idx}."
+        for idx in range(1, 5)
+    )
+    task = {
+        "paper_id": "paper-freeform-reviewer-negative-context-window",
+        "mode": "s4",
+        "max_turns": 7,
+        "paper_text": (
+            "--- BEGIN PAPER ---\n"
+            "\\section{Experiments} "
+            f"{early_tables} "
+            "Additional setup prose separates the early tables from the actual decoding comparison. "
+            + ("filler text about training details. " * 80)
+            + "Table 9: Speculative decoding comparison. We compare Recurrent Drafter with "
+            "Speculative Decoding and Medusa on Vicuna-7B, reporting speedup and accepted tokens. "
+            "The table does not include EAGLE.\n"
+            "--- END PAPER ---"
+        ),
+        "user_goal": "Assess real paper negative evidence.",
+        "review_state": {
+            "claims": [
+                {
+                    "claim_id": "claim-1",
+                    "claim": "Recurrent Drafter achieves faster speculative decoding for Vicuna models.",
+                    "claim_type": "empirical",
+                    "importance": "high",
+                    "claim_kind": "paper_extracted",
+                    "status": "supported",
+                }
+            ],
+            "evidence_map": [],
+            "reviewer_negative_candidates": [
+                {
+                    "candidate_id": "reviewer-neg-candidate-decoding-baselines",
+                    "claim_id": "claim-1",
+                    "claim": "Recurrent Drafter achieves faster speculative decoding for Vicuna models.",
+                    "weakness": "The speedup claim may omit important speculative decoding baselines.",
+                    "negative_type": "missing_baseline",
+                    "required_evidence_type": "baseline_or_comparison",
+                    "verification_question": "Find copied paper text showing which speculative decoding baselines are compared for Vicuna speedup.",
+                    "expected_quote_cues": [],
+                    "missing_or_weak_items": ["Medusa", "EAGLE", "Vicuna"],
+                    "status": "pending_quote_verification",
+                }
+            ],
+            "flaw_candidates": [],
+            "unresolved_questions": [],
+            "evidence_gaps": [],
+            "conflict_notes": [],
+            "turn_id": 3,
+        },
+    }
+    manager_payload = {
+        "action_type": "verify_evidence",
+        "target_claim_ids": ["claim-1"],
+        "negative_evidence_formation_required": True,
+        "targeted_negative_search_required": True,
+        "freeform_reviewer_negative_enabled": True,
+        "policy_source": "targeted_negative_search_override",
+    }
+
+    worker_observation = build_worker_observation(task, manager_payload, "Evidence Agent")
+
+    assert "Candidate-Relevant Paper Windows" in worker_observation
+    assert "reviewer-neg-candidate-decoding-baseline" in worker_observation
+    assert "Table 9: Speculative decoding comparison" in worker_observation
+    assert "Speculative Decoding and Medusa on Vicuna-7B" in worker_observation
+    assert "candidate_relevant_paper_windows" in worker_observation
+    assert "quote-candidate-window-1" in worker_observation
+    assert "candidate_window" in worker_observation
+    assert manager_payload["targeted_negative_candidate_window_count"] >= 1
+    assert manager_payload["targeted_negative_search_active_tasks"][0]["reviewer_negative_candidate_id"] == (
+        "reviewer-neg-candidate-decoding-baselines"
+    )
+
+
+def test_freeform_quote_verification_prioritizes_internal_quote_groundable_candidate(monkeypatch):
+    monkeypatch.setattr(review_state_mod, "_TARGETED_NEGATIVE_SEARCH_ENABLED", True)
+    monkeypatch.setattr(review_state_mod, "_FREEFORM_REVIEWER_NEGATIVE_ENABLED", True)
+    task = {
+        "paper_id": "paper-freeform-reviewer-negative-internal-priority",
+        "mode": "s4",
+        "max_turns": 7,
+        "paper_text": (
+            "--- BEGIN PAPER ---\n"
+            "\\section{Evaluation} Table 2 lists Baseline-A and Baseline-B comparisons. "
+            "Note that alpha must be tuned for each method and therefore cannot be used "
+            "to compare intervention effects across methods.\n"
+            "--- END PAPER ---"
+        ),
+        "user_goal": "Assess real paper negative evidence.",
+        "review_state": {
+            "claims": [
+                {
+                    "claim_id": "claim-1",
+                    "claim": "The method provides a fair comparison across intervention methods.",
+                    "claim_type": "empirical",
+                    "importance": "high",
+                    "claim_kind": "paper_extracted",
+                    "status": "supported",
+                }
+            ],
+            "evidence_map": [],
+            "reviewer_negative_candidates": [
+                {
+                    "candidate_id": "reviewer-neg-candidate-generic-baseline",
+                    "claim_id": "claim-1",
+                    "claim": "The method provides a fair comparison across intervention methods.",
+                    "weakness": "The comparison may omit additional baselines.",
+                    "negative_type": "missing_baseline",
+                    "required_evidence_type": "baseline_or_comparison",
+                    "quote_grounding_mode": "absence_or_requirement_gap",
+                    "verification_question": "Find copied text listing all baselines.",
+                    "missing_or_weak_items": ["additional baselines"],
+                    "status": "pending_absence_audit",
+                },
+                {
+                    "candidate_id": "reviewer-neg-candidate-protocol-risk",
+                    "claim_id": "claim-1",
+                    "claim": "The method provides a fair comparison across intervention methods.",
+                    "weakness": "The paper's own alpha tuning protocol may invalidate cross-method comparison.",
+                    "negative_type": "evaluation_protocol_risk",
+                    "required_evidence_type": "evaluation_protocol",
+                    "quote_grounding_mode": "quote_groundable_internal_negative",
+                    "verification_question": "Find copied text saying alpha cannot compare effects across methods.",
+                    "expected_quote_cues": ["cannot be used to compare", "alpha", "methods"],
+                    "missing_or_weak_items": [],
+                    "candidate_raw_quote": "alpha must be tuned for each method and therefore cannot be used to compare effects across methods.",
+                    "quote_id": "quote-protocol-alpha",
+                    "source_locator": "Section 4.1",
+                    "status": "pending_quote_verification",
+                },
+            ],
+            "flaw_candidates": [],
+            "unresolved_questions": [],
+            "evidence_gaps": [],
+            "conflict_notes": [],
+            "turn_id": 3,
+        },
+    }
+    manager_payload = {
+        "action_type": "verify_evidence",
+        "target_claim_ids": ["claim-1"],
+        "negative_evidence_formation_required": True,
+        "targeted_negative_search_required": True,
+        "freeform_reviewer_negative_enabled": True,
+        "policy_source": "targeted_negative_search_override",
+    }
+
+    worker_observation = build_worker_observation(task, manager_payload, "Evidence Agent")
+
+    active = manager_payload["targeted_negative_search_active_tasks"][0]
+    assert active["reviewer_negative_candidate_id"] == "reviewer-neg-candidate-protocol-risk"
+    assert active["quote_grounding_mode"] == "quote_groundable_internal_negative"
+    assert active["candidate_raw_quote"].startswith("alpha must be tuned")
+    assert active["quote_id"] == "quote-protocol-alpha"
+    assert "reviewer-neg-candidate-generic-baseline" not in worker_observation
+    assert "cannot be used to compare" in worker_observation
+
+
+def test_freeform_reviewer_negative_verification_skips_recently_attempted_candidate(monkeypatch):
+    monkeypatch.setattr(review_state_mod, "_TARGETED_NEGATIVE_SEARCH_ENABLED", True)
+    monkeypatch.setattr(review_state_mod, "_FREEFORM_REVIEWER_NEGATIVE_ENABLED", True)
+    task = {
+        "paper_id": "paper-freeform-reviewer-negative-verify-skip",
+        "mode": "s4",
+        "max_turns": 7,
+        "paper_text": (
+            "--- BEGIN PAPER ---\n"
+            "\\section{Experiments} Table 2 reports accuracy on Dataset-A only. "
+            "\\section{Ablation} Table 4 reports Full model and w/o distillation variants.\n"
+            "--- END PAPER ---"
+        ),
+        "user_goal": "Assess real paper negative evidence.",
+        "turn_logs": [
+            {
+                "policy_source": "targeted_negative_search_override",
+                "targeted_negative_search_required": True,
+                "freeform_reviewer_negative_stage": "quote_verification",
+                "targeted_negative_search_active_candidate_ids": ["reviewer-neg-candidate-baseline"],
+            }
+        ],
+        "review_state": {
+            "claims": [
+                {
+                    "claim_id": "claim-1",
+                    "claim": "The method improves across datasets and its routing module is validated.",
+                    "claim_type": "empirical",
+                    "importance": "high",
+                    "claim_kind": "paper_extracted",
+                    "status": "supported",
+                }
+            ],
+            "evidence_map": [
+                {
+                    "evidence_id": "support-1",
+                    "claim_id": "claim-1",
+                    "evidence": "Table 2 reports accuracy on Dataset-A.",
+                    "raw_quote": "Table 2 reports accuracy on Dataset-A only.",
+                    "source_locator": "Table 2",
+                    "source": "table",
+                    "strength": "strong",
+                    "stance": "supports",
+                    "binding_status": "bound_real_claim",
+                    "verified_grounding_label": "paper_grounded_exact",
+                    "semantic_grounding_label": "semantic_support_verified",
+                }
+            ],
+            "reviewer_negative_candidates": [
+                {
+                    "candidate_id": "reviewer-neg-candidate-baseline",
+                    "claim_id": "claim-1",
+                    "claim": "The method improves across datasets and its routing module is validated.",
+                    "weakness": "The paper may lack a named strong baseline.",
+                    "negative_type": "missing_baseline",
+                    "required_evidence_type": "baseline_or_comparison",
+                    "verification_question": "Find copied paper text showing whether the strong baseline is included.",
+                    "expected_quote_cues": ["baseline", "Table 2"],
+                    "missing_or_weak_items": ["named strong baseline"],
+                    "status": "pending_quote_verification",
+                },
+                {
+                    "candidate_id": "reviewer-neg-candidate-routing-ablation",
+                    "claim_id": "claim-1",
+                    "claim": "The method improves across datasets and its routing module is validated.",
+                    "weakness": "The paper may lack an ablation isolating the routing module.",
+                    "negative_type": "missing_ablation",
+                    "required_evidence_type": "ablation_or_component",
+                    "verification_question": "Find copied paper text showing whether the routing module is isolated in an ablation.",
+                    "expected_quote_cues": ["ablation", "routing module", "Table 4"],
+                    "missing_or_weak_items": ["routing module"],
+                    "status": "pending_quote_verification",
+                },
+            ],
+            "flaw_candidates": [],
+            "unresolved_questions": [],
+            "evidence_gaps": [],
+            "conflict_notes": [],
+            "turn_id": 4,
+        },
+    }
+    manager_payload = {
+        "action_type": "verify_evidence",
+        "target_claim_ids": ["claim-1"],
+        "negative_evidence_formation_required": True,
+        "targeted_negative_search_required": True,
+        "freeform_reviewer_negative_enabled": True,
+        "policy_source": "targeted_negative_search_override",
+    }
+
+    worker_observation = build_worker_observation(task, manager_payload, "Evidence Agent")
+
+    assert "reviewer-neg-candidate-baseline" not in worker_observation
+    assert "reviewer-neg-candidate-routing-ablation" in worker_observation
+    assert manager_payload["targeted_negative_search_active_tasks"][0]["reviewer_negative_candidate_id"] == "reviewer-neg-candidate-routing-ablation"
+
+
+def test_reviewer_negative_candidate_payload_is_not_verified_evidence():
+    payload = normalize_review_update_payload(
+        {
+            "evidence_map": [],
+            "reviewer_negative_candidates": [
+                {
+                    "candidate_id": "reviewer-neg-candidate-1",
+                    "claim_id": "claim-1",
+                    "weakness": "The claimed generalization may lack cross-dataset evaluation.",
+                    "negative_type": "insufficient_evaluation",
+                    "required_evidence_type": "robustness_or_generalization",
+                    "verification_question": "Find copied paper text showing whether cross-dataset evaluation exists.",
+                    "expected_quote_cues": ["cross-dataset", "generalization"],
+                    "status": "pending_quote_verification",
+                }
+            ],
+        }
+    )
+    state = merge_review_state(
+        {
+            "claims": [{"claim_id": "claim-1", "claim": "The method generalizes across datasets.", "claim_kind": "paper_extracted"}],
+            "evidence_map": [],
+        },
+        payload,
+    )
+    view = build_decision_hygiene_view(state)
+    hygiene = view["decision_hygiene"]
+
+    assert state["reviewer_negative_candidates"][0]["status"] == "pending_quote_verification"
+    assert state["evidence_map"] == []
+    assert hygiene["review_negative_verified_count"] == 0
+    assert hygiene["reviewer_absence_verified_count"] >= 1
+    assert hygiene["negative_evidence_candidate_count"] == hygiene["reviewer_absence_verified_count"]
+    synthesized_ids = {
+        str(item.get("evidence_id") or "")
+        for item in view.get("evidence_map", []) or []
+        if isinstance(item, dict)
+    }
+    assert "reviewer-neg-candidate-1" not in synthesized_ids
+
+
+def test_freeform_absence_candidate_is_kept_out_of_quote_verification_status():
+    payload = normalize_review_update_payload(
+        {
+            "evidence_map": [],
+            "reviewer_negative_candidates": [
+                {
+                    "candidate_id": "reviewer-neg-candidate-absence",
+                    "claim_id": "claim-1",
+                    "weakness": "The paper may lack cross-domain robustness experiments.",
+                    "negative_type": "missing_robustness_or_generalization",
+                    "required_evidence_type": "robustness_or_generalization",
+                    "quote_grounding_mode": "absence_or_requirement_gap",
+                    "verification_question": "Check whether cross-domain robustness experiments exist.",
+                    "status": "pending_quote_verification",
+                }
+            ],
+        }
+    )
+
+    candidate = payload["reviewer_negative_candidates"][0]
+    assert candidate["quote_grounding_mode"] == "absence_or_requirement_gap"
+    assert candidate["status"] == "pending_absence_audit"
+
+
+def test_freeform_quote_groundable_candidate_preserves_raw_quote_cue():
+    payload = normalize_review_update_payload(
+        {
+            "evidence_map": [],
+            "reviewer_negative_candidates": [
+                {
+                    "candidate_id": "reviewer-neg-candidate-protocol",
+                    "claim_id": "claim-1",
+                    "weakness": "The comparison protocol may be invalidated by per-method tuning.",
+                    "negative_type": "evaluation_protocol_risk",
+                    "required_evidence_type": "evaluation_protocol",
+                    "quote_grounding_mode": "quote_groundable_internal_negative",
+                    "candidate_raw_quote": (
+                        "alpha must be tuned for each method and therefore cannot be used to compare effects across methods."
+                    ),
+                    "quote_id": "quote-alpha",
+                    "source_locator": "Section 4.1",
+                    "status": "pending_quote_verification",
+                }
+            ],
+        }
+    )
+
+    candidate = payload["reviewer_negative_candidates"][0]
+    assert candidate["status"] == "pending_quote_verification"
+    assert candidate["candidate_raw_quote"].startswith("alpha must be tuned")
+    assert candidate["quote_id"] == "quote-alpha"
+    assert candidate["target_locator_hint"] == "Section 4.1"
+
+
+def test_quote_groundable_candidate_with_positive_quote_reroutes_to_absence_audit():
+    candidate = {
+        "candidate_id": "reviewer-neg-candidate-positive",
+        "claim_id": "claim-1",
+        "weakness": "The result may need more checking.",
+        "negative_type": "evaluation_protocol_risk",
+        "required_evidence_type": "evaluation_protocol",
+        "quote_grounding_mode": "quote_groundable_internal_negative",
+        "candidate_raw_quote": (
+            "This visual representation demonstrates a significant improvement in EER when transitioning "
+            "from individual models to federated models without a secure aggregator."
+        ),
+        "verification_question": "Check whether the result is strong.",
+        "rationale": "The quote looks important but does not state a protocol caveat or worse result.",
+    }
+
+    assert review_state_mod._reviewer_negative_candidate_quote_route(candidate) == "absence_or_requirement_gap"
+
+
+def test_quote_groundable_candidate_with_specific_baseline_quote_stays_verifiable():
+    candidate = {
+        "candidate_id": "reviewer-neg-candidate-baseline-fairness",
+        "claim_id": "claim-1",
+        "weakness": (
+            "The comparison may be unfair because the baseline setup or training data "
+            "could be materially different from the claimed method."
+        ),
+        "negative_type": "unfair_or_weak_baseline",
+        "required_evidence_type": "baseline_or_comparison",
+        "quote_grounding_mode": "quote_groundable_internal_negative",
+        "candidate_raw_quote": (
+            "Our approach is similar to that of (Han et al., 2021; Jiang et al., 2022; "
+            "Yang et al., 2023), but the baseline is trained from scratch only on Coq proof data."
+        ),
+        "verification_question": (
+            "Check whether the paper text shows the baseline training data or protocol "
+            "makes the comparison weak or not directly comparable."
+        ),
+        "expected_quote_cues": ["trained from scratch", "baseline", "comparison"],
+        "missing_or_weak_items": ["baseline training data details", "comparison protocol details"],
+    }
+
+    assert (
+        review_state_mod._reviewer_negative_candidate_quote_route(candidate)
+        == "quote_groundable_internal_negative"
+    )
+
+
+def test_quote_groundable_candidate_with_protocol_risk_quote_stays_verifiable():
+    candidate = {
+        "candidate_id": "reviewer-neg-candidate-protocol-risk",
+        "claim_id": "claim-2",
+        "weakness": (
+            "The ablation suggests the reported gain may depend on careful tuning, "
+            "so the evaluation protocol needs verification before treating the result as robust."
+        ),
+        "negative_type": "evaluation_protocol_risk",
+        "required_evidence_type": "ablation_or_component",
+        "quote_grounding_mode": "quote_groundable_internal_negative",
+        "candidate_raw_quote": (
+            "Notice that the accuracies of 46.8 achieved by TCMT_C without theta are "
+            "lower than the tuned TCMT_C setting."
+        ),
+        "verification_question": (
+            "Check whether the ablation or results section shows sensitivity to a key "
+            "hyperparameter such as theta."
+        ),
+        "expected_quote_cues": ["without", "accuracy", "lower", "theta"],
+        "missing_or_weak_items": ["hyperparameter sensitivity details"],
+    }
+
+    assert (
+        review_state_mod._reviewer_negative_candidate_quote_route(candidate)
+        == "quote_groundable_internal_negative"
+    )
 
 
 def test_targeted_negative_search_uses_claim_requirement_gap_without_negative_quote(monkeypatch):
@@ -1526,6 +2112,52 @@ def test_targeted_negative_not_assessable_is_turn_log_sidechannel_not_open_gap()
     assert turn_log["targeted_negative_not_assessable_claim_id"] == "claim-1"
     assert turn_log["targeted_negative_not_assessable_type"] == "missing_ablation"
     assert turn_log["targeted_negative_not_assessable_required_type"] == "ablation_or_component"
+    assert turn_log["targeted_negative_search_active_task_ids"] == ["neg-search-claim-1-missing-ablation"]
+    assert turn_log["targeted_negative_search_active_tasks"][0]["negative_type"] == "missing_ablation"
+
+
+def test_targeted_negative_active_candidate_survives_turn_action_parse():
+    manager_payload = {
+        "decision": "continue",
+        "action_type": "verify_evidence",
+        "effective_action_type": "verify_evidence",
+        "selected_agents": ["Evidence Agent"],
+        "targeted_negative_search_required": True,
+        "negative_evidence_formation_required": True,
+        "policy_source": "targeted_negative_search_override",
+        "targeted_negative_search_task_count": 1,
+        "targeted_negative_search_active_tasks": [
+            {
+                "task_id": "neg-search-freeform-claim-1-baseline",
+                "claim_id": "claim-1",
+                "claim": "The method outperforms strong baselines.",
+                "negative_type": "missing_baseline",
+                "required_evidence_type": "baseline_or_comparison",
+                "reviewer_negative_candidate_id": "reviewer-neg-candidate-baseline",
+                "source": "freeform_reviewer_negative_candidate",
+            }
+        ],
+    }
+    action = review_state_mod.build_turn_action(
+        manager_payload=manager_payload,
+        worker_payloads=[],
+        mode="s4",
+        turn_id=4,
+    )
+    parsed = parse_turn_action(action, available_agents=["Evidence Agent", "Critique Agent"])
+    parsed_manager = parsed["manager"]
+
+    assert parsed_manager["targeted_negative_search_active_tasks"][0]["reviewer_negative_candidate_id"] == "reviewer-neg-candidate-baseline"
+
+    turn_log = build_turn_log(
+        4,
+        parsed_manager,
+        [],
+        {"claims": [], "evidence_map": [], "flaw_candidates": []},
+    )
+
+    assert turn_log["targeted_negative_search_active_task_ids"] == ["neg-search-freeform-claim-1-baseline"]
+    assert turn_log["targeted_negative_search_active_candidate_ids"] == ["reviewer-neg-candidate-baseline"]
 
 
 def test_targeted_negative_partial_recovery_still_requires_evidence_outside_targeted_mode():
@@ -3000,6 +3632,72 @@ def test_finalize_policy_blocks_fresh_actionable_negative_flaw_candidate_for_nex
     assert selected == ["Critique Agent"]
 
 
+def test_finalize_policy_blocks_active_targeted_negative_verification_task_for_followup():
+    state = {
+        "claims": [{"claim_id": "claim-main", "claim": "The system solves the target task.", "status": "supported"}],
+        "evidence_map": [{"evidence_id": "evidence-pos", "claim_id": "claim-main", "stance": "supports", "strength": "strong"}],
+        "flaw_candidates": [{"flaw_id": "flaw-main", "status": "candidate", "related_claim_ids": ["claim-main"]}],
+        "unresolved_questions": [{"question": "Does the comparison include the needed baseline?", "status": "open"}],
+        "conflict_notes": [],
+    }
+    worker_payloads = [
+        {
+            "agent_id": "Evidence Agent",
+            "payload": {
+                "evidence_map": [],
+                "unresolved_questions": [
+                    {
+                        "question": "The active reviewer-negative task could not be verified in the provided quote window.",
+                        "status": "open",
+                        "related_claim_ids": ["claim-main"],
+                    }
+                ],
+            },
+        }
+    ]
+
+    payload, selected = review_manager_policy_mod.apply_finalize_policy(
+        manager_payload={
+            "decision": "continue",
+            "action_type": "verify_evidence",
+            "effective_action_type": "verify_evidence",
+            "selected_agents": ["Evidence Agent"],
+            "target_claim_ids": ["claim-main"],
+            "policy_source": "targeted_negative_search_override",
+            "policy_notes": [],
+            "targeted_negative_search_required": True,
+            "negative_evidence_formation_required": True,
+            "freeform_reviewer_negative_enabled": True,
+            "freeform_reviewer_negative_stage": "quote_verification",
+            "targeted_negative_search_task_count": 1,
+            "targeted_negative_search_active_tasks": [
+                {
+                    "task_id": "neg-search-freeform-claim-main-reviewer-neg-candidate-1",
+                    "claim_id": "claim-main",
+                    "negative_type": "missing_baseline",
+                    "reviewer_negative_candidate_id": "reviewer-neg-candidate-1",
+                }
+            ],
+        },
+        state=state,
+        mode="s4",
+        step=4,
+        turn_cap=7,
+        worker_ids=["Critique Agent", "Evidence Agent"],
+        worker_limit=1,
+        selected_workers=["Evidence Agent"],
+        worker_payloads=worker_payloads,
+        recent_turn_logs=[],
+    )
+
+    assert payload["decision"] == "continue"
+    assert payload["action_type"] == "verify_evidence"
+    assert payload["policy_source"] == "targeted_negative_lifecycle_block_override"
+    assert payload["auto_finalized"] is False
+    assert payload["targeted_negative_search_required"] is True
+    assert selected == ["Evidence Agent"]
+
+
 def test_recovery_phase_protocol_routes_verified_negative_flaw_to_patch_turn():
     state = {
         "phase": "normal_review",
@@ -3074,6 +3772,79 @@ def test_recovery_phase_protocol_routes_verified_negative_flaw_to_patch_turn():
     assert routed["turn_mode"] == "recovery_patch"
     assert routed["target_flaw_ids"] == ["flaw-output-quality"]
     assert routed["target_evidence_ids"] == ["evidence-neg"]
+
+
+def test_recovery_phase_protocol_prioritizes_pending_reviewer_negative_quote_verification():
+    state = {
+        "phase": "normal_review",
+        "phase_turn_index": 3,
+        "claims": [
+            {
+                "claim_id": "claim-main",
+                "claim": "The method outperforms strong baselines across datasets.",
+                "status": "supported",
+                "claim_kind": "paper_extracted",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "evidence-pos",
+                "claim_id": "claim-main",
+                "stance": "supports",
+                "strength": "strong",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_support_verified",
+            }
+        ],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-baseline",
+                "claim_id": "claim-main",
+                "weakness": "The comparison may omit a strong baseline.",
+                "negative_type": "missing_baseline",
+                "required_evidence_type": "baseline_or_comparison",
+                "status": "pending_quote_verification",
+            }
+        ],
+        "flaw_candidates": [],
+        "conflict_notes": [{"note": "Potential comparison gap remains unresolved."}],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+    }
+
+    routed = review_runner_mod._apply_recovery_phase_protocol(
+        manager_payload={
+            "decision": "continue",
+            "action_type": "request_evidence_recheck",
+            "effective_action_type": "request_evidence_recheck",
+            "selected_agents": ["Evidence Agent"],
+            "phase": "recovery",
+            "_phase_step": 4,
+            "_phase_turn_cap": 7,
+        },
+        state=state,
+        mode="s4",
+        worker_ids=["Critique Agent", "Evidence Agent"],
+        worker_limit=1,
+        recent_turn_logs=[
+            {
+                "turn_id": 3,
+                "policy_source": "freeform_reviewer_negative_discovery_override",
+                "freeform_reviewer_negative_discovery_required": True,
+                "freeform_reviewer_negative_stage": "candidate_discovery",
+            }
+        ],
+    )
+
+    assert routed["phase"] == "normal_review"
+    assert routed["turn_mode"] == "normal_evidence"
+    assert routed["action_type"] == "verify_evidence"
+    assert routed["selected_agents"] == ["Evidence Agent"]
+    assert routed["policy_source"] == "targeted_negative_search_override"
+    assert routed["targeted_negative_search_required"] is True
+    assert routed["negative_evidence_formation_required"] is True
+    assert routed["freeform_reviewer_negative_stage"] == "quote_verification"
+    assert routed["target_claim_ids"] == ["claim-main"]
 
 
 def test_recovery_phase_protocol_exits_recheck_when_no_verified_negative_target():
@@ -8389,7 +9160,7 @@ def test_claim_requirement_gaps_stay_out_of_live_evidence_observation():
     assert "claim_requirement_instruction" not in observation
 
 
-def _claim_requirement_gap_recovery_state():
+def _claim_requirement_gap_recovery_state(*, include_verified_support: bool = True):
     from agent_system.environments.env_package.review.state import _claim_requirement_audit
     base_state = {
         "claims": [
@@ -8402,7 +9173,14 @@ def _claim_requirement_gap_recovery_state():
                 "status": "supported",
             }
         ],
-        "evidence_map": [
+        "evidence_map": [],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+    if include_verified_support:
+        base_state["evidence_map"].append(
             {
                 "evidence_id": "e-method-1",
                 "claim_id": "claim-1",
@@ -8416,12 +9194,7 @@ def _claim_requirement_gap_recovery_state():
                 "semantic_grounding_label": "semantic_support_verified",
                 "support_source_bucket": "method_or_approach",
             }
-        ],
-        "flaw_candidates": [],
-        "unresolved_questions": [],
-        "evidence_gaps": [],
-        "conflict_notes": [],
-    }
+        )
     # Refactor 2026-06-21: compute claim_requirement_audit (including verified_coverage_gap_items)
     # so _claim_requirement_gap_recovery_patch_payload can use it
     base_state["claim_requirement_audit"] = _claim_requirement_audit(base_state)
@@ -8449,7 +9222,7 @@ def test_fallback_recovery_patch_skips_claim_requirement_gap_by_default(monkeypa
 
 def test_fallback_recovery_patch_records_claim_requirement_gap_when_enabled(monkeypatch):
     monkeypatch.setattr(review_runner_mod, "_DIAGPENDING_RECOVERY_ENABLED", True)
-    state = _claim_requirement_gap_recovery_state()
+    state = _claim_requirement_gap_recovery_state(include_verified_support=False)
 
     payload = _fallback_recovery_patch_payload(
         state,
@@ -8477,6 +9250,45 @@ def test_fallback_recovery_patch_records_claim_requirement_gap_when_enabled(monk
     assert patch_log["recovery_patch_operation"] == "record_diagnosis_pending_concern"
     assert new_state["claims"][0]["status"] == "supported"
     assert new_state["diagnosis_pending_concerns"][0]["claim_id"] == "claim-1"
+
+
+def test_fallback_recovery_patch_marks_absence_audit_gap_contested_when_supported(monkeypatch):
+    monkeypatch.setattr(review_runner_mod, "_DIAGPENDING_RECOVERY_ENABLED", True)
+    state = _claim_requirement_gap_recovery_state(include_verified_support=True)
+
+    payload = _fallback_recovery_patch_payload(
+        state,
+        {
+            "action_type": "challenge_previous_hypothesis",
+            "effective_action_type": "challenge_previous_hypothesis",
+            "target_claim_ids": ["claim-1"],
+            "target_flaw_ids": [],
+            "target_evidence_ids": [],
+        },
+    )
+
+    assert payload["action"] == "apply_recovery_patch"
+    assert payload["target_type"] == "claim"
+    assert payload["target_id"] == "claim-1"
+    assert payload["old_status"] == "supported"
+    assert payload["new_status"] == "supported"
+    assert payload["recovery_patch_operation"] == "mark_contested"
+    assert payload["mark_contested"] is True
+    assert payload["contested_relation"]["support_evidence_ids"] == ["e-method-1"]
+    assert payload["contested_relation"]["negative_evidence_ids"]
+    assert all(
+        str(evidence_id).startswith("evidence-reviewer-absence-")
+        for evidence_id in payload["contested_relation"]["negative_evidence_ids"]
+    )
+
+    new_state = merge_review_state(state, payload)
+    patch_log = new_state["_latest_patch_log"]
+    assert patch_log["recovery_committed"] is True
+    assert patch_log["recovery_patch_operation"] == "mark_contested"
+    assert new_state["claims"][0]["status"] == "supported"
+    assert new_state["contested_relations"][0]["claim_id"] == "claim-1"
+    assert new_state["contested_relations"][0]["support_evidence_ids"] == ["e-method-1"]
+    assert new_state["contested_relations"][0]["negative_evidence_ids"] == payload["contested_relation"]["negative_evidence_ids"]
 
 def test_claim_requirement_audit_flags_empirical_gap_without_negative_quote():
     state = {
@@ -8527,7 +9339,7 @@ def test_claim_requirement_audit_flags_empirical_gap_without_negative_quote():
     assert hygiene["diagnosis_pending_potential_concern_type_counts"]["missing_baseline"] >= 1
     report = render_user_report(state, {})
     assert "claim-evidence gap" in report
-    assert "not as a confirmed paper weakness" in report
+    assert "not a copied negative quote" in report
 
 
 def test_claim_requirement_audit_accepts_verified_empirical_baseline_support():
@@ -8754,6 +9566,106 @@ def test_negative_evidence_formation_payload_filters_positive_support():
     )
     for term in forbidden:
         assert term not in last_question.lower()
+
+
+def test_targeted_negative_enforcement_fills_single_task_context_without_verification():
+    payload = normalize_review_update_payload({
+        "evidence_map": [
+            {
+                "evidence_id": "neg-evidence-1",
+                "claim_id": "claim-1",
+                "evidence": "The ablation table omits the routing module.",
+                "source": "Table 4",
+                "source_locator": "Table 4",
+                "raw_quote": "Table 4: Ablation study comparing Full model and w/o distillation.",
+                "quote_id": "quote-table-4",
+                "stance": "missing",
+                "strength": "missing",
+                "negative_evidence_type": "missing_ablation",
+            }
+        ],
+        "dialogue_summary": "targeted negative candidate",
+        "recommendation": "undecided",
+    })
+    manager_payload = {
+        "targeted_negative_search_required": True,
+        "negative_evidence_formation_required": True,
+        "policy_source": "targeted_negative_search_override",
+        "targeted_negative_search_active_tasks": [
+            {
+                "task_id": "neg-search-freeform-claim-1-reviewer-neg-candidate-routing",
+                "claim_id": "claim-1",
+                "negative_type": "missing_ablation",
+                "required_evidence_type": "ablation_or_component",
+                "missing_or_weak_items": ["routing module"],
+                "reviewer_negative_candidate_id": "reviewer-neg-candidate-routing",
+            }
+        ],
+    }
+
+    enforced = _enforce_negative_evidence_formation_payload(
+        "Evidence Agent",
+        payload,
+        manager_payload,
+    )
+    item = enforced["evidence_map"][0]
+
+    assert item["raw_quote"] == "Table 4: Ablation study comparing Full model and w/o distillation."
+    assert item["targeted_negative_search_task_id"] == "neg-search-freeform-claim-1-reviewer-neg-candidate-routing"
+    assert item["coverage_missing_items"] == ["routing module"]
+    assert item["required_evidence_type"] == "ablation_or_component"
+
+
+def test_targeted_negative_empty_payload_proposes_active_candidate_quote_for_verifier():
+    payload = normalize_review_update_payload({
+        "evidence_map": [],
+        "dialogue_summary": "targeted candidate quote was visible but not emitted",
+        "recommendation": "undecided",
+    })
+    manager_payload = {
+        "targeted_negative_search_required": True,
+        "negative_evidence_formation_required": True,
+        "policy_source": "targeted_negative_search_override",
+        "targeted_negative_search_active_tasks": [
+            {
+                "task_id": "neg-search-freeform-claim-1-reviewer-neg-candidate-protocol",
+                "claim_id": "claim-1",
+                "negative_type": "evaluation_protocol_risk",
+                "required_evidence_type": "evaluation_protocol",
+                "missing_or_weak_items": ["cross-method comparability"],
+                "reviewer_negative_candidate_id": "reviewer-neg-candidate-protocol",
+                "reviewer_negative_candidate": "The alpha tuning protocol may invalidate cross-method comparison.",
+                "quote_grounding_mode": "quote_groundable_internal_negative",
+                "candidate_raw_quote": (
+                    "alpha must be tuned for each method and therefore cannot be used "
+                    "to compare intervention effects across methods."
+                ),
+                "quote_id": "quote-protocol-alpha",
+                "target_locator_hint": "Section 4.1",
+                "source": "freeform_reviewer_negative_candidate",
+            }
+        ],
+    }
+
+    enforced = _enforce_negative_evidence_formation_payload(
+        "Evidence Agent",
+        payload,
+        manager_payload,
+        {"claims": [{"claim_id": "claim-1", "claim": "The evaluation is comparable across methods."}]},
+    )
+
+    assert enforced["targeted_negative_candidate_quote_proposal_count"] == 1
+    assert len(enforced["evidence_map"]) == 1
+    item = enforced["evidence_map"][0]
+    assert item["targeted_negative_candidate_quote_proposal"] is True
+    assert item["targeted_negative_candidate_quote_proposal_source"] == "freeform_reviewer_negative_candidate"
+    assert item["runtime_evidence_verification_required"] is True
+    assert item["raw_quote"].startswith("alpha must be tuned")
+    assert item["quote_id"] == "quote-protocol-alpha"
+    assert item["stance"] == "missing"
+    assert item["negative_evidence_type"] == "evaluation_protocol_risk"
+    assert item["reviewer_negative_candidate_id"] == "reviewer-neg-candidate-protocol"
+    assert item["coverage_missing_items"] == ["cross-method comparability"]
 
 
 def test_hard_negative_discovery_blocks_quote_bank_salvage_when_model_returns_positive_only():
@@ -9469,6 +10381,78 @@ def test_s4_targeted_negative_search_routes_shortfall_to_evidence_agent(monkeypa
     assert payload["selected_agents"] == ["Evidence Agent"]
 
 
+def test_s4_freeform_reviewer_negative_runs_discovery_before_verification(monkeypatch):
+    monkeypatch.setattr(review_manager_policy_mod, "_TARGETED_NEGATIVE_SEARCH_ENABLED", True)
+    monkeypatch.setattr(review_manager_policy_mod, "_FREEFORM_REVIEWER_NEGATIVE_ENABLED", True)
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The method outperforms strong baselines and validates the routing component.",
+                "status": "supported",
+                "claim_kind": "paper_extracted",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "evidence-1",
+                "claim_id": "claim-1",
+                "evidence": "Table 1 supports the claim.",
+                "stance": "supports",
+                "strength": "strong",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_support_verified",
+            }
+        ],
+        "flaw_candidates": [],
+        "evidence_gaps": [],
+        "unresolved_questions": [],
+    }
+
+    discovery_payload = _apply_manager_policy_fallback(
+        {"decision": "continue", "action_type": "analyze_flaws", "selected_agents": ["Critique Agent"]},
+        state,
+        "s4",
+        ["Evidence Agent", "Critique Agent"],
+        1,
+        recent_turn_logs=[],
+    )
+
+    assert discovery_payload["policy_source"] == "freeform_reviewer_negative_discovery_override"
+    assert discovery_payload["action_type"] == "verify_evidence"
+    assert discovery_payload["freeform_reviewer_negative_discovery_required"] is True
+    assert discovery_payload["targeted_negative_search_required"] is False
+    assert discovery_payload["negative_evidence_formation_required"] is False
+
+    state_with_candidate = {
+        **state,
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-1",
+                "claim_id": "claim-1",
+                "weakness": "The routing component may lack an ablation.",
+                "negative_type": "missing_ablation",
+                "required_evidence_type": "ablation_or_component",
+                "status": "pending_quote_verification",
+            }
+        ],
+    }
+    verification_payload = _apply_manager_policy_fallback(
+        {"decision": "continue", "action_type": "analyze_flaws", "selected_agents": ["Critique Agent"]},
+        state_with_candidate,
+        "s4",
+        ["Evidence Agent", "Critique Agent"],
+        1,
+        recent_turn_logs=[discovery_payload],
+    )
+
+    assert verification_payload["policy_source"] == "targeted_negative_search_override"
+    assert verification_payload["action_type"] == "verify_evidence"
+    assert verification_payload["targeted_negative_search_required"] is True
+    assert verification_payload["negative_evidence_formation_required"] is True
+    assert verification_payload["freeform_reviewer_negative_stage"] == "quote_verification"
+
+
 def test_s4_targeted_negative_search_does_not_repeat_after_attempt(monkeypatch):
     monkeypatch.setattr(review_manager_policy_mod, "_TARGETED_NEGATIVE_SEARCH_ENABLED", True)
     state = {
@@ -9501,6 +10485,80 @@ def test_s4_targeted_negative_search_does_not_repeat_after_attempt(monkeypatch):
 
     assert payload.get("policy_source") != "targeted_negative_search_override"
     assert payload.get("targeted_negative_search_required") is not True
+
+
+def test_s4_freeform_reviewer_negative_allows_second_candidate_verification(monkeypatch):
+    monkeypatch.setattr(review_manager_policy_mod, "_TARGETED_NEGATIVE_SEARCH_ENABLED", True)
+    monkeypatch.setattr(review_manager_policy_mod, "_FREEFORM_REVIEWER_NEGATIVE_ENABLED", True)
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The method outperforms strong baselines and validates the routing component.",
+                "status": "supported",
+                "claim_kind": "paper_extracted",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "evidence-1",
+                "claim_id": "claim-1",
+                "evidence": "Table 1 supports the claim.",
+                "stance": "supports",
+                "strength": "strong",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_support_verified",
+            }
+        ],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-baseline",
+                "claim_id": "claim-1",
+                "weakness": "The baseline set may be incomplete.",
+                "negative_type": "missing_baseline",
+                "required_evidence_type": "baseline_or_comparison",
+                "status": "pending_quote_verification",
+            },
+            {
+                "candidate_id": "reviewer-neg-candidate-routing",
+                "claim_id": "claim-1",
+                "weakness": "The routing component may lack ablation.",
+                "negative_type": "missing_ablation",
+                "required_evidence_type": "ablation_or_component",
+                "status": "pending_quote_verification",
+            },
+        ],
+        "flaw_candidates": [],
+        "evidence_gaps": [],
+        "unresolved_questions": [],
+    }
+
+    payload = _apply_manager_policy_fallback(
+        {"decision": "continue", "action_type": "analyze_flaws", "selected_agents": ["Critique Agent"]},
+        state,
+        "s4",
+        ["Evidence Agent", "Critique Agent"],
+        1,
+        recent_turn_logs=[
+            {
+                "policy_source": "freeform_reviewer_negative_discovery_override",
+                "freeform_reviewer_negative_discovery_required": True,
+                "freeform_reviewer_negative_stage": "candidate_discovery",
+            },
+            {
+                "policy_source": "targeted_negative_search_override",
+                "targeted_negative_search_required": True,
+                "negative_evidence_formation_required": True,
+                "freeform_reviewer_negative_stage": "quote_verification",
+                "targeted_negative_search_active_candidate_ids": ["reviewer-neg-candidate-baseline"],
+            },
+        ],
+    )
+
+    assert payload["policy_source"] == "targeted_negative_search_override"
+    assert payload["targeted_negative_search_required"] is True
+    assert payload["negative_evidence_formation_required"] is True
+    assert payload["freeform_reviewer_negative_stage"] == "quote_verification"
 
 
 def test_negative_binding_rejects_raw_salvaged_paper_claim_and_context_shell():

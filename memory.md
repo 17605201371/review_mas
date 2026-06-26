@@ -1,6 +1,6 @@
 # Memory - DrMAS Paper Review (Compact)
 
-Last compacted: 2026-06-25.
+Last compacted: 2026-06-26.
 
 This file is the working memory for the paper-review project. Keep it short. Move detailed historical narratives into separate audit/checkpoint docs instead of expanding this file.
 
@@ -39,6 +39,86 @@ Verified negative evidence must have:
 
 Missing-baseline, missing-ablation, insufficient-evaluation, and reproducibility gaps are often absence/coverage judgments. They may become `diagnosis_pending_potential_concern`, but they must not be counted as `verified_actionable_negative_flaw` unless Evidence Agent finds a real paper quote/locator and the verifier accepts it.
 
+## Current Negative Evidence Logic
+
+There are two deliberately separate negative-evidence lanes. Keep them separate in code, metrics, dashboards, and paper narrative.
+
+### 1. Quote-grounded reviewer negative
+
+This is the strictest lane and is the only thing that may count as `review_negative_verified_count`.
+
+Required properties:
+
+- Evidence Agent or normalized evidence payload supplies a real paper-side quote:
+  - `negative_quote`, `raw_quote`, or equivalent copied paper text.
+  - locator / section / span information.
+- The evidence is bound to an auditable real paper claim and flaw:
+  - `claim_id`
+  - `flaw_id`
+  - `negative_type`
+  - weakened dimension / reason.
+- The verifier accepts paper grounding and review-negative semantics:
+  - paper-grounded quote match, not merely model judgment.
+  - semantic relation is a reviewer criticism of a claim, not a neutral observation.
+  - evidence is linked to the flaw it is supposed to support.
+
+Hard rejects for this lane:
+
+- author self-limitations, future-work statements, or limitations-section text presented as if it were reviewer-discovered criticism;
+- internal ablation/variant/results text that only says one variant is weaker than another;
+- generic gaps without a concrete claim/flaw/quote/locator chain;
+- Critique-only/model-only judgments without copied paper evidence;
+- quote-bank salvage that fabricates negative semantics;
+- fallback/context/synthetic claim status patch or downgrade.
+
+Expected metric behavior:
+
+- `review_negative_verified_count` only counts this lane.
+- `negative_evidence_unlinked_to_flaw` must stay 0.
+- `semantic_negative_without_review_relation_count` must stay 0.
+- These records can support quote-grounded negative flaw promotion and recovery case type `verified_review_negative_repair`.
+
+### 2. Reviewer-inferred absence / coverage negative
+
+This lane handles real reviewer concerns that are usually not directly quoteable, such as missing baseline, missing ablation, insufficient evaluation, missing reproducibility detail, or coverage gaps.
+
+Source of truth:
+
+- deterministic claim-requirement / coverage audit over an auditable real paper claim;
+- the claim requires a support dimension, but the current support inventory does not satisfy it;
+- this is a reviewer-inferred absence finding, not copied negative paper text.
+
+Current behavior:
+
+- It may produce final-view potential concerns and reviewer absence metrics:
+  - `reviewer_absence_verified_count`
+  - `total_review_negative_verified_count`
+  - `verified_negative_flaw_count`
+  - `verified_actionable_negative_flaw_count`
+  - `potential_concern_count`
+  - `final_potential_concern_total`
+- It must not increment `review_negative_verified_count`.
+- It must not be mixed into quote-grounded verified negative evidence.
+- Runtime `mark_contested` may use a fresh final-view reviewer absence audit finding as evidence for a non-destructive contested relation.
+- When such a recovery commit succeeds, the absence audit snapshot is persisted into `evidence_map` so the recovery case table has a real evidence object instead of `missing_evidence_id`.
+- Absence audit snapshots bypass quote-grounding verifier only because they are deterministic coverage findings; they are not paper quotes.
+- A freshness gate must re-check support inventory. If the missing requirement is later satisfied, the snapshot becomes stale and must not count.
+
+Expected metric behavior:
+
+- Recovery case audit labels these as `reviewer_inferred_negative_repair`.
+- `recovery_case_effective_repair_without_verified_negative` should stay 0.
+- Stale snapshots should be visible as `stale_reviewer_absence_audit`, not counted as clean negative repair.
+
+### Final and recovery routing
+
+- Quote-grounded negatives and fresh reviewer-inferred absence findings may both surface as final potential concerns.
+- `mark_contested` is the preferred non-destructive recovery operation when a claim has real support plus a verified negative/absence concern.
+- `mark_contested` must not change claim status.
+- `record_diagnosis_pending_concern` is a state record, not an effective repair.
+- Recovery effective repair must be backed by either quote-grounded reviewer negative evidence or fresh reviewer-inferred absence audit evidence.
+- Do not increase negative/recovery counts by weakening verifier gates. If quote-grounded negatives remain 0, the fix is better reviewer critique discovery plus evidence retrieval, not metric relabeling.
+
 ## Current Mainline
 
 Use qhyg as the clean mainline layer:
@@ -53,16 +133,93 @@ MiMo runs should use:
 --api-provider mimo
 --api-model mimo-v2.5
 --model-adapter-mode small_model
---max-tokens 768
+--max-tokens 1536
 --max-turns 7
 --manager-batch-size 4
 --api-timeout 600
 --api-max-retries 10
 ```
 
-For smoke8, `--api-max-workers 2` is safer. For hardneg20/full39, larger workers can be tried after confirming the endpoint is stable.
+For smoke8, `--api-max-workers 2` is safer. For hardneg20/full39, larger workers can be tried after confirming the endpoint is stable. Legacy `max_tokens=768` is too truncation-prone for evidence JSON and should not be used for negative-evidence validation unless intentionally reproducing an old run.
 
-## Latest State: 2026-06-25
+## Latest State: 2026-06-26
+
+Active project directory: `/Users/zss/Downloads/zssmas-codex-p26-optimization-20260524`. Do not use `/Users/zss/Downloads/DrMAS-master`; it is stale.
+
+Current effective code changes:
+
+- Runtime `mark_contested` can now use final-view reviewer absence audit evidence.
+- When such a recovery commit succeeds, the reviewer absence audit snapshot is persisted into the live `evidence_map`.
+- Absence audit snapshots bypass quote-grounding because they are deterministic coverage findings, not copied paper quotes.
+- A freshness gate prevents stale absence snapshots from counting if later support inventory satisfies the missing requirement.
+- Final-view flaw generation no longer lets absence snapshots block flaw creation as if they were generic paper-negative candidates.
+- Stale absence snapshots no longer pollute quote-negative protection metrics.
+- Recovery case audit now separates:
+  - `verified_review_negative_repair`
+  - `reviewer_inferred_negative_repair`
+  - `effective_repair_without_verified_negative`
+  - `stale_reviewer_absence_audit`
+
+Important metric semantics:
+
+- `review_negative_verified_count` is still reserved for quote-grounded reviewer negatives.
+- Reviewer-inferred absence / coverage findings are counted separately through `reviewer_absence_verified_count`, `total_review_negative_verified_count`, final potential concerns, and recovery case audit fields.
+- Do not merge reviewer-inferred absence into quote-grounded `review_negative_verified_count`.
+
+Latest validated results:
+
+- `mimo_v25_quoteclass13_absencesnapshot_smoke8_mt7_b4w2_api2_r8t600_tok1536_py3_20260626_170837.jsonl`
+  - Dashboard: `mimo_v25_quoteclass13_absencesnapshot_smoke8_mt7_b4w2_api2_r8t600_tok1536_py3_20260626_170837_RECOMPUTED2_VS_QUOTECLASS10_DASHBOARD.md`
+  - Recovery table: `mimo_v25_quoteclass13_absencesnapshot_smoke8_mt7_b4w2_api2_r8t600_tok1536_py3_20260626_170837_RECOMPUTED2_RECOVERY_CASE_TABLE.md`
+  - `evidence_json_fallback_rate_pct=0`
+  - `real_strong_support_total=37`
+  - `review_negative_verified_count=0`
+  - `reviewer_absence_verified_count=9`
+  - `total_review_negative_verified_count=9`
+  - `verified_negative_flaw_count=9`
+  - `verified_actionable_negative_flaw_count=9`
+  - `potential_concern_count=9`
+  - `final_potential_concern_total=10`
+  - `mark_contested_commit_count=3`
+  - `recovery_effective_repair=3`
+  - `recovery_case_reviewer_inferred_negative_repair=3`
+  - `recovery_case_effective_repair_without_verified_negative=0`
+  - `negative_evidence_unlinked_to_flaw=0`
+  - `semantic_negative_without_review_relation_count=0`
+  - Overall protection: FAIL because `hygiene_delta_or_safe_block_or_clean_state=4`, threshold is `>=5`.
+
+Interpretation:
+
+- Recovery around reviewer-inferred negative findings improved substantially: `mark_contested` now has 3 effective reviewer-inferred negative repairs instead of appearing effective with missing evidence IDs.
+- Strict quote-grounded reviewer negative evidence is still absent: `review_negative_verified_count=0`.
+- The run is not complete enough to freeze because the dashboard still FAILs one hygiene threshold.
+- Do not overclaim this as restored quote-grounded negative discovery. The current paper story is improved reviewer-inferred absence recovery, not verified paper-quote negative recovery.
+
+Validation:
+
+```bash
+/opt/miniconda3/envs/DrMAS/bin/python -m pytest \
+  tests/test_review_inference_runner.py \
+  tests/test_review_decision_hygiene.py \
+  tests/test_recovery_patch.py \
+  tests/test_coverage_gap_recovery.py \
+  tests/test_case_audit.py -q
+```
+
+Current result: `601 passed`.
+
+Next steps:
+
+- Fix the remaining hygiene-threshold failure cases from the latest smoke8:
+  - `ye3NrNrYOY`: evidence misbinding present.
+  - `WNxlJJIEVj`: unattributed hygiene miss.
+  - `7Dub7UXTXN`: committed diagnosis-pending but no hygiene delta.
+  - `WpXq5n8yLb`: unattributed hygiene miss.
+- Rerun MiMo smoke8 with `max_turns=7`, `max_tokens=1536`.
+- Only after smoke8 protection passes, run hardneg20/full39.
+- Continue the separate workstream for true quote-grounded reviewer negatives; do not loosen gates or fold reviewer-inferred absence into quote-grounded negative metrics.
+
+## Previous State: 2026-06-25
 
 Active project directory: `/Users/zss/Downloads/zssmas-codex-p26-optimization-20260524`. Do not use `/Users/zss/Downloads/DrMAS-master`; it is stale.
 

@@ -22,6 +22,13 @@ _post_spec = importlib.util.spec_from_file_location(
 post_audit = importlib.util.module_from_spec(_post_spec)
 _post_spec.loader.exec_module(post_audit)
 
+_recovery_spec = importlib.util.spec_from_file_location(
+    "audit_recovery_case_table_v1",
+    str(REPO_ROOT / "scripts" / "audit_recovery_case_table_v1.py"),
+)
+recovery_audit = importlib.util.module_from_spec(_recovery_spec)
+_recovery_spec.loader.exec_module(recovery_audit)
+
 BUNDLE_FIELDS = {
     "case_type", "paper_id", "claim", "quote", "locator",
     "positive_evidence", "negative_evidence", "state_transition",
@@ -207,12 +214,12 @@ def test_post4tasks_case_audit_exports_conflict_semantic_and_mapping_cases():
     assert audit["stored_metric_totals"]["open_conflict_count"] == 1
     assert audit["recomputed_metric_totals"]["open_conflict_count"] == 0
     assert audit["stored_metric_totals"]["contamination_evidence_misbinding"] == 1
-    assert audit["recomputed_metric_totals"]["contamination_evidence_misbinding"] == 0
+    assert audit["recomputed_metric_totals"]["contamination_evidence_misbinding"] == 1
     assert audit["p0_1_open_conflict_cases"] == []
     assert audit["p0_3_negative_semantic_anchor_cases"][0]["semantic_label"] == "semantic_mismatch"
     mapping = audit["p0_4_verified_negative_flaw_mapping"]
-    assert mapping["current_negative_evidence_candidate_count"] == 1
-    assert mapping["current_verified_negative_flaw_count"] == 1
+    assert mapping["current_negative_evidence_candidate_count"] == 0
+    assert mapping["current_verified_negative_flaw_count"] == 0
 
 
 def test_post4tasks_case_audit_does_not_list_historical_conflict_notes_when_clean():
@@ -260,3 +267,76 @@ def test_post4tasks_case_audit_does_not_list_historical_conflict_notes_when_clea
     assert audit["stored_metric_totals"]["open_conflict_count"] == 0
     assert audit["recomputed_metric_totals"]["open_conflict_count"] == 0
     assert audit["p0_1_open_conflict_cases"] == []
+
+
+def test_recovery_case_audit_separates_reviewer_absence_from_quote_grounded_negative():
+    row = {
+        "paper_id": "p-absence-recovery",
+        "review_state": {
+            "paper_id": "p-absence-recovery",
+            "claims": [
+                {
+                    "claim_id": "claim-1",
+                    "claim": "The method improves performance compared to the GPT-4 baseline.",
+                    "claim_kind": "paper_extracted",
+                    "claim_type": "comparison",
+                    "status": "supported",
+                }
+            ],
+            "reviewer_negative_candidates": [
+                {
+                    "candidate_id": "reviewer-neg-candidate-gpt4-baseline",
+                    "claim_id": "claim-1",
+                    "weakness": "The comparison claim lacks verified evidence for the GPT-4 baseline.",
+                    "negative_type": "missing_baseline",
+                    "required_evidence_type": "baseline_or_comparison",
+                    "quote_grounding_mode": "absence_or_requirement_gap",
+                    "missing_or_weak_items": ["GPT-4 baseline"],
+                    "status": "pending_absence_audit",
+                }
+            ],
+            "evidence_map": [
+                {
+                    "evidence_id": "e-support",
+                    "claim_id": "claim-1",
+                    "raw_quote": "Table 1 reports that the method improves performance.",
+                    "source_locator": "Table 1",
+                    "stance": "supports",
+                    "strength": "strong",
+                    "binding_status": "bound_real_claim",
+                    "verified_grounding_label": "paper_grounded_exact",
+                    "semantic_grounding_label": "semantic_support_verified",
+                }
+            ],
+            "flaw_candidates": [],
+            "evidence_gaps": [],
+            "conflict_notes": [],
+            "unresolved_questions": [],
+        },
+        "turn_logs": [
+            {
+                "turn_id": "turn-recovery",
+                "recovery_attempted": True,
+                "recovery_committed": True,
+                "recovery_patch_committed": True,
+                "recovery_effective_repair": True,
+                "recovery_patch_operation": "mark_contested",
+                "supporting_evidence_ids": ["evidence-reviewer-absence-claim-1-baseline-or-comparison"],
+                "contested_relation_claim_id": "claim-1",
+                "contested_relation_negative_evidence_ids": [
+                    "evidence-reviewer-absence-claim-1-baseline-or-comparison"
+                ],
+                "contested_relation_support_evidence_ids": ["e-support"],
+                "contested_relation_final_view": "potential_concern",
+            }
+        ],
+    }
+
+    _, summary = recovery_audit.build_recovery_case_table([row])
+
+    assert summary["bucket::reviewer_inferred_negative_repair"] == 1
+    assert summary["evidence_bucket::reviewer_absence_audit"] == 1
+    assert summary.get("bucket::verified_review_negative_repair", 0) == 0
+    assert summary.get("evidence_bucket::verified_review_negative", 0) == 0
+    assert summary["turns_with_reviewer_absence_audit_evidence"] == 1
+    assert summary.get("turns_with_verified_review_negative_evidence", 0) == 0

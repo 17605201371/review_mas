@@ -34,6 +34,9 @@ RECOVERY_STATUS_TRANSITIONS = {
 VERIFIED_RECOVERY_GROUNDING_LABELS = {"paper_grounded_exact", "paper_grounded_normalized"}
 VERIFIED_RECOVERY_SEMANTIC_LABELS = {"semantic_support_verified", "semantic_negative_verified"}
 REVIEW_NEGATIVE_VERIFIED_LABEL = "review_negative_verified"
+REVIEW_NEGATIVE_ABSENCE_AUDIT_LABEL = "review_negative_absence_audit_verified"
+ABSENCE_AUDIT_GROUNDING_LABEL = "paper_absence_audit_verified"
+ABSENCE_AUDIT_SOURCE = "reviewer_absence_audit"
 ACTIONABLE_RECOVERY_NEGATIVE_TYPES = {
     "direct_contradiction",
     "negative_result",
@@ -304,7 +307,24 @@ def _is_verified_recovery_evidence(item: Dict[str, Any]) -> bool:
     )
 
 
+def _is_verified_absence_audit_recovery_evidence(item: Dict[str, Any]) -> bool:
+    """Verified reviewer-inferred absence concern, not quote-grounded evidence."""
+    if not isinstance(item, dict):
+        return False
+    if str(item.get("source") or "").strip().lower() != ABSENCE_AUDIT_SOURCE:
+        return False
+    return bool(
+        item.get("absence_audit_verified")
+        and str(item.get("audit_basis") or "").strip() == "claim_requirement_vs_verified_support"
+        and str(item.get("review_negative_label") or "").strip() == REVIEW_NEGATIVE_ABSENCE_AUDIT_LABEL
+        and str(item.get("verified_grounding_label") or "").strip() == ABSENCE_AUDIT_GROUNDING_LABEL
+        and str(item.get("semantic_grounding_label") or "").strip() == "semantic_negative_verified"
+    )
+
+
 def _is_verified_negative_recovery_evidence(item: Dict[str, Any]) -> bool:
+    if _is_verified_absence_audit_recovery_evidence(item):
+        return True
     if not _is_verified_recovery_evidence(item):
         return False
     if str(item.get("semantic_grounding_label") or "").strip() != "semantic_negative_verified":

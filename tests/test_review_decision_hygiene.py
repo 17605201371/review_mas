@@ -46,6 +46,7 @@ from agent_system.environments.env_package.review.state import (
     _is_real_paper_claim_id,
     _is_synthetic_recovery_marker_evidence_id,
     _is_system_assessment_limitation_flaw,
+    _assess_review_negative_relation,
     _is_paper_negative_evidence_record,
     _is_grounded_paper_negative_evidence_record,
     _render_assessment_limitation_flaws,
@@ -699,6 +700,34 @@ def test_final_report_weaknesses_ignore_fallback_meta_flaws():
     }
     weaknesses = _render_weaknesses(state)
     assert weaknesses == ["Grounded empirical issue: The baseline comparison is missing."]
+
+
+def test_support_survival_trace_ignores_missing_strength_support_placeholder():
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The method has a measured speedup.",
+                "claim_kind": "paper_extracted",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "e-placeholder",
+                "claim_id": "claim-1",
+                "evidence": "A speedup table should be located.",
+                "source": "To be located: specific table/figure in the full text.",
+                "source_locator": "To be located: specific table/figure in the full text.",
+                "strength": "missing",
+                "stance": "supports",
+                "binding_status": "bound_real_claim",
+                "verified_grounding_label": "missing_quote",
+                "semantic_grounding_label": "semantic_unverified_quote",
+            }
+        ],
+    }
+
+    assert _build_support_survival_trace(state) == []
 
 
 def test_final_report_weakness_requires_negative_grounding():
@@ -1824,10 +1853,18 @@ def test_verified_coverage_gap_is_primary_unsupported_and_isolated_from_quote_gr
     assert hg["primary_claims_with_requirement_gaps"] == 1
     # Isolation: a coverage gap must NOT pollute any quote-grounded verified count.
     assert hg["review_negative_verified_count"] == 0
-    concerns = _render_claim_requirement_gap_concerns(build_decision_hygiene_view(state))
+    assert hg["reviewer_absence_verified_count"] == 3
+    assert hg["total_review_negative_verified_count"] == 3
+    assert hg["negative_evidence_candidate_count"] == 3
+    assert hg["negative_evidence_linked_to_flaw_count"] == 3
+    assert hg["negative_evidence_unlinked_to_flaw_count"] == 0
+    assert hg["verified_negative_flaw_count"] == 1
+    assert hg["verified_actionable_negative_flaw_count"] == 1
+    assert hg["potential_concern_count"] == 1
+    concerns = _render_potential_concerns(build_decision_hygiene_view(state))
     assert concerns
-    assert "diagnosis-pending potential concern" in concerns[0]
-    assert "not quote-grounded negative evidence" in concerns[0]
+    assert "Reviewer-inferred potential concern" in concerns[0]
+    assert "not a copied negative quote" in concerns[0]
 
 
 def test_verified_coverage_gap_includes_partial_actionable_gap():
@@ -1856,9 +1893,13 @@ def test_verified_coverage_gap_includes_partial_actionable_gap():
     actionable = {"scope_coverage", "baseline_or_comparison", "ablation_or_component", "empirical_result", "robustness_or_generalization", "efficiency_cost"}
     assert any(r in actionable for r in gap.get("coverage_gap_missing_requirements", []))
     assert hg["review_negative_verified_count"] == 0  # isolation from quote-grounded
-    assert hg["verified_negative_flaw_count"] == 0
+    assert hg["reviewer_absence_verified_count"] == 1
+    assert hg["total_review_negative_verified_count"] == 1
+    assert hg["verified_negative_flaw_count"] == 1
+    assert hg["verified_actionable_negative_flaw_count"] == 1
     assert hg["grounded_weakness_count"] == 0
     assert hg["coverage_gap_potential_concern_count"] == 1
+    assert hg["potential_concern_count"] == 1
     assert hg["final_potential_concern_total"] == 1
 
 
@@ -2977,7 +3018,8 @@ def test_semantic_weak_claim_overlap_promotion_is_audited():
     assert evidence["semantic_alignment_score"] < 0.18
     hygiene = build_decision_hygiene_view(merged)["decision_hygiene"]
     assert hygiene["semantic_weak_promotion_used_count"] == 1
-    assert hygiene["semantic_weak_promotion_real_strong_count"] == 1
+    assert hygiene["semantic_weak_promotion_real_strong_count"] == 0
+    assert hygiene["final_strong_guard_low_score_downgrade_count"] == 1
     assert hygiene["semantic_weak_promotion_case_sample"][0]["semantic_weak_promotion_reason"] == "verified_claim_overlap_low_semantic_alignment"
 
 
@@ -3065,6 +3107,41 @@ def test_decision_hygiene_does_not_count_unverified_strong_support():
     assert hygiene["support_survival_summary"]["final_real_strong_total"] == 0
     assert trace[0]["included_in_final_view"] is False
     assert trace[0]["final_drop_reason"] == "missing_verified_quote"
+
+
+def test_support_trace_ignores_records_reclassified_to_negative_stance():
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The method improves benchmark performance.",
+                "claim_kind": "paper_extracted",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "reclassified-negative",
+                "claim_id": "claim-1",
+                "evidence": "The table is missing from the visible paper evidence.",
+                "strength": "missing",
+                "stance": "missing",
+                "initial_strength": "weak",
+                "initial_stance": "partially_supports",
+                "binding_status": "bound_real_claim",
+                "verified_grounding_label": "missing_quote",
+                "semantic_grounding_label": "semantic_unverified_quote",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(state)["decision_hygiene"]
+
+    assert hygiene["support_survival_trace"] == []
+    assert hygiene["support_survival_summary"]["merged_support_total"] == 0
 
 
 def test_decision_hygiene_requires_semantic_verified_support():
@@ -3530,6 +3607,492 @@ def test_quote_id_canonicalization_does_not_verify_semantic_mismatch_as_strong()
     assert "missing_numeric_anchor" in evidence["semantic_grounding_reasons"]
 
 
+def test_quote_id_mismatch_raw_quote_can_match_correct_quote_bank_item():
+    model_list_quote = "In this section, we evaluate the five methods on Gemma2-2b, Llama2-7b, and GPT2-small."
+    state = {
+        "claims": [
+            {"claim_id": "claim-1", "claim": "The evaluation supports broad model coverage.", "status": "uncertain"},
+        ],
+        "evidence_quote_bank": [
+            {
+                "quote_id": "quote-results-1",
+                "source_bucket": "results",
+                "source_locator": "Results / Metrics excerpt #1",
+                "raw_quote": "We then propose evaluation metrics for the summarization experiments.",
+                "source_span_start": 10,
+                "source_span_end": 75,
+            },
+            {
+                "quote_id": "quote-results-models-1",
+                "source_bucket": "results",
+                "source_locator": "Results / Model coverage excerpt #1",
+                "raw_quote": model_list_quote,
+                "source_span_start": 200,
+                "source_span_end": 295,
+            },
+        ],
+        "evidence_map": [],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+    payload = {
+        "evidence_map": [
+            {
+                "evidence_id": "neg-model-coverage",
+                "claim_id": "claim-1",
+                "evidence": "The evaluation only names Gemma2-2b, Llama2-7b, and GPT2-small, leaving model-scale coverage limited.",
+                "raw_quote": model_list_quote,
+                "quote_id": "quote-results-1",
+                "source_locator": "Results / Model coverage",
+                "strength": "missing",
+                "stance": "missing",
+                "binding_status": "bound_real_claim",
+                "negative_evidence_type": "insufficient_evaluation",
+            }
+        ]
+    }
+    merged = merge_review_state(state, payload)
+    evidence = merged["evidence_map"][0]
+    assert evidence["quote_id_mismatch_ignored"] is True
+    assert evidence["quote_id_mismatch_ignored_quote_id"] == "quote-results-1"
+    assert evidence["quote_id"] == "quote-results-models-1"
+    assert evidence["raw_quote"] == model_list_quote
+    assert evidence["verified_grounding_label"] == "paper_grounded_exact"
+    assert evidence["verified_quote_match_type"] == "quote_bank_raw_canonical"
+
+
+def test_quote_id_mismatch_does_not_verify_against_wrong_quote_id_when_raw_quote_missing_from_bank():
+    state = {
+        "claims": [
+            {"claim_id": "claim-1", "claim": "The evaluation supports broad model coverage.", "status": "uncertain"},
+        ],
+        "evidence_quote_bank": [
+            {
+                "quote_id": "quote-results-1",
+                "source_bucket": "results",
+                "source_locator": "Results / Metrics excerpt #1",
+                "raw_quote": "We then propose evaluation metrics for the summarization experiments.",
+                "source_span_start": 10,
+                "source_span_end": 75,
+            }
+        ],
+        "evidence_map": [],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+    payload = {
+        "evidence_map": [
+            {
+                "evidence_id": "neg-model-coverage",
+                "claim_id": "claim-1",
+                "evidence": "The evaluation only names Gemma2-2b, Llama2-7b, and GPT2-small, leaving model-scale coverage limited.",
+                "raw_quote": "In this section, we evaluate the five methods on Gemma2-2b, Llama2-7b, and GPT2-small.",
+                "quote_id": "quote-results-1",
+                "source_locator": "Results / Model coverage",
+                "strength": "missing",
+                "stance": "missing",
+                "binding_status": "bound_real_claim",
+                "negative_evidence_type": "insufficient_evaluation",
+            }
+        ]
+    }
+    merged = merge_review_state(state, payload)
+    evidence = merged["evidence_map"][0]
+    assert evidence["quote_id_mismatch_ignored"] is True
+    assert evidence["quote_id"] == "quote-results-1"
+    assert evidence["verified_grounding_label"] != "paper_grounded_exact"
+    assert evidence.get("verified_quote_match_type") != "quote_bank_id_canonical"
+
+
+def test_negative_quote_id_accepts_long_quote_bank_prefix_continuation():
+    canonical_quote = (
+        "Note that alpha is a hyperparameter that must be tuned for each method, model, "
+        "and sometimes even intervention feature and thus cannot be used to compare the "
+        "effects of interventions across methods."
+    )
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The evaluation provides comparable intervention effects across methods.",
+                "status": "uncertain",
+            },
+        ],
+        "evidence_quote_bank": [
+            {
+                "quote_id": "quote-comparison-risk-1",
+                "source_bucket": "comparison",
+                "source_locator": "Comparison / Robustness excerpt #2",
+                "raw_quote": canonical_quote,
+                "source_span_start": 200,
+                "source_span_end": 200 + len(canonical_quote) - 1,
+            }
+        ],
+        "evidence_map": [],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+    payload = {
+        "evidence_map": [
+            {
+                "evidence_id": "neg-comparison-risk",
+                "claim_id": "claim-1",
+                "evidence": "The paper's own protocol makes cross-method comparison invalid because alpha must be retuned.",
+                "raw_quote": (
+                    canonical_quote
+                    + " This continuation is copied by the model from the surrounding passage but is outside the quote-bank span."
+                ),
+                "quote_id": "quote-comparison-risk-1",
+                "source_locator": "Comparison / Robustness",
+                "strength": "missing",
+                "stance": "missing",
+                "binding_status": "bound_real_claim",
+                "negative_evidence_type": "evaluation_protocol_risk",
+            }
+        ]
+    }
+    merged = merge_review_state(state, payload)
+    evidence = merged["evidence_map"][0]
+    assert evidence["raw_quote"] == canonical_quote
+    assert evidence["agent_raw_quote"].startswith(canonical_quote)
+    assert evidence["quote_bank_canonicalized"] is True
+    assert evidence["verified_grounding_label"] == "paper_grounded_normalized"
+    assert evidence["verified_quote_match_type"] == "quote_bank_id_prefix_canonical"
+    assert evidence["review_negative_label"] == "review_negative_verified"
+    assert evidence["review_negative_reason"] == "comparison_invalidation_weakens_claim"
+
+
+def test_candidate_window_quote_bank_grounding_keeps_model_copied_negative_quote():
+    window_text = (
+        "The experiment first reports headline accuracy improvements for the method. "
+        "Note that alpha is a hyperparameter that must be tuned for each method and "
+        "therefore cannot be used to compare intervention effects across methods. "
+        "The surrounding paragraph then returns to implementation details."
+    )
+    copied_quote = (
+        "Note that alpha is a hyperparameter that must be tuned for each method and "
+        "therefore cannot be used to compare intervention effects across methods."
+    )
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The evaluation provides comparable intervention effects across methods.",
+                "status": "uncertain",
+                "claim_kind": "paper_extracted",
+            }
+        ],
+        "_latest_evidence_context_meta": {
+            "evidence_quote_bank": [
+                {
+                    "quote_id": "quote-candidate-window-1",
+                    "source_bucket": "candidate_window",
+                    "source_locator": "Candidate negative window #1",
+                    "raw_quote": window_text,
+                    "source_span_start": 1000,
+                    "source_span_end": 1000 + len(window_text) - 1,
+                    "negative_evidence_type": "evaluation_protocol_risk",
+                    "candidate_window_quote": True,
+                    "support_role_hint": "review_negative_search_window",
+                }
+            ]
+        },
+        "evidence_map": [],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+    payload = {
+        "evidence_map": [
+            {
+                "evidence_id": "neg-protocol-risk",
+                "claim_id": "claim-1",
+                "evidence": "The protocol note says alpha cannot compare intervention effects across methods.",
+                "raw_quote": copied_quote,
+                "quote_id": "quote-candidate-window-1",
+                "source_locator": "Candidate negative window #1",
+                "strength": "missing",
+                "stance": "missing",
+                "binding_status": "bound_real_claim",
+                "negative_evidence_type": "evaluation_protocol_risk",
+            }
+        ]
+    }
+
+    merged = merge_review_state(state, payload)
+    evidence = merged["evidence_map"][0]
+
+    assert evidence["raw_quote"] == copied_quote
+    assert "surrounding paragraph" not in evidence["raw_quote"]
+    assert evidence["verified_grounding_label"] == "paper_grounded_exact"
+    assert evidence["verified_quote_match_type"].startswith("candidate_window_")
+    assert evidence["verified_source_span_start"] >= 1000
+    assert evidence["review_negative_label"] == "review_negative_verified"
+
+
+def test_targeted_candidate_quote_proposal_still_requires_review_negative_verification():
+    window_text = (
+        "The experiment first reports headline accuracy improvements for the method. "
+        "Note that alpha is a hyperparameter that must be tuned for each method and "
+        "therefore cannot be used to compare intervention effects across methods. "
+        "The surrounding paragraph then returns to implementation details."
+    )
+    copied_quote = (
+        "Note that alpha is a hyperparameter that must be tuned for each method and "
+        "therefore cannot be used to compare intervention effects across methods."
+    )
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The evaluation provides comparable intervention effects across methods.",
+                "status": "supported",
+                "claim_kind": "paper_extracted",
+            }
+        ],
+        "_latest_evidence_context_meta": {
+            "evidence_quote_bank": [
+                {
+                    "quote_id": "quote-candidate-window-1",
+                    "source_bucket": "candidate_window",
+                    "source_locator": "Candidate negative window #1",
+                    "raw_quote": window_text,
+                    "source_span_start": 1000,
+                    "source_span_end": 1000 + len(window_text) - 1,
+                    "negative_evidence_type": "evaluation_protocol_risk",
+                    "candidate_window_quote": True,
+                    "support_role_hint": "review_negative_search_window",
+                }
+            ]
+        },
+        "evidence_map": [],
+        "flaw_candidates": [
+            {
+                "flaw_id": "flaw-protocol-risk",
+                "title": "Cross-method comparison protocol risk",
+                "description": "The alpha tuning protocol may invalidate cross-method comparison.",
+                "status": "candidate",
+                "severity": "major",
+                "related_claim_ids": ["claim-1"],
+                "negative_evidence_ids": ["evidence-targeted-candidate-quote-protocol"],
+                "evidence_ids": ["evidence-targeted-candidate-quote-protocol"],
+            }
+        ],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+    payload = {
+        "evidence_map": [
+            {
+                "evidence_id": "evidence-targeted-candidate-quote-protocol",
+                "claim_id": "claim-1",
+                "evidence": "Candidate copied paper quote for review-negative verification.",
+                "raw_quote": copied_quote,
+                "quote_id": "quote-candidate-window-1",
+                "source_locator": "Candidate negative window #1",
+                "strength": "missing",
+                "stance": "missing",
+                "binding_status": "bound_real_claim",
+                "negative_evidence_type": "evaluation_protocol_risk",
+                "targeted_negative_candidate_quote_proposal": True,
+                "targeted_negative_candidate_quote_proposal_source": "freeform_reviewer_negative_candidate",
+                "runtime_evidence_verification_required": True,
+            }
+        ]
+    }
+
+    merged = merge_review_state(state, payload)
+    evidence = merged["evidence_map"][0]
+    hygiene = build_decision_hygiene_view(merged)["decision_hygiene"]
+
+    assert evidence["targeted_negative_candidate_quote_proposal"] is True
+    assert evidence["verified_grounding_label"] == "paper_grounded_exact"
+    assert evidence["verified_quote_match_type"].startswith("candidate_window_")
+    assert evidence["semantic_grounding_label"] == "semantic_negative_verified"
+    assert evidence["review_negative_label"] == "review_negative_verified"
+    assert hygiene["review_negative_verified_count"] == 1
+
+    later_state = copy.deepcopy(merged)
+    later_state["_latest_evidence_context_meta"] = {
+        "evidence_quote_bank": [
+            {
+                "quote_id": "quote-unrelated-later",
+                "source_bucket": "results",
+                "source_locator": "Later evidence turn",
+                "raw_quote": "A later evidence turn discusses unrelated headline accuracy.",
+            }
+        ]
+    }
+    later_view = build_decision_hygiene_view(later_state)
+    later_hygiene = later_view["decision_hygiene"]
+
+    assert any(
+        item.get("quote_id") == "quote-candidate-window-1"
+        and item.get("persisted_candidate_window_quote")
+        for item in later_state.get("evidence_quote_bank", [])
+    )
+    assert later_hygiene["review_negative_verified_count"] == 1
+
+
+def test_targeted_candidate_quote_proposal_rejects_positive_baseline_quote():
+    positive_quote = (
+        "First, using PyTorch, we compare ReDrafter with state-of-the-art "
+        "speculative decoding methods on an Nvidia H100 GPU."
+    )
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The method is compared against strong speculative decoding baselines.",
+                "status": "supported",
+                "claim_kind": "paper_extracted",
+            }
+        ],
+        "_latest_evidence_context_meta": {
+            "evidence_quote_bank": [
+                {
+                    "quote_id": "quote-candidate-window-positive",
+                    "source_bucket": "candidate_window",
+                    "source_locator": "Candidate negative window #1",
+                    "raw_quote": positive_quote,
+                    "source_span_start": 2000,
+                    "source_span_end": 2000 + len(positive_quote) - 1,
+                    "negative_evidence_type": "missing_baseline",
+                    "candidate_window_quote": True,
+                    "support_role_hint": "review_negative_search_window",
+                }
+            ]
+        },
+        "evidence_map": [],
+        "flaw_candidates": [
+            {
+                "flaw_id": "flaw-missing-baseline",
+                "title": "Missing speculative decoding baseline",
+                "description": "The paper may omit important speculative decoding baselines.",
+                "status": "candidate",
+                "severity": "major",
+                "related_claim_ids": ["claim-1"],
+                "negative_evidence_ids": ["evidence-targeted-candidate-quote-positive"],
+                "evidence_ids": ["evidence-targeted-candidate-quote-positive"],
+            }
+        ],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+    payload = {
+        "evidence_map": [
+            {
+                "evidence_id": "evidence-targeted-candidate-quote-positive",
+                "claim_id": "claim-1",
+                "evidence": "Candidate copied paper quote for review-negative verification.",
+                "raw_quote": positive_quote,
+                "quote_id": "quote-candidate-window-positive",
+                "source_locator": "Candidate negative window #1",
+                "strength": "missing",
+                "stance": "missing",
+                "binding_status": "bound_real_claim",
+                "negative_evidence_type": "missing_baseline",
+                "targeted_negative_candidate_quote_proposal": True,
+                "targeted_negative_candidate_quote_proposal_source": "freeform_reviewer_negative_candidate",
+                "runtime_evidence_verification_required": True,
+            }
+        ]
+    }
+
+    merged = merge_review_state(state, payload)
+    evidence = merged["evidence_map"][0]
+    hygiene = build_decision_hygiene_view(merged)["decision_hygiene"]
+
+    assert evidence["verified_grounding_label"] == "paper_grounded_exact"
+    assert evidence["semantic_grounding_label"] == "semantic_mismatch"
+    assert evidence.get("review_negative_label") != "review_negative_verified"
+    assert hygiene["review_negative_verified_count"] == 0
+
+
+def test_table_scope_absence_rejects_positive_metric_scope_description():
+    quote = (
+        "In all experiments we compare the Top-1 accuracy, i.e., the maximum accuracy "
+        "on any action class, of TCMT against leading benchmarks for few-shot action recognition."
+    )
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": (
+                    "During adaptation, the model holds the learned temporal causal mechanism fixed "
+                    "and updates only auxiliary variables and a classifier."
+                ),
+                "status": "supported",
+                "claim_kind": "paper_extracted",
+            }
+        ],
+        "_latest_evidence_context_meta": {
+            "evidence_quote_bank": [
+                {
+                    "quote_id": "quote-candidate-window-top1",
+                    "source_bucket": "candidate_window",
+                    "source_locator": "Candidate negative window #1",
+                    "raw_quote": quote,
+                    "source_span_start": 100,
+                    "source_span_end": 100 + len(quote) - 1,
+                    "negative_evidence_type": "insufficient_evaluation",
+                    "candidate_window_quote": True,
+                }
+            ]
+        },
+        "evidence_map": [],
+        "flaw_candidates": [
+            {
+                "flaw_id": "flaw-insufficient-eval",
+                "status": "candidate",
+                "severity": "major",
+                "related_claim_ids": ["claim-1"],
+                "negative_evidence_ids": ["e-top1-scope"],
+                "evidence_ids": ["e-top1-scope"],
+            }
+        ],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+    payload = {
+        "evidence_map": [
+            {
+                "evidence_id": "e-top1-scope",
+                "claim_id": "claim-1",
+                "evidence": "Candidate copied paper quote for review-negative verification.",
+                "raw_quote": quote,
+                "quote_id": "quote-candidate-window-top1",
+                "source_locator": "Candidate negative window #1",
+                "strength": "missing",
+                "stance": "missing",
+                "binding_status": "bound_real_claim",
+                "negative_evidence_type": "insufficient_evaluation",
+                "coverage_missing_items": ["ablation on fixed causal mechanism"],
+                "targeted_negative_candidate_quote_proposal": True,
+                "runtime_evidence_verification_required": True,
+            }
+        ]
+    }
+
+    merged = merge_review_state(state, payload)
+    evidence = merged["evidence_map"][0]
+    hygiene = build_decision_hygiene_view(merged)["decision_hygiene"]
+
+    assert evidence["verified_grounding_label"] == "paper_grounded_exact"
+    assert evidence["review_negative_label"] != "review_negative_verified"
+    assert hygiene["review_negative_verified_count"] == 0
+
+
 def test_quote_id_canonicalization_keeps_semantically_aligned_strong_support():
     state = {
         "claims": [
@@ -3889,6 +4452,245 @@ def test_review_negative_semantic_gate_accepts_current_paper_negative_result():
     assert hygiene["verified_actionable_negative_flaw_count"] == 1
     assert hygiene["potential_concern_count"] == 1
     assert hygiene["negative_evidence_type_counts"]["negative_result"] == 1
+
+
+def test_review_negative_grounding_falls_back_to_full_paper_exact_quote():
+    quote = (
+        "Table 4 shows that incorporating the secure aggregator in our federated model "
+        "results in a less favorable outcome than the baseline system."
+    )
+    state = {
+        "paper_text": f"Introduction. {quote} Additional discussion follows.",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The secure aggregator improves the federated model without hurting performance.",
+                "claim_kind": "paper_extracted",
+                "status": "supported",
+            }
+        ],
+        "evidence_quote_bank": [
+            {
+                "quote_id": "quote-unrelated",
+                "source_bucket": "method",
+                "source_locator": "Section 3",
+                "raw_quote": "We introduce the secure aggregation protocol in the federated model.",
+                "source_span_start": 0,
+                "source_span_end": 70,
+            }
+        ],
+        "evidence_map": [],
+        "flaw_candidates": [
+            {
+                "flaw_id": "flaw-1",
+                "title": "Secure aggregation hurts the reported baseline comparison",
+                "description": "The reported system is worse than the baseline once secure aggregation is added.",
+                "status": "candidate",
+                "severity": "major",
+                "related_claim_ids": ["claim-1"],
+                "negative_evidence_ids": ["e-secagg-negative"],
+                "evidence_ids": ["e-secagg-negative"],
+            }
+        ],
+    }
+
+    merged = merge_review_state(state, {
+        "evidence_map": [{
+            "evidence_id": "e-secagg-negative",
+            "claim_id": "claim-1",
+            "evidence": "Secure aggregation yields a worse result than the baseline system.",
+            "raw_quote": quote,
+            "strength": "medium",
+            "stance": "contradicts",
+            "binding_status": "bound_real_claim",
+            "negative_evidence_type": "negative_result",
+        }]
+    })
+
+    ev = merged["evidence_map"][0]
+    view = build_decision_hygiene_view(merged)
+    hygiene = view["decision_hygiene"]
+
+    assert ev["verified_grounding_label"] == "paper_grounded_exact"
+    assert ev["verified_quote_match_type"] == "full_paper_exact_substring"
+    assert ev["semantic_grounding_label"] == "semantic_negative_verified"
+    assert ev["review_negative_label"] == "review_negative_verified"
+    assert hygiene["review_negative_verified_count"] == 1
+    assert hygiene["verified_actionable_negative_flaw_count"] == 1
+    assert hygiene["potential_concern_count"] == 1
+
+
+def test_full_paper_grounding_does_not_turn_author_limitation_into_review_negative():
+    quote = (
+        "Due to limited compute resources, we do not evaluate the method on larger models."
+    )
+    state = {
+        "paper_text": f"Limitations. {quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The method is broadly evaluated.",
+                "claim_kind": "paper_extracted",
+                "status": "supported",
+            }
+        ],
+        "evidence_quote_bank": [],
+        "evidence_map": [],
+        "flaw_candidates": [
+            {
+                "flaw_id": "flaw-1",
+                "title": "Limited evaluation scale",
+                "description": "The evaluation omits larger models.",
+                "status": "candidate",
+                "severity": "major",
+                "related_claim_ids": ["claim-1"],
+                "negative_evidence_ids": ["e-author-limitation"],
+                "evidence_ids": ["e-author-limitation"],
+            }
+        ],
+    }
+
+    merged = merge_review_state(state, {
+        "evidence_map": [{
+            "evidence_id": "e-author-limitation",
+            "claim_id": "claim-1",
+            "evidence": "The paper does not evaluate larger models.",
+            "raw_quote": quote,
+            "strength": "missing",
+            "stance": "missing",
+            "binding_status": "bound_real_claim",
+            "negative_evidence_type": "insufficient_evaluation",
+        }]
+    })
+
+    ev = merged["evidence_map"][0]
+    hygiene = build_decision_hygiene_view(merged)["decision_hygiene"]
+
+    assert ev["verified_quote_match_type"] == "full_paper_exact_substring"
+    assert ev["semantic_grounding_label"] == "semantic_author_limitation"
+    assert ev["review_negative_label"] == "author_limitation_only"
+    assert hygiene["review_negative_verified_count"] == 0
+    assert hygiene["author_limitation_only_count"] == 1
+
+
+def test_full_paper_grounding_does_not_count_prior_work_comparison_gap():
+    quote = (
+        "Golden Gate Claude \\cite{golden2024} does not compare to other interpretability methods."
+    )
+    state = {
+        "paper_text": f"Related work. {quote} Method. We introduce a unifying framework.",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The paper compares interpretability methods in a unifying framework.",
+                "claim_kind": "paper_extracted",
+                "status": "supported",
+            }
+        ],
+        "evidence_quote_bank": [],
+        "evidence_map": [],
+        "flaw_candidates": [
+            {
+                "flaw_id": "flaw-1",
+                "title": "Missing comparison",
+                "description": "The paper lacks comparisons with interpretability methods.",
+                "status": "candidate",
+                "severity": "major",
+                "related_claim_ids": ["claim-1"],
+                "negative_evidence_ids": ["e-prior-work-gap"],
+                "evidence_ids": ["e-prior-work-gap"],
+            }
+        ],
+    }
+
+    merged = merge_review_state(state, {
+        "evidence_map": [{
+            "evidence_id": "e-prior-work-gap",
+            "claim_id": "claim-1",
+            "evidence": "The paper does not compare to other interpretability methods.",
+            "raw_quote": quote,
+            "strength": "missing",
+            "stance": "missing",
+            "binding_status": "bound_real_claim",
+            "negative_evidence_type": "missing_baseline",
+        }]
+    })
+
+    ev = merged["evidence_map"][0]
+    hygiene = build_decision_hygiene_view(merged)["decision_hygiene"]
+
+    assert ev["verified_quote_match_type"] == "full_paper_exact_substring"
+    assert ev["review_negative_label"] != "review_negative_verified"
+    assert hygiene["review_negative_verified_count"] == 0
+    assert hygiene["verified_actionable_negative_flaw_count"] == 0
+
+
+def test_excerpt_limited_absence_with_plural_excerpts_is_not_review_negative():
+    quote = (
+        "approach on a novel dataset, as shown in Table \\ref{tab:results_table}c. "
+        "\\subsection{Ablation study} \\label{sec:ablation} \\input{tables/ablation_tables} "
+        "We begin by conducting an oracular study using ground-truth labels,"
+    )
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The method is validated by a complete ablation study.",
+                "claim_kind": "paper_extracted",
+                "status": "supported",
+            }
+        ],
+        "evidence_quote_bank": [
+            {
+                "quote_id": "quote-ablation-header",
+                "source_bucket": "negative_or_gap",
+                "source_locator": "Ablation excerpt",
+                "raw_quote": quote,
+                "source_span_start": 200,
+                "source_span_end": 420,
+            }
+        ],
+        "evidence_map": [],
+        "flaw_candidates": [
+            {
+                "flaw_id": "flaw-1",
+                "title": "Ablation content missing from excerpt",
+                "description": "The provided excerpts do not show ablation details.",
+                "status": "candidate",
+                "severity": "major",
+                "related_claim_ids": ["claim-1"],
+                "negative_evidence_ids": ["e-excerpt-limited"],
+                "evidence_ids": ["e-excerpt-limited"],
+            }
+        ],
+    }
+
+    merged = merge_review_state(state, {
+        "evidence_map": [{
+            "evidence_id": "e-excerpt-limited",
+            "claim_id": "claim-1",
+            "evidence": (
+                "The HFR module is not explicitly described in the provided excerpts, "
+                "and the ablation study section header is present but its content is missing."
+            ),
+            "raw_quote": quote,
+            "quote_id": "quote-ablation-header",
+            "strength": "missing",
+            "stance": "missing",
+            "binding_status": "bound_real_claim",
+            "negative_evidence_type": "missing_baseline",
+        }]
+    })
+
+    ev = merged["evidence_map"][0]
+    hygiene = build_decision_hygiene_view(merged)["decision_hygiene"]
+
+    assert ev["verified_grounding_label"] == "paper_grounded_exact"
+    assert ev["semantic_grounding_label"] == "semantic_mismatch"
+    assert ev["review_negative_label"] == "insufficient_claim_relation"
+    assert ev["review_negative_reason"] == "absence_claim_limited_to_quote_or_excerpt"
+    assert hygiene["review_negative_verified_count"] == 0
+    assert hygiene["verified_actionable_negative_flaw_count"] == 0
 
 
 def test_review_negative_semantic_gate_does_not_reclassify_normal_support_as_negative():
@@ -4988,6 +5790,32 @@ def test_final_strong_guard_keeps_table_anchor_strong_with_low_score():
         assert ev["strength"] == "strong", f"bucket={bucket} unexpectedly downgraded"
 
 
+def test_final_strong_guard_downgrades_semantic_weak_table_promotion():
+    """The table-anchor exception does not apply to semantic-weak promotion rows.
+
+    These rows are exactly what the dashboard's low_score_promoted_strong guard
+    is designed to catch: they have a paper anchor, but the support relation is
+    weak enough that they should remain verified moderate.
+    """
+    evidence = {
+        "strength": "strong",
+        "stance": "supports",
+        "verified_grounding_label": "paper_grounded_exact",
+        "verified_quote_match_type": "quote_bank_id_canonical",
+        "semantic_grounding_label": "semantic_support_verified",
+        "semantic_alignment_score": 0.2,
+        "support_source_bucket": "result_or_experiment",
+        "source": "results",
+        "source_locator": "Figure: teaser",
+        "semantic_weak_promotion_used": True,
+    }
+
+    _final_strong_guard(evidence)
+
+    assert evidence["strength"] == "medium"
+    assert evidence["final_strength_guard_downgrade_reason"] == "low_score_strong_support_downgrade"
+
+
 def test_final_strong_guard_skips_non_strong_or_non_support_evidence():
     """The guard is a strong-only downgrade pass; medium and non-supports
     rows should be untouched even when they look like negative anchors."""
@@ -5508,6 +6336,129 @@ def test_decision_view_auto_binds_unlinked_verified_negative_evidence():
     assert view["flaw_candidates"][0]["source"] == "decision-view-auto-negative-binding"
 
 
+def test_decision_view_deduplicates_same_verified_negative_quote():
+    quote = (
+        "Alpha must be tuned for each method and therefore cannot be used to "
+        "compare intervention effects across methods."
+    )
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-main",
+                "claim": "The intervention framework supports fair comparison across methods.",
+                "status": "supported",
+                "claim_kind": "paper_extracted",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "e-neg-a",
+                "claim_id": "claim-main",
+                "stance": "contradicts",
+                "strength": "strong",
+                "source": "Methodology section",
+                "source_locator": "Limitation / Gap / Negative evidence excerpt #1",
+                "support_source_bucket": "limitation_or_gap",
+                "negative_evidence_type": "evaluation_protocol_risk",
+                "verified_grounding_label": "paper_grounded_exact",
+                "verified_quote_match_type": "quote_bank_raw_canonical",
+                "verified_source_span_start": 100,
+                "verified_source_span_end": 220,
+                "semantic_grounding_label": "semantic_negative_verified",
+                "review_negative_label": "review_negative_verified",
+                "review_negative_reason": "comparison_invalidation_weakens_claim",
+                "binding_status": "bound_real_claim",
+                "raw_quote": quote,
+            },
+            {
+                "evidence_id": "e-neg-b",
+                "claim_id": "claim-main",
+                "stance": "contradicts",
+                "strength": "strong",
+                "source": "Methodology section",
+                "source_locator": "Methodology section",
+                "support_source_bucket": "limitation_or_gap",
+                "negative_evidence_type": "evaluation_protocol_risk",
+                "verified_grounding_label": "paper_grounded_exact",
+                "verified_quote_match_type": "quote_bank_id_canonical",
+                "verified_source_span_start": 100,
+                "verified_source_span_end": 220,
+                "semantic_grounding_label": "semantic_negative_verified",
+                "review_negative_label": "review_negative_verified",
+                "review_negative_reason": "comparison_invalidation_weakens_claim",
+                "binding_status": "bound_real_claim",
+                "raw_quote": quote,
+            },
+        ],
+        "flaw_candidates": [],
+    }
+
+    view = build_decision_hygiene_view(state)
+    dh = view["decision_hygiene"]
+
+    assert dh["review_negative_verified_count"] == 1
+    assert dh["negative_evidence_candidate_count"] == 1
+    assert dh["negative_evidence_candidate_raw_count"] == 2
+    assert dh["negative_evidence_linked_to_flaw_count"] == 1
+    assert dh["negative_evidence_linked_to_flaw_raw_count"] == 2
+    assert dh["negative_evidence_unlinked_to_flaw_count"] == 0
+    assert dh["auto_bound_negative_flaw_count"] == 1
+    assert dh["verified_actionable_negative_flaw_count"] == 1
+    assert dh["potential_concern_count"] == 1
+    assert dh["negative_evidence_type_counts"] == {"evaluation_protocol_risk": 1}
+    assert len(view["flaw_candidates"]) == 1
+    assert set(view["flaw_candidates"][0]["negative_evidence_ids"]) == {"e-neg-a", "e-neg-b"}
+
+
+def test_render_user_report_surfaces_auto_bound_verified_negative_concern():
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-main",
+                "claim": "The intervention framework supports fair comparison across methods.",
+                "status": "supported",
+                "claim_kind": "paper_extracted",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "e-neg",
+                "claim_id": "claim-main",
+                "stance": "contradicts",
+                "strength": "strong",
+                "source": "Methodology section",
+                "source_locator": "Limitation / Gap / Negative evidence excerpt #1",
+                "support_source_bucket": "limitation_or_gap",
+                "negative_evidence_type": "evaluation_protocol_risk",
+                "verified_grounding_label": "paper_grounded_exact",
+                "verified_quote_match_type": "quote_bank_raw_canonical",
+                "verified_source_span_start": 100,
+                "verified_source_span_end": 220,
+                "semantic_grounding_label": "semantic_negative_verified",
+                "semantic_grounding_reasons": ["comparison_invalidation_verified"],
+                "review_negative_label": "review_negative_verified",
+                "review_negative_reason": "comparison_invalidation_weakens_claim",
+                "binding_status": "bound_real_claim",
+                "raw_quote": (
+                    "Alpha must be tuned for each method and therefore cannot be used "
+                    "to compare intervention effects across methods."
+                ),
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    report = render_user_report(state, {})
+
+    assert "Verified negative concern" in report
+    assert "Alpha must be tuned" in report
+    assert "Methodology section reports" in report
+    assert "Negative evidence excerpt" not in report
+
+
 def test_potential_concern_text_includes_verified_negative_context():
     state = _negative_type_flaw_state("negative_result", status="candidate", severity="major")
     state["claims"][0]["claim"] = "The method improves the main benchmark over all baselines."
@@ -5959,6 +6910,182 @@ def test_review_semantic_negative_gate_accepts_current_paper_evaluation_gap():
     assert _is_grounded_paper_negative_evidence_record(state["evidence_map"][0], state)
 
 
+def test_review_semantic_negative_gate_accepts_comparison_invalidation_quote():
+    quote = (
+        "Note that alpha is a hyperparameter that must be tuned for each method, model, "
+        "and sometimes even intervention feature and thus cannot be used to compare the "
+        "effects of interventions across methods."
+    )
+    paper_text, quote_bank = _grounding_bank([("quote-negative-comparison", quote, "negative_or_gap")])
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The empirical results demonstrate valid comparison across different intervention methods.",
+                "claim_kind": "paper_extracted",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "e-comparison-invalid",
+                "claim_id": "claim-1",
+                "evidence": "Alpha tuning prevents cross-method comparison of intervention effects.",
+                "source": "Evaluation discussion",
+                "source_locator": "Limitation / Gap / Negative evidence excerpt #1",
+                "stance": "contradicts",
+                "strength": "strong",
+                "raw_quote": quote,
+                "quote_id": "quote-negative-comparison",
+                "negative_evidence_type": "insufficient_evaluation",
+            }
+        ],
+        "paper_text": paper_text,
+        "evidence_quote_bank": quote_bank,
+    }
+
+    merged = merge_review_state(state, {"evidence_map": state["evidence_map"]})
+    ev = merged["evidence_map"][0]
+
+    assert ev["semantic_grounding_label"] == "semantic_negative_verified"
+    assert "comparison_invalidation_verified" in ev["semantic_grounding_reasons"]
+    assert ev["review_negative_label"] == "review_negative_verified"
+    assert ev["review_negative_reason"] == "comparison_invalidation_weakens_claim"
+    assert _is_grounded_paper_negative_evidence_record(ev, merged)
+
+
+def test_comparison_invalidation_quote_corrects_support_generic_gap_mislabel():
+    quote = (
+        "Note that alpha is a hyperparameter that must be tuned for each method, model, "
+        "and sometimes even intervention feature and thus cannot be used to compare the "
+        "effects of interventions across methods."
+    )
+    paper_text, quote_bank = _grounding_bank([("quote-negative-comparison", quote, "negative_or_gap")])
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The empirical results compare intervention effects across different methods.",
+                "claim_kind": "paper_extracted",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "e-comparison-mislabel",
+                "claim_id": "claim-1",
+                "evidence": "The quote supports the comparison protocol discussion.",
+                "source": "Evaluation discussion",
+                "source_locator": "Limitation / Gap / Negative evidence excerpt #1",
+                "stance": "supports",
+                "strength": "strong",
+                "raw_quote": quote,
+                "quote_id": "quote-negative-comparison",
+                "negative_evidence_type": "generic_gap",
+            }
+        ],
+        "paper_text": paper_text,
+        "evidence_quote_bank": quote_bank,
+    }
+
+    merged = merge_review_state(state, {"evidence_map": state["evidence_map"]})
+    ev = merged["evidence_map"][0]
+
+    assert ev["comparison_invalidation_negative_override"] is True
+    assert ev["comparison_invalidation_original_stance"] == "supports"
+    assert ev["stance"] == "contradicts"
+    assert ev["negative_evidence_type"] == "evaluation_protocol_risk"
+    assert ev["negative_evidence_type_decision_view_reason"] == "comparison_invalidation_type_derived"
+    assert ev["semantic_grounding_label"] == "semantic_negative_verified"
+    assert ev["review_negative_label"] == "review_negative_verified"
+    assert ev["review_negative_reason"] == "comparison_invalidation_weakens_claim"
+    assert _is_paper_negative_evidence_record(ev)
+    assert _is_grounded_paper_negative_evidence_record(ev, merged)
+
+
+def test_comparison_invalidation_override_preserves_author_limitation_guard():
+    quote = (
+        "Due to limited resources, we do not compare alpha across methods and leave "
+        "a full cross-method comparison for future work."
+    )
+    paper_text, quote_bank = _grounding_bank([("quote-author-limit", quote, "negative_or_gap")])
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The empirical results compare intervention effects across different methods.",
+                "claim_kind": "paper_extracted",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "e-author-limit-mislabel",
+                "claim_id": "claim-1",
+                "evidence": "The quote discusses future comparison work.",
+                "source": "Limitations",
+                "source_locator": "Limitations",
+                "stance": "supports",
+                "strength": "strong",
+                "raw_quote": quote,
+                "quote_id": "quote-author-limit",
+                "negative_evidence_type": "generic_gap",
+            }
+        ],
+        "paper_text": paper_text,
+        "evidence_quote_bank": quote_bank,
+    }
+
+    merged = merge_review_state(state, {"evidence_map": state["evidence_map"]})
+    ev = merged["evidence_map"][0]
+
+    assert not ev.get("comparison_invalidation_negative_override")
+    assert ev["stance"] == "supports"
+    assert not _is_grounded_paper_negative_evidence_record(ev, merged)
+
+
+def test_comparison_invalidation_rejects_prior_work_not_compare_sentence():
+    quote = (
+        "Beyond probing, only \\cite{belrose2023eliciting, chan2022causal, olah2020zoom, "
+        "templeton2024scaling} consider causal intervention as a tool for evaluation. "
+        "However, \\cite{templeton2024scaling} on the other hand only provides a qualitative "
+        "evaluation of intervention via their `Golden Gate Claude' [\\cite{noauthor_golden_nodate}] "
+        "and does not compare to other interpretability methods. "
+        "\\section{Method} In this section, we first introduce a unifying framework for four "
+        "common mechanistic interpretability methods."
+    )
+    paper_text, quote_bank = _grounding_bank([("quote-prior-work-no-compare", quote, "negative_or_gap")])
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The paper introduces a unified framework for evaluating mechanistic interpretability methods.",
+                "claim_kind": "paper_extracted",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "e-prior-work-no-compare",
+                "claim_id": "claim-1",
+                "evidence": "The quote says Golden Gate Claude did not compare to other interpretability methods.",
+                "source": "Related work",
+                "source_locator": "Section: Method",
+                "stance": "supports",
+                "strength": "medium",
+                "raw_quote": quote,
+                "quote_id": "quote-prior-work-no-compare",
+                "negative_evidence_type": "missing_baseline",
+            }
+        ],
+        "paper_text": paper_text,
+        "evidence_quote_bank": quote_bank,
+    }
+
+    merged = merge_review_state(state, {"evidence_map": state["evidence_map"]})
+    ev = merged["evidence_map"][0]
+
+    assert not ev.get("comparison_invalidation_negative_override")
+    assert ev["review_negative_label"] != "review_negative_verified"
+    assert not _is_grounded_paper_negative_evidence_record(ev, merged)
+
+
 def test_review_semantic_negative_gate_accepts_table_scope_absence():
     table_quote = "Table 2: Results obtained on DAVIS2016, SegTrackV2, and FBMS59."
     paper_text, quote_bank = _grounding_bank([("quote-table-2", table_quote, "table_or_figure")])
@@ -6075,6 +7202,748 @@ def test_table_scope_absence_requires_specific_missing_entity():
     ev = merged["evidence_map"][0]
 
     assert ev["semantic_grounding_label"] == "semantic_mismatch"
+    assert not _is_grounded_paper_negative_evidence_record(ev, merged)
+
+
+def test_table_scope_absence_accepts_concrete_freeform_coverage_item():
+    table_quote = "Table 4: Ablation study comparing Full model, w/o distillation, and w/o beam search."
+    paper_text, quote_bank = _grounding_bank([("quote-table-4", table_quote, "table_or_figure")])
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The routing module drives the model's accuracy improvement.",
+                "claim_kind": "paper_extracted",
+            }
+        ],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-routing",
+                "claim_id": "claim-1",
+                "weakness": "The paper may not isolate the routing module contribution.",
+                "negative_type": "missing_ablation",
+                "required_evidence_type": "ablation_or_component",
+                "missing_or_weak_items": ["routing module"],
+                "status": "pending_quote_verification",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "e-freeform-routing-ablation",
+                "claim_id": "claim-1",
+                "evidence": "The ablation table lists full model, distillation, and beam search variants but not the routing module.",
+                "source": "Table 4",
+                "source_locator": "Table 4",
+                "stance": "missing",
+                "strength": "missing",
+                "raw_quote": table_quote,
+                "quote_id": "quote-table-4",
+                "negative_evidence_type": "missing_ablation",
+                "targeted_negative_search_task_id": "neg-search-freeform-claim-1-reviewer-neg-candidate-routing",
+                "coverage_missing_items": ["routing module"],
+                "coverage_observed_items": ["Full model", "w/o distillation", "w/o beam search"],
+            }
+        ],
+        "paper_text": paper_text,
+        "evidence_quote_bank": quote_bank,
+    }
+
+    merged = merge_review_state(state, {"evidence_map": state["evidence_map"]})
+    ev = merged["evidence_map"][0]
+
+    assert ev["semantic_grounding_label"] == "semantic_negative_verified"
+    assert "table_scope_absence_verified" in ev["semantic_grounding_reasons"]
+    assert ev["review_negative_label"] == "review_negative_verified"
+    assert _is_grounded_paper_negative_evidence_record(ev, merged)
+
+
+def test_missing_ablation_negative_rejected_when_paper_reports_target_ablation():
+    module_quote = (
+        "CDiffuser is composed of two modules: the Planning Module and the Contrastive Module. "
+        "The Contrastive Module is designed to pull generated states toward high-return states."
+    )
+    ablation_quote = (
+        "Ablation studies. We have the following variants to conduct ablation study: "
+        "CDiffuser-C: remove contrastive mechanism from CDiffuser, i.e., remove L_c from the loss."
+    )
+    paper_text = f"Section 4 Method. {module_quote} Section 5 Experiments. {ablation_quote}"
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The contrastive mechanism improves CDiffuser by constraining states toward high-return trajectories.",
+                "claim_kind": "paper_extracted",
+            }
+        ],
+        "paper_text": paper_text,
+    }
+    ev = {
+        "evidence_id": "e-false-missing-ablation",
+        "claim_id": "claim-1",
+        "evidence": "The paper describes the contrastive module but no ablation isolates its contribution.",
+        "source": "Section 4.2",
+        "source_locator": "Section 4.2",
+        "stance": "contradicts",
+        "strength": "medium",
+        "raw_quote": module_quote,
+        "negative_evidence_type": "missing_ablation",
+        "coverage_missing_items": [
+            "variant of CDiffuser without the contrastive loss/module",
+            "quantitative results comparing CDiffuser vs. CDiffuser without contrastive",
+        ],
+        "verified_grounding_label": "paper_grounded_exact",
+        "verified_quote_match_type": "paper_text_exact",
+        "semantic_grounding_label": "semantic_negative_verified",
+    }
+
+    assessment = _assess_review_negative_relation(state, ev)
+    ev.update(assessment)
+    state["evidence_map"] = [ev]
+
+    assert assessment["review_negative_label"] == "insufficient_claim_relation"
+    assert assessment["review_negative_reason"] == "existing_ablation_counterevidence_in_paper"
+    assert not _is_grounded_paper_negative_evidence_record(ev, state)
+    hygiene = build_decision_hygiene_view(state)["decision_hygiene"]
+    assert hygiene["review_negative_verified_count"] == 0
+    assert hygiene["verified_actionable_negative_flaw_count"] == 0
+
+
+def test_absence_audit_does_not_flag_missing_ablation_when_claim_reports_ablation_result():
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "Ablation studies demonstrate the importance of the contrastive learning component in CDiffuser's performance.",
+                "claim_kind": "paper_extracted",
+                "status": "supported",
+            },
+            {
+                "claim_id": "claim-2",
+                "claim": "The contrastive learning component is essential for the performance gain of CDiffuser, as shown by ablation studies.",
+                "claim_kind": "paper_extracted",
+                "status": "supported",
+            },
+            {
+                "claim_id": "claim-3",
+                "claim": "SPOT's architectural components are validated through ablation studies.",
+                "claim_kind": "paper_extracted",
+                "status": "supported",
+            },
+        ],
+        "evidence_map": [],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(state)["decision_hygiene"]
+    type_counts = hygiene.get("negative_evidence_type_counts", {})
+    absence_counts = hygiene.get("reviewer_absence_verified_type_counts", {})
+
+    assert type_counts.get("missing_ablation", 0) == 0
+    assert absence_counts.get("missing_ablation", 0) == 0
+
+
+def test_freeform_absence_candidate_adds_claim_level_requirement_gap_when_verified_support_missing():
+    base_state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The method outperforms GPT-4 and Llama-2 baselines on Benchmark-X.",
+                "claim_kind": "paper_extracted",
+                "claim_type": "comparison",
+                "status": "supported",
+            },
+            {
+                "claim_id": "claim-2",
+                "claim": "The retrieval module improves performance compared to strong baselines.",
+                "claim_kind": "paper_extracted",
+                "claim_type": "comparison",
+                "status": "uncertain",
+            },
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "ev-claim1-baseline",
+                "claim_id": "claim-1",
+                "evidence": "Table 1 compares the method against GPT-4 and Llama-2 baselines.",
+                "raw_quote": "Table 1: Our method is compared against GPT-4 and Llama-2 baselines on Benchmark-X.",
+                "source": "Table 1",
+                "source_locator": "Table 1",
+                "strength": "strong",
+                "stance": "supports",
+                "binding_status": "bound_real_claim",
+                "verified_grounding_label": "paper_grounded_exact",
+                "verified_quote_match_type": "quote_bank_id_canonical",
+                "semantic_grounding_label": "semantic_support_verified",
+                "support_source_bucket": "table_or_figure",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+    no_candidate = build_decision_hygiene_view(copy.deepcopy(base_state))["decision_hygiene"]
+    assert no_candidate["reviewer_absence_verified_count"] == 0
+
+    with_candidate = copy.deepcopy(base_state)
+    with_candidate["reviewer_negative_candidates"] = [
+        {
+            "candidate_id": "reviewer-neg-candidate-retrieval-baseline",
+            "claim_id": "claim-2",
+            "weakness": "The retrieval-module claim lacks a concrete comparison against the GPT-4 baseline.",
+            "negative_type": "missing_baseline",
+            "required_evidence_type": "baseline_or_comparison",
+            "quote_grounding_mode": "absence_or_requirement_gap",
+            "missing_or_weak_items": ["GPT-4 baseline"],
+            "status": "pending_absence_audit",
+        }
+    ]
+    view = build_decision_hygiene_view(with_candidate)
+    hygiene = view["decision_hygiene"]
+
+    assert hygiene["reviewer_absence_verified_count"] == 1
+    assert hygiene["reviewer_absence_verified_type_counts"]["missing_baseline"] == 1
+    assert hygiene["total_review_negative_verified_count"] == 1
+    evidence = [
+        item for item in view["evidence_map"]
+        if item.get("reviewer_negative_candidate_id") == "reviewer-neg-candidate-retrieval-baseline"
+    ]
+    assert len(evidence) == 1
+    assert evidence[0]["review_negative_label"] == "review_negative_absence_audit_verified"
+    assert evidence[0]["coverage_missing_items"] == ["GPT-4 baseline"]
+
+
+def test_failed_quote_negative_candidate_does_not_suppress_absence_audit():
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The retrieval module improves performance compared to the GPT-4 baseline.",
+                "claim_kind": "paper_extracted",
+                "claim_type": "comparison",
+                "status": "supported",
+            },
+        ],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-gpt4-baseline",
+                "claim_id": "claim-1",
+                "weakness": "The comparison claim lacks verified evidence for the GPT-4 baseline.",
+                "negative_type": "missing_baseline",
+                "required_evidence_type": "baseline_or_comparison",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["GPT-4 baseline"],
+                "status": "pending_absence_audit",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "evidence-failed-negative-candidate",
+                "claim_id": "claim-1",
+                "evidence": "Rejected quote-negative candidate.",
+                "raw_quote": "The paper reports results on Benchmark-X.",
+                "source": "targeted-negative-candidate-quote",
+                "source_locator": "Results",
+                "stance": "missing",
+                "strength": "missing",
+                "binding_status": "bound_real_claim",
+                "verified_grounding_label": "paper_grounded_exact",
+                "verified_quote_match_type": "candidate_window_quote_bank_exact_substring",
+                "semantic_grounding_label": "semantic_mismatch",
+                "review_negative_label": "insufficient_semantic_negative",
+                "review_negative_reason": "semantic_negative_verification_missing",
+                "negative_evidence_type": "missing_baseline",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    view = build_decision_hygiene_view(state)
+    hygiene = view["decision_hygiene"]
+    absence_evidence = [
+        item for item in view["evidence_map"]
+        if item.get("review_negative_label") == "review_negative_absence_audit_verified"
+    ]
+
+    assert hygiene["review_negative_verified_count"] == 0
+    assert hygiene["reviewer_absence_verified_count"] >= 1
+    assert hygiene["reviewer_absence_verified_type_counts"]["missing_baseline"] >= 1
+    assert any(
+        item.get("reviewer_negative_candidate_id") == "reviewer-neg-candidate-gpt4-baseline"
+        for item in absence_evidence
+    )
+
+
+def test_stale_reviewer_absence_snapshot_stops_counting_when_requirement_is_satisfied():
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The method improves performance compared to the GPT-4 baseline.",
+                "claim_kind": "paper_extracted",
+                "claim_type": "comparison",
+                "importance": "high",
+                "status": "supported",
+            }
+        ],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-gpt4-baseline",
+                "claim_id": "claim-1",
+                "weakness": "The comparison claim lacks verified evidence for the GPT-4 baseline.",
+                "negative_type": "missing_baseline",
+                "required_evidence_type": "baseline_or_comparison",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["GPT-4 baseline"],
+                "status": "pending_absence_audit",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "e-support-baseline",
+                "claim_id": "claim-1",
+                "evidence": "Table 1 compares the method against the GPT-4 baseline.",
+                "raw_quote": "Table 1: Our method is compared against the GPT-4 baseline on Benchmark-X.",
+                "source": "Table 1",
+                "source_locator": "Table 1",
+                "strength": "strong",
+                "stance": "supports",
+                "binding_status": "bound_real_claim",
+                "verified_grounding_label": "paper_grounded_exact",
+                "verified_quote_match_type": "quote_bank_id_canonical",
+                "semantic_grounding_label": "semantic_support_verified",
+                "support_source_bucket": "table_or_figure",
+            },
+            {
+                "evidence_id": "evidence-reviewer-absence-claim-1-baseline-or-comparison",
+                "claim_id": "claim-1",
+                "stance": "missing",
+                "strength": "missing",
+                "evidence": "Reviewer absence audit: verified support inventory lacks baseline evidence.",
+                "raw_quote": "",
+                "negative_quote": "",
+                "source": "reviewer_absence_audit",
+                "source_locator": "claim-evidence coverage audit",
+                "binding_status": "bound_real_claim",
+                "negative_evidence_type": "missing_baseline",
+                "semantic_grounding_label": "semantic_negative_verified",
+                "verified_grounding_label": "paper_absence_audit_verified",
+                "review_negative_label": "review_negative_absence_audit_verified",
+                "review_negative_reason": "claim_requirement_vs_verified_support_absence",
+                "absence_audit_verified": True,
+                "quote_grounding_required": False,
+                "no_direct_quote_expected": True,
+                "audit_basis": "claim_requirement_vs_verified_support",
+                "missing_requirement": "baseline_or_comparison",
+                "coverage_gap_missing_requirements": ["baseline_or_comparison"],
+                "coverage_missing_items": ["GPT-4 baseline"],
+                "absence_audit_snapshot_at_recovery_commit": True,
+            },
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(state)["decision_hygiene"]
+
+    assert hygiene["reviewer_absence_verified_count"] == 0
+    assert hygiene["total_review_negative_verified_count"] == 0
+    assert hygiene.get("reviewer_absence_verified_type_counts", {}).get("missing_baseline", 0) == 0
+
+
+def test_freeform_absence_candidate_rejects_generic_missing_baseline_items():
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The method outperforms GPT-4 and Llama-2 baselines on Benchmark-X.",
+                "claim_kind": "paper_extracted",
+                "claim_type": "comparison",
+                "status": "supported",
+            },
+            {
+                "claim_id": "claim-2",
+                "claim": "The retrieval module improves performance compared to strong baselines.",
+                "claim_kind": "paper_extracted",
+                "claim_type": "comparison",
+                "status": "uncertain",
+            },
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "ev-claim1-baseline",
+                "claim_id": "claim-1",
+                "evidence": "Table 1 compares the method against GPT-4 and Llama-2 baselines.",
+                "raw_quote": "Table 1: Our method is compared against GPT-4 and Llama-2 baselines on Benchmark-X.",
+                "source": "Table 1",
+                "source_locator": "Table 1",
+                "strength": "strong",
+                "stance": "supports",
+                "binding_status": "bound_real_claim",
+                "verified_grounding_label": "paper_grounded_exact",
+                "verified_quote_match_type": "quote_bank_id_canonical",
+                "semantic_grounding_label": "semantic_support_verified",
+                "support_source_bucket": "table_or_figure",
+            }
+        ],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-generic-baseline",
+                "claim_id": "claim-2",
+                "weakness": "The baseline set may omit key competitors.",
+                "negative_type": "missing_baseline",
+                "required_evidence_type": "baseline_or_comparison",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["key competitors", "all relevant recent methods"],
+                "status": "pending_absence_audit",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(state)["decision_hygiene"]
+    assert hygiene["reviewer_absence_verified_count"] == 0
+    assert hygiene.get("reviewer_absence_verified_type_counts", {}).get("missing_baseline", 0) == 0
+
+
+def test_freeform_absence_candidate_provenance_is_kept_on_existing_coverage_gap():
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The paper compares against the GPT-4 baseline.",
+                "claim_kind": "paper_extracted",
+                "claim_type": "other",
+                "status": "uncertain",
+            },
+        ],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-gpt4-baseline",
+                "claim_id": "claim-1",
+                "weakness": "The comparison claim lacks verified evidence for the GPT-4 baseline.",
+                "negative_type": "missing_baseline",
+                "required_evidence_type": "baseline_or_comparison",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["GPT-4 baseline"],
+                "status": "pending_absence_audit",
+            }
+        ],
+        "evidence_map": [],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    view = build_decision_hygiene_view(state)
+    hygiene = view["decision_hygiene"]
+    evidence = [
+        item for item in view["evidence_map"]
+        if item.get("review_negative_label") == "review_negative_absence_audit_verified"
+    ]
+
+    assert hygiene["reviewer_absence_verified_count"] == 1
+    assert len(evidence) == 1
+    assert evidence[0]["reviewer_negative_candidate_id"] == "reviewer-neg-candidate-gpt4-baseline"
+    assert evidence[0]["coverage_missing_items"] == ["GPT-4 baseline"]
+
+
+def test_table_scope_absence_accepts_concrete_evaluation_dimension_gap_with_observed_scope():
+    quote = (
+        "From this, we propose a metric of Intervention Success Rate, which measures whether "
+        "intervening on feature activations changes the corresponding model output."
+    )
+    paper_text, quote_bank = _grounding_bank([("quote-metrics", quote, "results")])
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The interpretability intervention evaluation is comprehensive across useful deployment criteria.",
+                "claim_kind": "paper_extracted",
+            }
+        ],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-metrics",
+                "claim_id": "claim-1",
+                "weakness": "The evaluation may omit efficiency and sensitivity dimensions.",
+                "negative_type": "insufficient_evaluation",
+                "required_evidence_type": "evaluation_protocol",
+                "missing_or_weak_items": [
+                    "computational cost metrics",
+                    "hyperparameter sensitivity analysis",
+                ],
+                "status": "pending_quote_verification",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "e-freeform-metric-coverage",
+                "claim_id": "claim-1",
+                "evidence": (
+                    "The visible evaluation metric is Intervention Success Rate, but the reviewer task "
+                    "checks missing computational cost metrics and hyperparameter sensitivity analysis."
+                ),
+                "source": "Results / Evaluation excerpt #1",
+                "source_locator": "Results / Evaluation excerpt #1",
+                "stance": "missing",
+                "strength": "missing",
+                "raw_quote": quote,
+                "quote_id": "quote-metrics",
+                "negative_evidence_type": "insufficient_evaluation",
+                "targeted_negative_search_task_id": "neg-search-freeform-claim-1-reviewer-neg-candidate-metrics",
+                "coverage_missing_items": [
+                    "computational cost metrics",
+                    "hyperparameter sensitivity analysis",
+                ],
+                "coverage_observed_items": ["Intervention Success Rate"],
+            }
+        ],
+        "paper_text": paper_text,
+        "evidence_quote_bank": quote_bank,
+    }
+
+    merged = merge_review_state(state, {"evidence_map": state["evidence_map"]})
+    ev = merged["evidence_map"][0]
+
+    assert ev["semantic_grounding_label"] == "semantic_negative_verified"
+    assert "table_scope_absence_verified" in ev["semantic_grounding_reasons"]
+    assert ev["review_negative_label"] == "review_negative_verified"
+    assert ev["review_negative_reason"] == "table_scope_absence_weakens_claim"
+    assert _is_grounded_paper_negative_evidence_record(ev, merged)
+
+
+def test_table_scope_absence_rejects_generic_freeform_missing_baseline_item():
+    table_quote = "Table 1: Speedup for Medusa, EAGLE, and ReDrafter on MT-Bench."
+    paper_text, quote_bank = _grounding_bank([("quote-table-1", table_quote, "table_or_figure")])
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The method achieves state-of-the-art speculative decoding speedup.",
+                "claim_kind": "paper_extracted",
+            }
+        ],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-baselines",
+                "claim_id": "claim-1",
+                "weakness": "The baseline set may omit key competitors.",
+                "negative_type": "missing_baseline",
+                "required_evidence_type": "baseline_or_comparison",
+                "missing_or_weak_items": ["key competitors", "all relevant recent methods"],
+                "status": "pending_quote_verification",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "e-generic-baseline-coverage",
+                "claim_id": "claim-1",
+                "evidence": "The table lists Medusa, EAGLE, and ReDrafter, but may omit key competitors.",
+                "source": "Table 1",
+                "source_locator": "Table 1",
+                "stance": "missing",
+                "strength": "missing",
+                "raw_quote": table_quote,
+                "quote_id": "quote-table-1",
+                "negative_evidence_type": "missing-baseline",
+                "targeted_negative_search_task_id": "neg-search-freeform-claim-1-reviewer-neg-candidate-baselines",
+                "coverage_missing_items": ["key competitors", "all relevant recent methods"],
+            }
+        ],
+        "paper_text": paper_text,
+        "evidence_quote_bank": quote_bank,
+    }
+
+    merged = merge_review_state(state, {"evidence_map": state["evidence_map"]})
+    ev = merged["evidence_map"][0]
+
+    assert ev["negative_evidence_type"] == "missing_baseline"
+    assert ev["semantic_grounding_label"] == "semantic_mismatch"
+    assert not _is_grounded_paper_negative_evidence_record(ev, merged)
+
+
+def test_table_scope_absence_rejects_present_baseline_as_missing_or_weak():
+    quote = (
+        "Despite its simplicity, the $k$ -NN solver is the strongest baseline because, "
+        "like Graph2Tac, it is able to adapt in real-time to the changing Coq environment."
+    )
+    paper_text, quote_bank = _grounding_bank([("quote-comparison-1", quote, "comparison")])
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "Graph2Tac achieves superior empirical performance compared to baselines in theorem proving tasks.",
+                "claim_kind": "paper_extracted",
+            }
+        ],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-baseline-strength",
+                "claim_id": "claim-1",
+                "weakness": "The baseline comparison may be weak or insufficiently justified.",
+                "negative_type": "unfair_or_weak_baseline",
+                "required_evidence_type": "baseline_or_comparison",
+                "missing_or_weak_items": [
+                    "citation or prior work reference for k-NN baseline",
+                    "comparison to other published methods",
+                ],
+                "status": "pending_quote_verification",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "e-present-baseline",
+                "claim_id": "claim-1",
+                "evidence": (
+                    "The copied quote states that k-NN is the strongest baseline, "
+                    "but the reviewer task asks whether the k-NN baseline is weak or underjustified."
+                ),
+                "source": "Candidate-Relevant Paper Windows",
+                "source_locator": "Comparison / Robustness excerpt #2",
+                "stance": "missing",
+                "strength": "missing",
+                "raw_quote": quote,
+                "quote_id": "quote-comparison-1",
+                "negative_evidence_type": "unfair_or_weak_baseline",
+                "targeted_negative_search_task_id": (
+                    "neg-search-freeform-claim-1-reviewer-neg-candidate-baseline-strength"
+                ),
+                "coverage_missing_items": [
+                    "citation or prior work reference for k-NN baseline",
+                    "comparison to other published methods",
+                ],
+            }
+        ],
+        "paper_text": paper_text,
+        "evidence_quote_bank": quote_bank,
+    }
+
+    merged = merge_review_state(state, {"evidence_map": state["evidence_map"]})
+    ev = merged["evidence_map"][0]
+
+    assert ev["semantic_grounding_label"] == "semantic_mismatch"
+    assert ev["review_negative_label"] != "review_negative_verified"
+    assert not _is_grounded_paper_negative_evidence_record(ev, merged)
+
+    stale_verified = copy.deepcopy(ev)
+    stale_verified["semantic_grounding_label"] = "semantic_negative_verified"
+    stale_verified["review_negative_label"] = "review_negative_verified"
+    stale_verified["review_negative_reason"] = "table_scope_absence_weakens_claim"
+    assert not _is_grounded_paper_negative_evidence_record(stale_verified, merged)
+
+
+def test_table_scope_absence_rejects_coverage_missing_without_visible_observed_scope():
+    quote = (
+        "We then propose evaluation metrics for (1) testing the correctness of explanations via intervention "
+        "and (2) the usefulness of these methods for steering and editing representations and model outputs."
+    )
+    paper_text, quote_bank = _grounding_bank([("quote-metrics", quote, "method")])
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The intervention evaluation generalizes across model families and scales.",
+                "claim_kind": "paper_extracted",
+            }
+        ],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-model-scope",
+                "claim_id": "claim-1",
+                "weakness": "The evaluation may lack model scale and architecture diversity.",
+                "negative_type": "insufficient_evaluation",
+                "required_evidence_type": "robustness_or_generalization",
+                "missing_or_weak_items": [
+                    "model scale diversity",
+                    "architectural family diversity",
+                    "evidence on modern large-scale models",
+                ],
+                "status": "pending_quote_verification",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "e-metric-prose-not-coverage",
+                "claim_id": "claim-1",
+                "evidence": "insufficient_evaluation",
+                "source": "Section: Method",
+                "source_locator": "Section: Method",
+                "stance": "missing",
+                "strength": "missing",
+                "raw_quote": quote,
+                "quote_id": "quote-metrics",
+                "negative_evidence_type": "insufficient_evaluation",
+                "targeted_negative_search_task_id": "neg-search-freeform-claim-1-reviewer-neg-candidate-model-scope",
+                "coverage_missing_items": [
+                    "model scale diversity",
+                    "architectural family diversity",
+                    "evidence on modern large-scale models",
+                ],
+            }
+        ],
+        "paper_text": paper_text,
+        "evidence_quote_bank": quote_bank,
+    }
+
+    merged = merge_review_state(state, {"evidence_map": state["evidence_map"]})
+    ev = merged["evidence_map"][0]
+
+    assert ev["semantic_grounding_label"] == "semantic_mismatch"
+    assert "quote_lacks_negative_anchor" in ev["semantic_grounding_reasons"]
+    assert not _is_grounded_paper_negative_evidence_record(ev, merged)
+
+
+def test_table_scope_absence_rejects_quote_excerpt_incompleteness():
+    table_quote = r"\begin{table} \caption{Normalized latent reconstruction error without intervention.}"
+    paper_text, quote_bank = _grounding_bank([("quote-table-caption", table_quote, "table_or_figure")])
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The paper evaluates Intervention Success Rate with complete quantitative results.",
+                "claim_kind": "paper_extracted",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "e-quote-incomplete",
+                "claim_id": "claim-1",
+                "evidence": (
+                    "The paper evaluates Intervention Success Rate, but the formal definition is not provided "
+                    "in the quoted text. A table caption is shown, but the actual numerical results are not "
+                    "included in the quote."
+                ),
+                "source": "Section on Comparative Evaluation",
+                "source_locator": "Table caption",
+                "stance": "missing",
+                "strength": "missing",
+                "raw_quote": table_quote,
+                "quote_id": "quote-table-caption",
+                "negative_evidence_type": "missing_baseline",
+            }
+        ],
+        "paper_text": paper_text,
+        "evidence_quote_bank": quote_bank,
+    }
+
+    merged = merge_review_state(state, {"evidence_map": state["evidence_map"]})
+    ev = merged["evidence_map"][0]
+
+    assert ev["semantic_grounding_label"] != "semantic_negative_verified"
+    assert ev["review_negative_label"] != "review_negative_verified"
     assert not _is_grounded_paper_negative_evidence_record(ev, merged)
 
 

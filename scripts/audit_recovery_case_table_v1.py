@@ -25,6 +25,7 @@ from agent_system.environments.env_package.review.state import (
     REVIEW_NEGATIVE_VERIFIED_LABEL,
     _has_trusted_existing_grounding,
     _is_grounded_paper_negative_evidence_record,
+    _is_reviewer_absence_audit_evidence_record,
     _negative_evidence_type_for_record,
     _review_negative_label_for_record,
     build_decision_hygiene_view,
@@ -99,6 +100,10 @@ def _evidence_bucket(state: Dict[str, Any], evidence: Dict[str, Any]) -> str:
         return f"{source.replace(' ', '_')}_candidate"
     if source in {"model-output", "model output", "manager_model"} or source_locator in {"model-output", "model output", "manager_model"}:
         return "untrusted_model_output"
+    if _is_reviewer_absence_audit_evidence_record(evidence, state):
+        return "reviewer_absence_audit"
+    if source == "reviewer_absence_audit" or evidence.get("absence_audit_verified"):
+        return "stale_reviewer_absence_audit"
     if _is_grounded_paper_negative_evidence_record(evidence, state):
         return "verified_review_negative"
     semantic_label = str(evidence.get("semantic_grounding_label") or "").strip()
@@ -150,6 +155,8 @@ def _narrative_bucket(turn: Dict[str, Any], evidence_counts: Counter) -> str:
     if operation in {"downgrade_claim_to_unsupported", "mark_contested"}:
         if evidence_counts.get("verified_review_negative", 0) > 0:
             return "verified_review_negative_repair"
+        if evidence_counts.get("reviewer_absence_audit", 0) > 0:
+            return "reviewer_inferred_negative_repair"
         return "effective_repair_without_verified_negative"
     if operation == "route_to_assessment_limitation":
         return "assessment_limitation_routing"
@@ -158,6 +165,8 @@ def _narrative_bucket(turn: Dict[str, Any], evidence_counts: Counter) -> str:
     if operation == "downgrade_final_to_candidate":
         if evidence_counts.get("verified_review_negative", 0) > 0:
             return "verified_negative_flaw_lifecycle_downgrade"
+        if evidence_counts.get("reviewer_absence_audit", 0) > 0:
+            return "reviewer_inferred_flaw_lifecycle_downgrade"
         return "flaw_lifecycle_downgrade_needs_manual_review"
     return layer or "effective_repair_needs_manual_review"
 
@@ -206,6 +215,8 @@ def build_recovery_case_table(rows: Iterable[Dict[str, Any]]) -> Tuple[List[Dict
                     summary["effective_repair_not_verified_negative_repair"] += 1
             if evidence_counts.get("verified_review_negative", 0):
                 summary["turns_with_verified_review_negative_evidence"] += 1
+            if evidence_counts.get("reviewer_absence_audit", 0):
+                summary["turns_with_reviewer_absence_audit_evidence"] += 1
             if evidence_counts:
                 for key, value in evidence_counts.items():
                     summary[f"evidence_bucket::{key}"] += value

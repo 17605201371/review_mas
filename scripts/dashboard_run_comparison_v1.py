@@ -93,6 +93,8 @@ SYNTHETIC_EVIDENCE_PREFIXES = (
 )
 
 VERIFIED_PAPER_GROUNDED_LABELS = {"paper_grounded_exact", "paper_grounded_normalized"}
+ABSENCE_AUDIT_GROUNDING_LABEL = "paper_absence_audit_verified"
+REVIEW_NEGATIVE_ABSENCE_AUDIT_LABEL = "review_negative_absence_audit_verified"
 VERIFIED_POSITIVE_SEMANTIC_LABELS = {"semantic_support_verified"}
 VERIFIED_NEGATIVE_SEMANTIC_LABELS = {"semantic_negative_verified"}
 NEGATIVE_EVIDENCE_STANCES = {
@@ -127,7 +129,7 @@ PROTECTION_LINES: List[Tuple[str, str, str]] = [
     ("independent_support_group_total",       ">=", "24"),
     ("empirical_real_strong_support_count",   ">=", "20"),
     ("claims_with_deep_support",              ">=", "8"),
-    ("support_trace_missing_verified_quote_count", "==", "0"),
+    ("final_support_missing_verified_quote_count", "==", "0"),
     ("support_trace_overridden_by_negative_burden_count", "==", "0"),
     ("evidence_formation_dead_loop_count",   "==", "0"),
     ("programmatic_specific_locator_count",   ">=", "18"),
@@ -195,7 +197,8 @@ def _recovery_turn_delta(tl: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _turn_has_no_effect_commit(tl: Dict[str, Any]) -> bool:
-    if str(tl.get("recovery_patch_operation") or "") == "mark_contested":
+    operation = str(tl.get("recovery_patch_operation") or "")
+    if operation in {"mark_contested", "record_diagnosis_pending_concern"}:
         return False
     if tl.get("recovery_no_effect_commit"):
         return True
@@ -207,6 +210,7 @@ def _turn_has_no_effect_commit(tl: Dict[str, Any]) -> bool:
     return (
         not bool(delta.get("consistency_improved"))
         and not bool(delta.get("contested_relation_added"))
+        and not bool(delta.get("diagnosis_pending_concern_added"))
         and not bool(delta.get("negative_recovery_commit"))
     )
 
@@ -219,6 +223,13 @@ def _turn_has_harmful_commit_risk(tl: Dict[str, Any]) -> bool:
 
 def _row_evidence_lookup(row: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     state = row.get("review_state") or {}
+    if isinstance(state, dict):
+        try:
+            state_for_view = copy.deepcopy(state)
+            state_for_view.pop("decision_hygiene", None)
+            state = build_decision_hygiene_view(state_for_view)
+        except Exception:
+            state = row.get("review_state") or {}
     return {
         str(item.get("evidence_id") or ""): item
         for item in state.get("evidence_map") or []
@@ -239,6 +250,14 @@ def _is_verified_positive_support(item: Dict[str, Any], claim_id: str = "") -> b
 def _is_verified_negative_evidence(item: Dict[str, Any], claim_id: str = "") -> bool:
     if claim_id and str(item.get("claim_id") or "") != str(claim_id):
         return False
+    if (
+        str(item.get("source") or "").strip() == "reviewer_absence_audit"
+        and str(item.get("review_negative_label") or "").strip() == REVIEW_NEGATIVE_ABSENCE_AUDIT_LABEL
+        and str(item.get("verified_grounding_label") or "").strip() == ABSENCE_AUDIT_GROUNDING_LABEL
+        and str(item.get("semantic_grounding_label") or "").strip() == "semantic_negative_verified"
+        and str(item.get("audit_basis") or "").strip() == "claim_requirement_vs_verified_support"
+    ):
+        return True
     stance = str(item.get("stance") or "").strip().lower()
     strength = str(item.get("strength") or "").strip().lower()
     return bool(
@@ -681,6 +700,14 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     out["support_trace_total"] = len(all_trace_items)
     out["support_trace_included_count"] = len(final_trace_items)
     out["support_trace_dropped_count"] = max(0, len(all_trace_items) - len(final_trace_items))
+    out["final_support_missing_verified_quote_count"] = sum(
+        1
+        for item in final_trace_items
+        if str(item.get("verified_grounding_label") or "") not in {
+            "paper_grounded_exact",
+            "paper_grounded_normalized",
+        }
+    )
     drop_counts = Counter(str(item.get("final_drop_reason") or "included") for item in all_trace_items)
     for reason in (
         "hygiene_filtered",
@@ -702,7 +729,12 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
 
     # --- negative & flaws ----------------------------------------------
     out["negative_evidence_candidate_count"] = _sum(rows, "negative_evidence_candidate_count")
+    out["negative_evidence_candidate_raw_count"] = _sum(rows, "negative_evidence_candidate_raw_count")
     out["review_negative_verified_count"] = _sum(rows, "review_negative_verified_count")
+    out["reviewer_absence_verified_count"] = _sum(rows, "reviewer_absence_verified_count")
+    out["reviewer_absence_verified_claim_count"] = _sum(rows, "reviewer_absence_verified_claim_count")
+    out["reviewer_absence_verified_flaw_count"] = _sum(rows, "reviewer_absence_verified_flaw_count")
+    out["total_review_negative_verified_count"] = _sum(rows, "total_review_negative_verified_count")
     out["paper_text_negative_candidate_count"] = _sum(rows, "paper_text_negative_candidate_count")
     out["author_limitation_only_count"] = _sum(rows, "author_limitation_only_count")
     out["prior_work_limitation_count"] = _sum(rows, "prior_work_limitation_count")
@@ -713,6 +745,7 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     out["scope_limitation_as_verified_negative_count"] = _sum(rows, "scope_limitation_as_verified_negative_count")
     out["quote_bank_salvage_generated_negative_count"] = _sum(rows, "quote_bank_salvage_generated_negative_count")
     out["negative_evidence_linked_to_flaw_count"] = _sum(rows, "negative_evidence_linked_to_flaw_count")
+    out["negative_evidence_linked_to_flaw_raw_count"] = _sum(rows, "negative_evidence_linked_to_flaw_raw_count")
     out["negative_evidence_unlinked_to_flaw"] = _sum(rows, "negative_evidence_unlinked_to_flaw_count")
     derived_actionable_flaws, derived_limitation_flaws = _derived_negative_flaw_actionability_counts(rows)
     verified_negative_sum = _sum(rows, "verified_negative_flaw_count")
@@ -1153,7 +1186,14 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
         1 for row in rows
         if _row_has_clean_state(row) or _row_has_hygiene_delta(row) or _row_has_safe_block(row)
     )
-    for gate_label in ("real_target", "negative_verified_target", "weak_target", "fallback_target", "empty_target"):
+    for gate_label in (
+        "real_target",
+        "negative_verified_target",
+        "diagnosis_pending_target",
+        "weak_target",
+        "fallback_target",
+        "empty_target",
+    ):
         out[f"recovery_target_gate_{gate_label}_turns"] = rec[f"recovery_target_gate_{gate_label}_turns"]
     for operation in (
         "reject_patch",
@@ -1164,6 +1204,7 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
         "convert_negative_to_gap",
         "downgrade_claim_to_unsupported",
         "mark_contested",
+        "record_diagnosis_pending_concern",
         "resolve_stale_gap",
     ):
         out[f"recovery_patch_operation_{operation}_turns"] = rec[f"recovery_patch_operation_{operation}_turns"]
@@ -1174,7 +1215,9 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     )
     for bucket in (
         "verified_review_negative_repair",
+        "reviewer_inferred_negative_repair",
         "verified_negative_flaw_lifecycle_downgrade",
+        "reviewer_inferred_flaw_lifecycle_downgrade",
         "state_hygiene_repair",
         "assessment_limitation_routing",
         "effective_repair_without_verified_negative",
@@ -1186,6 +1229,7 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
         out[f"recovery_case_{bucket}"] = int(recovery_case_summary.get(f"bucket::{bucket}", 0) or 0)
     for bucket in (
         "verified_review_negative",
+        "reviewer_absence_audit",
         "author_limitation_only",
         "prior_work_limitation",
         "positive_or_neutral_support",
@@ -1209,6 +1253,9 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     )
     out["recovery_case_turns_with_verified_review_negative_evidence"] = int(
         recovery_case_summary.get("turns_with_verified_review_negative_evidence", 0) or 0
+    )
+    out["recovery_case_turns_with_reviewer_absence_audit_evidence"] = int(
+        recovery_case_summary.get("turns_with_reviewer_absence_audit_evidence", 0) or 0
     )
     out["failure_codes"] = dict(failure_codes)
     out["synthetic_marker_in_supporting_count"] = synthetic_in_supporting
@@ -1551,7 +1598,12 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
     ]),
     ("Negative & flaws", [
         "negative_evidence_candidate_count",
+        "negative_evidence_candidate_raw_count",
         "review_negative_verified_count",
+        "reviewer_absence_verified_count",
+        "reviewer_absence_verified_claim_count",
+        "reviewer_absence_verified_flaw_count",
+        "total_review_negative_verified_count",
         "paper_text_negative_candidate_count",
         "author_limitation_only_count",
         "prior_work_limitation_count",
@@ -1562,6 +1614,7 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "scope_limitation_as_verified_negative_count",
         "quote_bank_salvage_generated_negative_count",
         "negative_evidence_linked_to_flaw_count",
+        "negative_evidence_linked_to_flaw_raw_count",
         "negative_evidence_unlinked_to_flaw",
         "verified_negative_flaw_count",
         "verified_actionable_negative_flaw_count",
@@ -1732,7 +1785,9 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "recovery_case_audit_error_count",
         "recovery_case_decision_hygiene_error_count",
         "recovery_case_verified_review_negative_repair",
+        "recovery_case_reviewer_inferred_negative_repair",
         "recovery_case_verified_negative_flaw_lifecycle_downgrade",
+        "recovery_case_reviewer_inferred_flaw_lifecycle_downgrade",
         "recovery_case_state_hygiene_repair",
         "recovery_case_assessment_limitation_routing",
         "recovery_case_effective_repair_without_verified_negative",
@@ -1743,7 +1798,9 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "recovery_case_effective_repair_turns",
         "recovery_case_effective_repair_not_verified_negative_repair",
         "recovery_case_turns_with_verified_review_negative_evidence",
+        "recovery_case_turns_with_reviewer_absence_audit_evidence",
         "recovery_case_evidence_bucket_verified_review_negative",
+        "recovery_case_evidence_bucket_reviewer_absence_audit",
         "recovery_case_evidence_bucket_author_limitation_only",
         "recovery_case_evidence_bucket_prior_work_limitation",
         "recovery_case_evidence_bucket_positive_or_neutral_support",

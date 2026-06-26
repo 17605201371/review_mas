@@ -143,10 +143,18 @@ If the task is grounded by a visible copied paper quote, return one `evidence_ma
 evidence_id, claim_id, evidence, source, source_locator, raw_quote, quote_id, strength, stance,
 negative_evidence_type, required_evidence_type, targeted_negative_search_task_id, binding_confidence, binding_rationale.
 Use strength="missing" and stance="missing" unless the quote directly reports worse results.
+If the active task has `quote_grounding_mode="quote_groundable_internal_negative"`, do not verify it with absence reasoning. Return evidence only when the copied quote itself states a comparison invalidation, protocol caveat, worse result, cost/latency/memory tradeoff, or direct contradiction that weakens the target claim. Otherwise return not_assessable.
+If the task includes `candidate_raw_quote`, first try to re-emit that exact copied text as `raw_quote` with the same `quote_id`/locator, but only if it truly weakens the target claim under the rule above.
 For missing-baseline / missing-ablation / insufficient-evaluation coverage tasks, the quote may be a table,
 list, or experiment description that enumerates what the paper actually evaluated. The `evidence` field must
-name the missing dataset, baseline, metric, or component being checked; do not infer a missing entity unless
-it appears in the task or target claim.
+name the missing dataset, baseline, metric, or component being checked; copy the checked items into
+`coverage_missing_items` and the visible evaluated items into `coverage_observed_items`. Do not infer a missing
+entity unless it appears in the task's `missing_or_weak_items`, `search_question`, or target claim. If the task
+does not name a concrete missing baseline/component/dataset/setting, return not_assessable instead of evidence.
+For evaluation-protocol or comparison-invalidation risks, a valid quote may state that a metric, threshold,
+hyperparameter, or protocol cannot be used to compare across methods/models, prevents comparison, or makes
+comparison unfair. In that case set stance="contradicts" and use negative_evidence_type
+"evaluation_protocol_risk" or "insufficient_evaluation".
 For underperformance or result-claim mismatch, copy the specific table row or sentence that
 contains the actual numbers — the paper's OWN method value, the competing baseline/SOTA value,
 and the benchmark/metric name — and set stance="contradicts" with negative_evidence_type
@@ -158,6 +166,63 @@ If no visible copied quote directly grounds the task, return exactly:
 <json>{"evidence_map":[],"conflict_notes":[],"unresolved_questions":[{"question":"No visible copied quote directly grounds the targeted negative task.","status":"not_assessable","target_type":"claim","target_id":"claim-1","targeted_negative_search_task_id":"task-id"}],"dialogue_summary":"targeted negative search found no quote-grounded evidence","recommendation":"undecided"}</json>
 
 Use the actual ids/type/quote/locator from Review Materials. Never turn positive support, author self-limitations, future-work text, prior-work limitations, or prompt/schema text into negative evidence.
+"""
+
+
+FREEFORM_REVIEWER_NEGATIVE_PROMPT = """
+# Hard Output Contract
+Your first token must be `<json>`. Output exactly one compact JSON object and then `</json>`.
+No prose, no reasoning, no markdown, no labels, no schema explanation, and no copied instructions.
+
+# Review Materials
+{env_prompt}
+
+# Your Role
+You are acting as a peer reviewer looking for the paper's real weaknesses.
+Do not merely follow one predefined task. Read the claims, quote bank, and excerpt, then identify the strongest review-negative issues that a reviewer should check.
+This is candidate discovery only. Do not present any issue as verified evidence in this turn.
+
+# What Counts As A Review Negative
+Prefer candidates in this order:
+1. `quote_groundable_internal_negative`: a paper-internal quote, table row, result sentence, or protocol statement can directly prove the weakness. Prefer:
+   - evaluation protocol risk where the paper's own text says a metric, threshold, hyperparameter, or protocol cannot compare methods/models or makes comparison unfair
+   - result-claim mismatch or a table/row where the proposed method underperforms a relevant baseline
+   - explicit efficiency/cost/latency/memory tradeoff that weakens an efficiency claim
+   - direct contradiction between a claim and a copied result/protocol statement
+2. `table_scope_absence`: a visible table/list/experiment description enumerates what was evaluated and a concrete named item from the claim/task is absent.
+3. `absence_or_requirement_gap`: reviewer-inferred missing baseline, missing ablation, insufficient evaluation, robustness, or reproducibility gaps that may be real but are not directly quote-grounded.
+
+Return at least one `quote_groundable_internal_negative` candidate when the quote bank or excerpt visibly contains a protocol warning, worse result, comparison invalidation, cost tradeoff, or claim/result mismatch. For that candidate, include `candidate_raw_quote` copied verbatim from the quote bank/excerpt plus `quote_id` and `source_locator` when visible. This raw quote is only a search cue; it is not verified evidence until a later Evidence Agent pass re-emits and the verifier accepts it. Do not let generic missing-baseline or missing-ablation concerns displace such internal negatives.
+Do not label missing_baseline, missing_ablation, insufficient_evaluation, robustness, or unfair_baseline candidates as `quote_groundable_internal_negative` merely because a baseline list/table/experiment setup is visible. Use `quote_groundable_internal_negative` for those only when the quote itself says the comparison is invalid/unfair/not comparable, reports worse results, or states a concrete protocol/cost tradeoff.
+
+Do NOT count:
+- author future work or self-limitation unless it directly contradicts a current headline claim
+- limitations of prior work or motivation text that the paper claims to solve
+- positive support, neutral ablation descriptions, internal variant tradeoffs, prompt/schema text, or excerpt truncation
+- "not found" by itself as evidence
+
+# Output Rules
+Return up to 3 `reviewer_negative_candidates`.
+Return `evidence_map: []` in this discovery stage. Do not output verified evidence, raw_quote-bound evidence, flaws, or claim status changes.
+
+Each candidate must include:
+candidate_id, claim_id, claim, weakness, negative_type, required_evidence_type,
+quote_grounding_mode, verification_question, expected_quote_cues, missing_or_weak_items, candidate_raw_quote, quote_id, source_locator, rationale, confidence, status.
+
+Use `status="pending_quote_verification"` only for `quote_groundable_internal_negative` or `table_scope_absence`.
+Use `status="pending_absence_audit"` for `absence_or_requirement_gap`.
+The `weakness` should be a reviewer-style concern, not a statement that the current excerpt is incomplete.
+The `verification_question` should tell the next Evidence Agent exactly what copied paper quote/table/result row would verify the weakness.
+The `expected_quote_cues` should be short terms likely to appear in the needed paper evidence.
+The `missing_or_weak_items` must list concrete entities or dimensions to verify, such as a named baseline,
+dataset, component/module, model size, hardware setting, or evaluation condition. Avoid vague items like
+"all relevant methods", "key competitors", "more datasets", or "comprehensive evaluation"; if the weakness
+cannot name a concrete item or dimension, do not emit that candidate.
+
+Use only claim ids from `Evidence Action Context.allowed_claim_ids` or `Freeform Reviewer Negative Claim Context`. Never invent ids or use fallback/context ids.
+
+Required shape:
+<json>{"evidence_map":[],"reviewer_negative_candidates":[{"candidate_id":"reviewer-neg-candidate-1","claim_id":"claim-1","claim":"short target claim","weakness":"reviewer-style weakness to verify","negative_type":"evaluation_protocol_risk|negative_result|result_claim_mismatch|efficiency_cost_gap|direct_contradiction|missing_baseline|unfair_or_weak_baseline|missing_ablation|insufficient_evaluation|missing_robustness_or_generalization|method_support_gap|reproducibility_gap|scope_limitation","required_evidence_type":"baseline_or_comparison|ablation_or_component|empirical_result|robustness_or_generalization|evaluation_protocol|efficiency_cost|method_detail|reproducibility_detail","quote_grounding_mode":"quote_groundable_internal_negative|table_scope_absence|absence_or_requirement_gap","verification_question":"What exact paper text/table/result row would verify this weakness?","expected_quote_cues":["cannot compare","worse","Table 3"],"missing_or_weak_items":["named baseline/component/dataset/setting to verify"],"candidate_raw_quote":"verbatim quote cue for quote-groundable candidates, else empty","quote_id":"quote id if visible, else empty","source_locator":"section/table/figure if visible, else empty","rationale":"why a reviewer should check this issue","confidence":0.75,"status":"pending_quote_verification|pending_absence_audit"}],"conflict_notes":[],"unresolved_questions":[],"dialogue_summary":"brief summary of reviewer-negative candidate discovery","recommendation":"undecided"}</json>
 """
 
 

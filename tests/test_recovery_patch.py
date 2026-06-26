@@ -768,6 +768,91 @@ def test_mark_contested_patch_commits_without_claim_status_downgrade(mock_state)
     assert new_state["contested_relations"][0]["negative_evidence_ids"] == ["e3"]
 
 
+def test_mark_contested_persists_reviewer_absence_audit_snapshot():
+    absence_id = "evidence-reviewer-absence-claim-1-baseline-or-comparison"
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The paper compares the method to the GPT-4 baseline.",
+                "claim_kind": "paper_extracted",
+                "claim_type": "other",
+                "importance": "high",
+                "status": "supported",
+            }
+        ],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-gpt4-baseline",
+                "claim_id": "claim-1",
+                "weakness": "The comparison claim lacks verified evidence for the GPT-4 baseline.",
+                "negative_type": "missing_baseline",
+                "required_evidence_type": "baseline_or_comparison",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["GPT-4 baseline"],
+                "status": "pending_absence_audit",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "e-support",
+                "claim_id": "claim-1",
+                "evidence": "The abstract states that the method improves performance on Benchmark-X.",
+                "raw_quote": "The method improves performance on Benchmark-X.",
+                "source": "Abstract",
+                "source_locator": "Abstract",
+                "strength": "strong",
+                "stance": "supports",
+                "binding_status": "bound_real_claim",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_support_verified",
+                "support_source_bucket": "abstract",
+            }
+        ],
+        "flaw_candidates": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+        "unresolved_questions": [],
+    }
+
+    new_state = merge_review_state(
+        state,
+        {
+            "action": "apply_recovery_patch",
+            "target_type": "claim",
+            "target_id": "claim-1",
+            "old_status": "supported",
+            "new_status": "supported",
+            "supporting_evidence_ids": [absence_id],
+            "resolution_expectation": "partially_resolved",
+            "recovery_patch_operation": "mark_contested",
+            "mark_contested": True,
+            "contested_relation": {
+                "claim_id": "claim-1",
+                "support_evidence_ids": ["e-support"],
+                "negative_evidence_ids": [absence_id],
+                "final_view": "potential_concern",
+                "negative_evidence_basis": "reviewer_absence_audit",
+            },
+        },
+    )
+
+    patch_log = new_state["_latest_patch_log"]
+    assert patch_log["recovery_committed"] is True
+    assert patch_log["recovery_patch_operation"] == "mark_contested"
+    absence_record = next(
+        item for item in new_state["evidence_map"]
+        if item.get("evidence_id") == absence_id
+    )
+    assert absence_record["source"] == "reviewer_absence_audit"
+    assert absence_record["absence_audit_snapshot_at_recovery_commit"] is True
+    assert new_state["contested_relations"][0]["negative_evidence_ids"] == [absence_id]
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(new_state))["decision_hygiene"]
+    assert hygiene["reviewer_absence_verified_count"] == 1
+    assert hygiene["reviewer_absence_verified_type_counts"]["missing_baseline"] == 1
+
+
 def test_mark_contested_duplicate_relation_is_blocked_as_no_effect(mock_state):
     state = copy.deepcopy(mock_state)
     for evidence in state["evidence_map"]:
@@ -1107,6 +1192,7 @@ def _claim_requirement_gap_state():
 def test_record_diagnosis_pending_concern_commits_without_claim_or_flaw_status_change():
     state = _claim_requirement_gap_state()
     hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+    pre_verified_negative_flaw_count = hygiene["verified_negative_flaw_count"]
     gap = hygiene["claim_requirement_gap_items"][0]
 
     new_state = merge_review_state(
@@ -1142,7 +1228,7 @@ def test_record_diagnosis_pending_concern_commits_without_claim_or_flaw_status_c
     assert new_state["diagnosis_pending_concerns"][0]["grounding_status"] == "diagnosis_pending_verification"
     assert new_state["diagnosis_pending_concerns"][0]["basis"] == "claim_requirement_vs_verified_support"
     view = build_decision_hygiene_view(copy.deepcopy(new_state))
-    assert view["decision_hygiene"]["verified_negative_flaw_count"] == 0
+    assert view["decision_hygiene"]["verified_negative_flaw_count"] == pre_verified_negative_flaw_count
     assert view["decision_hygiene"]["diagnosis_pending_concern_recorded_count"] == 1
     turn_log = build_turn_log(
         2,
