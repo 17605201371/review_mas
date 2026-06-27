@@ -607,6 +607,44 @@ def _normalize_question_item(item: Any, fallback_index: int) -> Optional[Dict[st
     }
 
 
+_REVIEW_ISSUE_RETRIEVAL_GAP_RE = re.compile(
+    r"\b(?:provided|current|given|visible|available)\s+"
+    r"(?:excerpt|excerpts|context|text|inventory|evidence|evidence\s+inventory|"
+    r"support\s+inventory|materials?)\b"
+    r"|"
+    r"\b(?:excerpt|excerpts|context|prompt|materials?)\s+"
+    r"(?:does\s+not|do\s+not|doesn't|don't|fails?\s+to|lack|lacks|missing|"
+    r"omit|omits|truncated|cut\s+off)\b"
+    r"|"
+    r"\b(?:not\s+present|not\s+shown|not\s+available|cannot\s+be\s+verified|"
+    r"impossible\s+to\s+verify|unable\s+to\s+verify)\s+"
+    r"(?:from|in|with|using)\s+(?:the\s+)?(?:provided|current|given|visible|available)\b"
+    r"|"
+    r"\b(?:truncated|cut\s+off|cuts\s+off|partial\s+excerpt|partial\s+text|"
+    r"full\s+results\s+inventory\s+is\s+not\s+present)\b",
+    re.IGNORECASE,
+)
+
+
+def _review_issue_candidate_is_retrieval_gap(candidate: Dict[str, Any]) -> bool:
+    """Whether a candidate is about missing context rather than a paper flaw."""
+
+    if not isinstance(candidate, dict):
+        return False
+    parts: List[str] = []
+    for field in ("weakness", "rationale", "verification_question"):
+        value = candidate.get(field)
+        if value:
+            parts.append(str(value))
+    for value in candidate.get("missing_or_weak_items") or []:
+        if value:
+            parts.append(str(value))
+    text = " ".join(parts)
+    if not text:
+        return False
+    return bool(_REVIEW_ISSUE_RETRIEVAL_GAP_RE.search(text))
+
+
 def _normalize_reviewer_negative_candidate_item(item: Any, fallback_index: int) -> Optional[Dict[str, Any]]:
     if not isinstance(item, dict):
         return None
@@ -727,6 +765,8 @@ def _normalize_reviewer_negative_candidate_item(item: Any, fallback_index: int) 
     source_of_expectation = _normalize_text(item.get("source_of_expectation"), max_length=80)
     if source_of_expectation:
         normalized["source_of_expectation"] = source_of_expectation
+    if _review_issue_candidate_is_retrieval_gap(normalized):
+        return None
     return normalized
 
 
@@ -9003,6 +9043,8 @@ def _reviewer_candidate_absence_gap_items(
     for candidate in view.get("reviewer_negative_candidates", []) or []:
         if not isinstance(candidate, dict):
             continue
+        if _review_issue_candidate_is_retrieval_gap(candidate):
+            continue
         route = _reviewer_negative_candidate_quote_route(candidate)
         if route not in {"absence_or_requirement_gap", "table_scope_absence"}:
             continue
@@ -10325,6 +10367,98 @@ def _review_issue_candidate_blueprints_for_claim(
     return blueprints[:4]
 
 
+def _review_issue_discovery_contrast_hints_for_claim(
+    claim: Dict[str, Any],
+    audit_item: Optional[Dict[str, Any]],
+    support_profile: Optional[Dict[str, Any]],
+    inventory_items: Sequence[Dict[str, Any]],
+    blueprints: Sequence[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Compact hints that make Critique compare claim obligations to inventory.
+
+    These hints are deliberately non-verifying.  They make the discovery prompt
+    more like a reviewer checklist: what the paper claims, what inventory is
+    currently observed, and what concrete issue shapes would be auditable.
+    """
+
+    missing_requirements = [
+        str(req)
+        for req in (audit_item or {}).get("missing_requirements", []) or []
+        if str(req)
+    ]
+    observed_requirement_types = sorted({
+        str(req)
+        for item in inventory_items or []
+        if isinstance(item, dict)
+        for req in (item.get("requirement_types") or [])
+        if str(req)
+    })
+    inventory_anchors: List[Dict[str, Any]] = []
+    for item in inventory_items or []:
+        if not isinstance(item, dict):
+            continue
+        quote = _normalize_text(item.get("quote"), max_length=140)
+        locator = _normalize_text(item.get("locator") or item.get("inventory_id"), max_length=80)
+        if not quote and not locator:
+            continue
+        inventory_anchors.append(
+            {
+                "locator": locator,
+                "requirement_types": list(item.get("requirement_types") or [])[:4],
+                "observed_items": _normalize_list_of_strings(
+                    item.get("observed_items"),
+                    max_items=5,
+                    max_length=50,
+                ),
+                "quote": quote,
+            }
+        )
+        if len(inventory_anchors) >= 3:
+            break
+
+    seed_questions: List[Dict[str, Any]] = []
+    for blueprint in blueprints or []:
+        if not isinstance(blueprint, dict):
+            continue
+        examples = [
+            item for item in _normalize_list_of_strings(
+                blueprint.get("candidate_missing_item_examples"),
+                max_items=4,
+                max_length=100,
+            )
+            if item
+        ]
+        seed_questions.append(
+            {
+                "issue_type": str(blueprint.get("issue_type") or ""),
+                "required_evidence_type": str(blueprint.get("required_evidence_type") or ""),
+                "quote_grounding_mode": str(blueprint.get("quote_grounding_mode") or "absence_or_requirement_gap"),
+                "candidate_missing_item_examples": examples[:3],
+                "use_only_if": (
+                    "you can name a paper-side missing/mismatch item and attach a copied observed_inventory quote; "
+                    "do not emit if the only concern is that the current excerpt is incomplete"
+                ),
+            }
+        )
+        if len(seed_questions) >= 4:
+            break
+
+    claim_text = _normalize_text(claim.get("claim") or claim.get("text"), max_length=220)
+    support_counts = (support_profile or {}).get("source_bucket_counts") or {}
+    return {
+        "claim_anchor": claim_text,
+        "missing_requirement_types": missing_requirements[:6],
+        "observed_requirement_types": observed_requirement_types[:8],
+        "support_source_bucket_counts": dict(list(support_counts.items())[:8]) if isinstance(support_counts, dict) else {},
+        "inventory_anchor_options": inventory_anchors,
+        "candidate_seed_questions": seed_questions,
+        "negative_instruction": (
+            "Propose a candidate only when it is a paper-side obligation/inventory mismatch. "
+            "Never write that the provided excerpt/current inventory is missing, truncated, or insufficient."
+        ),
+    }
+
+
 def _freeform_reviewer_negative_candidate_tasks(
     state: Dict[str, Any],
     *,
@@ -10798,6 +10932,13 @@ def _hard_negative_diagnosis_targets(
             claim_id,
             max_items=5,
         )
+        issue_blueprints = _review_issue_candidate_blueprints_for_claim(
+            claim,
+            audit_item,
+            support_profile,
+            paper_inventory,
+            checks,
+        )
         targets.append({
             "claim_id": claim_id,
             "claim": _normalize_text(claim.get("claim") or claim.get("text"), max_length=260),
@@ -10819,12 +10960,13 @@ def _hard_negative_diagnosis_targets(
             "paper_evaluation_inventory": paper_inventory,
             "support_profile": support_profile,
             "diagnostic_checks": checks,
-            "issue_candidate_blueprints": _review_issue_candidate_blueprints_for_claim(
+            "issue_candidate_blueprints": issue_blueprints,
+            "review_issue_contrast_hints": _review_issue_discovery_contrast_hints_for_claim(
                 claim,
                 audit_item,
                 support_profile,
                 paper_inventory,
-                checks,
+                issue_blueprints,
             ),
             "model_judgment_rule": (
                 "Judge whether the paper itself has a true weakness for this claim. "
@@ -17911,7 +18053,9 @@ def render_evidence_observation(task: Dict[str, Any], manager_payload: Optional[
                 "paper table/list/experiment quote plus locator when visible; this is an inventory anchor, not verified negative evidence. "
                 "Do not emit vague items such as all relevant methods, key competitors, "
                 "more datasets, stronger baselines, ablation evidence, baseline evidence, or comprehensive evaluation. Generic "
-                "obligation labels are diagnosis-pending concerns, not verified review issues."
+                "obligation labels are diagnosis-pending concerns, not verified review issues. Do not frame candidates as "
+                "provided-excerpt/current-context/current-inventory gaps; if the issue is only missing from the prompt context, "
+                "return no candidate."
             ),
         }
         freeform_reviewer_negative_block = (
@@ -18037,8 +18181,10 @@ def render_critique_observation(task: Dict[str, Any], manager_payload: Optional[
             "# Review Issue Discovery Rules\n"
             "Propose review_issue_candidates, not verified evidence. For absence/coverage issues, name the concrete missing or mismatched item and bind it to a claim obligation. "
             "Use issue_candidate_blueprints as concrete templates, but never copy a generic blueprint rule as the missing item. "
+            "Use review_issue_contrast_hints to compare missing requirements against observed inventory anchors; these hints are not evidence. "
             "For baseline/protocol/reproducibility issues, name the exact baseline family, protocol dimension, hyperparameter/split/detail, or setting to check. "
             "When paper_evaluation_inventory or the paper context shows what was evaluated, include observed_inventory with a copied quote/list/table anchor and locator. "
+            "Do not emit candidates framed as provided-excerpt/current-context/current-inventory gaps; those are retrieval failures, not paper-side review issues. "
             "A later verifier may turn it into an obligation-grounded review issue bundle only if the current claim-requirement audit and support inventory confirm the mismatch.\n\n"
         )
     negative_grounding_rules_block = ""

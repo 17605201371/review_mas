@@ -49,7 +49,72 @@ Missing-baseline, missing-ablation, insufficient-evaluation, and reproducibility
 
 There are deliberately separate lanes. Keep them separate in code, metrics, dashboards, and paper narrative.
 
-### 2026-06-27 CANDKEY2 hardneg20 checkpoint (latest)
+### 2026-06-27 ISSUEDISC1 hardneg20 checkpoint (latest code + offline recompute)
+
+Run and artifacts:
+
+- base run: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_113021.jsonl`
+- dashboard: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_113021_ISSUEDISC1_RECOMPUTE_VS_101215_DASHBOARD.md`
+- review issue cases: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_113021_ISSUEDISC1_RECOMPUTE_REVIEW_ISSUE_CASES.md`
+- recovery cases: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_113021_ISSUEDISC1_RECOMPUTE_RECOVERY_CASE.md`
+
+ISSUEDISC1 is a discovery-quality change, not a verifier-relaxation change. It is meant to make the next API run produce better reviewer-discovered issue candidates.
+
+Key offline recompute metrics on the 113021 hardneg20 run:
+
+- protection PASS
+- `review_negative_verified_count=1`
+- `verified_review_issue_count=8`
+- `obligation_grounded_review_issue_count=7`
+- `reviewer_candidate_review_issue_count=4`
+- `claim_obligation_review_issue_count=3`
+- `negative_evidence_candidate_count=8`
+- `negative_evidence_unlinked_to_flaw=0`
+- `verified_actionable_negative_flaw_count=12`
+- `potential_concern_count=12`
+- `mark_contested_commit_count=10`
+- recovery case table: `verified_review_issue_repair=4`, `verified_review_negative_repair=1`
+
+Interpretation:
+
+- The offline metrics are intentionally unchanged from CANDKEY2 because the changed logic mainly affects future model outputs. The recompute validates that the new guards do not break existing verified issue bundles or protection lines.
+- The immediate problem being fixed is candidate wording that treats retrieval/context limits as paper flaws, e.g. "provided excerpt is truncated" or "current inventory does not show X". Those are not valid review issues.
+- The next API run should be judged on whether reviewer-discovered candidates become more concrete paper-side obligation/inventory mismatches, not on direct quote-negative count alone.
+
+本轮代码变动逻辑:
+
+- Added `_REVIEW_ISSUE_RETRIEVAL_GAP_RE` and filtering in reviewer-negative candidate normalization and absence-gap extraction. Candidates framed as provided-excerpt/current-context/current-inventory/truncated-material gaps are rejected before they can become verified review issue inputs.
+- Added non-evidence `review_issue_contrast_hints` to hard-negative/review-issue discovery targets. The hints summarize claim anchor, missing requirement types, observed inventory anchors, support source buckets, and issue seed questions so Critique can compare what the claim requires against what the paper inventory shows.
+- Updated Evidence/Critique prompt rules to use `review_issue_contrast_hints` only for candidate construction and to return no candidate rather than inventing a retrieval-gap issue.
+- Kept the verifier strict: verified review issue bundles still require claim anchor + observed inventory + concrete missing/mismatch item + no current counterevidence. Critique hints are not evidence.
+
+Validation:
+
+- `python3 -m py_compile agent_system/environments/env_package/review/state.py agent_system/review_prompts.py tests/test_review_decision_hygiene.py scripts/dashboard_run_comparison_v1.py scripts/audit_review_issue_case_table_v1.py scripts/audit_recovery_case_table_v1.py`
+- Direct test-function calls passed because local Python environments lack pytest:
+  - `test_reviewer_negative_candidate_normalizer_filters_retrieval_gap_framing`
+  - `test_review_issue_discovery_targets_include_contrast_hints_without_verifying`
+  - `test_reviewer_issue_bundle_keeps_missing_graph_tasks_when_only_node_classification_is_observed`
+  - `test_reviewer_issue_bundle_rejects_missing_graph_tasks_when_all_named_tasks_are_observed`
+  - `test_reviewer_candidate_same_requirement_different_issue_type_does_not_overwrite_valid_issue`
+  - `test_review_issue_bundle_rejects_default_quantitative_gap_when_results_are_reported`
+  - `test_review_issue_bundle_accepts_quantitative_gap_when_inventory_is_qualitative`
+- Dashboard recompute with `--fail-on-violation` passed.
+
+Next required API test:
+
+```bash
+DRMAS_NEG_QUOTE_HYGIENE=1 \
+DRMAS_TARGETED_NEGATIVE_SEARCH=1 \
+DRMAS_FREEFORM_REVIEWER_NEGATIVE=1 \
+DRMAS_REVIEW_ISSUE_BUNDLE=1 \
+API_MAX_WORKERS=2 API_MAX_RETRIES=8 API_TIMEOUT=600 MAX_TOKENS=1536 \
+bash run_hardneg20_guard3.sh
+```
+
+After it finishes, regenerate dashboard + review issue case table + recovery case table and compare against CANDKEY2/ISSUEDISC1 recompute.
+
+### 2026-06-27 CANDKEY2 hardneg20 checkpoint (previous latest API run)
 
 Run and artifacts:
 

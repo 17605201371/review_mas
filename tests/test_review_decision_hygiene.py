@@ -45,6 +45,7 @@ from agent_system.environments.env_package.review.state import (
     _flaw_has_negative_grounding,
     _flaw_only_cites_supports,
     _fmt_audit_number,
+    _hard_negative_diagnosis_targets,
     _is_real_paper_claim_id,
     _is_synthetic_recovery_marker_evidence_id,
     _is_system_assessment_limitation_flaw,
@@ -57,6 +58,7 @@ from agent_system.environments.env_package.review.state import (
     _report_visible_text,
     _render_strengths,
     _render_weaknesses,
+    _normalize_reviewer_negative_candidates,
     _should_promote_verified_medium_support,
     _stance_based_negative_evidence_ids,
     _strip_synthetic_recovery_markers,
@@ -10871,3 +10873,68 @@ def test_reviewer_candidate_same_requirement_different_issue_type_does_not_overw
     assert hygiene["reviewer_candidate_review_issue_count"] == 1
     assert hygiene["reviewer_candidate_review_issue_type_counts"]["insufficient_evaluation"] == 1
     assert "result_claim_mismatch" not in hygiene["reviewer_candidate_review_issue_type_counts"]
+
+
+def test_reviewer_negative_candidate_normalizer_filters_retrieval_gap_framing():
+    candidates = _normalize_reviewer_negative_candidates(
+        [
+            {
+                "candidate_id": "bad-context-gap",
+                "claim_id": "claim-1",
+                "weakness": "The provided excerpt does not show the full result table.",
+                "negative_type": "insufficient_evaluation",
+                "required_evidence_type": "empirical_result",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["full result table not present in the provided evidence"],
+                "observed_inventory": [{"quote": "Table 1 reports accuracy on Dataset-A.", "locator": "Table 1"}],
+            },
+            {
+                "candidate_id": "good-paper-gap",
+                "claim_id": "claim-1",
+                "weakness": "The claim covers graph learning broadly but the inventory only reports node classification.",
+                "negative_type": "insufficient_evaluation",
+                "required_evidence_type": "empirical_result",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["evaluation on graph classification task"],
+                "observed_inventory": [{"quote": "Table 1 reports node classification accuracy.", "locator": "Table 1"}],
+            },
+        ]
+    )
+
+    assert [item["candidate_id"] for item in candidates] == ["good-paper-gap"]
+
+
+def test_review_issue_discovery_targets_include_contrast_hints_without_verifying():
+    claim = "The evaluation framework uses normalized edit distance as a proxy for intervention success."
+    state = {
+        "paper_text": (
+            f"{claim}\n\n"
+            "Figure 1: Normalized edit distance is used as a proxy for intervention intensity. "
+            "Table 2 reports intervention success rate for each model."
+        ),
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "empirical",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["evaluation_protocol"],
+            }
+        ],
+        "evidence_map": [],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    targets = _hard_negative_diagnosis_targets(state, claims=state["claims"], max_items=1)
+
+    assert targets
+    hints = targets[0]["review_issue_contrast_hints"]
+    assert "evaluation_protocol" in hints["missing_requirement_types"]
+    assert hints["candidate_seed_questions"]
+    assert "paper-side obligation/inventory mismatch" in hints["negative_instruction"]
+    assert "Never write" in hints["negative_instruction"]

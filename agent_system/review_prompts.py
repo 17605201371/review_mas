@@ -226,6 +226,9 @@ cannot name a concrete item or dimension, do not emit that candidate.
 Each `missing_or_weak_items` entry must be a complete noun phrase, normally under 120 characters. Do not end an item
 with a preposition, dangling abbreviation, comma, slash, or unfinished parenthetical. Do not describe the problem as
 "the excerpt/current inventory does not show X"; that is a retrieval gap, not a paper-side review issue.
+Also do not write "provided excerpt", "current evidence", "given context", "visible materials", "truncated",
+or "not present in the provided evidence" as the weakness. If the only problem is retrieval/context coverage,
+return no candidate for that issue.
 
 Use only claim ids from `Evidence Action Context.allowed_claim_ids` or `Freeform Reviewer Negative Claim Context`. Never invent ids or use fallback/context ids.
 
@@ -286,6 +289,9 @@ The verifier will reject generic obligation labels. "baseline evidence", "ablati
   components, metrics, resource dimensions, or comparison targets extracted from the claim text. These hints are
   not evidence and do not prove a flaw; they only help you write a specific missing/mismatch item that a later
   verifier can check against observed inventory.
+- Use `review_issue_contrast_hints` when present to compare the claim obligation against observed inventory anchors.
+  These hints are not evidence. They are there to help you name a paper-side missing/mismatch item, not to complain
+  that the current excerpt, prompt, or support inventory is incomplete.
 - When `paper_evaluation_inventory` or the visible excerpt shows a table/list/experiment setup, include one
   `observed_inventory` item with a copied `quote`, `locator`, and short `observed_items`. This quote is not a
   negative quote; it is the paper-side inventory anchor that lets the verifier check an obligation mismatch.
@@ -295,12 +301,18 @@ The verifier will reject generic obligation labels. "baseline evidence", "ablati
   diagnosis-pending rather than verified.
 - If the issue needs a direct paper quote/table row, set `status="pending_quote_verification"` and provide expected quote cues.
 - Author future-work/self-limitations, prior-work limitations, excerpt truncation, system retrieval gaps, and generic uncertainty are not verified paper issues by themselves.
+- Forbidden wording in `weakness`, `rationale`, and `missing_or_weak_items`: "provided excerpt", "current excerpt",
+  "given context", "visible evidence", "current inventory", "the excerpt is truncated", "not shown in the provided
+  materials", or equivalent retrieval-gap framing. Rewrite as a paper-side obligation mismatch only when the paper
+  claim and observed inventory make that mismatch auditable.
 
 # Output Rules
 Return up to 4 `review_issue_candidates`. Prefer covering at least 2 different real claims when the targets support it.
 Return `evidence_map: []` and `flaw_candidates: []`.
 Do not cite `negative_evidence_ids`. Do not output recovery patches.
 At least 2 candidates should be `absence_or_requirement_gap` or `table_scope_absence` when concrete claim obligations and inventory anchors are visible; direct quote-groundable candidates still take priority when there is a real protocol/result/cost contradiction.
+If no candidate is safe, return an empty candidate list plus an unresolved question explaining which paper-side
+inventory or claim anchor would be needed; do not emit a retrieval-gap candidate.
 
 Required shape:
 <json>{"evidence_map":[],"flaw_candidates":[],"review_issue_candidates":[{"candidate_id":"review-issue-candidate-1","claim_id":"claim-1","claim":"short target claim","weakness":"reviewer-style issue to verify","issue_type":"missing_baseline|unfair_or_weak_baseline|missing_ablation|insufficient_evaluation|missing_robustness_or_generalization|evaluation_protocol_risk|efficiency_cost_gap|scope_overclaim|result_claim_mismatch|method_support_gap|reproducibility_gap","required_evidence_type":"baseline_or_comparison|ablation_or_component|empirical_result|robustness_or_generalization|scope_coverage|evaluation_protocol|efficiency_cost|method_detail|reproducibility_detail","quote_grounding_mode":"quote_groundable_internal_negative|table_scope_absence|absence_or_requirement_gap","verification_question":"what exact quote/table/inventory or obligation audit would verify this issue?","expected_quote_cues":["Table","baseline","ablation"],"missing_or_weak_items":["specific named baseline/component/dataset/setting/dimension"],"observed_inventory":[{"quote":"copied paper table/list/experiment quote showing what was evaluated","locator":"Table 2 / Section 4.1","observed_items":["dataset/baseline/component/metric actually shown"]}],"candidate_raw_quote":"verbatim quote cue if visible, else empty","quote_id":"quote id if visible, else empty","source_locator":"section/table/figure if visible, else empty","source_of_expectation":"reviewer_candidate","rationale":"why a reviewer should check this issue against verified_support_inventory and paper_evaluation_inventory","confidence":0.75,"status":"pending_quote_verification|pending_absence_audit"}],"conflict_notes":[],"unresolved_questions":[],"dialogue_summary":"brief review-issue discovery summary","recommendation":"undecided"}</json>
