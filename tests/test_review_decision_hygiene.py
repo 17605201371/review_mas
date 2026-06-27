@@ -63,6 +63,8 @@ from agent_system.environments.env_package.review.state import (
     _stance_based_negative_evidence_ids,
     _strip_synthetic_recovery_markers,
     _support_survival_summary,
+    _window_resolves_evaluation_or_scope_missing,
+    _window_resolves_protocol_or_result_missing,
     build_decision_hygiene_view,
     build_review_task,
     build_state_audit,
@@ -10938,3 +10940,59 @@ def test_review_issue_discovery_targets_include_contrast_hints_without_verifying
     assert hints["candidate_seed_questions"]
     assert "paper-side obligation/inventory mismatch" in hints["negative_instruction"]
     assert "Never write" in hints["negative_instruction"]
+
+
+def test_review_issue_specificity_accepts_predictor_ablation_target():
+    assert _coverage_item_is_specific_for_type(
+        "ablation study isolating the contribution of the acceptance probability predictor",
+        "missing_ablation",
+    )
+    assert _coverage_item_is_specific_for_type(
+        "alignment mechanism ablation",
+        "missing_ablation",
+    )
+
+
+def test_review_issue_counterevidence_does_not_resolve_nonlinear_gap_with_linear_result():
+    linear_window = (
+        "Table 1 reports empirical evaluation for the linear target function. "
+        "The result shows low-rank weights with 92% accuracy."
+    )
+    nonlinear_window = (
+        "Table 2 reports empirical evaluation on non-linear target functions. "
+        "The result shows low-rank weights with 89% accuracy."
+    )
+
+    missing = ["empirical evaluation on non-linear target functions"]
+
+    assert not _window_resolves_evaluation_or_scope_missing(
+        linear_window,
+        missing,
+        "insufficient_evaluation",
+    )
+    assert _window_resolves_evaluation_or_scope_missing(
+        nonlinear_window,
+        missing,
+        "insufficient_evaluation",
+    )
+
+
+def test_review_issue_protocol_counterevidence_requires_confounding_analysis():
+    descriptive_window = (
+        "The method performs causal intervention by editing representations in the model."
+    )
+    analysis_window = (
+        "We analyze out-of-distribution effects and confounding assumptions in the intervention protocol."
+    )
+    missing = ["analysis of confounding factors in the causal intervention protocol"]
+
+    assert not _window_resolves_protocol_or_result_missing(
+        descriptive_window,
+        missing,
+        "evaluation_protocol_risk",
+    )
+    assert _window_resolves_protocol_or_result_missing(
+        analysis_window,
+        missing,
+        "evaluation_protocol_risk",
+    )

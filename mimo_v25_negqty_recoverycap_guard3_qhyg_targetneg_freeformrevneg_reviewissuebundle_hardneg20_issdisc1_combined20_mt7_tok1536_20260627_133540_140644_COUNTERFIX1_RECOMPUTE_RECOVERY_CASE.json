@@ -1,0 +1,372 @@
+{
+  "input": "mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_issdisc1_combined20_mt7_tok1536_20260627_133540_140644.jsonl",
+  "summary": {
+    "bucket::attempted_not_committed": 9,
+    "operation::reject_patch": 8,
+    "bucket::committed_not_effective": 5,
+    "operation::route_to_assessment_limitation": 1,
+    "evidence_bucket::support_only": 3,
+    "operation::record_diagnosis_pending_concern": 4,
+    "bucket::verified_review_issue_repair": 1,
+    "operation::mark_contested": 1,
+    "effective_repair_turns": 1,
+    "effective_repair_not_verified_negative_repair": 1,
+    "turns_with_verified_review_issue_bundle_evidence": 1,
+    "evidence_bucket::obligation_grounded_review_issue": 1,
+    "evidence_bucket::quote-bank-negative-grounding_candidate": 1,
+    "evidence_bucket::missing_evidence_id": 1,
+    "case_rows": 15
+  },
+  "cases": [
+    {
+      "paper_id": "ye3NrNrYOY",
+      "turn_id": 6,
+      "narrative_bucket": "attempted_not_committed",
+      "recovery_layer": "patch_validated",
+      "effective_repair": false,
+      "committed": false,
+      "operation": "reject_patch",
+      "target_type": "flaw",
+      "target_id": "flaw-1",
+      "target_text": "Candidate scope limitation quote for claim 'During adaptation, the model treats certain aspects of the causal mechanism (e.g., time-dynamics) as invariant, upda Candidate scope limitation quote for claim 'During adapt...",
+      "old_status": "candidate",
+      "new_status": "retracted",
+      "failure_code": "INSUFFICIENT_EVIDENCE",
+      "supporting_evidence_ids": [],
+      "evidence_buckets": {},
+      "evidence": []
+    },
+    {
+      "paper_id": "uOrfve3prk",
+      "turn_id": 7,
+      "narrative_bucket": "committed_not_effective",
+      "recovery_layer": "patch_committed",
+      "effective_repair": false,
+      "committed": true,
+      "operation": "route_to_assessment_limitation",
+      "target_type": "flaw",
+      "target_id": "flaw-1",
+      "target_text": "Limited evaluation fairness Tuned hyperparameter prevents cross-method comparison of coherence scores in Pareto analysis.",
+      "old_status": "candidate",
+      "new_status": "downgraded",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [
+        "evidence-quote-negative-3"
+      ],
+      "evidence_buckets": {
+        "support_only": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-quote-negative-3",
+          "bucket": "support_only",
+          "negative_type": "scope_limitation",
+          "review_negative_label": "insufficient_semantic_negative",
+          "trusted_grounding": true,
+          "locator": "Table/Figure excerpt #1",
+          "raw_quote": "\\caption{Evaluation of the Intervention Success Rate for each method."
+        }
+      ]
+    },
+    {
+      "paper_id": "7Dub7UXTXN",
+      "turn_id": 4,
+      "narrative_bucket": "committed_not_effective",
+      "recovery_layer": "diagnosis_pending_recorded",
+      "effective_repair": false,
+      "committed": true,
+      "operation": "record_diagnosis_pending_concern",
+      "target_type": "claim_requirement_gap",
+      "target_id": "claim-3",
+      "target_text": "",
+      "old_status": "open",
+      "new_status": "recorded",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [],
+      "evidence_buckets": {},
+      "evidence": []
+    },
+    {
+      "paper_id": "9zEBK3E9bX",
+      "turn_id": 6,
+      "narrative_bucket": "committed_not_effective",
+      "recovery_layer": "diagnosis_pending_recorded",
+      "effective_repair": false,
+      "committed": true,
+      "operation": "record_diagnosis_pending_concern",
+      "target_type": "claim_requirement_gap",
+      "target_id": "claim-2",
+      "target_text": "",
+      "old_status": "open",
+      "new_status": "recorded",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [],
+      "evidence_buckets": {},
+      "evidence": []
+    },
+    {
+      "paper_id": "GE6iywJtsV",
+      "turn_id": 6,
+      "narrative_bucket": "attempted_not_committed",
+      "recovery_layer": "attempted",
+      "effective_repair": false,
+      "committed": false,
+      "operation": "reject_patch",
+      "target_type": "",
+      "target_id": "",
+      "target_text": "",
+      "old_status": "",
+      "new_status": "",
+      "failure_code": "BLOCKED_BY_POLICY",
+      "supporting_evidence_ids": [],
+      "evidence_buckets": {},
+      "evidence": []
+    },
+    {
+      "paper_id": "NnExMNiTHw",
+      "turn_id": 5,
+      "narrative_bucket": "attempted_not_committed",
+      "recovery_layer": "",
+      "effective_repair": false,
+      "committed": false,
+      "operation": "",
+      "target_type": "",
+      "target_id": "",
+      "target_text": "",
+      "old_status": "",
+      "new_status": "",
+      "failure_code": "",
+      "supporting_evidence_ids": [],
+      "evidence_buckets": {},
+      "evidence": []
+    },
+    {
+      "paper_id": "NnExMNiTHw",
+      "turn_id": 7,
+      "narrative_bucket": "verified_review_issue_repair",
+      "recovery_layer": "hygiene_delta_improved",
+      "effective_repair": true,
+      "committed": true,
+      "operation": "mark_contested",
+      "target_type": "claim",
+      "target_id": "claim-2",
+      "target_text": "An adaptive candidate length policy is learned via a neural network that predicts token acceptance probabilities.",
+      "old_status": "supported",
+      "new_status": "supported",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [
+        "evidence-reviewer-absence-claim-2-empirical-result-insuffi"
+      ],
+      "evidence_buckets": {
+        "obligation_grounded_review_issue": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-reviewer-absence-claim-2-empirical-result-insuffi",
+          "bucket": "obligation_grounded_review_issue",
+          "negative_type": "insufficient_evaluation",
+          "review_negative_label": "review_negative_absence_audit_verified",
+          "trusted_grounding": false,
+          "locator": "Comparison / Robustness excerpt #1",
+          "raw_quote": "missing/mismatch: sensitivity analysis of the maximum candidate length hyperparameter; observed inventory: Compared with the baseline speculative decoding (SpecDec) with fixed candidate lengths, by adaptively determining the candidate lengths via a train..."
+        }
+      ]
+    },
+    {
+      "paper_id": "a6SntIisgg",
+      "turn_id": 4,
+      "narrative_bucket": "committed_not_effective",
+      "recovery_layer": "diagnosis_pending_recorded",
+      "effective_repair": false,
+      "committed": true,
+      "operation": "record_diagnosis_pending_concern",
+      "target_type": "claim_requirement_gap",
+      "target_id": "claim-3",
+      "target_text": "",
+      "old_status": "open",
+      "new_status": "recorded",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [],
+      "evidence_buckets": {},
+      "evidence": []
+    },
+    {
+      "paper_id": "fGXyvmWpw6",
+      "turn_id": 4,
+      "narrative_bucket": "attempted_not_committed",
+      "recovery_layer": "attempted",
+      "effective_repair": false,
+      "committed": false,
+      "operation": "reject_patch",
+      "target_type": "claim",
+      "target_id": "claim-1",
+      "target_text": "The paper contributes a new federated learning framework using local-global distillation on distilled datasets.",
+      "old_status": "supported",
+      "new_status": "unsupported",
+      "failure_code": "BLOCKED_BY_POLICY",
+      "supporting_evidence_ids": [
+        "evidence-negative-quote-bank-quote-critique-negative-3-1"
+      ],
+      "evidence_buckets": {
+        "quote-bank-negative-grounding_candidate": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-negative-quote-bank-quote-critique-negative-3-1",
+          "bucket": "quote-bank-negative-grounding_candidate",
+          "negative_type": "negative_result",
+          "review_negative_label": "insufficient_claim_relation",
+          "trusted_grounding": false,
+          "locator": "Limitation / Gap / Negative evidence excerpt #3",
+          "raw_quote": "However, VHL is still worse than \\ours{}, and the performance may result from the differences in synthesizing global virtual data."
+        }
+      ]
+    },
+    {
+      "paper_id": "QAgwFiIY4p",
+      "turn_id": 4,
+      "narrative_bucket": "committed_not_effective",
+      "recovery_layer": "diagnosis_pending_recorded",
+      "effective_repair": false,
+      "committed": true,
+      "operation": "record_diagnosis_pending_concern",
+      "target_type": "claim_requirement_gap",
+      "target_id": "claim-2",
+      "target_text": "",
+      "old_status": "open",
+      "new_status": "recorded",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [],
+      "evidence_buckets": {},
+      "evidence": []
+    },
+    {
+      "paper_id": "mHv6wcBb0z",
+      "turn_id": 6,
+      "narrative_bucket": "attempted_not_committed",
+      "recovery_layer": "attempted",
+      "effective_repair": false,
+      "committed": false,
+      "operation": "reject_patch",
+      "target_type": "claim",
+      "target_id": "claim-2",
+      "target_text": "The paper proposes a noise regularization method (NR-DCCA) to prevent model collapse.",
+      "old_status": "supported",
+      "new_status": "unsupported",
+      "failure_code": "BLOCKED_BY_POLICY",
+      "supporting_evidence_ids": [
+        "evidence-critique-negative-1"
+      ],
+      "evidence_buckets": {
+        "missing_evidence_id": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-critique-negative-1",
+          "bucket": "missing_evidence_id",
+          "negative_type": "",
+          "review_negative_label": "",
+          "trusted_grounding": false,
+          "locator": "",
+          "raw_quote": ""
+        }
+      ]
+    },
+    {
+      "paper_id": "YXn76HMetm",
+      "turn_id": 4,
+      "narrative_bucket": "attempted_not_committed",
+      "recovery_layer": "patch_validated",
+      "effective_repair": false,
+      "committed": false,
+      "operation": "reject_patch",
+      "target_type": "claim",
+      "target_id": "claim-2",
+      "target_text": "HALO achieves a +2.9% mIoU improvement over the RIPU baseline when using a 5% labeling budget.",
+      "old_status": "supported",
+      "new_status": "supported",
+      "failure_code": "NO_EFFECT_PATCH",
+      "supporting_evidence_ids": [
+        "evidence-1-turn-2",
+        "evidence-small-model-quote-bank-2-turn-2"
+      ],
+      "evidence_buckets": {
+        "support_only": 2
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-1-turn-2",
+          "bucket": "support_only",
+          "negative_type": "generic_gap",
+          "review_negative_label": "",
+          "trusted_grounding": true,
+          "locator": "Table: results table",
+          "raw_quote": "HALO improves over RIPU by +2.9\\% mIoU with a 5\\% budget, reaffirming the effectiveness of our approach on a novel dataset, as shown in Table \\ref{tab:results_table}c."
+        },
+        {
+          "evidence_id": "evidence-small-model-quote-bank-2-turn-2",
+          "bucket": "support_only",
+          "negative_type": "generic_gap",
+          "review_negative_label": "",
+          "trusted_grounding": true,
+          "locator": "Table: results table",
+          "raw_quote": "The ADA performances in Table \\ref{tab:results_table} are also compared with the corresponding supervised domain adaptation baselines (Supervised DA)."
+        }
+      ]
+    },
+    {
+      "paper_id": "YXn76HMetm",
+      "turn_id": 5,
+      "narrative_bucket": "attempted_not_committed",
+      "recovery_layer": "attempted",
+      "effective_repair": false,
+      "committed": false,
+      "operation": "reject_patch",
+      "target_type": "",
+      "target_id": "",
+      "target_text": "",
+      "old_status": "",
+      "new_status": "",
+      "failure_code": "BLOCKED_BY_POLICY",
+      "supporting_evidence_ids": [],
+      "evidence_buckets": {},
+      "evidence": []
+    },
+    {
+      "paper_id": "KOUAayk5Kx",
+      "turn_id": 6,
+      "narrative_bucket": "attempted_not_committed",
+      "recovery_layer": "attempted",
+      "effective_repair": false,
+      "committed": false,
+      "operation": "reject_patch",
+      "target_type": "",
+      "target_id": "",
+      "target_text": "",
+      "old_status": "",
+      "new_status": "",
+      "failure_code": "BLOCKED_BY_POLICY",
+      "supporting_evidence_ids": [],
+      "evidence_buckets": {},
+      "evidence": []
+    },
+    {
+      "paper_id": "XH3OiIhtvf",
+      "turn_id": 6,
+      "narrative_bucket": "attempted_not_committed",
+      "recovery_layer": "attempted",
+      "effective_repair": false,
+      "committed": false,
+      "operation": "reject_patch",
+      "target_type": "claim",
+      "target_id": "claim-3",
+      "target_text": "The use of a secure aggregator has a measurable impact on the system's performance (EER), as shown in Figure 2.",
+      "old_status": "supported",
+      "new_status": "unsupported",
+      "failure_code": "BLOCKED_BY_POLICY",
+      "supporting_evidence_ids": [],
+      "evidence_buckets": {},
+      "evidence": []
+    }
+  ]
+}

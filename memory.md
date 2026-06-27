@@ -49,7 +49,76 @@ Missing-baseline, missing-ablation, insufficient-evaluation, and reproducibility
 
 There are deliberately separate lanes. Keep them separate in code, metrics, dashboards, and paper narrative.
 
-### 2026-06-27 ISSUEDISC1 hardneg20 checkpoint (latest code + offline recompute)
+### 2026-06-27 COUNTERFIX1 hardneg20 checkpoint (latest)
+
+Run and artifacts:
+
+- combined API run: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_issdisc1_combined20_mt7_tok1536_20260627_133540_140644.jsonl`
+- dashboard: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_issdisc1_combined20_mt7_tok1536_20260627_133540_140644_COUNTERFIX1_RECOMPUTE_VS_CANDKEY2_113021_DASHBOARD.md`
+- review issue cases: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_issdisc1_combined20_mt7_tok1536_20260627_133540_140644_COUNTERFIX1_RECOMPUTE_REVIEW_ISSUE_CASES.md`
+- recovery cases: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_issdisc1_combined20_mt7_tok1536_20260627_133540_140644_COUNTERFIX1_RECOMPUTE_RECOVERY_CASE.md`
+
+Run construction:
+
+- first run `20260627_133540` used the standard hardneg20 parameters (`DRMAS_NEG_QUOTE_HYGIENE=1`, `DRMAS_TARGETED_NEGATIVE_SEARCH=1`, `DRMAS_FREEFORM_REVIEWER_NEGATIVE=1`, `DRMAS_REVIEW_ISSUE_BUNDLE=1`, `max_turns=7`, `max_tokens=1536`, `API_MAX_WORKERS=2`, `API_MAX_RETRIES=8`) and completed the first 8 papers before MiMo 429 exhausted a Review Manager request.
+- remaining 12 papers were run as `20260627_140644` with `API_MAX_WORKERS=1`, `API_MAX_RETRIES=12`, `API_TIMEOUT=600`, then merged in original dataset order.
+- This is a valid combined hardneg20 result for review-state auditing, but runtime was affected by heavy MiMo 429 throttling.
+
+Key metrics after COUNTERFIX1 recompute:
+
+- protection PASS
+- `real_strong_support_total=88`
+- strict quote lane: `review_negative_verified_count=2`
+- issue-bundle lane: `verified_review_issue_count=6`
+- `quote_grounded_review_issue_count=2`
+- `obligation_grounded_review_issue_count=4`
+- `reviewer_candidate_review_issue_count=4`
+- `claim_obligation_review_issue_count=0`
+- `negative_evidence_candidate_count=6`
+- `negative_evidence_unlinked_to_flaw=0`
+- `verified_actionable_negative_flaw_count=5`
+- `potential_concern_count=5`
+- `mark_contested_commit_count=1`
+- recovery case table: `verified_review_issue_repair=1`, `verified_review_negative_repair=0`
+
+Interpretation:
+
+- ISSUEDISC1's API run shows the new discovery prompt can produce real reviewer-candidate issues, but the raw post-run verifier was too conservative: before COUNTERFIX1 recompute the same run had only `verified_review_issue_count=3`.
+- COUNTERFIX1 restores several real reviewer-discovered issues by narrowing counterevidence rather than loosening the evidence contract. It recovers the issue count to 6, with all 4 obligation-grounded cases coming from reviewer candidates rather than claim-obligation fallback.
+- It still does not match CANDKEY2's `verified_review_issue_count=8` and recovery is clearly too weak (`mark_contested_commit_count=1`, `verified_review_issue_repair=1`). Do not freeze this version as final.
+- Current best reading: discovery quality is improving, verifier quality is safer, but recovery scheduling/final-view integration is now the main bottleneck. Verified issue evidence exists in final audit, but recovery often records diagnosis-pending or rejects patches instead of contesting supported claims around verified issue bundles.
+
+Representative COUNTERFIX1 cases:
+
+- `uOrfve3prk`: reviewer-candidate insufficient evaluation / protocol risk around intervention-target diversity and causal intervention assumptions.
+- `NnExMNiTHw`: reviewer-candidate insufficient evaluation for maximum candidate length sensitivity and missing ablation isolating the acceptance probability predictor.
+- `fGXyvmWpw6`: strict quote-grounded efficiency/cost issue.
+
+本轮代码变动逻辑:
+
+- Expanded missing-ablation specificity so concrete component targets like acceptance predictor, policy, representation, alignment, descriptor, and coordinate are not dropped as generic ablation labels.
+- Tightened full-text counterevidence for reviewer-inferred issues:
+  - a linear-target evaluation no longer resolves a missing non-linear-target evaluation;
+  - a general intervention evaluation no longer resolves missing diverse intervention-target robustness unless the paper actually evaluates diverse intervention targets;
+  - mere causal-intervention method text no longer resolves a missing confounding/OOD protocol analysis unless it contains an actual analysis/evaluation.
+- The validator remains strict: generic labels still fail; candidate hints are not evidence; verified issue bundles still require claim anchor + observed inventory + concrete missing/mismatch item + no current counterevidence.
+
+Validation:
+
+- `python3 -m py_compile agent_system/environments/env_package/review/state.py tests/test_review_decision_hygiene.py scripts/dashboard_run_comparison_v1.py scripts/audit_review_issue_case_table_v1.py scripts/audit_recovery_case_table_v1.py`
+- Direct new test-function calls passed:
+  - `test_review_issue_specificity_accepts_predictor_ablation_target`
+  - `test_review_issue_counterevidence_does_not_resolve_nonlinear_gap_with_linear_result`
+  - `test_review_issue_protocol_counterevidence_requires_confounding_analysis`
+- Dashboard recompute with `--fail-on-violation` passed.
+
+Next required work:
+
+- Recovery: make verified review issue bundle evidence a stronger mark-contested target without allowing fallback/context claim status patches.
+- Final-view/recovery audit: distinguish "verified issue exists but no recovery action was scheduled" from verifier failure.
+- Discovery: continue improving candidate generation for missing baseline/ablation/result-claim mismatch, but do not relax bundle verification or count generic gaps.
+
+### 2026-06-27 ISSUEDISC1 hardneg20 checkpoint (previous code + offline recompute)
 
 Run and artifacts:
 

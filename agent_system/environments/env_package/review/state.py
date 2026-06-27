@@ -1593,7 +1593,8 @@ def _coverage_item_is_specific_for_type(text: str, neg_type: str) -> bool:
                 r"\b(?:module|component|encoder|decoder|loss|objective|routing|attention|"
                 r"distillation|beam|tree|rnn|transformer|retriever|planner|classifier|"
                 r"stage|branch|fusion|target\s+function|complexity|rank|ranks|weight|weights|"
-                r"pipeline|mechanism|head|threshold|hyperparameter)\b",
+                r"pipeline|mechanism|head|threshold|hyperparameter|predictor|prediction|"
+                r"policy|acceptance|representation|alignment|descriptor|coordinate)\b",
                 lower,
             )
             or re.search(r"\b[A-Z]{2,}[A-Za-z0-9_-]*\b|\d", value)
@@ -7792,6 +7793,31 @@ def _window_resolves_evaluation_or_scope_missing(
         return _review_issue_text_has_empirical_quantitative_result(text)
     if not _window_has_any_missing_target(text, missing_items):
         return False
+    if re.search(r"\b(?:non[- ]?linear|nonlinear)\b", lower_missing):
+        return bool(
+            re.search(r"\b(?:non[- ]?linear|nonlinear)\b", text, re.I)
+            and _REVIEW_ISSUE_FULL_TEXT_EVAL_RE.search(text)
+            and _review_issue_text_has_quantitative_measure(text)
+        )
+    if re.search(r"\b(?:diverse|various|multiple|different|across|robust(?:ness)?)\b", lower_missing):
+        if re.search(r"\bintervention\s+targets?\b", lower_missing):
+            return bool(
+                re.search(
+                    r"\b(?:diverse|various|multiple|different|across)\b.{0,100}\bintervention\s+targets?\b|"
+                    r"\bintervention\s+targets?\b.{0,100}\b(?:diverse|various|multiple|different|across)\b",
+                    text,
+                    re.I,
+                )
+                and _REVIEW_ISSUE_FULL_TEXT_EVAL_RE.search(text)
+            )
+        return bool(
+            re.search(r"\b(?:diverse|various|multiple|different|across|robust(?:ness)?|stress|corruption|ood|out[- ]of[- ]domain)\b", text, re.I)
+            and _REVIEW_ISSUE_FULL_TEXT_EVAL_RE.search(text)
+            and (
+                _review_issue_text_has_quantitative_measure(text)
+                or re.search(r"\b(?:table|result|results|benchmark|dataset|datasets)\b", text, re.I)
+            )
+        )
     if re.search(r"\b(?:sensitivity|threshold|hyperparameter|tuning|range|sweep)\b", lower_missing):
         return bool(
             re.search(r"\b(?:sensitivity|sweep|vary|varied|varying|different\s+(?:thresholds?|values?)|threshold\s*=|range)\b", text, re.I)
@@ -7830,6 +7856,11 @@ def _window_resolves_protocol_or_result_missing(
     lower_missing = _missing_joined_text(missing_items)
     if not _window_has_any_missing_target(text, missing_items):
         return False
+    if re.search(r"\b(?:confound(?:ing|er|ers)?|assumption|assumptions|out[- ]of[- ]distribution|ood)\b", lower_missing):
+        return bool(
+            re.search(r"\b(?:confound(?:ing|er|ers)?|assumption|assumptions|out[- ]of[- ]distribution|ood)\b", text, re.I)
+            and re.search(r"\b(?:analysis|analy[sz]e[sd]?|evaluate[sd]?|experiment|result|ablation|sensitivity)\b", text, re.I)
+        )
     if re.search(r"\b(?:metric|definition|measure|measurement|protocol)\b", lower_missing):
         return bool(re.search(r"\b(?:defined\s+as|definition|metric|measure[sd]?|computed\s+as|formula|threshold)\b", text, re.I))
     if re.search(r"\b(?:split|fold|seed|random|validation|train|test)\b", lower_missing):

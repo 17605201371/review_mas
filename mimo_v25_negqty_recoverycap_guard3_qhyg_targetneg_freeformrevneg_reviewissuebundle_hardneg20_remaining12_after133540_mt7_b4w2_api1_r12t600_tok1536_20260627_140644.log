@@ -1,0 +1,994 @@
+[API] Initialized: model=mimo-v2.5, provider=mimo, base_url=https://token-plan-sgp.xiaomimimo.com/v1, max_tokens=1536
+[MAIN] Using API backend: model=mimo-v2.5
+[MAIN] model_adapter_mode=small_model (requested=small_model)
+[DEBUG] paper_id: NnExMNiTHw, paper_text length: 37839
+[DEBUG] paper_text snippet: \title{SpecDec++: Boosting Speculative Decoding via Adaptive Candidate Lengths}  \begin{abstract} Sp...
+[DEBUG] paper_id: a6SntIisgg, paper_text length: 64928
+[DEBUG] paper_text snippet: \title{LogoRA: Local-Global Representation Alignment for Robust Time Series Classification}  \begin{...
+[DEBUG] paper_id: cklg91aPGk, paper_text length: 32511
+[DEBUG] paper_text snippet: \title{Propagation Alone is Enough for Graph Contrastive Learning}  \begin{abstract} Graph contrasti...
+[DEBUG] paper_id: HPuLU6q7xq, paper_text length: 38828
+[DEBUG] paper_text snippet: \title{Orca: Enhancing Role-Playing Abilities of Large Language Models by Integrating Personality Tr...
+[DEBUG] paper_id: fGXyvmWpw6, paper_text length: 47400
+[DEBUG] paper_text snippet: \title{Federated Virtual Learning on Heterogeneous Data with Local-global Distillation}  \begin{abst...
+[DEBUG] paper_id: QAgwFiIY4p, paper_text length: 49197
+[DEBUG] paper_text snippet: \title{Graph as Point Set}  \begin{abstract} Graph is a fundamental data structure to model intercon...
+[DEBUG] paper_id: TPAj63ax4Y, paper_text length: 49027
+[DEBUG] paper_text snippet: \title{Segment, Select, Correct: A Framework for Weakly-Supervised Referring Segmentation}  \begin{a...
+[DEBUG] paper_id: mHv6wcBb0z, paper_text length: 35109
+[DEBUG] paper_text snippet: \title{Preventing Model Collapse in Deep Canonical Correlation Analysis by Noise Regularization}  \b...
+[DEBUG] paper_id: xUe1YqEgd6, paper_text length: 34518
+[DEBUG] paper_text snippet: \title{Unsupervised motion segmentation in one go: Smooth long-term model over a video}  \begin{abst...
+[DEBUG] paper_id: YXn76HMetm, paper_text length: 36915
+[DEBUG] paper_text snippet: \title{Hyperbolic Active Learning for Semantic Segmentation under Domain Shift}  \begin{abstract}  W...
+[DEBUG] paper_id: KOUAayk5Kx, paper_text length: 32732
+[DEBUG] paper_text snippet: \title{Defying Multi-model Forgetting: Orthogonal Gradient Learning to One-shot Neural Architecture ...
+[DEBUG] paper_id: XH3OiIhtvf, paper_text length: 22365
+[DEBUG] paper_text snippet: \title{Unsupervised Federated Learning for Privacy Preserving in Face Recognition System}  \begin{ab...
+[2026-06-27 14:06:45] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=7991
+[2026-06-27 14:06:50] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=4.7s raw_chars=1031
+[2026-06-27 14:06:50] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=7991
+[2026-06-27 14:06:54] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=4.3s raw_chars=1250
+[2026-06-27 14:06:54] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=7991
+[2026-06-27 14:06:59] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=4.2s raw_chars=1259
+[2026-06-27 14:06:59] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=7991
+[2026-06-27 14:07:02] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=3.9s raw_chars=1087
+[2026-06-27 14:07:03] [API] request start agent=Claim Agent attempt=1/12 prompt_chars=8712
+[2026-06-27 14:07:09] [API] request success agent=Claim Agent attempt=1/12 elapsed=6.8s raw_chars=2579
+[2026-06-27 14:07:09] [API] request start agent=Claim Agent attempt=1/12 prompt_chars=8712
+[2026-06-27 14:07:16] [API] request success agent=Claim Agent attempt=1/12 elapsed=6.5s raw_chars=2521
+[2026-06-27 14:07:16] [API] request start agent=Claim Agent attempt=1/12 prompt_chars=8712
+[2026-06-27 14:07:23] [API] request success agent=Claim Agent attempt=1/12 elapsed=7.0s raw_chars=2687
+[2026-06-27 14:07:23] [API] request start agent=Claim Agent attempt=1/12 prompt_chars=8712
+[2026-06-27 14:07:30] [API] request success agent=Claim Agent attempt=1/12 elapsed=7.2s raw_chars=2247
+[2026-06-27 14:07:30] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:07:38] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=7.6s raw_chars=3439
+[2026-06-27 14:07:38] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:07:47] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=8.9s raw_chars=3588
+[2026-06-27 14:07:47] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:07:47] [API] request error agent=Review Manager Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:07:47] [API] retry wait agent=Review Manager Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:07:49] [API] request start agent=Review Manager Agent attempt=2/12 prompt_chars=9285
+[2026-06-27 14:07:49] [API] request error agent=Review Manager Agent attempt=2/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:07:49] [API] retry wait agent=Review Manager Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:07:53] [API] request start agent=Review Manager Agent attempt=3/12 prompt_chars=9285
+[2026-06-27 14:08:03] [API] request success agent=Review Manager Agent attempt=3/12 elapsed=9.8s raw_chars=4045
+[2026-06-27 14:08:03] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:08:12] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=8.8s raw_chars=3690
+[2026-06-27 14:08:12] [API] request start agent=Evidence Agent attempt=1/12 prompt_chars=7826
+[2026-06-27 14:08:25] [API] request success agent=Evidence Agent attempt=1/12 elapsed=12.5s raw_chars=4675
+[2026-06-27 14:08:25] [API] request start agent=Evidence Agent attempt=1/12 prompt_chars=7826
+[2026-06-27 14:08:33] [API] request success agent=Evidence Agent attempt=1/12 elapsed=8.2s raw_chars=2695
+[2026-06-27 14:08:33] [API] request start agent=Evidence Agent attempt=1/12 prompt_chars=7826
+[2026-06-27 14:08:39] [API] request success agent=Evidence Agent attempt=1/12 elapsed=6.0s raw_chars=1969
+[2026-06-27 14:08:39] [API] request start agent=Evidence Agent attempt=1/12 prompt_chars=7825
+[2026-06-27 14:08:45] [API] request success agent=Evidence Agent attempt=1/12 elapsed=6.4s raw_chars=2471
+[2026-06-27 14:08:46] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:08:54] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=8.1s raw_chars=3370
+[2026-06-27 14:08:54] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:09:04] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=10.1s raw_chars=3932
+[2026-06-27 14:09:04] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:09:13] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=9.4s raw_chars=3739
+[2026-06-27 14:09:13] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:09:23] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=9.5s raw_chars=3582
+[2026-06-27 14:09:23] [API] request start agent=Critique Agent attempt=1/12 prompt_chars=13098
+[2026-06-27 14:09:34] [API] request success agent=Critique Agent attempt=1/12 elapsed=10.6s raw_chars=4126
+[2026-06-27 14:09:34] [API] request start agent=Critique Agent attempt=1/12 prompt_chars=13098
+[2026-06-27 14:09:49] [API] request success agent=Critique Agent attempt=1/12 elapsed=15.0s raw_chars=6875
+[2026-06-27 14:09:49] [API] request start agent=Critique Agent attempt=1/12 prompt_chars=13097
+[2026-06-27 14:10:05] [API] request success agent=Critique Agent attempt=1/12 elapsed=15.7s raw_chars=6663
+[2026-06-27 14:10:05] [API] request start agent=Evidence Agent attempt=1/12 prompt_chars=7826
+[2026-06-27 14:10:11] [API] request success agent=Evidence Agent attempt=1/12 elapsed=6.7s raw_chars=2693
+[2026-06-27 14:10:12] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:10:22] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=9.8s raw_chars=3917
+[2026-06-27 14:10:22] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:10:33] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=11.1s raw_chars=4297
+[2026-06-27 14:10:33] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9281
+[2026-06-27 14:10:45] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=12.5s raw_chars=3663
+[2026-06-27 14:10:45] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9282
+[2026-06-27 14:10:45] [API] request error agent=Review Manager Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:10:45] [API] retry wait agent=Review Manager Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:10:47] [API] request start agent=Review Manager Agent attempt=2/12 prompt_chars=9282
+[2026-06-27 14:10:48] [API] request error agent=Review Manager Agent attempt=2/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:10:48] [API] retry wait agent=Review Manager Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:10:52] [API] request start agent=Review Manager Agent attempt=3/12 prompt_chars=9282
+[2026-06-27 14:11:01] [API] request success agent=Review Manager Agent attempt=3/12 elapsed=9.6s raw_chars=3378
+[2026-06-27 14:11:02] [API] request start agent=Evidence Agent attempt=1/12 prompt_chars=7826
+[2026-06-27 14:11:09] [API] request success agent=Evidence Agent attempt=1/12 elapsed=7.0s raw_chars=2917
+[2026-06-27 14:11:09] [API] request start agent=Evidence Agent attempt=1/12 prompt_chars=8593
+[2026-06-27 14:11:11] [API] request success agent=Evidence Agent attempt=1/12 elapsed=2.3s raw_chars=473
+[2026-06-27 14:11:11] [API] request start agent=Critique Agent attempt=1/12 prompt_chars=8030
+[2026-06-27 14:11:13] [API] request success agent=Critique Agent attempt=1/12 elapsed=2.5s raw_chars=517
+[2026-06-27 14:11:13] [API] request start agent=Critique Agent attempt=1/12 prompt_chars=11673
+[2026-06-27 14:11:18] [API] request success agent=Critique Agent attempt=1/12 elapsed=4.3s raw_chars=1348
+[2026-06-27 14:11:18] [API] request start agent=Evidence Agent attempt=1/12 prompt_chars=8754
+[2026-06-27 14:11:20] [API] request success agent=Evidence Agent attempt=1/12 elapsed=2.2s raw_chars=437
+[2026-06-27 14:11:21] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9284
+[2026-06-27 14:11:22] [API] request error agent=Review Manager Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:11:22] [API] retry wait agent=Review Manager Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:11:24] [API] request start agent=Review Manager Agent attempt=2/12 prompt_chars=9284
+[2026-06-27 14:11:32] [API] request success agent=Review Manager Agent attempt=2/12 elapsed=8.7s raw_chars=3897
+[2026-06-27 14:11:32] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9284
+[2026-06-27 14:11:42] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=9.2s raw_chars=4144
+[2026-06-27 14:11:42] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:11:50] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=8.6s raw_chars=3765
+[2026-06-27 14:11:50] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:11:50] [API] request error agent=Review Manager Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:11:50] [API] retry wait agent=Review Manager Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:11:52] [API] request start agent=Review Manager Agent attempt=2/12 prompt_chars=9285
+[2026-06-27 14:12:00] [API] request success agent=Review Manager Agent attempt=2/12 elapsed=7.9s raw_chars=3533
+[2026-06-27 14:12:01] [API] request start agent=Critique Agent attempt=1/12 prompt_chars=11673
+[2026-06-27 14:12:01] [API] request error agent=Critique Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:12:01] [API] retry wait agent=Critique Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:12:03] [API] request start agent=Critique Agent attempt=2/12 prompt_chars=11673
+[2026-06-27 14:12:04] [API] request error agent=Critique Agent attempt=2/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:12:04] [API] retry wait agent=Critique Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:12:08] [API] request start agent=Critique Agent attempt=3/12 prompt_chars=11673
+[2026-06-27 14:12:08] [API] request error agent=Critique Agent attempt=3/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:12:08] [API] retry wait agent=Critique Agent next_attempt=4/12 wait=8.0s
+[2026-06-27 14:12:16] [API] request start agent=Critique Agent attempt=4/12 prompt_chars=11673
+[2026-06-27 14:12:19] [API] request success agent=Critique Agent attempt=4/12 elapsed=3.2s raw_chars=647
+[2026-06-27 14:12:19] [API] request start agent=Evidence Agent attempt=1/12 prompt_chars=7826
+[2026-06-27 14:12:23] [API] request success agent=Evidence Agent attempt=1/12 elapsed=3.9s raw_chars=1348
+[2026-06-27 14:12:23] [API] request start agent=Evidence Agent attempt=1/12 prompt_chars=7826
+[2026-06-27 14:12:31] [API] request success agent=Evidence Agent attempt=1/12 elapsed=8.4s raw_chars=2789
+[2026-06-27 14:12:31] [API] request start agent=Evidence Agent attempt=1/12 prompt_chars=7826
+[2026-06-27 14:12:38] [API] request success agent=Evidence Agent attempt=1/12 elapsed=6.8s raw_chars=2362
+[2026-06-27 14:12:39] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:12:49] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=9.8s raw_chars=4668
+[2026-06-27 14:12:49] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:12:58] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=9.3s raw_chars=3793
+[2026-06-27 14:12:58] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:13:07] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=9.3s raw_chars=3934
+[2026-06-27 14:13:07] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9284
+[2026-06-27 14:13:12] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=5.0s raw_chars=1966
+[2026-06-27 14:13:13] [API] request start agent=Evidence Agent attempt=1/12 prompt_chars=7826
+[2026-06-27 14:13:18] [API] request success agent=Evidence Agent attempt=1/12 elapsed=5.2s raw_chars=1670
+[2026-06-27 14:13:18] [API] request start agent=Evidence Agent attempt=1/12 prompt_chars=7826
+[2026-06-27 14:13:27] [API] request success agent=Evidence Agent attempt=1/12 elapsed=8.4s raw_chars=3015
+[2026-06-27 14:13:27] [API] request start agent=Critique Agent attempt=1/12 prompt_chars=11673
+[2026-06-27 14:13:30] [API] request success agent=Critique Agent attempt=1/12 elapsed=3.1s raw_chars=681
+[2026-06-27 14:13:30] [API] request start agent=Critique Agent attempt=1/12 prompt_chars=11673
+[2026-06-27 14:13:34] [API] request success agent=Critique Agent attempt=1/12 elapsed=4.3s raw_chars=1342
+[2026-06-27 14:13:35] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:13:50] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=15.8s raw_chars=6492
+[2026-06-27 14:13:50] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9284
+[2026-06-27 14:14:03] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=12.4s raw_chars=5449
+[2026-06-27 14:14:03] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9284
+[2026-06-27 14:14:03] [API] request error agent=Review Manager Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:14:03] [API] retry wait agent=Review Manager Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:14:05] [API] request start agent=Review Manager Agent attempt=2/12 prompt_chars=9284
+[2026-06-27 14:14:05] [API] request error agent=Review Manager Agent attempt=2/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:14:05] [API] retry wait agent=Review Manager Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:14:09] [API] request start agent=Review Manager Agent attempt=3/12 prompt_chars=9284
+[2026-06-27 14:14:10] [API] request error agent=Review Manager Agent attempt=3/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:14:10] [API] retry wait agent=Review Manager Agent next_attempt=4/12 wait=8.0s
+[2026-06-27 14:14:18] [API] request start agent=Review Manager Agent attempt=4/12 prompt_chars=9284
+[2026-06-27 14:14:18] [API] request error agent=Review Manager Agent attempt=4/12 elapsed=0.6s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:14:18] [API] retry wait agent=Review Manager Agent next_attempt=5/12 wait=16.0s
+[2026-06-27 14:14:34] [API] request start agent=Review Manager Agent attempt=5/12 prompt_chars=9284
+[2026-06-27 14:14:45] [API] request success agent=Review Manager Agent attempt=5/12 elapsed=10.5s raw_chars=3958
+[2026-06-27 14:14:45] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:14:55] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=10.3s raw_chars=3586
+[2026-06-27 14:14:56] [API] request start agent=Critique Agent attempt=1/12 prompt_chars=8030
+[2026-06-27 14:14:58] [API] request success agent=Critique Agent attempt=1/12 elapsed=2.0s raw_chars=469
+[2026-06-27 14:14:58] [API] request start agent=Critique Agent attempt=1/12 prompt_chars=11673
+[2026-06-27 14:14:58] [API] request error agent=Critique Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:14:58] [API] retry wait agent=Critique Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:15:00] [API] request start agent=Critique Agent attempt=2/12 prompt_chars=11673
+[2026-06-27 14:15:06] [API] request success agent=Critique Agent attempt=2/12 elapsed=6.0s raw_chars=1723
+[2026-06-27 14:15:06] [API] request start agent=Critique Agent attempt=1/12 prompt_chars=11673
+[2026-06-27 14:15:07] [API] request error agent=Critique Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:15:07] [API] retry wait agent=Critique Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:15:09] [API] request start agent=Critique Agent attempt=2/12 prompt_chars=11673
+[2026-06-27 14:15:09] [API] request error agent=Critique Agent attempt=2/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:15:09] [API] retry wait agent=Critique Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:15:13] [API] request start agent=Critique Agent attempt=3/12 prompt_chars=11673
+[2026-06-27 14:15:13] [API] request error agent=Critique Agent attempt=3/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:15:13] [API] retry wait agent=Critique Agent next_attempt=4/12 wait=8.0s
+[2026-06-27 14:15:21] [API] request start agent=Critique Agent attempt=4/12 prompt_chars=11673
+[2026-06-27 14:15:22] [API] request error agent=Critique Agent attempt=4/12 elapsed=0.6s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:15:22] [API] retry wait agent=Critique Agent next_attempt=5/12 wait=16.0s
+[2026-06-27 14:15:38] [API] request start agent=Critique Agent attempt=5/12 prompt_chars=11673
+[2026-06-27 14:15:43] [API] request success agent=Critique Agent attempt=5/12 elapsed=4.6s raw_chars=445
+[2026-06-27 14:15:43] [API] request start agent=Evidence Agent attempt=1/12 prompt_chars=7826
+[2026-06-27 14:15:47] [API] request success agent=Evidence Agent attempt=1/12 elapsed=4.4s raw_chars=1434
+[2026-06-27 14:15:47] [API] request start agent=Evidence Agent attempt=1/12 prompt_chars=8754
+[2026-06-27 14:15:48] [API] request error agent=Evidence Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:15:48] [API] retry wait agent=Evidence Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:15:50] [API] request start agent=Evidence Agent attempt=2/12 prompt_chars=8754
+[2026-06-27 14:15:50] [API] request error agent=Evidence Agent attempt=2/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:15:50] [API] retry wait agent=Evidence Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:15:54] [API] request start agent=Evidence Agent attempt=3/12 prompt_chars=8754
+[2026-06-27 14:15:57] [API] request success agent=Evidence Agent attempt=3/12 elapsed=3.4s raw_chars=471
+[review_reward][unknown][NnExMNiTHw] reward=0.5994 breakdown={'decision': 0.0, 'section_presence': 1.0, 'length_score': 1.0, 'summary_align': 0.2612, 'strength_align': 0.1753, 'weakness_align': 0.2393, 'suggestion_align': 0.3425, 'global_align': 0.237, 'critique': 1.0, 'stance_align': 0.7964, 'rating_align': 0.0, 'decision_line_bonus': 0.0, 'audit_id_leak_penalty': 0.0, 'penalty': 0.0, 'total': 0.5994, 'es_coverage': 0.75, 'es_depth': 0.75, 'es_empirical': 0.75, 'es_independent': 0.25, 'es_flaw_density': 0.3333, 'es_support_volume': 0.5, 'evidence_support_score': 0.6125}
+[review_reward][unknown][a6SntIisgg] reward=0.6980 breakdown={'decision': 0.0, 'section_presence': 1.0, 'length_score': 1.0, 'summary_align': 0.46, 'strength_align': 0.3808, 'weakness_align': 0.2755, 'suggestion_align': 0.5215, 'global_align': 0.2809, 'critique': 1.0, 'stance_align': 0.8167, 'rating_align': 0.0, 'decision_line_bonus': 0.0, 'audit_id_leak_penalty': 0.0, 'penalty': 0.0, 'total': 0.698, 'es_coverage': 1.0, 'es_depth': 1.0, 'es_empirical': 1.0, 'es_independent': 0.3333, 'es_flaw_density': 0.0, 'es_support_volume': 0.8333, 'evidence_support_score': 0.7667}
+[review_reward][unknown][cklg91aPGk] reward=0.6105 breakdown={'decision': 0.0, 'section_presence': 1.0, 'length_score': 1.0, 'summary_align': 0.4441, 'strength_align': 0.3336, 'weakness_align': 0.27, 'suggestion_align': 0.322, 'global_align': 0.2454, 'critique': 1.0, 'stance_align': 0.612, 'rating_align': 0.0, 'decision_line_bonus': 0.0, 'audit_id_leak_penalty': 0.0, 'penalty': 0.0, 'total': 0.6105, 'es_coverage': 0.75, 'es_depth': 0.75, 'es_empirical': 0.75, 'es_independent': 0.75, 'es_flaw_density': 0.0, 'es_support_volume': 0.75, 'evidence_support_score': 0.6375}
+[review_reward][unknown][HPuLU6q7xq] reward=0.5495 breakdown={'decision': 0.0, 'section_presence': 1.0, 'length_score': 1.0, 'summary_align': 0.5718, 'strength_align': 0.4222, 'weakness_align': 0.2979, 'suggestion_align': 0.3075, 'global_align': 0.3459, 'critique': 1.0, 'stance_align': 0.64, 'rating_align': 0.0, 'decision_line_bonus': 0.0, 'audit_id_leak_penalty': 0.0, 'penalty': 0.0, 'total': 0.5495, 'es_coverage': 0.6667, 'es_depth': 0.5, 'es_empirical': 0.3333, 'es_independent': 0.3333, 'es_flaw_density': 0.0, 'es_support_volume': 0.5, 'evidence_support_score': 0.4333}
+{"paper_id": "NnExMNiTHw", "mode": "s4", "reward": 0.5993645019309617, "final_decision": "reject", "model_adapter_mode": "small_model"}
+{"paper_id": "a6SntIisgg", "mode": "s4", "reward": 0.6980482957323888, "final_decision": "reject", "model_adapter_mode": "small_model"}
+{"paper_id": "cklg91aPGk", "mode": "s4", "reward": 0.6104617760625333, "final_decision": "reject", "model_adapter_mode": "small_model"}
+{"paper_id": "HPuLU6q7xq", "mode": "s4", "reward": 0.5494945793665629, "final_decision": "reject", "model_adapter_mode": "small_model"}
+[2026-06-27 14:16:05] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=7991
+[2026-06-27 14:16:12] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=6.7s raw_chars=1206
+[2026-06-27 14:16:12] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=7991
+[2026-06-27 14:16:16] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=4.8s raw_chars=1303
+[2026-06-27 14:16:16] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=7991
+[2026-06-27 14:16:20] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=3.9s raw_chars=1207
+[2026-06-27 14:16:20] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=7991
+[2026-06-27 14:16:21] [API] request error agent=Review Manager Agent attempt=1/12 elapsed=0.8s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:16:21] [API] retry wait agent=Review Manager Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:16:23] [API] request start agent=Review Manager Agent attempt=2/12 prompt_chars=7991
+[2026-06-27 14:16:23] [API] request error agent=Review Manager Agent attempt=2/12 elapsed=0.4s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:16:23] [API] retry wait agent=Review Manager Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:16:27] [API] request start agent=Review Manager Agent attempt=3/12 prompt_chars=7991
+[2026-06-27 14:16:28] [API] request error agent=Review Manager Agent attempt=3/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:16:28] [API] retry wait agent=Review Manager Agent next_attempt=4/12 wait=8.0s
+[2026-06-27 14:16:36] [API] request start agent=Review Manager Agent attempt=4/12 prompt_chars=7991
+[2026-06-27 14:16:36] [API] request error agent=Review Manager Agent attempt=4/12 elapsed=0.6s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:16:36] [API] retry wait agent=Review Manager Agent next_attempt=5/12 wait=16.0s
+[2026-06-27 14:16:52] [API] request start agent=Review Manager Agent attempt=5/12 prompt_chars=7991
+[2026-06-27 14:16:58] [API] request success agent=Review Manager Agent attempt=5/12 elapsed=5.6s raw_chars=1305
+[2026-06-27 14:16:58] [API] request start agent=Claim Agent attempt=1/12 prompt_chars=8711
+[2026-06-27 14:17:06] [API] request success agent=Claim Agent attempt=1/12 elapsed=7.4s raw_chars=2942
+[2026-06-27 14:17:06] [API] request start agent=Claim Agent attempt=1/12 prompt_chars=8711
+[2026-06-27 14:17:12] [API] request success agent=Claim Agent attempt=1/12 elapsed=6.4s raw_chars=2410
+[2026-06-27 14:17:12] [API] request start agent=Claim Agent attempt=1/12 prompt_chars=8712
+[2026-06-27 14:17:20] [API] request success agent=Claim Agent attempt=1/12 elapsed=8.4s raw_chars=3569
+[2026-06-27 14:17:20] [API] request start agent=Claim Agent attempt=1/12 prompt_chars=8710
+[2026-06-27 14:17:25] [API] request success agent=Claim Agent attempt=1/12 elapsed=5.1s raw_chars=1932
+[2026-06-27 14:17:26] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:17:26] [API] request error agent=Review Manager Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:17:26] [API] retry wait agent=Review Manager Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:17:28] [API] request start agent=Review Manager Agent attempt=2/12 prompt_chars=9285
+[2026-06-27 14:17:28] [API] request error agent=Review Manager Agent attempt=2/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:17:28] [API] retry wait agent=Review Manager Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:17:32] [API] request start agent=Review Manager Agent attempt=3/12 prompt_chars=9285
+[2026-06-27 14:17:33] [API] request error agent=Review Manager Agent attempt=3/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:17:33] [API] retry wait agent=Review Manager Agent next_attempt=4/12 wait=8.0s
+[2026-06-27 14:17:41] [API] request start agent=Review Manager Agent attempt=4/12 prompt_chars=9285
+[2026-06-27 14:17:41] [API] request error agent=Review Manager Agent attempt=4/12 elapsed=0.6s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:17:41] [API] retry wait agent=Review Manager Agent next_attempt=5/12 wait=16.0s
+[2026-06-27 14:17:57] [API] request start agent=Review Manager Agent attempt=5/12 prompt_chars=9285
+[2026-06-27 14:17:58] [API] request error agent=Review Manager Agent attempt=5/12 elapsed=0.6s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:17:58] [API] retry wait agent=Review Manager Agent next_attempt=6/12 wait=30.0s
+[2026-06-27 14:18:28] [API] request start agent=Review Manager Agent attempt=6/12 prompt_chars=9285
+[2026-06-27 14:18:28] [API] request error agent=Review Manager Agent attempt=6/12 elapsed=0.6s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:18:28] [API] retry wait agent=Review Manager Agent next_attempt=7/12 wait=30.0s
+[2026-06-27 14:18:58] [API] request start agent=Review Manager Agent attempt=7/12 prompt_chars=9285
+[2026-06-27 14:18:59] [API] request error agent=Review Manager Agent attempt=7/12 elapsed=0.6s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:18:59] [API] retry wait agent=Review Manager Agent next_attempt=8/12 wait=30.0s
+[2026-06-27 14:19:29] [API] request start agent=Review Manager Agent attempt=8/12 prompt_chars=9285
+[2026-06-27 14:19:38] [API] request success agent=Review Manager Agent attempt=8/12 elapsed=8.7s raw_chars=3988
+[2026-06-27 14:19:38] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:19:38] [API] request error agent=Review Manager Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:19:38] [API] retry wait agent=Review Manager Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:19:40] [API] request start agent=Review Manager Agent attempt=2/12 prompt_chars=9285
+[2026-06-27 14:19:48] [API] request success agent=Review Manager Agent attempt=2/12 elapsed=7.9s raw_chars=3428
+[2026-06-27 14:19:48] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:19:48] [API] request error agent=Review Manager Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:19:48] [API] retry wait agent=Review Manager Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:19:50] [API] request start agent=Review Manager Agent attempt=2/12 prompt_chars=9285
+[2026-06-27 14:19:50] [API] request error agent=Review Manager Agent attempt=2/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:19:50] [API] retry wait agent=Review Manager Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:19:54] [API] request start agent=Review Manager Agent attempt=3/12 prompt_chars=9285
+[2026-06-27 14:20:03] [API] request success agent=Review Manager Agent attempt=3/12 elapsed=9.1s raw_chars=3570
+[2026-06-27 14:20:03] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:20:04] [API] request error agent=Review Manager Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:20:04] [API] retry wait agent=Review Manager Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:20:06] [API] request start agent=Review Manager Agent attempt=2/12 prompt_chars=9285
+[2026-06-27 14:20:14] [API] request success agent=Review Manager Agent attempt=2/12 elapsed=7.9s raw_chars=3171
+[2026-06-27 14:20:14] [API] request start agent=Evidence Agent attempt=1/12 prompt_chars=7826
+[2026-06-27 14:20:14] [API] request error agent=Evidence Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:20:14] [API] retry wait agent=Evidence Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:20:16] [API] request start agent=Evidence Agent attempt=2/12 prompt_chars=7826
+[2026-06-27 14:20:16] [API] request error agent=Evidence Agent attempt=2/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:20:16] [API] retry wait agent=Evidence Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:20:20] [API] request start agent=Evidence Agent attempt=3/12 prompt_chars=7826
+[2026-06-27 14:20:27] [API] request success agent=Evidence Agent attempt=3/12 elapsed=6.8s raw_chars=2580
+[2026-06-27 14:20:27] [API] request start agent=Evidence Agent attempt=1/12 prompt_chars=7823
+[2026-06-27 14:20:27] [API] request error agent=Evidence Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:20:27] [API] retry wait agent=Evidence Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:20:29] [API] request start agent=Evidence Agent attempt=2/12 prompt_chars=7823
+[2026-06-27 14:20:33] [API] request success agent=Evidence Agent attempt=2/12 elapsed=3.4s raw_chars=1248
+[2026-06-27 14:20:33] [API] request start agent=Evidence Agent attempt=1/12 prompt_chars=7826
+[2026-06-27 14:20:33] [API] request error agent=Evidence Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:20:33] [API] retry wait agent=Evidence Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:20:35] [API] request start agent=Evidence Agent attempt=2/12 prompt_chars=7826
+[2026-06-27 14:20:35] [API] request error agent=Evidence Agent attempt=2/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:20:35] [API] retry wait agent=Evidence Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:20:39] [API] request start agent=Evidence Agent attempt=3/12 prompt_chars=7826
+[2026-06-27 14:20:40] [API] request error agent=Evidence Agent attempt=3/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:20:40] [API] retry wait agent=Evidence Agent next_attempt=4/12 wait=8.0s
+[2026-06-27 14:20:48] [API] request start agent=Evidence Agent attempt=4/12 prompt_chars=7826
+[2026-06-27 14:20:48] [API] request error agent=Evidence Agent attempt=4/12 elapsed=0.6s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:20:48] [API] retry wait agent=Evidence Agent next_attempt=5/12 wait=16.0s
+[2026-06-27 14:21:04] [API] request start agent=Evidence Agent attempt=5/12 prompt_chars=7826
+[2026-06-27 14:21:12] [API] request success agent=Evidence Agent attempt=5/12 elapsed=8.2s raw_chars=2739
+[2026-06-27 14:21:12] [API] request start agent=Evidence Agent attempt=1/12 prompt_chars=7826
+[2026-06-27 14:21:13] [API] request error agent=Evidence Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:21:13] [API] retry wait agent=Evidence Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:21:15] [API] request start agent=Evidence Agent attempt=2/12 prompt_chars=7826
+[2026-06-27 14:21:15] [API] request error agent=Evidence Agent attempt=2/12 elapsed=0.4s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:21:15] [API] retry wait agent=Evidence Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:21:19] [API] request start agent=Evidence Agent attempt=3/12 prompt_chars=7826
+[2026-06-27 14:21:29] [API] request success agent=Evidence Agent attempt=3/12 elapsed=10.2s raw_chars=4030
+[2026-06-27 14:21:30] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:21:41] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=11.0s raw_chars=4747
+[2026-06-27 14:21:41] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9282
+[2026-06-27 14:21:51] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=10.2s raw_chars=4388
+[2026-06-27 14:21:51] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:22:02] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=11.2s raw_chars=3779
+[2026-06-27 14:22:02] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:22:12] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=9.3s raw_chars=4241
+[2026-06-27 14:22:12] [API] request start agent=Critique Agent attempt=1/12 prompt_chars=11673
+[2026-06-27 14:22:12] [API] request error agent=Critique Agent attempt=1/12 elapsed=0.4s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:22:12] [API] retry wait agent=Critique Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:22:15] [API] request start agent=Critique Agent attempt=2/12 prompt_chars=11673
+[2026-06-27 14:22:15] [API] request error agent=Critique Agent attempt=2/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:22:15] [API] retry wait agent=Critique Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:22:19] [API] request start agent=Critique Agent attempt=3/12 prompt_chars=11673
+[2026-06-27 14:22:19] [API] request error agent=Critique Agent attempt=3/12 elapsed=0.4s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:22:19] [API] retry wait agent=Critique Agent next_attempt=4/12 wait=8.0s
+[2026-06-27 14:22:27] [API] request start agent=Critique Agent attempt=4/12 prompt_chars=11673
+[2026-06-27 14:22:33] [API] request success agent=Critique Agent attempt=4/12 elapsed=5.5s raw_chars=1929
+[2026-06-27 14:22:33] [API] request start agent=Critique Agent attempt=1/12 prompt_chars=13098
+[2026-06-27 14:22:33] [API] request error agent=Critique Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:22:33] [API] retry wait agent=Critique Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:22:35] [API] request start agent=Critique Agent attempt=2/12 prompt_chars=13098
+[2026-06-27 14:22:35] [API] request error agent=Critique Agent attempt=2/12 elapsed=0.4s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:22:35] [API] retry wait agent=Critique Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:22:39] [API] request start agent=Critique Agent attempt=3/12 prompt_chars=13098
+[2026-06-27 14:22:40] [API] request error agent=Critique Agent attempt=3/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:22:40] [API] retry wait agent=Critique Agent next_attempt=4/12 wait=8.0s
+[2026-06-27 14:22:48] [API] request start agent=Critique Agent attempt=4/12 prompt_chars=13098
+[2026-06-27 14:22:48] [API] request error agent=Critique Agent attempt=4/12 elapsed=0.6s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:22:48] [API] retry wait agent=Critique Agent next_attempt=5/12 wait=16.0s
+[2026-06-27 14:23:04] [API] request start agent=Critique Agent attempt=5/12 prompt_chars=13098
+[2026-06-27 14:23:20] [API] request success agent=Critique Agent attempt=5/12 elapsed=16.2s raw_chars=6008
+[2026-06-27 14:23:20] [API] request start agent=Critique Agent attempt=1/12 prompt_chars=13098
+[2026-06-27 14:23:21] [API] request error agent=Critique Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:23:21] [API] retry wait agent=Critique Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:23:23] [API] request start agent=Critique Agent attempt=2/12 prompt_chars=13098
+[2026-06-27 14:23:23] [API] request error agent=Critique Agent attempt=2/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:23:23] [API] retry wait agent=Critique Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:23:27] [API] request start agent=Critique Agent attempt=3/12 prompt_chars=13098
+[2026-06-27 14:23:27] [API] request error agent=Critique Agent attempt=3/12 elapsed=0.4s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:23:27] [API] retry wait agent=Critique Agent next_attempt=4/12 wait=8.0s
+[2026-06-27 14:23:35] [API] request start agent=Critique Agent attempt=4/12 prompt_chars=13098
+[2026-06-27 14:23:36] [API] request error agent=Critique Agent attempt=4/12 elapsed=0.6s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:23:36] [API] retry wait agent=Critique Agent next_attempt=5/12 wait=16.0s
+[2026-06-27 14:23:52] [API] request start agent=Critique Agent attempt=5/12 prompt_chars=13098
+[2026-06-27 14:23:53] [API] request error agent=Critique Agent attempt=5/12 elapsed=0.6s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:23:53] [API] retry wait agent=Critique Agent next_attempt=6/12 wait=30.0s
+[2026-06-27 14:24:23] [API] request start agent=Critique Agent attempt=6/12 prompt_chars=13098
+[2026-06-27 14:24:23] [API] request error agent=Critique Agent attempt=6/12 elapsed=0.7s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:24:23] [API] retry wait agent=Critique Agent next_attempt=7/12 wait=30.0s
+[2026-06-27 14:24:53] [API] request start agent=Critique Agent attempt=7/12 prompt_chars=13098
+[2026-06-27 14:24:54] [API] request error agent=Critique Agent attempt=7/12 elapsed=0.6s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:24:54] [API] retry wait agent=Critique Agent next_attempt=8/12 wait=30.0s
+[2026-06-27 14:25:24] [API] request start agent=Critique Agent attempt=8/12 prompt_chars=13098
+[2026-06-27 14:25:38] [API] request success agent=Critique Agent attempt=8/12 elapsed=13.5s raw_chars=5098
+[2026-06-27 14:25:38] [API] request start agent=Evidence Agent attempt=1/12 prompt_chars=7826
+[2026-06-27 14:25:38] [API] request error agent=Evidence Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:25:38] [API] retry wait agent=Evidence Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:25:40] [API] request start agent=Evidence Agent attempt=2/12 prompt_chars=7826
+[2026-06-27 14:25:40] [API] request error agent=Evidence Agent attempt=2/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:25:40] [API] retry wait agent=Evidence Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:25:44] [API] request start agent=Evidence Agent attempt=3/12 prompt_chars=7826
+[2026-06-27 14:25:44] [API] request error agent=Evidence Agent attempt=3/12 elapsed=0.4s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:25:44] [API] retry wait agent=Evidence Agent next_attempt=4/12 wait=8.0s
+[2026-06-27 14:25:52] [API] request start agent=Evidence Agent attempt=4/12 prompt_chars=7826
+[2026-06-27 14:25:53] [API] request error agent=Evidence Agent attempt=4/12 elapsed=0.6s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:25:53] [API] retry wait agent=Evidence Agent next_attempt=5/12 wait=16.0s
+[2026-06-27 14:26:09] [API] request start agent=Evidence Agent attempt=5/12 prompt_chars=7826
+[2026-06-27 14:26:10] [API] request error agent=Evidence Agent attempt=5/12 elapsed=0.6s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:26:10] [API] retry wait agent=Evidence Agent next_attempt=6/12 wait=30.0s
+[2026-06-27 14:26:40] [API] request start agent=Evidence Agent attempt=6/12 prompt_chars=7826
+[2026-06-27 14:26:48] [API] request success agent=Evidence Agent attempt=6/12 elapsed=8.8s raw_chars=2847
+[2026-06-27 14:26:49] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:27:00] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=11.2s raw_chars=4615
+[2026-06-27 14:27:00] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9282
+[2026-06-27 14:27:09] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=8.7s raw_chars=3851
+[2026-06-27 14:27:09] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:27:09] [API] request error agent=Review Manager Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:27:09] [API] retry wait agent=Review Manager Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:27:11] [API] request start agent=Review Manager Agent attempt=2/12 prompt_chars=9285
+[2026-06-27 14:27:12] [API] request error agent=Review Manager Agent attempt=2/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:27:12] [API] retry wait agent=Review Manager Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:27:16] [API] request start agent=Review Manager Agent attempt=3/12 prompt_chars=9285
+[2026-06-27 14:27:16] [API] request error agent=Review Manager Agent attempt=3/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:27:16] [API] retry wait agent=Review Manager Agent next_attempt=4/12 wait=8.0s
+[2026-06-27 14:27:24] [API] request start agent=Review Manager Agent attempt=4/12 prompt_chars=9285
+[2026-06-27 14:27:24] [API] request error agent=Review Manager Agent attempt=4/12 elapsed=0.6s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:27:24] [API] retry wait agent=Review Manager Agent next_attempt=5/12 wait=16.0s
+[2026-06-27 14:27:40] [API] request start agent=Review Manager Agent attempt=5/12 prompt_chars=9285
+[2026-06-27 14:27:48] [API] request success agent=Review Manager Agent attempt=5/12 elapsed=7.9s raw_chars=3109
+[2026-06-27 14:27:48] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:27:49] [API] request error agent=Review Manager Agent attempt=1/12 elapsed=0.4s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:27:49] [API] retry wait agent=Review Manager Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:27:51] [API] request start agent=Review Manager Agent attempt=2/12 prompt_chars=9285
+[2026-06-27 14:27:51] [API] request error agent=Review Manager Agent attempt=2/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:27:51] [API] retry wait agent=Review Manager Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:27:55] [API] request start agent=Review Manager Agent attempt=3/12 prompt_chars=9285
+[2026-06-27 14:27:55] [API] request error agent=Review Manager Agent attempt=3/12 elapsed=0.4s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:27:55] [API] retry wait agent=Review Manager Agent next_attempt=4/12 wait=8.0s
+[2026-06-27 14:28:03] [API] request start agent=Review Manager Agent attempt=4/12 prompt_chars=9285
+[2026-06-27 14:28:04] [API] request error agent=Review Manager Agent attempt=4/12 elapsed=0.6s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:28:04] [API] retry wait agent=Review Manager Agent next_attempt=5/12 wait=16.0s
+[2026-06-27 14:28:20] [API] request start agent=Review Manager Agent attempt=5/12 prompt_chars=9285
+[2026-06-27 14:28:21] [API] request error agent=Review Manager Agent attempt=5/12 elapsed=0.6s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:28:21] [API] retry wait agent=Review Manager Agent next_attempt=6/12 wait=30.0s
+[2026-06-27 14:28:51] [API] request start agent=Review Manager Agent attempt=6/12 prompt_chars=9285
+[2026-06-27 14:29:00] [API] request success agent=Review Manager Agent attempt=6/12 elapsed=9.2s raw_chars=4037
+[2026-06-27 14:29:00] [API] request start agent=Critique Agent attempt=1/12 prompt_chars=8030
+[2026-06-27 14:29:04] [API] request success agent=Critique Agent attempt=1/12 elapsed=3.4s raw_chars=515
+[2026-06-27 14:29:04] [API] request start agent=Critique Agent attempt=1/12 prompt_chars=8030
+[2026-06-27 14:29:04] [API] request error agent=Critique Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:29:04] [API] retry wait agent=Critique Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:29:06] [API] request start agent=Critique Agent attempt=2/12 prompt_chars=8030
+[2026-06-27 14:29:06] [API] request error agent=Critique Agent attempt=2/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:29:06] [API] retry wait agent=Critique Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:29:10] [API] request start agent=Critique Agent attempt=3/12 prompt_chars=8030
+[2026-06-27 14:29:10] [API] request error agent=Critique Agent attempt=3/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:29:10] [API] retry wait agent=Critique Agent next_attempt=4/12 wait=8.0s
+[2026-06-27 14:29:18] [API] request start agent=Critique Agent attempt=4/12 prompt_chars=8030
+[2026-06-27 14:29:19] [API] request error agent=Critique Agent attempt=4/12 elapsed=0.6s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:29:19] [API] retry wait agent=Critique Agent next_attempt=5/12 wait=16.0s
+[2026-06-27 14:29:35] [API] request start agent=Critique Agent attempt=5/12 prompt_chars=8030
+[2026-06-27 14:29:35] [API] request error agent=Critique Agent attempt=5/12 elapsed=0.6s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:29:35] [API] retry wait agent=Critique Agent next_attempt=6/12 wait=30.0s
+[2026-06-27 14:30:05] [API] request start agent=Critique Agent attempt=6/12 prompt_chars=8030
+[2026-06-27 14:30:09] [API] request success agent=Critique Agent attempt=6/12 elapsed=3.6s raw_chars=669
+[2026-06-27 14:30:09] [API] request start agent=Critique Agent attempt=1/12 prompt_chars=11673
+[2026-06-27 14:30:13] [API] request success agent=Critique Agent attempt=1/12 elapsed=4.0s raw_chars=956
+[2026-06-27 14:30:13] [API] request start agent=Evidence Agent attempt=1/12 prompt_chars=7826
+[2026-06-27 14:30:14] [API] request error agent=Evidence Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:30:14] [API] retry wait agent=Evidence Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:30:16] [API] request start agent=Evidence Agent attempt=2/12 prompt_chars=7826
+[2026-06-27 14:30:16] [API] request error agent=Evidence Agent attempt=2/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:30:16] [API] retry wait agent=Evidence Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:30:20] [API] request start agent=Evidence Agent attempt=3/12 prompt_chars=7826
+[2026-06-27 14:30:27] [API] request success agent=Evidence Agent attempt=3/12 elapsed=6.9s raw_chars=2223
+[2026-06-27 14:30:27] [API] request start agent=Evidence Agent attempt=1/12 prompt_chars=8550
+[2026-06-27 14:30:28] [API] request error agent=Evidence Agent attempt=1/12 elapsed=0.5s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:30:28] [API] retry wait agent=Evidence Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:30:30] [API] request start agent=Evidence Agent attempt=2/12 prompt_chars=8550
+[2026-06-27 14:30:30] [API] request error agent=Evidence Agent attempt=2/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:30:30] [API] retry wait agent=Evidence Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:30:34] [API] request start agent=Evidence Agent attempt=3/12 prompt_chars=8550
+[2026-06-27 14:30:39] [API] request success agent=Evidence Agent attempt=3/12 elapsed=4.9s raw_chars=1599
+[2026-06-27 14:30:39] [API] request start agent=Evidence Agent attempt=1/12 prompt_chars=8754
+[2026-06-27 14:30:41] [API] request success agent=Evidence Agent attempt=1/12 elapsed=2.2s raw_chars=517
+[2026-06-27 14:30:43] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:30:43] [API] request error agent=Review Manager Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:30:43] [API] retry wait agent=Review Manager Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:30:45] [API] request start agent=Review Manager Agent attempt=2/12 prompt_chars=9285
+[2026-06-27 14:30:45] [API] request error agent=Review Manager Agent attempt=2/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:30:45] [API] retry wait agent=Review Manager Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:30:49] [API] request start agent=Review Manager Agent attempt=3/12 prompt_chars=9285
+[2026-06-27 14:30:50] [API] request error agent=Review Manager Agent attempt=3/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:30:50] [API] retry wait agent=Review Manager Agent next_attempt=4/12 wait=8.0s
+[2026-06-27 14:30:58] [API] request start agent=Review Manager Agent attempt=4/12 prompt_chars=9285
+[2026-06-27 14:30:58] [API] request error agent=Review Manager Agent attempt=4/12 elapsed=0.6s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:30:58] [API] retry wait agent=Review Manager Agent next_attempt=5/12 wait=16.0s
+[2026-06-27 14:31:14] [API] request start agent=Review Manager Agent attempt=5/12 prompt_chars=9285
+[2026-06-27 14:31:26] [API] request success agent=Review Manager Agent attempt=5/12 elapsed=11.9s raw_chars=3895
+[2026-06-27 14:31:26] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:31:35] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=8.5s raw_chars=3698
+[2026-06-27 14:31:35] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:31:44] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=9.8s raw_chars=3614
+[2026-06-27 14:31:44] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:31:55] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=10.9s raw_chars=3731
+[2026-06-27 14:31:56] [API] request start agent=Critique Agent attempt=1/12 prompt_chars=11673
+[2026-06-27 14:31:57] [API] request error agent=Critique Agent attempt=1/12 elapsed=0.7s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:31:57] [API] retry wait agent=Critique Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:31:59] [API] request start agent=Critique Agent attempt=2/12 prompt_chars=11673
+[2026-06-27 14:32:05] [API] request success agent=Critique Agent attempt=2/12 elapsed=5.4s raw_chars=1916
+[2026-06-27 14:32:05] [API] request start agent=Critique Agent attempt=1/12 prompt_chars=11672
+[2026-06-27 14:32:08] [API] request success agent=Critique Agent attempt=1/12 elapsed=3.7s raw_chars=725
+[2026-06-27 14:32:08] [API] request start agent=Evidence Agent attempt=1/12 prompt_chars=7826
+[2026-06-27 14:32:09] [API] request error agent=Evidence Agent attempt=1/12 elapsed=0.4s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:32:09] [API] retry wait agent=Evidence Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:32:11] [API] request start agent=Evidence Agent attempt=2/12 prompt_chars=7826
+[2026-06-27 14:32:11] [API] request error agent=Evidence Agent attempt=2/12 elapsed=0.6s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:32:11] [API] retry wait agent=Evidence Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:32:15] [API] request start agent=Evidence Agent attempt=3/12 prompt_chars=7826
+[2026-06-27 14:32:16] [API] request error agent=Evidence Agent attempt=3/12 elapsed=0.5s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:32:16] [API] retry wait agent=Evidence Agent next_attempt=4/12 wait=8.0s
+[2026-06-27 14:32:24] [API] request start agent=Evidence Agent attempt=4/12 prompt_chars=7826
+[2026-06-27 14:32:33] [API] request success agent=Evidence Agent attempt=4/12 elapsed=8.8s raw_chars=3182
+[2026-06-27 14:32:33] [API] request start agent=Evidence Agent attempt=1/12 prompt_chars=7826
+[2026-06-27 14:32:39] [API] request success agent=Evidence Agent attempt=1/12 elapsed=6.8s raw_chars=2274
+[review_reward][unknown][fGXyvmWpw6] reward=0.4715 breakdown={'decision': 0.0, 'section_presence': 1.0, 'length_score': 1.0, 'summary_align': 0.4658, 'strength_align': 0.3249, 'weakness_align': 0.264, 'suggestion_align': 0.3733, 'global_align': 0.2914, 'critique': 1.0, 'stance_align': 0.6234, 'rating_align': 0.0, 'decision_line_bonus': 0.0, 'audit_id_leak_penalty': 0.0, 'penalty': 0.0, 'total': 0.4715, 'es_coverage': 0.5, 'es_depth': 0.25, 'es_empirical': 0.0, 'es_independent': 0.0, 'es_flaw_density': 0.3333, 'es_support_volume': 0.25, 'evidence_support_score': 0.275}
+[2026-06-27 14:32:41] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:32:50] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=8.7s raw_chars=4025
+[2026-06-27 14:32:50] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:32:59] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=9.0s raw_chars=3901
+[2026-06-27 14:32:59] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:33:08] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=8.8s raw_chars=3724
+[2026-06-27 14:33:08] [API] request start agent=Critique Agent attempt=1/12 prompt_chars=11673
+[2026-06-27 14:33:09] [API] request error agent=Critique Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:33:09] [API] retry wait agent=Critique Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:33:11] [API] request start agent=Critique Agent attempt=2/12 prompt_chars=11673
+[2026-06-27 14:33:14] [API] request success agent=Critique Agent attempt=2/12 elapsed=3.0s raw_chars=571
+[2026-06-27 14:33:14] [API] request start agent=Critique Agent attempt=1/12 prompt_chars=11673
+[2026-06-27 14:33:17] [API] request success agent=Critique Agent attempt=1/12 elapsed=3.1s raw_chars=672
+[2026-06-27 14:33:17] [API] request start agent=Critique Agent attempt=1/12 prompt_chars=11673
+[2026-06-27 14:33:17] [API] request error agent=Critique Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:33:17] [API] retry wait agent=Critique Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:33:19] [API] request start agent=Critique Agent attempt=2/12 prompt_chars=11673
+[2026-06-27 14:33:19] [API] request error agent=Critique Agent attempt=2/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:33:19] [API] retry wait agent=Critique Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:33:23] [API] request start agent=Critique Agent attempt=3/12 prompt_chars=11673
+[2026-06-27 14:33:27] [API] request success agent=Critique Agent attempt=3/12 elapsed=3.8s raw_chars=1363
+[2026-06-27 14:33:28] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:33:38] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=10.4s raw_chars=4639
+[2026-06-27 14:33:38] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:33:48] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=10.5s raw_chars=4571
+[2026-06-27 14:33:48] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:33:49] [API] request error agent=Review Manager Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:33:49] [API] retry wait agent=Review Manager Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:33:51] [API] request start agent=Review Manager Agent attempt=2/12 prompt_chars=9285
+[2026-06-27 14:34:04] [API] request success agent=Review Manager Agent attempt=2/12 elapsed=13.3s raw_chars=4963
+[2026-06-27 14:34:04] [API] request start agent=Evidence Agent attempt=1/12 prompt_chars=7825
+[2026-06-27 14:34:13] [API] request success agent=Evidence Agent attempt=1/12 elapsed=8.2s raw_chars=3223
+[2026-06-27 14:34:13] [API] request start agent=Evidence Agent attempt=1/12 prompt_chars=7826
+[2026-06-27 14:34:13] [API] request error agent=Evidence Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:34:13] [API] retry wait agent=Evidence Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:34:15] [API] request start agent=Evidence Agent attempt=2/12 prompt_chars=7826
+[2026-06-27 14:34:21] [API] request success agent=Evidence Agent attempt=2/12 elapsed=6.2s raw_chars=2358
+[2026-06-27 14:34:21] [API] request start agent=Critique Agent attempt=1/12 prompt_chars=11673
+[2026-06-27 14:34:21] [API] request error agent=Critique Agent attempt=1/12 elapsed=0.4s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:34:21] [API] retry wait agent=Critique Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:34:23] [API] request start agent=Critique Agent attempt=2/12 prompt_chars=11673
+[2026-06-27 14:34:28] [API] request success agent=Critique Agent attempt=2/12 elapsed=4.7s raw_chars=1377
+[review_reward][unknown][QAgwFiIY4p] reward=0.5079 breakdown={'decision': 0.0, 'section_presence': 1.0, 'length_score': 1.0, 'summary_align': 0.4657, 'strength_align': 0.4023, 'weakness_align': 0.2231, 'suggestion_align': 0.3552, 'global_align': 0.2711, 'critique': 1.0, 'stance_align': 0.9583, 'rating_align': 0.0, 'decision_line_bonus': 0.0, 'audit_id_leak_penalty': 0.0, 'penalty': 0.0, 'total': 0.5079, 'es_coverage': 0.5, 'es_depth': 0.375, 'es_empirical': 0.25, 'es_independent': 0.0, 'es_flaw_density': 0.0, 'es_support_volume': 0.25, 'evidence_support_score': 0.2875}
+[review_reward][unknown][TPAj63ax4Y] reward=0.5800 breakdown={'decision': 0.0, 'section_presence': 1.0, 'length_score': 1.0, 'summary_align': 0.2509, 'strength_align': 0.3009, 'weakness_align': 0.2062, 'suggestion_align': 0.3508, 'global_align': 0.2338, 'critique': 1.0, 'stance_align': 0.8253, 'rating_align': 0.0, 'decision_line_bonus': 0.0, 'audit_id_leak_penalty': 0.0, 'penalty': 0.0, 'total': 0.58, 'es_coverage': 1.0, 'es_depth': 0.625, 'es_empirical': 0.25, 'es_independent': 0.25, 'es_flaw_density': 0.0, 'es_support_volume': 0.625, 'evidence_support_score': 0.55}
+[review_reward][unknown][mHv6wcBb0z] reward=0.7265 breakdown={'decision': 0.0, 'section_presence': 1.0, 'length_score': 1.0, 'summary_align': 0.3753, 'strength_align': 0.3124, 'weakness_align': 0.2667, 'suggestion_align': 0.4426, 'global_align': 0.2566, 'critique': 1.0, 'stance_align': 0.9048, 'rating_align': 0.0, 'decision_line_bonus': 0.0, 'audit_id_leak_penalty': 0.0, 'penalty': 0.0, 'total': 0.7265, 'es_coverage': 1.0, 'es_depth': 1.0, 'es_empirical': 1.0, 'es_independent': 1.0, 'es_flaw_density': 0.0, 'es_support_volume': 1.0, 'evidence_support_score': 0.85}
+{"paper_id": "fGXyvmWpw6", "mode": "s4", "reward": 0.47150354778437553, "final_decision": "reject", "model_adapter_mode": "small_model"}
+{"paper_id": "QAgwFiIY4p", "mode": "s4", "reward": 0.5078625393955619, "final_decision": "reject", "model_adapter_mode": "small_model"}
+{"paper_id": "TPAj63ax4Y", "mode": "s4", "reward": 0.5799605199520649, "final_decision": "reject", "model_adapter_mode": "small_model"}
+{"paper_id": "mHv6wcBb0z", "mode": "s4", "reward": 0.7264917394773811, "final_decision": "reject", "model_adapter_mode": "small_model"}
+[2026-06-27 14:34:30] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=7991
+[2026-06-27 14:34:30] [API] request error agent=Review Manager Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:34:30] [API] retry wait agent=Review Manager Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:34:32] [API] request start agent=Review Manager Agent attempt=2/12 prompt_chars=7991
+[2026-06-27 14:34:32] [API] request error agent=Review Manager Agent attempt=2/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:34:32] [API] retry wait agent=Review Manager Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:34:36] [API] request start agent=Review Manager Agent attempt=3/12 prompt_chars=7991
+[2026-06-27 14:34:40] [API] request success agent=Review Manager Agent attempt=3/12 elapsed=4.0s raw_chars=1165
+[2026-06-27 14:34:40] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=7991
+[2026-06-27 14:34:41] [API] request error agent=Review Manager Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:34:41] [API] retry wait agent=Review Manager Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:34:43] [API] request start agent=Review Manager Agent attempt=2/12 prompt_chars=7991
+[2026-06-27 14:34:43] [API] request error agent=Review Manager Agent attempt=2/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:34:43] [API] retry wait agent=Review Manager Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:34:47] [API] request start agent=Review Manager Agent attempt=3/12 prompt_chars=7991
+[2026-06-27 14:34:52] [API] request success agent=Review Manager Agent attempt=3/12 elapsed=5.1s raw_chars=1667
+[2026-06-27 14:34:52] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=7991
+[2026-06-27 14:34:52] [API] request error agent=Review Manager Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:34:52] [API] retry wait agent=Review Manager Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:34:54] [API] request start agent=Review Manager Agent attempt=2/12 prompt_chars=7991
+[2026-06-27 14:34:55] [API] request error agent=Review Manager Agent attempt=2/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:34:55] [API] retry wait agent=Review Manager Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:34:59] [API] request start agent=Review Manager Agent attempt=3/12 prompt_chars=7991
+[2026-06-27 14:34:59] [API] request error agent=Review Manager Agent attempt=3/12 elapsed=0.5s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:34:59] [API] retry wait agent=Review Manager Agent next_attempt=4/12 wait=8.0s
+[2026-06-27 14:35:07] [API] request start agent=Review Manager Agent attempt=4/12 prompt_chars=7991
+[2026-06-27 14:35:08] [API] request error agent=Review Manager Agent attempt=4/12 elapsed=0.6s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:35:08] [API] retry wait agent=Review Manager Agent next_attempt=5/12 wait=16.0s
+[2026-06-27 14:35:24] [API] request start agent=Review Manager Agent attempt=5/12 prompt_chars=7991
+[2026-06-27 14:35:32] [API] request success agent=Review Manager Agent attempt=5/12 elapsed=8.2s raw_chars=2959
+[2026-06-27 14:35:32] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=7991
+[2026-06-27 14:35:32] [API] request error agent=Review Manager Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:35:32] [API] retry wait agent=Review Manager Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:35:34] [API] request start agent=Review Manager Agent attempt=2/12 prompt_chars=7991
+[2026-06-27 14:35:35] [API] request error agent=Review Manager Agent attempt=2/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:35:35] [API] retry wait agent=Review Manager Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:35:39] [API] request start agent=Review Manager Agent attempt=3/12 prompt_chars=7991
+[2026-06-27 14:35:39] [API] request error agent=Review Manager Agent attempt=3/12 elapsed=0.4s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:35:39] [API] retry wait agent=Review Manager Agent next_attempt=4/12 wait=8.0s
+[2026-06-27 14:35:47] [API] request start agent=Review Manager Agent attempt=4/12 prompt_chars=7991
+[2026-06-27 14:35:52] [API] request success agent=Review Manager Agent attempt=4/12 elapsed=4.8s raw_chars=1204
+[2026-06-27 14:35:52] [API] request start agent=Claim Agent attempt=1/12 prompt_chars=8712
+[2026-06-27 14:36:01] [API] request success agent=Claim Agent attempt=1/12 elapsed=8.7s raw_chars=3374
+[2026-06-27 14:36:01] [API] request start agent=Claim Agent attempt=1/12 prompt_chars=8712
+[2026-06-27 14:36:01] [API] request error agent=Claim Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:36:01] [API] retry wait agent=Claim Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:36:03] [API] request start agent=Claim Agent attempt=2/12 prompt_chars=8712
+[2026-06-27 14:36:10] [API] request success agent=Claim Agent attempt=2/12 elapsed=7.4s raw_chars=2678
+[2026-06-27 14:36:10] [API] request start agent=Claim Agent attempt=1/12 prompt_chars=8712
+[2026-06-27 14:36:16] [API] request success agent=Claim Agent attempt=1/12 elapsed=6.2s raw_chars=2321
+[2026-06-27 14:36:16] [API] request start agent=Claim Agent attempt=1/12 prompt_chars=8712
+[2026-06-27 14:36:25] [API] request success agent=Claim Agent attempt=1/12 elapsed=8.9s raw_chars=3261
+[2026-06-27 14:36:26] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:36:26] [API] request error agent=Review Manager Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:36:26] [API] retry wait agent=Review Manager Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:36:28] [API] request start agent=Review Manager Agent attempt=2/12 prompt_chars=9285
+[2026-06-27 14:36:28] [API] request error agent=Review Manager Agent attempt=2/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:36:28] [API] retry wait agent=Review Manager Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:36:32] [API] request start agent=Review Manager Agent attempt=3/12 prompt_chars=9285
+[2026-06-27 14:36:42] [API] request success agent=Review Manager Agent attempt=3/12 elapsed=9.6s raw_chars=3755
+[2026-06-27 14:36:42] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:36:42] [API] request error agent=Review Manager Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:36:42] [API] retry wait agent=Review Manager Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:36:44] [API] request start agent=Review Manager Agent attempt=2/12 prompt_chars=9285
+[2026-06-27 14:36:44] [API] request error agent=Review Manager Agent attempt=2/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:36:44] [API] retry wait agent=Review Manager Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:36:48] [API] request start agent=Review Manager Agent attempt=3/12 prompt_chars=9285
+[2026-06-27 14:36:49] [API] request error agent=Review Manager Agent attempt=3/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:36:49] [API] retry wait agent=Review Manager Agent next_attempt=4/12 wait=8.0s
+[2026-06-27 14:36:57] [API] request start agent=Review Manager Agent attempt=4/12 prompt_chars=9285
+[2026-06-27 14:36:57] [API] request error agent=Review Manager Agent attempt=4/12 elapsed=0.6s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:36:57] [API] retry wait agent=Review Manager Agent next_attempt=5/12 wait=16.0s
+[2026-06-27 14:37:13] [API] request start agent=Review Manager Agent attempt=5/12 prompt_chars=9285
+[2026-06-27 14:37:22] [API] request success agent=Review Manager Agent attempt=5/12 elapsed=8.7s raw_chars=3261
+[2026-06-27 14:37:22] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:37:22] [API] request error agent=Review Manager Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:37:22] [API] retry wait agent=Review Manager Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:37:24] [API] request start agent=Review Manager Agent attempt=2/12 prompt_chars=9285
+[2026-06-27 14:37:33] [API] request success agent=Review Manager Agent attempt=2/12 elapsed=8.6s raw_chars=3594
+[2026-06-27 14:37:33] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:37:33] [API] request error agent=Review Manager Agent attempt=1/12 elapsed=0.4s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:37:33] [API] retry wait agent=Review Manager Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:37:35] [API] request start agent=Review Manager Agent attempt=2/12 prompt_chars=9285
+[2026-06-27 14:37:36] [API] request error agent=Review Manager Agent attempt=2/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:37:36] [API] retry wait agent=Review Manager Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:37:40] [API] request start agent=Review Manager Agent attempt=3/12 prompt_chars=9285
+[2026-06-27 14:37:40] [API] request error agent=Review Manager Agent attempt=3/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:37:40] [API] retry wait agent=Review Manager Agent next_attempt=4/12 wait=8.0s
+[2026-06-27 14:37:48] [API] request start agent=Review Manager Agent attempt=4/12 prompt_chars=9285
+[2026-06-27 14:37:59] [API] request success agent=Review Manager Agent attempt=4/12 elapsed=11.0s raw_chars=4416
+[2026-06-27 14:37:59] [API] request start agent=Evidence Agent attempt=1/12 prompt_chars=7826
+[2026-06-27 14:37:59] [API] request error agent=Evidence Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:37:59] [API] retry wait agent=Evidence Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:38:01] [API] request start agent=Evidence Agent attempt=2/12 prompt_chars=7826
+[2026-06-27 14:38:02] [API] request error agent=Evidence Agent attempt=2/12 elapsed=0.4s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:38:02] [API] retry wait agent=Evidence Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:38:06] [API] request start agent=Evidence Agent attempt=3/12 prompt_chars=7826
+[2026-06-27 14:38:12] [API] request success agent=Evidence Agent attempt=3/12 elapsed=6.3s raw_chars=2337
+[2026-06-27 14:38:12] [API] request start agent=Evidence Agent attempt=1/12 prompt_chars=7824
+[2026-06-27 14:38:12] [API] request error agent=Evidence Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:38:12] [API] retry wait agent=Evidence Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:38:14] [API] request start agent=Evidence Agent attempt=2/12 prompt_chars=7824
+[2026-06-27 14:38:15] [API] request error agent=Evidence Agent attempt=2/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:38:15] [API] retry wait agent=Evidence Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:38:19] [API] request start agent=Evidence Agent attempt=3/12 prompt_chars=7824
+[2026-06-27 14:38:23] [API] request success agent=Evidence Agent attempt=3/12 elapsed=4.3s raw_chars=1370
+[2026-06-27 14:38:23] [API] request start agent=Evidence Agent attempt=1/12 prompt_chars=7825
+[2026-06-27 14:38:23] [API] request error agent=Evidence Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:38:23] [API] retry wait agent=Evidence Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:38:25] [API] request start agent=Evidence Agent attempt=2/12 prompt_chars=7825
+[2026-06-27 14:38:26] [API] request error agent=Evidence Agent attempt=2/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:38:26] [API] retry wait agent=Evidence Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:38:30] [API] request start agent=Evidence Agent attempt=3/12 prompt_chars=7825
+[2026-06-27 14:38:30] [API] request error agent=Evidence Agent attempt=3/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:38:30] [API] retry wait agent=Evidence Agent next_attempt=4/12 wait=8.0s
+[2026-06-27 14:38:38] [API] request start agent=Evidence Agent attempt=4/12 prompt_chars=7825
+[2026-06-27 14:38:46] [API] request success agent=Evidence Agent attempt=4/12 elapsed=8.4s raw_chars=2968
+[2026-06-27 14:38:46] [API] request start agent=Evidence Agent attempt=1/12 prompt_chars=7821
+[2026-06-27 14:38:47] [API] request error agent=Evidence Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:38:47] [API] retry wait agent=Evidence Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:38:49] [API] request start agent=Evidence Agent attempt=2/12 prompt_chars=7821
+[2026-06-27 14:38:57] [API] request success agent=Evidence Agent attempt=2/12 elapsed=8.5s raw_chars=3033
+[2026-06-27 14:38:57] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:38:58] [API] request error agent=Review Manager Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:38:58] [API] retry wait agent=Review Manager Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:39:00] [API] request start agent=Review Manager Agent attempt=2/12 prompt_chars=9285
+[2026-06-27 14:39:00] [API] request error agent=Review Manager Agent attempt=2/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:39:00] [API] retry wait agent=Review Manager Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:39:04] [API] request start agent=Review Manager Agent attempt=3/12 prompt_chars=9285
+[2026-06-27 14:39:04] [API] request error agent=Review Manager Agent attempt=3/12 elapsed=0.4s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:39:04] [API] retry wait agent=Review Manager Agent next_attempt=4/12 wait=8.0s
+[2026-06-27 14:39:12] [API] request start agent=Review Manager Agent attempt=4/12 prompt_chars=9285
+[2026-06-27 14:39:21] [API] request success agent=Review Manager Agent attempt=4/12 elapsed=8.5s raw_chars=3453
+[2026-06-27 14:39:21] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:39:21] [API] request error agent=Review Manager Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:39:21] [API] retry wait agent=Review Manager Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:39:23] [API] request start agent=Review Manager Agent attempt=2/12 prompt_chars=9285
+[2026-06-27 14:39:23] [API] request error agent=Review Manager Agent attempt=2/12 elapsed=0.4s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:39:23] [API] retry wait agent=Review Manager Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:39:27] [API] request start agent=Review Manager Agent attempt=3/12 prompt_chars=9285
+[2026-06-27 14:39:38] [API] request success agent=Review Manager Agent attempt=3/12 elapsed=10.1s raw_chars=3390
+[2026-06-27 14:39:38] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9284
+[2026-06-27 14:39:38] [API] request error agent=Review Manager Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:39:38] [API] retry wait agent=Review Manager Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:39:40] [API] request start agent=Review Manager Agent attempt=2/12 prompt_chars=9284
+[2026-06-27 14:39:52] [API] request success agent=Review Manager Agent attempt=2/12 elapsed=12.4s raw_chars=5470
+[2026-06-27 14:39:52] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9283
+[2026-06-27 14:39:53] [API] request error agent=Review Manager Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:39:53] [API] retry wait agent=Review Manager Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:39:55] [API] request start agent=Review Manager Agent attempt=2/12 prompt_chars=9283
+[2026-06-27 14:40:05] [API] request success agent=Review Manager Agent attempt=2/12 elapsed=10.0s raw_chars=3918
+[2026-06-27 14:40:05] [API] request start agent=Critique Agent attempt=1/12 prompt_chars=13097
+[2026-06-27 14:40:05] [API] request error agent=Critique Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:40:05] [API] retry wait agent=Critique Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:40:07] [API] request start agent=Critique Agent attempt=2/12 prompt_chars=13097
+[2026-06-27 14:40:07] [API] request error agent=Critique Agent attempt=2/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:40:07] [API] retry wait agent=Critique Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:40:11] [API] request start agent=Critique Agent attempt=3/12 prompt_chars=13097
+[2026-06-27 14:40:12] [API] request error agent=Critique Agent attempt=3/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:40:12] [API] retry wait agent=Critique Agent next_attempt=4/12 wait=8.0s
+[2026-06-27 14:40:20] [API] request start agent=Critique Agent attempt=4/12 prompt_chars=13097
+[2026-06-27 14:40:20] [API] request error agent=Critique Agent attempt=4/12 elapsed=0.6s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:40:20] [API] retry wait agent=Critique Agent next_attempt=5/12 wait=16.0s
+[2026-06-27 14:40:36] [API] request start agent=Critique Agent attempt=5/12 prompt_chars=13097
+[2026-06-27 14:40:37] [API] request error agent=Critique Agent attempt=5/12 elapsed=0.6s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:40:37] [API] retry wait agent=Critique Agent next_attempt=6/12 wait=30.0s
+[2026-06-27 14:41:07] [API] request start agent=Critique Agent attempt=6/12 prompt_chars=13097
+[2026-06-27 14:41:08] [API] request error agent=Critique Agent attempt=6/12 elapsed=0.6s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:41:08] [API] retry wait agent=Critique Agent next_attempt=7/12 wait=30.0s
+[2026-06-27 14:41:38] [API] request start agent=Critique Agent attempt=7/12 prompt_chars=13097
+[2026-06-27 14:41:38] [API] request error agent=Critique Agent attempt=7/12 elapsed=0.6s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:41:38] [API] retry wait agent=Critique Agent next_attempt=8/12 wait=30.0s
+[2026-06-27 14:42:08] [API] request start agent=Critique Agent attempt=8/12 prompt_chars=13097
+[2026-06-27 14:42:09] [API] request error agent=Critique Agent attempt=8/12 elapsed=0.6s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:42:09] [API] retry wait agent=Critique Agent next_attempt=9/12 wait=30.0s
+[2026-06-27 14:42:39] [API] request start agent=Critique Agent attempt=9/12 prompt_chars=13097
+[2026-06-27 14:42:39] [API] request error agent=Critique Agent attempt=9/12 elapsed=0.6s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:42:39] [API] retry wait agent=Critique Agent next_attempt=10/12 wait=30.0s
+[2026-06-27 14:43:09] [API] request start agent=Critique Agent attempt=10/12 prompt_chars=13097
+[2026-06-27 14:43:26] [API] request success agent=Critique Agent attempt=10/12 elapsed=16.3s raw_chars=7607
+[2026-06-27 14:43:26] [API] request start agent=Critique Agent attempt=1/12 prompt_chars=13098
+[2026-06-27 14:43:26] [API] request error agent=Critique Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:43:26] [API] retry wait agent=Critique Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:43:28] [API] request start agent=Critique Agent attempt=2/12 prompt_chars=13098
+[2026-06-27 14:43:28] [API] request error agent=Critique Agent attempt=2/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:43:28] [API] retry wait agent=Critique Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:43:32] [API] request start agent=Critique Agent attempt=3/12 prompt_chars=13098
+[2026-06-27 14:43:33] [API] request error agent=Critique Agent attempt=3/12 elapsed=0.4s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:43:33] [API] retry wait agent=Critique Agent next_attempt=4/12 wait=8.0s
+[2026-06-27 14:43:41] [API] request start agent=Critique Agent attempt=4/12 prompt_chars=13098
+[2026-06-27 14:43:41] [API] request error agent=Critique Agent attempt=4/12 elapsed=0.6s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:43:41] [API] retry wait agent=Critique Agent next_attempt=5/12 wait=16.0s
+[2026-06-27 14:43:57] [API] request start agent=Critique Agent attempt=5/12 prompt_chars=13098
+[2026-06-27 14:44:14] [API] request success agent=Critique Agent attempt=5/12 elapsed=17.2s raw_chars=6374
+[2026-06-27 14:44:14] [API] request start agent=Critique Agent attempt=1/12 prompt_chars=13091
+[2026-06-27 14:44:15] [API] request error agent=Critique Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:44:15] [API] retry wait agent=Critique Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:44:17] [API] request start agent=Critique Agent attempt=2/12 prompt_chars=13091
+[2026-06-27 14:44:32] [API] request success agent=Critique Agent attempt=2/12 elapsed=15.8s raw_chars=7202
+[2026-06-27 14:44:32] [API] request start agent=Evidence Agent attempt=1/12 prompt_chars=7825
+[2026-06-27 14:44:33] [API] request error agent=Evidence Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:44:33] [API] retry wait agent=Evidence Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:44:35] [API] request start agent=Evidence Agent attempt=2/12 prompt_chars=7825
+[2026-06-27 14:44:35] [API] request error agent=Evidence Agent attempt=2/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:44:35] [API] retry wait agent=Evidence Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:44:39] [API] request start agent=Evidence Agent attempt=3/12 prompt_chars=7825
+[2026-06-27 14:44:39] [API] request error agent=Evidence Agent attempt=3/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:44:39] [API] retry wait agent=Evidence Agent next_attempt=4/12 wait=8.0s
+[2026-06-27 14:44:47] [API] request start agent=Evidence Agent attempt=4/12 prompt_chars=7825
+[2026-06-27 14:44:48] [API] request error agent=Evidence Agent attempt=4/12 elapsed=0.6s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:44:48] [API] retry wait agent=Evidence Agent next_attempt=5/12 wait=16.0s
+[2026-06-27 14:45:04] [API] request start agent=Evidence Agent attempt=5/12 prompt_chars=7825
+[2026-06-27 14:45:11] [API] request success agent=Evidence Agent attempt=5/12 elapsed=6.9s raw_chars=2467
+[2026-06-27 14:45:11] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:45:20] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=8.7s raw_chars=3719
+[2026-06-27 14:45:20] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:45:28] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=8.6s raw_chars=3467
+[2026-06-27 14:45:28] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:45:39] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=10.9s raw_chars=4480
+[2026-06-27 14:45:39] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:45:40] [API] request error agent=Review Manager Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:45:40] [API] retry wait agent=Review Manager Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:45:42] [API] request start agent=Review Manager Agent attempt=2/12 prompt_chars=9285
+[2026-06-27 14:45:51] [API] request success agent=Review Manager Agent attempt=2/12 elapsed=9.4s raw_chars=4032
+[2026-06-27 14:45:52] [API] request start agent=Evidence Agent attempt=1/12 prompt_chars=8593
+[2026-06-27 14:45:54] [API] request success agent=Evidence Agent attempt=1/12 elapsed=2.5s raw_chars=757
+[2026-06-27 14:45:54] [API] request start agent=Evidence Agent attempt=1/12 prompt_chars=8593
+[2026-06-27 14:45:54] [API] request error agent=Evidence Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:45:54] [API] retry wait agent=Evidence Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:45:56] [API] request start agent=Evidence Agent attempt=2/12 prompt_chars=8593
+[2026-06-27 14:45:57] [API] request error agent=Evidence Agent attempt=2/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:45:57] [API] retry wait agent=Evidence Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:46:01] [API] request start agent=Evidence Agent attempt=3/12 prompt_chars=8593
+[2026-06-27 14:46:01] [API] request error agent=Evidence Agent attempt=3/12 elapsed=0.4s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:46:01] [API] retry wait agent=Evidence Agent next_attempt=4/12 wait=8.0s
+[2026-06-27 14:46:09] [API] request start agent=Evidence Agent attempt=4/12 prompt_chars=8593
+[2026-06-27 14:46:12] [API] request success agent=Evidence Agent attempt=4/12 elapsed=2.7s raw_chars=757
+[2026-06-27 14:46:12] [API] request start agent=Critique Agent attempt=1/12 prompt_chars=8030
+[2026-06-27 14:46:14] [API] request success agent=Critique Agent attempt=1/12 elapsed=2.1s raw_chars=418
+[2026-06-27 14:46:14] [API] request start agent=Critique Agent attempt=1/12 prompt_chars=13098
+[2026-06-27 14:46:24] [API] request success agent=Critique Agent attempt=1/12 elapsed=10.5s raw_chars=4503
+[2026-06-27 14:46:25] [API] request start agent=Evidence Agent attempt=1/12 prompt_chars=8754
+[2026-06-27 14:46:25] [API] request error agent=Evidence Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:46:25] [API] retry wait agent=Evidence Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:46:27] [API] request start agent=Evidence Agent attempt=2/12 prompt_chars=8754
+[2026-06-27 14:46:31] [API] request success agent=Evidence Agent attempt=2/12 elapsed=4.0s raw_chars=443
+[2026-06-27 14:46:31] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9284
+[2026-06-27 14:46:42] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=10.5s raw_chars=3939
+[2026-06-27 14:46:42] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9284
+[2026-06-27 14:46:50] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=8.4s raw_chars=3429
+[2026-06-27 14:46:50] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:46:50] [API] request error agent=Review Manager Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:46:50] [API] retry wait agent=Review Manager Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:46:53] [API] request start agent=Review Manager Agent attempt=2/12 prompt_chars=9285
+[2026-06-27 14:47:01] [API] request success agent=Review Manager Agent attempt=2/12 elapsed=8.9s raw_chars=3820
+[2026-06-27 14:47:01] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:47:02] [API] request error agent=Review Manager Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:47:02] [API] retry wait agent=Review Manager Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:47:04] [API] request start agent=Review Manager Agent attempt=2/12 prompt_chars=9285
+[2026-06-27 14:47:16] [API] request success agent=Review Manager Agent attempt=2/12 elapsed=12.0s raw_chars=4252
+[2026-06-27 14:47:16] [API] request start agent=Evidence Agent attempt=1/12 prompt_chars=7826
+[2026-06-27 14:47:24] [API] request success agent=Evidence Agent attempt=1/12 elapsed=7.1s raw_chars=2669
+[2026-06-27 14:47:24] [API] request start agent=Evidence Agent attempt=1/12 prompt_chars=8593
+[2026-06-27 14:47:24] [API] request error agent=Evidence Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:47:24] [API] retry wait agent=Evidence Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:47:26] [API] request start agent=Evidence Agent attempt=2/12 prompt_chars=8593
+[2026-06-27 14:47:26] [API] request error agent=Evidence Agent attempt=2/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:47:26] [API] retry wait agent=Evidence Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:47:30] [API] request start agent=Evidence Agent attempt=3/12 prompt_chars=8593
+[2026-06-27 14:47:37] [API] request success agent=Evidence Agent attempt=3/12 elapsed=6.5s raw_chars=2235
+[2026-06-27 14:47:37] [API] request start agent=Evidence Agent attempt=1/12 prompt_chars=7826
+[2026-06-27 14:47:37] [API] request error agent=Evidence Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:47:37] [API] retry wait agent=Evidence Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:47:39] [API] request start agent=Evidence Agent attempt=2/12 prompt_chars=7826
+[2026-06-27 14:47:39] [API] request error agent=Evidence Agent attempt=2/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:47:39] [API] retry wait agent=Evidence Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:47:43] [API] request start agent=Evidence Agent attempt=3/12 prompt_chars=7826
+[2026-06-27 14:47:43] [API] request error agent=Evidence Agent attempt=3/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:47:43] [API] retry wait agent=Evidence Agent next_attempt=4/12 wait=8.0s
+[2026-06-27 14:47:51] [API] request start agent=Evidence Agent attempt=4/12 prompt_chars=7826
+[2026-06-27 14:47:52] [API] request error agent=Evidence Agent attempt=4/12 elapsed=0.6s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:47:52] [API] retry wait agent=Evidence Agent next_attempt=5/12 wait=16.0s
+[2026-06-27 14:48:08] [API] request start agent=Evidence Agent attempt=5/12 prompt_chars=7826
+[2026-06-27 14:48:08] [API] request error agent=Evidence Agent attempt=5/12 elapsed=0.6s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:48:08] [API] retry wait agent=Evidence Agent next_attempt=6/12 wait=30.0s
+[2026-06-27 14:48:39] [API] request start agent=Evidence Agent attempt=6/12 prompt_chars=7826
+[2026-06-27 14:48:39] [API] request error agent=Evidence Agent attempt=6/12 elapsed=0.6s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:48:39] [API] retry wait agent=Evidence Agent next_attempt=7/12 wait=30.0s
+[2026-06-27 14:49:09] [API] request start agent=Evidence Agent attempt=7/12 prompt_chars=7826
+[2026-06-27 14:49:10] [API] request error agent=Evidence Agent attempt=7/12 elapsed=0.6s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:49:10] [API] retry wait agent=Evidence Agent next_attempt=8/12 wait=30.0s
+[2026-06-27 14:49:40] [API] request start agent=Evidence Agent attempt=8/12 prompt_chars=7826
+[2026-06-27 14:49:46] [API] request success agent=Evidence Agent attempt=8/12 elapsed=6.2s raw_chars=2362
+[2026-06-27 14:49:46] [API] request start agent=Critique Agent attempt=1/12 prompt_chars=8030
+[2026-06-27 14:49:46] [API] request error agent=Critique Agent attempt=1/12 elapsed=0.2s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:49:46] [API] retry wait agent=Critique Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:49:48] [API] request start agent=Critique Agent attempt=2/12 prompt_chars=8030
+[2026-06-27 14:49:48] [API] request error agent=Critique Agent attempt=2/12 elapsed=0.2s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:49:48] [API] retry wait agent=Critique Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:49:52] [API] request start agent=Critique Agent attempt=3/12 prompt_chars=8030
+[2026-06-27 14:49:53] [API] request error agent=Critique Agent attempt=3/12 elapsed=0.2s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:49:53] [API] retry wait agent=Critique Agent next_attempt=4/12 wait=8.0s
+[2026-06-27 14:50:01] [API] request start agent=Critique Agent attempt=4/12 prompt_chars=8030
+[2026-06-27 14:50:04] [API] request success agent=Critique Agent attempt=4/12 elapsed=3.6s raw_chars=624
+[2026-06-27 14:50:04] [API] request start agent=Evidence Agent attempt=1/12 prompt_chars=8748
+[2026-06-27 14:50:05] [API] request error agent=Evidence Agent attempt=1/12 elapsed=0.2s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:50:05] [API] retry wait agent=Evidence Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:50:07] [API] request start agent=Evidence Agent attempt=2/12 prompt_chars=8748
+[2026-06-27 14:50:07] [API] request error agent=Evidence Agent attempt=2/12 elapsed=0.2s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:50:07] [API] retry wait agent=Evidence Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:50:11] [API] request start agent=Evidence Agent attempt=3/12 prompt_chars=8748
+[2026-06-27 14:50:14] [API] request success agent=Evidence Agent attempt=3/12 elapsed=3.3s raw_chars=584
+[2026-06-27 14:50:15] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:50:15] [API] request error agent=Review Manager Agent attempt=1/12 elapsed=0.2s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:50:15] [API] retry wait agent=Review Manager Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:50:17] [API] request start agent=Review Manager Agent attempt=2/12 prompt_chars=9285
+[2026-06-27 14:50:17] [API] request error agent=Review Manager Agent attempt=2/12 elapsed=0.2s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:50:17] [API] retry wait agent=Review Manager Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:50:21] [API] request start agent=Review Manager Agent attempt=3/12 prompt_chars=9285
+[2026-06-27 14:50:21] [API] request error agent=Review Manager Agent attempt=3/12 elapsed=0.2s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:50:21] [API] retry wait agent=Review Manager Agent next_attempt=4/12 wait=8.0s
+[2026-06-27 14:50:29] [API] request start agent=Review Manager Agent attempt=4/12 prompt_chars=9285
+[2026-06-27 14:50:30] [API] request error agent=Review Manager Agent attempt=4/12 elapsed=0.5s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:50:30] [API] retry wait agent=Review Manager Agent next_attempt=5/12 wait=16.0s
+[2026-06-27 14:50:46] [API] request start agent=Review Manager Agent attempt=5/12 prompt_chars=9285
+[2026-06-27 14:50:57] [API] request success agent=Review Manager Agent attempt=5/12 elapsed=11.0s raw_chars=4250
+[2026-06-27 14:50:57] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:50:57] [API] request error agent=Review Manager Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:50:57] [API] retry wait agent=Review Manager Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:50:59] [API] request start agent=Review Manager Agent attempt=2/12 prompt_chars=9285
+[2026-06-27 14:51:00] [API] request error agent=Review Manager Agent attempt=2/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:51:00] [API] retry wait agent=Review Manager Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:51:04] [API] request start agent=Review Manager Agent attempt=3/12 prompt_chars=9285
+[2026-06-27 14:51:04] [API] request error agent=Review Manager Agent attempt=3/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:51:04] [API] retry wait agent=Review Manager Agent next_attempt=4/12 wait=8.0s
+[2026-06-27 14:51:12] [API] request start agent=Review Manager Agent attempt=4/12 prompt_chars=9285
+[2026-06-27 14:51:20] [API] request success agent=Review Manager Agent attempt=4/12 elapsed=8.5s raw_chars=3387
+[2026-06-27 14:51:20] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:51:21] [API] request error agent=Review Manager Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:51:21] [API] retry wait agent=Review Manager Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:51:23] [API] request start agent=Review Manager Agent attempt=2/12 prompt_chars=9285
+[2026-06-27 14:51:23] [API] request error agent=Review Manager Agent attempt=2/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:51:23] [API] retry wait agent=Review Manager Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:51:27] [API] request start agent=Review Manager Agent attempt=3/12 prompt_chars=9285
+[2026-06-27 14:51:37] [API] request success agent=Review Manager Agent attempt=3/12 elapsed=10.0s raw_chars=4092
+[2026-06-27 14:51:37] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:51:37] [API] request error agent=Review Manager Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:51:37] [API] retry wait agent=Review Manager Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:51:39] [API] request start agent=Review Manager Agent attempt=2/12 prompt_chars=9285
+[2026-06-27 14:51:48] [API] request success agent=Review Manager Agent attempt=2/12 elapsed=8.7s raw_chars=3662
+[2026-06-27 14:51:49] [API] request start agent=Critique Agent attempt=1/12 prompt_chars=11673
+[2026-06-27 14:51:52] [API] request success agent=Critique Agent attempt=1/12 elapsed=3.1s raw_chars=536
+[2026-06-27 14:51:52] [API] request start agent=Critique Agent attempt=1/12 prompt_chars=11672
+[2026-06-27 14:51:55] [API] request success agent=Critique Agent attempt=1/12 elapsed=2.6s raw_chars=497
+[2026-06-27 14:51:55] [API] request start agent=Critique Agent attempt=1/12 prompt_chars=8030
+[2026-06-27 14:51:57] [API] request success agent=Critique Agent attempt=1/12 elapsed=2.9s raw_chars=553
+[2026-06-27 14:51:57] [API] request start agent=Critique Agent attempt=1/12 prompt_chars=8028
+[2026-06-27 14:51:59] [API] request success agent=Critique Agent attempt=1/12 elapsed=2.0s raw_chars=489
+[2026-06-27 14:52:00] [API] request start agent=Evidence Agent attempt=1/12 prompt_chars=8754
+[2026-06-27 14:52:01] [API] request error agent=Evidence Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:52:01] [API] retry wait agent=Evidence Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:52:03] [API] request start agent=Evidence Agent attempt=2/12 prompt_chars=8754
+[2026-06-27 14:52:05] [API] request success agent=Evidence Agent attempt=2/12 elapsed=2.2s raw_chars=503
+[2026-06-27 14:52:05] [API] request start agent=Evidence Agent attempt=1/12 prompt_chars=8753
+[2026-06-27 14:52:05] [API] request error agent=Evidence Agent attempt=1/12 elapsed=0.4s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:52:05] [API] retry wait agent=Evidence Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:52:07] [API] request start agent=Evidence Agent attempt=2/12 prompt_chars=8753
+[2026-06-27 14:52:11] [API] request success agent=Evidence Agent attempt=2/12 elapsed=3.3s raw_chars=553
+[2026-06-27 14:52:12] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:52:12] [API] request error agent=Review Manager Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:52:12] [API] retry wait agent=Review Manager Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:52:14] [API] request start agent=Review Manager Agent attempt=2/12 prompt_chars=9285
+[2026-06-27 14:52:15] [API] request error agent=Review Manager Agent attempt=2/12 elapsed=0.4s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:52:15] [API] retry wait agent=Review Manager Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:52:19] [API] request start agent=Review Manager Agent attempt=3/12 prompt_chars=9285
+[2026-06-27 14:52:19] [API] request error agent=Review Manager Agent attempt=3/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:52:19] [API] retry wait agent=Review Manager Agent next_attempt=4/12 wait=8.0s
+[2026-06-27 14:52:27] [API] request start agent=Review Manager Agent attempt=4/12 prompt_chars=9285
+[2026-06-27 14:52:28] [API] request error agent=Review Manager Agent attempt=4/12 elapsed=0.6s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:52:28] [API] retry wait agent=Review Manager Agent next_attempt=5/12 wait=16.0s
+[2026-06-27 14:52:44] [API] request start agent=Review Manager Agent attempt=5/12 prompt_chars=9285
+[2026-06-27 14:52:53] [API] request success agent=Review Manager Agent attempt=5/12 elapsed=9.6s raw_chars=4012
+[2026-06-27 14:52:53] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:53:02] [API] request success agent=Review Manager Agent attempt=1/12 elapsed=8.8s raw_chars=3486
+[2026-06-27 14:53:02] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:53:02] [API] request error agent=Review Manager Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:53:02] [API] retry wait agent=Review Manager Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:53:04] [API] request start agent=Review Manager Agent attempt=2/12 prompt_chars=9285
+[2026-06-27 14:53:13] [API] request success agent=Review Manager Agent attempt=2/12 elapsed=8.7s raw_chars=3570
+[2026-06-27 14:53:13] [API] request start agent=Review Manager Agent attempt=1/12 prompt_chars=9285
+[2026-06-27 14:53:13] [API] request error agent=Review Manager Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:53:13] [API] retry wait agent=Review Manager Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:53:15] [API] request start agent=Review Manager Agent attempt=2/12 prompt_chars=9285
+[2026-06-27 14:53:16] [API] request error agent=Review Manager Agent attempt=2/12 elapsed=0.4s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:53:16] [API] retry wait agent=Review Manager Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:53:20] [API] request start agent=Review Manager Agent attempt=3/12 prompt_chars=9285
+[2026-06-27 14:53:20] [API] request error agent=Review Manager Agent attempt=3/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:53:20] [API] retry wait agent=Review Manager Agent next_attempt=4/12 wait=8.0s
+[2026-06-27 14:53:28] [API] request start agent=Review Manager Agent attempt=4/12 prompt_chars=9285
+[2026-06-27 14:53:37] [API] request success agent=Review Manager Agent attempt=4/12 elapsed=8.9s raw_chars=3258
+[2026-06-27 14:53:38] [API] request start agent=Critique Agent attempt=1/12 prompt_chars=11673
+[2026-06-27 14:53:38] [API] request error agent=Critique Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:53:38] [API] retry wait agent=Critique Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:53:40] [API] request start agent=Critique Agent attempt=2/12 prompt_chars=11673
+[2026-06-27 14:53:40] [API] request error agent=Critique Agent attempt=2/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:53:40] [API] retry wait agent=Critique Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:53:44] [API] request start agent=Critique Agent attempt=3/12 prompt_chars=11673
+[2026-06-27 14:53:46] [API] request success agent=Critique Agent attempt=3/12 elapsed=2.0s raw_chars=466
+[2026-06-27 14:53:46] [API] request start agent=Critique Agent attempt=1/12 prompt_chars=11673
+[2026-06-27 14:53:46] [API] request error agent=Critique Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:53:46] [API] retry wait agent=Critique Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:53:49] [API] request start agent=Critique Agent attempt=2/12 prompt_chars=11673
+[2026-06-27 14:53:49] [API] request error agent=Critique Agent attempt=2/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:53:49] [API] retry wait agent=Critique Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:53:53] [API] request start agent=Critique Agent attempt=3/12 prompt_chars=11673
+[2026-06-27 14:53:53] [API] request error agent=Critique Agent attempt=3/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:53:53] [API] retry wait agent=Critique Agent next_attempt=4/12 wait=8.0s
+[2026-06-27 14:54:01] [API] request start agent=Critique Agent attempt=4/12 prompt_chars=11673
+[2026-06-27 14:54:04] [API] request success agent=Critique Agent attempt=4/12 elapsed=2.5s raw_chars=499
+[2026-06-27 14:54:04] [API] request start agent=Critique Agent attempt=1/12 prompt_chars=11673
+[2026-06-27 14:54:04] [API] request error agent=Critique Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:54:04] [API] retry wait agent=Critique Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:54:06] [API] request start agent=Critique Agent attempt=2/12 prompt_chars=11673
+[2026-06-27 14:54:06] [API] request error agent=Critique Agent attempt=2/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:54:06] [API] retry wait agent=Critique Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:54:10] [API] request start agent=Critique Agent attempt=3/12 prompt_chars=11673
+[2026-06-27 14:54:11] [API] request error agent=Critique Agent attempt=3/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:54:11] [API] retry wait agent=Critique Agent next_attempt=4/12 wait=8.0s
+[2026-06-27 14:54:19] [API] request start agent=Critique Agent attempt=4/12 prompt_chars=11673
+[2026-06-27 14:54:22] [API] request success agent=Critique Agent attempt=4/12 elapsed=3.8s raw_chars=553
+[2026-06-27 14:54:22] [API] request start agent=Evidence Agent attempt=1/12 prompt_chars=7826
+[2026-06-27 14:54:23] [API] request error agent=Evidence Agent attempt=1/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:54:23] [API] retry wait agent=Evidence Agent next_attempt=2/12 wait=2.0s
+[2026-06-27 14:54:25] [API] request start agent=Evidence Agent attempt=2/12 prompt_chars=7826
+[2026-06-27 14:54:25] [API] request error agent=Evidence Agent attempt=2/12 elapsed=0.3s error=Error code: 429 - {'error': {'code': '429', 'message': 'Too many requests', 'type': 'limitation'}}
+[2026-06-27 14:54:25] [API] retry wait agent=Evidence Agent next_attempt=3/12 wait=4.0s
+[2026-06-27 14:54:29] [API] request start agent=Evidence Agent attempt=3/12 prompt_chars=7826
+[2026-06-27 14:54:36] [API] request success agent=Evidence Agent attempt=3/12 elapsed=7.2s raw_chars=2617
+{"paper_id": "xUe1YqEgd6", "mode": "s4", "reward": 0.6006738642781506, "final_decision": "reject", "model_adapter_mode": "small_model"}
+{"paper_id": "YXn76HMetm", "mode": "s4", "reward": 0.4711754103887768, "final_decision": "reject", "model_adapter_mode": "small_model"}
+{"paper_id": "KOUAayk5Kx", "mode": "s4", "reward": 0.6584904099098418, "final_decision": "reject", "model_adapter_mode": "small_model"}
+{"paper_id": "XH3OiIhtvf", "mode": "s4", "reward": 0.5565027046827061, "final_decision": "reject", "model_adapter_mode": "small_model"}
