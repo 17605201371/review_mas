@@ -29,6 +29,13 @@ _recovery_spec = importlib.util.spec_from_file_location(
 recovery_audit = importlib.util.module_from_spec(_recovery_spec)
 _recovery_spec.loader.exec_module(recovery_audit)
 
+_review_issue_spec = importlib.util.spec_from_file_location(
+    "audit_review_issue_case_table_v1",
+    str(REPO_ROOT / "scripts" / "audit_review_issue_case_table_v1.py"),
+)
+review_issue_audit = importlib.util.module_from_spec(_review_issue_spec)
+_review_issue_spec.loader.exec_module(review_issue_audit)
+
 BUNDLE_FIELDS = {
     "case_type", "paper_id", "claim", "quote", "locator",
     "positive_evidence", "negative_evidence", "state_transition",
@@ -334,9 +341,70 @@ def test_recovery_case_audit_separates_reviewer_absence_from_quote_grounded_nega
 
     _, summary = recovery_audit.build_recovery_case_table([row])
 
-    assert summary["bucket::reviewer_inferred_negative_repair"] == 1
-    assert summary["evidence_bucket::reviewer_absence_audit"] == 1
+    assert summary["bucket::verified_review_issue_repair"] == 1
+    assert summary["evidence_bucket::obligation_grounded_review_issue"] == 1
+    assert summary.get("bucket::reviewer_inferred_negative_repair", 0) == 0
+    assert summary.get("evidence_bucket::reviewer_absence_audit", 0) == 0
     assert summary.get("bucket::verified_review_negative_repair", 0) == 0
     assert summary.get("evidence_bucket::verified_review_negative", 0) == 0
-    assert summary["turns_with_reviewer_absence_audit_evidence"] == 1
+    assert summary["turns_with_verified_review_issue_bundle_evidence"] == 1
+    assert summary.get("turns_with_reviewer_absence_audit_evidence", 0) == 0
     assert summary.get("turns_with_verified_review_negative_evidence", 0) == 0
+
+
+def test_review_issue_case_audit_lists_obligation_grounded_issue_bundle():
+    inventory_quote = (
+        "Table 1 reports Benchmark-X accuracy for the proposed method and BERT "
+        "under the same evaluation setting."
+    )
+    row = {
+        "paper_id": "p-review-issue",
+        "review_state": {
+            "paper_id": "p-review-issue",
+            "claims": [
+                {
+                    "claim_id": "claim-1",
+                    "claim": "The method improves performance compared to the GPT-4 baseline.",
+                    "claim_kind": "paper_extracted",
+                    "claim_type": "comparison",
+                    "status": "supported",
+                }
+            ],
+            "reviewer_negative_candidates": [
+                {
+                    "candidate_id": "reviewer-neg-candidate-gpt4-baseline",
+                    "claim_id": "claim-1",
+                    "weakness": "The visible comparison table omits the GPT-4 baseline.",
+                    "negative_type": "missing_baseline",
+                    "required_evidence_type": "baseline_or_comparison",
+                    "quote_grounding_mode": "absence_or_requirement_gap",
+                    "missing_or_weak_items": ["GPT-4 baseline"],
+                    "observed_inventory": [
+                        {
+                            "quote": inventory_quote,
+                            "locator": "Table 1",
+                            "observed_items": ["BERT", "Benchmark-X"],
+                        }
+                    ],
+                    "status": "pending_absence_audit",
+                }
+            ],
+            "evidence_map": [],
+            "paper_text": (
+                "The method improves performance compared to the GPT-4 baseline.\n"
+                f"{inventory_quote}"
+            ),
+            "flaw_candidates": [],
+            "evidence_gaps": [],
+            "conflict_notes": [],
+            "unresolved_questions": [],
+        },
+        "turn_logs": [],
+    }
+
+    cases, summary = review_issue_audit.build_review_issue_case_table([row])
+
+    assert summary["verified_review_issue_cases"] == 1
+    assert summary["bucket::obligation_grounded_review_issue"] == 1
+    assert cases[0]["issue_type"] == "missing_baseline"
+    assert cases[0]["missing_or_mismatch"] == "GPT-4 baseline"

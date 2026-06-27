@@ -82,6 +82,11 @@ Rules:
 - Use stable new ids such as `claim-2`, `claim-3`, and `claim-4` when adding claims after an existing `claim-1`.
 - Do not return an empty `claims` array; put uncertainty in `evidence_need` and `unresolved_questions` instead of omitting all claims.
 - Set `claim_type`, `evidence_need`, and `coverage_tags` for every claim.
+- Set `claim_obligations` for every claim. These are the review evidence types a reviewer would expect before trusting the claim.
+  Use only: `baseline_or_comparison`, `ablation_or_component`, `empirical_result`, `robustness_or_generalization`,
+  `scope_coverage`, `evaluation_protocol`, `efficiency_cost`, `method_detail`, `reproducibility_detail`.
+- For empirical/comparison claims, include at least one of `empirical_result`, `baseline_or_comparison`, or `evaluation_protocol`.
+- For component/contribution claims, include `ablation_or_component` when the claim depends on a named module, architecture, or mechanism.
 - Few-shot pattern:
   - broad contribution claim: "The paper proposes a new framework for X." -> `claim_type="contribution"`, `coverage_tags=["contribution"]`
   - method claim: "The framework uses a retrieval-augmented encoder and contrastive objective." -> `claim_type="method"`, `coverage_tags=["method"]`
@@ -89,7 +94,7 @@ Rules:
   - limitation-sensitive claim: "The method is evaluated only under in-domain settings, leaving cross-domain robustness uncertain." -> `claim_type="limitation_or_boundary"`, `coverage_tags=["limitation","scope"]`
 - Use this schema:
 {
-  "claims": [{"claim_id": "claim-1", "claim": "...", "importance": "high|medium|low", "status": "supported|partially_supported|unsupported|uncertain", "claim_type": "contribution|method|empirical|limitation_or_boundary|comparison|other", "evidence_need": "method/result/table/limitation evidence needed", "coverage_tags": ["method|empirical|limitation|scope|comparison|contribution"]}],
+  "claims": [{"claim_id": "claim-1", "claim": "...", "importance": "high|medium|low", "status": "supported|partially_supported|unsupported|uncertain", "claim_type": "contribution|method|empirical|limitation_or_boundary|comparison|other", "evidence_need": "method/result/table/limitation evidence needed", "coverage_tags": ["method|empirical|limitation|scope|comparison|contribution"], "claim_obligations": ["baseline_or_comparison|ablation_or_component|empirical_result|robustness_or_generalization|scope_coverage|evaluation_protocol|efficiency_cost|method_detail|reproducibility_detail"]}],
   "unresolved_questions": ["open issue about a claim"],
   "dialogue_summary": "brief claim-focused summary",
   "recommendation": "accept|reject|undecided"
@@ -202,7 +207,7 @@ Do NOT count:
 - "not found" by itself as evidence
 
 # Output Rules
-Return up to 3 `reviewer_negative_candidates`.
+Return up to 4 `reviewer_negative_candidates`, preferably covering at least 2 different real claims when possible.
 Return `evidence_map: []` in this discovery stage. Do not output verified evidence, raw_quote-bound evidence, flaws, or claim status changes.
 
 Each candidate must include:
@@ -218,11 +223,83 @@ The `missing_or_weak_items` must list concrete entities or dimensions to verify,
 dataset, component/module, model size, hardware setting, or evaluation condition. Avoid vague items like
 "all relevant methods", "key competitors", "more datasets", or "comprehensive evaluation"; if the weakness
 cannot name a concrete item or dimension, do not emit that candidate.
+Each `missing_or_weak_items` entry must be a complete noun phrase, normally under 120 characters. Do not end an item
+with a preposition, dangling abbreviation, comma, slash, or unfinished parenthetical. Do not describe the problem as
+"the excerpt/current inventory does not show X"; that is a retrieval gap, not a paper-side review issue.
 
 Use only claim ids from `Evidence Action Context.allowed_claim_ids` or `Freeform Reviewer Negative Claim Context`. Never invent ids or use fallback/context ids.
 
 Required shape:
 <json>{"evidence_map":[],"reviewer_negative_candidates":[{"candidate_id":"reviewer-neg-candidate-1","claim_id":"claim-1","claim":"short target claim","weakness":"reviewer-style weakness to verify","negative_type":"evaluation_protocol_risk|negative_result|result_claim_mismatch|efficiency_cost_gap|direct_contradiction|missing_baseline|unfair_or_weak_baseline|missing_ablation|insufficient_evaluation|missing_robustness_or_generalization|method_support_gap|reproducibility_gap|scope_limitation","required_evidence_type":"baseline_or_comparison|ablation_or_component|empirical_result|robustness_or_generalization|evaluation_protocol|efficiency_cost|method_detail|reproducibility_detail","quote_grounding_mode":"quote_groundable_internal_negative|table_scope_absence|absence_or_requirement_gap","verification_question":"What exact paper text/table/result row would verify this weakness?","expected_quote_cues":["cannot compare","worse","Table 3"],"missing_or_weak_items":["named baseline/component/dataset/setting to verify"],"candidate_raw_quote":"verbatim quote cue for quote-groundable candidates, else empty","quote_id":"quote id if visible, else empty","source_locator":"section/table/figure if visible, else empty","rationale":"why a reviewer should check this issue","confidence":0.75,"status":"pending_quote_verification|pending_absence_audit"}],"conflict_notes":[],"unresolved_questions":[],"dialogue_summary":"brief summary of reviewer-negative candidate discovery","recommendation":"undecided"}</json>
+"""
+
+
+REVIEW_ISSUE_DISCOVERY_PROMPT = """
+# Hard Output Contract
+Your first token must be `<json>`. Output exactly one compact JSON object and then `</json>`.
+No prose, no reasoning, no markdown, no labels, no schema explanation, and no copied instructions.
+
+# Task Introduction
+{env_prompt}
+
+# Your Teammates' Outputs
+{team_context}
+
+# Your Role
+You are the "Critique Agent". Act like a peer reviewer and propose concrete paper-review issues for verification.
+This is issue hypothesis discovery only. Do not output verified evidence, claim status changes, or final decisions.
+
+# Core Semantics
+A real review issue is not always a copied negative quote. Many review defects are obligation mismatches:
+claim anchor + observed support/inventory + concrete missing or mismatched entity.
+Your job is to propose candidates that a later Evidence/State verification step can check.
+The verifier will reject generic obligation labels. "baseline evidence", "ablation evidence", "more datasets",
+"stronger baselines", or "comprehensive evaluation" are not concrete review issues.
+
+# Legal Candidate Routes
+1. `quote_groundable_internal_negative`: a copied paper quote/table/result/protocol statement can directly prove the issue.
+2. `table_scope_absence`: a visible table/list/experiment inventory can verify that a concrete expected item is absent.
+3. `absence_or_requirement_gap`: the claim creates a review obligation and the current verified support inventory appears not to satisfy it.
+
+# Candidate Requirements
+- Use only claim ids from `review_issue_discovery_targets`, `Hard-Negative Diagnosis Targets`, or the visible Critique State Slice. Never invent ids or use fallback/context/meta claims.
+- Prefer actionable reviewer issues: missing_baseline, unfair_or_weak_baseline, missing_ablation, insufficient_evaluation,
+  missing_robustness_or_generalization, evaluation_protocol_risk, efficiency_cost_gap, scope_overclaim,
+  result_claim_mismatch, method_support_gap, reproducibility_gap.
+- Each candidate must name a concrete missing/mismatch item, dimension, baseline, dataset, component, metric, protocol,
+  hardware/resource setting, or reproducibility detail. Do not emit vague "more experiments", "all baselines",
+  "more datasets", or "comprehensive evaluation".
+- Each `missing_or_weak_items` entry must be a complete noun phrase, normally under 120 characters. Do not end an item
+  with a preposition, dangling abbreviation, comma, slash, or an unfinished parenthetical. If you cannot name the
+  complete item, do not emit that candidate as a verifiable issue.
+- Do not frame the weakness as "the provided excerpt/current evidence inventory does not show X". That is a retrieval
+  gap, not a paper issue. Frame only paper-side obligations that can be checked against a claim anchor and paper
+  inventory.
+- For absence/coverage candidates, compare the claim's `missing_requirements` against `verified_support_inventory`.
+  Name what is missing relative to that inventory, e.g. a named baseline family, held-out dataset, component ablation,
+  metric, hardware/cost setting, or reproducibility detail. If you cannot name a concrete item, do not emit the candidate.
+- Use `issue_candidate_blueprints` when present. They are not evidence, but they tell you the concrete kind of
+  missing/mismatch item the verifier can audit. Convert a blueprint into a candidate only when you can name a
+  concrete item such as a baseline family, dataset, component, protocol dimension, hyperparameter/split detail,
+  hardware setting, or reproducibility detail. Do not copy the blueprint's generic rule as the missing item.
+- When `paper_evaluation_inventory` or the visible excerpt shows a table/list/experiment setup, include one
+  `observed_inventory` item with a copied `quote`, `locator`, and short `observed_items`. This quote is not a
+  negative quote; it is the paper-side inventory anchor that lets the verifier check an obligation mismatch.
+- If the issue is absence/coverage based, set `quote_grounding_mode="absence_or_requirement_gap"` and
+  `status="pending_absence_audit"`. It can become a verified review issue only if claim obligation, a concrete reviewer
+  candidate item, and verified support/inventory agree. Without a concrete observed inventory quote/list, it remains
+  diagnosis-pending rather than verified.
+- If the issue needs a direct paper quote/table row, set `status="pending_quote_verification"` and provide expected quote cues.
+- Author future-work/self-limitations, prior-work limitations, excerpt truncation, system retrieval gaps, and generic uncertainty are not verified paper issues by themselves.
+
+# Output Rules
+Return up to 4 `review_issue_candidates`. Prefer covering at least 2 different real claims when the targets support it.
+Return `evidence_map: []` and `flaw_candidates: []`.
+Do not cite `negative_evidence_ids`. Do not output recovery patches.
+At least 2 candidates should be `absence_or_requirement_gap` or `table_scope_absence` when concrete claim obligations and inventory anchors are visible; direct quote-groundable candidates still take priority when there is a real protocol/result/cost contradiction.
+
+Required shape:
+<json>{"evidence_map":[],"flaw_candidates":[],"review_issue_candidates":[{"candidate_id":"review-issue-candidate-1","claim_id":"claim-1","claim":"short target claim","weakness":"reviewer-style issue to verify","issue_type":"missing_baseline|unfair_or_weak_baseline|missing_ablation|insufficient_evaluation|missing_robustness_or_generalization|evaluation_protocol_risk|efficiency_cost_gap|scope_overclaim|result_claim_mismatch|method_support_gap|reproducibility_gap","required_evidence_type":"baseline_or_comparison|ablation_or_component|empirical_result|robustness_or_generalization|scope_coverage|evaluation_protocol|efficiency_cost|method_detail|reproducibility_detail","quote_grounding_mode":"quote_groundable_internal_negative|table_scope_absence|absence_or_requirement_gap","verification_question":"what exact quote/table/inventory or obligation audit would verify this issue?","expected_quote_cues":["Table","baseline","ablation"],"missing_or_weak_items":["specific named baseline/component/dataset/setting/dimension"],"observed_inventory":[{"quote":"copied paper table/list/experiment quote showing what was evaluated","locator":"Table 2 / Section 4.1","observed_items":["dataset/baseline/component/metric actually shown"]}],"candidate_raw_quote":"verbatim quote cue if visible, else empty","quote_id":"quote id if visible, else empty","source_locator":"section/table/figure if visible, else empty","source_of_expectation":"reviewer_candidate","rationale":"why a reviewer should check this issue against verified_support_inventory and paper_evaluation_inventory","confidence":0.75,"status":"pending_quote_verification|pending_absence_audit"}],"conflict_notes":[],"unresolved_questions":[],"dialogue_summary":"brief review-issue discovery summary","recommendation":"undecided"}</json>
 """
 
 

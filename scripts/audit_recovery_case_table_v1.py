@@ -25,6 +25,7 @@ from agent_system.environments.env_package.review.state import (
     REVIEW_NEGATIVE_VERIFIED_LABEL,
     _has_trusted_existing_grounding,
     _is_grounded_paper_negative_evidence_record,
+    _is_obligation_grounded_review_issue_evidence_record,
     _is_reviewer_absence_audit_evidence_record,
     _negative_evidence_type_for_record,
     _review_negative_label_for_record,
@@ -100,6 +101,8 @@ def _evidence_bucket(state: Dict[str, Any], evidence: Dict[str, Any]) -> str:
         return f"{source.replace(' ', '_')}_candidate"
     if source in {"model-output", "model output", "manager_model"} or source_locator in {"model-output", "model output", "manager_model"}:
         return "untrusted_model_output"
+    if _is_obligation_grounded_review_issue_evidence_record(evidence, state):
+        return "obligation_grounded_review_issue"
     if _is_reviewer_absence_audit_evidence_record(evidence, state):
         return "reviewer_absence_audit"
     if source == "reviewer_absence_audit" or evidence.get("absence_audit_verified"):
@@ -118,6 +121,28 @@ def _evidence_bucket(state: Dict[str, Any], evidence: Dict[str, Any]) -> str:
     return "not_verified_or_unknown"
 
 
+def _review_issue_bundle_display(evidence: Dict[str, Any]) -> Tuple[str, str]:
+    bundle = evidence.get("review_issue_bundle") if isinstance(evidence, dict) else {}
+    if not isinstance(bundle, dict):
+        return "", ""
+    missing = bundle.get("missing_or_mismatch")
+    missing_items: List[str] = []
+    if isinstance(missing, dict):
+        missing_items = [str(item) for item in (missing.get("items") or [missing.get("entity")]) if str(item or "").strip()]
+    inventory = [item for item in (bundle.get("observed_inventory") or []) if isinstance(item, dict)]
+    inv0 = inventory[0] if inventory else {}
+    locator = _clip(inv0.get("locator") or evidence.get("source_locator") or evidence.get("source"), 120)
+    missing_text = "; ".join(_clip(item, 90) for item in missing_items)
+    inventory_quote = _clip(inv0.get("quote"), 150)
+    if missing_text and inventory_quote:
+        return locator, f"missing/mismatch: {missing_text}; observed inventory: {inventory_quote}"
+    if missing_text:
+        return locator, f"missing/mismatch: {missing_text}"
+    if inventory_quote:
+        return locator, f"observed inventory: {inventory_quote}"
+    return locator, ""
+
+
 def _evidence_summary(state: Dict[str, Any], evidence_ids: List[str]) -> Tuple[List[Dict[str, Any]], Counter]:
     by_id = _evidence_lookup(state)
     summaries: List[Dict[str, Any]] = []
@@ -126,6 +151,12 @@ def _evidence_summary(state: Dict[str, Any], evidence_ids: List[str]) -> Tuple[L
         evidence = by_id.get(str(evidence_id) or "", {})
         bucket = _evidence_bucket(state, evidence)
         counts[bucket] += 1
+        display_locator = _clip((evidence or {}).get("source_locator") or (evidence or {}).get("source"), 120)
+        display_quote = _clip((evidence or {}).get("raw_quote") or (evidence or {}).get("evidence"), 220)
+        if bucket == "obligation_grounded_review_issue":
+            bundle_locator, bundle_quote = _review_issue_bundle_display(evidence)
+            display_locator = bundle_locator or display_locator
+            display_quote = bundle_quote or display_quote
         summaries.append(
             {
                 "evidence_id": str(evidence_id),
@@ -133,8 +164,8 @@ def _evidence_summary(state: Dict[str, Any], evidence_ids: List[str]) -> Tuple[L
                 "negative_type": _negative_evidence_type_for_record(evidence) if evidence else "",
                 "review_negative_label": _review_negative_label_for_record(evidence, state) if evidence else "",
                 "trusted_grounding": bool(evidence and _has_trusted_existing_grounding(evidence)),
-                "locator": _clip((evidence or {}).get("source_locator") or (evidence or {}).get("source"), 120),
-                "raw_quote": _clip((evidence or {}).get("raw_quote") or (evidence or {}).get("evidence"), 220),
+                "locator": display_locator,
+                "raw_quote": display_quote,
             }
         )
     return summaries, counts
@@ -155,6 +186,8 @@ def _narrative_bucket(turn: Dict[str, Any], evidence_counts: Counter) -> str:
     if operation in {"downgrade_claim_to_unsupported", "mark_contested"}:
         if evidence_counts.get("verified_review_negative", 0) > 0:
             return "verified_review_negative_repair"
+        if evidence_counts.get("obligation_grounded_review_issue", 0) > 0:
+            return "verified_review_issue_repair"
         if evidence_counts.get("reviewer_absence_audit", 0) > 0:
             return "reviewer_inferred_negative_repair"
         return "effective_repair_without_verified_negative"
@@ -165,6 +198,8 @@ def _narrative_bucket(turn: Dict[str, Any], evidence_counts: Counter) -> str:
     if operation == "downgrade_final_to_candidate":
         if evidence_counts.get("verified_review_negative", 0) > 0:
             return "verified_negative_flaw_lifecycle_downgrade"
+        if evidence_counts.get("obligation_grounded_review_issue", 0) > 0:
+            return "verified_review_issue_lifecycle_downgrade"
         if evidence_counts.get("reviewer_absence_audit", 0) > 0:
             return "reviewer_inferred_flaw_lifecycle_downgrade"
         return "flaw_lifecycle_downgrade_needs_manual_review"
@@ -215,6 +250,8 @@ def build_recovery_case_table(rows: Iterable[Dict[str, Any]]) -> Tuple[List[Dict
                     summary["effective_repair_not_verified_negative_repair"] += 1
             if evidence_counts.get("verified_review_negative", 0):
                 summary["turns_with_verified_review_negative_evidence"] += 1
+            if evidence_counts.get("obligation_grounded_review_issue", 0):
+                summary["turns_with_verified_review_issue_bundle_evidence"] += 1
             if evidence_counts.get("reviewer_absence_audit", 0):
                 summary["turns_with_reviewer_absence_audit_evidence"] += 1
             if evidence_counts:

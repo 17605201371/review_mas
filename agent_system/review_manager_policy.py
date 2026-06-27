@@ -80,8 +80,13 @@ _COMPACT_NEGATIVE_PASS_SOURCE = "compact_negative_pass_override"
 _HARDNEG_DIAGNOSIS_ENABLED = os.environ.get("DRMAS_HARDNEG_DIAGNOSIS", "").strip().lower() in {"1", "true", "on", "yes"}
 _TARGETED_NEGATIVE_SEARCH_ENABLED = os.environ.get("DRMAS_TARGETED_NEGATIVE_SEARCH", "").strip().lower() in {"1", "true", "on", "yes"}
 _TARGETED_NEGATIVE_SEARCH_SOURCE = "targeted_negative_search_override"
-_FREEFORM_REVIEWER_NEGATIVE_ENABLED = os.environ.get("DRMAS_FREEFORM_REVIEWER_NEGATIVE", "").strip().lower() in {"1", "true", "on", "yes"}
+_REVIEW_ISSUE_BUNDLE_ENABLED = os.environ.get("DRMAS_REVIEW_ISSUE_BUNDLE", "1").strip().lower() not in {"0", "false", "off", "no"}
+_FREEFORM_REVIEWER_NEGATIVE_ENABLED = (
+    os.environ.get("DRMAS_FREEFORM_REVIEWER_NEGATIVE", "").strip().lower() in {"1", "true", "on", "yes"}
+    or _REVIEW_ISSUE_BUNDLE_ENABLED
+)
 _FREEFORM_REVIEWER_NEGATIVE_DISCOVERY_SOURCE = "freeform_reviewer_negative_discovery_override"
+_REVIEW_ISSUE_DISCOVERY_SOURCE = "review_issue_discovery_override"
 _TARGETED_REVIEWER_NEGATIVE_MAX_ATTEMPTS = 2
 _NEGATIVE_FORMATION_POLICY_SOURCES = frozenset(
     {
@@ -106,7 +111,10 @@ else:
 
 
 def _diagpending_recovery_policy_enabled() -> bool:
-    return os.environ.get("DRMAS_DIAGPENDING_RECOVERY", "").strip().lower() in {
+    raw = os.environ.get("DRMAS_DIAGPENDING_RECOVERY")
+    if raw is None or not str(raw).strip():
+        return bool(_REVIEW_ISSUE_BUNDLE_ENABLED)
+    return str(raw).strip().lower() in {
         "1",
         "true",
         "on",
@@ -1339,9 +1347,82 @@ def _claim_verified_positive_support_ids_for_policy(state: Dict[str, Any], claim
     return support_ids
 
 
+def _verified_review_issue_contested_recovery_claim_ids(state: Dict[str, Any], *, limit: int = 2) -> List[str]:
+    if not _diagpending_recovery_policy_enabled():
+        return []
+    issue_state = state or {}
+    review_issues = [
+        item for item in issue_state.get("review_issues", []) or []
+        if isinstance(item, dict)
+    ]
+    if not review_issues:
+        try:
+            issue_state = build_decision_hygiene_view(dict(state or {}))
+            review_issues = [
+                item for item in issue_state.get("review_issues", []) or []
+                if isinstance(item, dict)
+            ]
+        except Exception:
+            review_issues = []
+    if not review_issues:
+        return []
+
+    existing_contested_issue_ids = {
+        str(issue_id or "").strip()
+        for relation in (state or {}).get("contested_relations", []) or []
+        if isinstance(relation, dict)
+        for issue_id in relation.get("review_issue_bundle_ids", []) or []
+        if str(issue_id or "").strip()
+    }
+    existing_contested_evidence_ids = {
+        str(evidence_id or "").strip()
+        for relation in (state or {}).get("contested_relations", []) or []
+        if isinstance(relation, dict)
+        for evidence_id in relation.get("negative_evidence_ids", []) or []
+        if str(evidence_id or "").strip()
+    }
+    claim_lookup = {
+        str(item.get("claim_id") or "").strip(): item
+        for item in (state or {}).get("claims", []) or []
+        if isinstance(item, dict) and str(item.get("claim_id") or "").strip()
+    }
+    selected: List[str] = []
+    for issue in review_issues:
+        issue_id = str(issue.get("issue_id") or "").strip()
+        claim_id = str(issue.get("claim_id") or "").strip()
+        if not issue_id or not claim_id:
+            continue
+        if str(issue.get("verification_status") or "").strip() != "verified_review_issue":
+            continue
+        if str(issue.get("recovery_status") or "").strip().lower() in {"contested", "resolved", "downgraded", "retracted"}:
+            continue
+        evidence_ids = [
+            str(item or "").strip()
+            for item in issue.get("evidence_ids", []) or []
+            if str(item or "").strip()
+        ]
+        if issue_id in existing_contested_issue_ids or any(eid in existing_contested_evidence_ids for eid in evidence_ids):
+            continue
+        claim = claim_lookup.get(claim_id)
+        if not _claim_item_is_recovery_usable(claim or {}, require_claim_text=True):
+            continue
+        if str((claim or {}).get("status") or "").strip().lower() not in _RECOVERY_ELIGIBLE_CLAIM_STATUSES:
+            continue
+        if not _claim_verified_positive_support_ids_for_policy(state, claim_id):
+            continue
+        if claim_id not in selected:
+            selected.append(claim_id)
+        if len(selected) >= limit:
+            break
+    return selected
+
+
 def _absence_audit_contested_recovery_claim_ids(state: Dict[str, Any], *, limit: int = 2) -> List[str]:
     if not _diagpending_recovery_policy_enabled():
         return []
+    first_class_issue_claim_ids = _verified_review_issue_contested_recovery_claim_ids(state, limit=limit)
+    if first_class_issue_claim_ids:
+        return first_class_issue_claim_ids
     try:
         view_state = dict(state or {})
         view_state.pop("decision_hygiene", None)
@@ -3100,21 +3181,28 @@ def apply_manager_policy_fallback(
                 payload["phase"] = "normal_review"
                 payload["turn_mode"] = "normal_evidence"
                 if freeform_reviewer_negative_discovery_needed:
-                    # First stage: let the Evidence Agent behave like a reviewer
-                    # and propose weakness hypotheses.  This is not an evidence
-                    # formation attempt; the following targeted pass must still
-                    # find copied paper text before anything becomes verified
-                    # negative evidence.
-                    policy_source = _FREEFORM_REVIEWER_NEGATIVE_DISCOVERY_SOURCE
+                    # First stage: Critique proposes review-issue hypotheses.
+                    # This deliberately does not create verified evidence or
+                    # mutate claim status; the following Evidence/State pass
+                    # must verify quote-grounded or obligation-grounded bundles.
+                    if _REVIEW_ISSUE_BUNDLE_ENABLED:
+                        action_type = "analyze_flaws"
+                        payload["action_type"] = "analyze_flaws"
+                        payload["effective_action_type"] = "analyze_flaws"
+                        policy_source = _REVIEW_ISSUE_DISCOVERY_SOURCE
+                        payload["review_issue_discovery_required"] = True
+                    else:
+                        policy_source = _FREEFORM_REVIEWER_NEGATIVE_DISCOVERY_SOURCE
+                        payload["review_issue_discovery_required"] = False
                     payload["negative_evidence_formation_required"] = False
                     payload["targeted_negative_search_required"] = False
                     payload["freeform_reviewer_negative_discovery_required"] = True
                     payload["freeform_reviewer_negative_enabled"] = True
                     payload["freeform_reviewer_negative_stage"] = "candidate_discovery"
                     payload["focus"] = (
-                        "Act like a peer reviewer and propose likely paper weaknesses for the strongest real claims. "
-                        "Do not create verified negative evidence in this turn; output reviewer_negative_candidates "
-                        "that a later Evidence Agent pass can verify against copied paper text."
+                        "Act like a peer reviewer and propose likely paper review issues for the strongest real claims. "
+                        "Do not create verified negative evidence in this turn; output review_issue_candidates "
+                        "that a later Evidence/State pass can verify as quote-grounded evidence or obligation-grounded issue bundles."
                     )
                 else:
                     # Target generator path: keep formation in the Evidence Agent. The worker receives

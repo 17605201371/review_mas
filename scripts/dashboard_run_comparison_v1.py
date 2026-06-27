@@ -142,29 +142,50 @@ def _load_jsonl(path: Path) -> List[Dict[str, Any]]:
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
-def _hygiene(row: Dict[str, Any]) -> Dict[str, Any]:
+_DASHBOARD_VIEW_CACHE_KEY = "__dashboard_decision_view_cache"
+_DASHBOARD_HYGIENE_CACHE_KEY = "__dashboard_hygiene_cache"
+_DASHBOARD_SUPPORT_TRACE_CACHE_KEY = "__dashboard_support_trace_cache"
+
+
+def _decision_view(row: Dict[str, Any]) -> Dict[str, Any]:
+    cached = row.get(_DASHBOARD_VIEW_CACHE_KEY)
+    if isinstance(cached, dict):
+        return cached
     state = row.get("review_state") or {}
     if isinstance(state, dict):
         try:
             state_for_view = copy.deepcopy(state)
             state_for_view.pop("decision_hygiene", None)
             view = build_decision_hygiene_view(state_for_view)
-            hygiene = view.get("decision_hygiene") if isinstance(view, dict) else None
-            if isinstance(hygiene, dict) and hygiene:
-                return hygiene
+            if isinstance(view, dict):
+                row[_DASHBOARD_VIEW_CACHE_KEY] = view
+                return view
         except Exception:
             pass
-    return (((state or {}).get("state_audit") or {}).get("decision_hygiene") or {})
+    return state if isinstance(state, dict) else {}
+
+
+def _hygiene(row: Dict[str, Any]) -> Dict[str, Any]:
+    cached = row.get(_DASHBOARD_HYGIENE_CACHE_KEY)
+    if isinstance(cached, dict):
+        return cached
+    state = _decision_view(row)
+    hygiene = state.get("decision_hygiene") if isinstance(state, dict) else None
+    if not isinstance(hygiene, dict) or not hygiene:
+        raw_state = row.get("review_state") or {}
+        hygiene = (((raw_state or {}).get("state_audit") or {}).get("decision_hygiene") or {})
+    row[_DASHBOARD_HYGIENE_CACHE_KEY] = hygiene if isinstance(hygiene, dict) else {}
+    return row[_DASHBOARD_HYGIENE_CACHE_KEY]
 
 
 def _support_trace(row: Dict[str, Any]) -> List[Dict[str, Any]]:
-    state = row.get("review_state") or {}
-    if not isinstance(state, dict):
-        return []
+    cached = row.get(_DASHBOARD_SUPPORT_TRACE_CACHE_KEY)
+    if isinstance(cached, list):
+        return cached
     try:
-        state_for_view = copy.deepcopy(state)
-        state_for_view.pop("decision_hygiene", None)
-        return _build_support_survival_trace(build_decision_hygiene_view(state_for_view))
+        trace = _build_support_survival_trace(_decision_view(row))
+        row[_DASHBOARD_SUPPORT_TRACE_CACHE_KEY] = trace
+        return trace
     except Exception:
         return []
 
@@ -222,14 +243,7 @@ def _turn_has_harmful_commit_risk(tl: Dict[str, Any]) -> bool:
 
 
 def _row_evidence_lookup(row: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
-    state = row.get("review_state") or {}
-    if isinstance(state, dict):
-        try:
-            state_for_view = copy.deepcopy(state)
-            state_for_view.pop("decision_hygiene", None)
-            state = build_decision_hygiene_view(state_for_view)
-        except Exception:
-            state = row.get("review_state") or {}
+    state = _decision_view(row)
     return {
         str(item.get("evidence_id") or ""): item
         for item in state.get("evidence_map") or []
@@ -471,14 +485,7 @@ def _recovery_case_summary(rows: Iterable[Dict[str, Any]]) -> Counter[str]:
 def _unresolved_status_counts(rows: Iterable[Dict[str, Any]], *, final_view: bool = True) -> Counter[str]:
     counts: Counter[str] = Counter()
     for row in rows:
-        state = row.get("review_state") or {}
-        if final_view and isinstance(state, dict):
-            try:
-                state_for_view = copy.deepcopy(state)
-                state_for_view.pop("decision_hygiene", None)
-                state = build_decision_hygiene_view(state_for_view)
-            except Exception:
-                pass
+        state = _decision_view(row) if final_view else (row.get("review_state") or {})
         for item in state.get("unresolved_questions") or []:
             if isinstance(item, dict):
                 status = str(item.get("status") or "open").strip().lower() or "open"
@@ -735,6 +742,29 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     out["reviewer_absence_verified_claim_count"] = _sum(rows, "reviewer_absence_verified_claim_count")
     out["reviewer_absence_verified_flaw_count"] = _sum(rows, "reviewer_absence_verified_flaw_count")
     out["total_review_negative_verified_count"] = _sum(rows, "total_review_negative_verified_count")
+    out["quote_grounded_review_issue_count"] = _sum(rows, "quote_grounded_review_issue_count")
+    out["obligation_grounded_review_issue_count"] = _sum(rows, "obligation_grounded_review_issue_count")
+    out["obligation_grounded_review_issue_claim_count"] = _sum(rows, "obligation_grounded_review_issue_claim_count")
+    out["verified_review_issue_count"] = _sum(rows, "verified_review_issue_count")
+    out["verified_review_issue_claim_count"] = _sum(rows, "verified_review_issue_claim_count")
+    out["review_issue_bundle_count"] = _sum(rows, "review_issue_bundle_count")
+    review_issue_type_counts: Counter[str] = Counter()
+    for row in rows:
+        review_issue_type_counts.update(_hygiene(row).get("obligation_grounded_review_issue_type_counts") or {})
+    for issue_type in (
+        "missing_ablation",
+        "missing_baseline",
+        "unfair_or_weak_baseline",
+        "insufficient_evaluation",
+        "missing_robustness_or_generalization",
+        "evaluation_protocol_risk",
+        "efficiency_cost_gap",
+        "scope_overclaim",
+        "result_claim_mismatch",
+        "method_support_gap",
+        "reproducibility_gap",
+    ):
+        out[f"review_issue_type_{issue_type}"] = int(review_issue_type_counts.get(issue_type, 0))
     out["paper_text_negative_candidate_count"] = _sum(rows, "paper_text_negative_candidate_count")
     out["author_limitation_only_count"] = _sum(rows, "author_limitation_only_count")
     out["prior_work_limitation_count"] = _sum(rows, "prior_work_limitation_count")
@@ -1215,8 +1245,10 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     )
     for bucket in (
         "verified_review_negative_repair",
+        "verified_review_issue_repair",
         "reviewer_inferred_negative_repair",
         "verified_negative_flaw_lifecycle_downgrade",
+        "verified_review_issue_lifecycle_downgrade",
         "reviewer_inferred_flaw_lifecycle_downgrade",
         "state_hygiene_repair",
         "assessment_limitation_routing",
@@ -1229,6 +1261,7 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
         out[f"recovery_case_{bucket}"] = int(recovery_case_summary.get(f"bucket::{bucket}", 0) or 0)
     for bucket in (
         "verified_review_negative",
+        "obligation_grounded_review_issue",
         "reviewer_absence_audit",
         "author_limitation_only",
         "prior_work_limitation",
@@ -1253,6 +1286,9 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     )
     out["recovery_case_turns_with_verified_review_negative_evidence"] = int(
         recovery_case_summary.get("turns_with_verified_review_negative_evidence", 0) or 0
+    )
+    out["recovery_case_turns_with_verified_review_issue_bundle_evidence"] = int(
+        recovery_case_summary.get("turns_with_verified_review_issue_bundle_evidence", 0) or 0
     )
     out["recovery_case_turns_with_reviewer_absence_audit_evidence"] = int(
         recovery_case_summary.get("turns_with_reviewer_absence_audit_evidence", 0) or 0
@@ -1289,7 +1325,7 @@ def _count_low_score_promoted_strong(rows: List[Dict[str, Any]]) -> int:
     """
     count = 0
     for r in rows:
-        rs = r.get("review_state") or {}
+        rs = _decision_view(r)
         for ev in rs.get("evidence_map") or []:
             if not isinstance(ev, dict):
                 continue
@@ -1604,6 +1640,23 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "reviewer_absence_verified_claim_count",
         "reviewer_absence_verified_flaw_count",
         "total_review_negative_verified_count",
+        "quote_grounded_review_issue_count",
+        "obligation_grounded_review_issue_count",
+        "obligation_grounded_review_issue_claim_count",
+        "verified_review_issue_count",
+        "verified_review_issue_claim_count",
+        "review_issue_bundle_count",
+        "review_issue_type_missing_ablation",
+        "review_issue_type_missing_baseline",
+        "review_issue_type_unfair_or_weak_baseline",
+        "review_issue_type_insufficient_evaluation",
+        "review_issue_type_missing_robustness_or_generalization",
+        "review_issue_type_evaluation_protocol_risk",
+        "review_issue_type_efficiency_cost_gap",
+        "review_issue_type_scope_overclaim",
+        "review_issue_type_result_claim_mismatch",
+        "review_issue_type_method_support_gap",
+        "review_issue_type_reproducibility_gap",
         "paper_text_negative_candidate_count",
         "author_limitation_only_count",
         "prior_work_limitation_count",
@@ -1785,8 +1838,10 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "recovery_case_audit_error_count",
         "recovery_case_decision_hygiene_error_count",
         "recovery_case_verified_review_negative_repair",
+        "recovery_case_verified_review_issue_repair",
         "recovery_case_reviewer_inferred_negative_repair",
         "recovery_case_verified_negative_flaw_lifecycle_downgrade",
+        "recovery_case_verified_review_issue_lifecycle_downgrade",
         "recovery_case_reviewer_inferred_flaw_lifecycle_downgrade",
         "recovery_case_state_hygiene_repair",
         "recovery_case_assessment_limitation_routing",
@@ -1798,8 +1853,10 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "recovery_case_effective_repair_turns",
         "recovery_case_effective_repair_not_verified_negative_repair",
         "recovery_case_turns_with_verified_review_negative_evidence",
+        "recovery_case_turns_with_verified_review_issue_bundle_evidence",
         "recovery_case_turns_with_reviewer_absence_audit_evidence",
         "recovery_case_evidence_bucket_verified_review_negative",
+        "recovery_case_evidence_bucket_obligation_grounded_review_issue",
         "recovery_case_evidence_bucket_reviewer_absence_audit",
         "recovery_case_evidence_bucket_author_limitation_only",
         "recovery_case_evidence_bucket_prior_work_limitation",

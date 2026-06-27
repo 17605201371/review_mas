@@ -80,8 +80,29 @@ fi
 API_MAX_WORKERS="${API_MAX_WORKERS:-4}"
 API_MAX_RETRIES="${API_MAX_RETRIES:-5}"
 API_TIMEOUT="${API_TIMEOUT:-600}"
+MAX_TOKENS="${MAX_TOKENS:-768}"
 
-RUN_TAG="mimo_v25_negqty_recoverycap_guard3${MODE_SUFFIX}_hardneg20_mt7_b4w2_api${API_MAX_WORKERS}_r${API_MAX_RETRIES}t${API_TIMEOUT}_$(date +%Y%m%d_%H%M%S)"
+# P27 review-issue bundle pipeline.  These flags keep direct quote-grounded
+# negative evidence strict while letting obligation-grounded reviewer issues
+# become first-class verified review issues when a claim anchor, observed paper
+# inventory, and concrete missing/mismatch item are all verified.
+TARGETED_NEGATIVE_SEARCH="${DRMAS_TARGETED_NEGATIVE_SEARCH:-}"
+FREEFORM_REVIEWER_NEGATIVE="${DRMAS_FREEFORM_REVIEWER_NEGATIVE:-}"
+REVIEW_ISSUE_BUNDLE="${DRMAS_REVIEW_ISSUE_BUNDLE:-}"
+export DRMAS_TARGETED_NEGATIVE_SEARCH="${TARGETED_NEGATIVE_SEARCH}"
+export DRMAS_FREEFORM_REVIEWER_NEGATIVE="${FREEFORM_REVIEWER_NEGATIVE}"
+export DRMAS_REVIEW_ISSUE_BUNDLE="${REVIEW_ISSUE_BUNDLE}"
+if [[ "${TARGETED_NEGATIVE_SEARCH}" == "1" || "${TARGETED_NEGATIVE_SEARCH}" == "true" || "${TARGETED_NEGATIVE_SEARCH}" == "on" || "${TARGETED_NEGATIVE_SEARCH}" == "yes" ]]; then
+  MODE_SUFFIX="${MODE_SUFFIX}_targetneg"
+fi
+if [[ "${FREEFORM_REVIEWER_NEGATIVE}" == "1" || "${FREEFORM_REVIEWER_NEGATIVE}" == "true" || "${FREEFORM_REVIEWER_NEGATIVE}" == "on" || "${FREEFORM_REVIEWER_NEGATIVE}" == "yes" ]]; then
+  MODE_SUFFIX="${MODE_SUFFIX}_freeformrevneg"
+fi
+if [[ "${REVIEW_ISSUE_BUNDLE}" == "1" || "${REVIEW_ISSUE_BUNDLE}" == "true" || "${REVIEW_ISSUE_BUNDLE}" == "on" || "${REVIEW_ISSUE_BUNDLE}" == "yes" ]]; then
+  MODE_SUFFIX="${MODE_SUFFIX}_reviewissuebundle"
+fi
+
+RUN_TAG="mimo_v25_negqty_recoverycap_guard3${MODE_SUFFIX}_hardneg20_mt7_b4w2_api${API_MAX_WORKERS}_r${API_MAX_RETRIES}t${API_TIMEOUT}_tok${MAX_TOKENS}_$(date +%Y%m%d_%H%M%S)"
 OUTPUT_PATH="${RUN_TAG}.jsonl"
 LOG_FILE="${RUN_TAG}.log"
 LOG_DIR="${RUN_TAG}_logs"
@@ -114,7 +135,7 @@ fi
 cat > "${META_FILE}" <<EOF
 run_base=${RUN_TAG}
 start_time=$(date '+%Y-%m-%d %H:%M:%S %Z')
-params=max_turns=7 manager_batch_size=4 api_max_workers=${API_MAX_WORKERS} api_max_retries=${API_MAX_RETRIES} api_timeout=${API_TIMEOUT} dataset=${DATASET} mode=s4 model=mimo-v2.5 max_tokens=768 temperature=1.0 top_p=0.95 model_adapter_mode=small_model code_commit=${CODE_COMMIT} code_dirty=${CODE_DIRTY} neg_discovery_mode=${NEG_MODE} neg_reclassify=${NEG_RECLASSIFY:-off} neg_quote_hygiene=${NEG_QUOTE_HYGIENE:-off} negative_pass_mode=${NEGATIVE_PASS_MODE} hardneg_diagnosis=${HARDNEG_DIAGNOSIS:-off}
+params=max_turns=7 manager_batch_size=4 api_max_workers=${API_MAX_WORKERS} api_max_retries=${API_MAX_RETRIES} api_timeout=${API_TIMEOUT} dataset=${DATASET} mode=s4 model=mimo-v2.5 max_tokens=${MAX_TOKENS} temperature=1.0 top_p=0.95 model_adapter_mode=small_model code_commit=${CODE_COMMIT} code_dirty=${CODE_DIRTY} neg_discovery_mode=${NEG_MODE} neg_reclassify=${NEG_RECLASSIFY:-off} neg_quote_hygiene=${NEG_QUOTE_HYGIENE:-off} negative_pass_mode=${NEGATIVE_PASS_MODE} hardneg_diagnosis=${HARDNEG_DIAGNOSIS:-off} targeted_negative_search=${TARGETED_NEGATIVE_SEARCH:-off} freeform_reviewer_negative=${FREEFORM_REVIEWER_NEGATIVE:-off} review_issue_bundle=${REVIEW_ISSUE_BUNDLE:-default_on}
 launch_mode=background
 EOF
 
@@ -133,7 +154,7 @@ NO_PROXY="*" HTTPS_PROXY="" HTTP_PROXY="" PYTHONPATH="${PYTHONPATH_VALUE}" nohup
   --manager-batch-size 4 \
   --temperature 1.0 \
   --top-p 0.95 \
-  --max-tokens 768 \
+  --max-tokens "${MAX_TOKENS}" \
   --output-path "${OUTPUT_PATH}" \
   --log-dir "${LOG_DIR}" \
   > "${LOG_FILE}" 2>&1 &

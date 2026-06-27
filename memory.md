@@ -1,6 +1,6 @@
 # Memory - DrMAS Paper Review (Compact)
 
-Last compacted: 2026-06-26.
+Last compacted: 2026-06-27.
 
 This file is the working memory for the paper-review project. Keep it short. Move detailed historical narratives into separate audit/checkpoint docs instead of expanding this file.
 
@@ -12,9 +12,10 @@ The current research story is not "maximize PASS" or "increase negative count at
 
 - find real paper-side review issues;
 - ground verified negative evidence in paper quotes + locators;
+- verify reviewer-discovered issue bundles when the flaw is an obligation/inventory mismatch rather than a direct negative quote;
 - preserve positive support when it is real;
 - keep conflicts visible through non-destructive recovery;
-- separate diagnostic/potential concerns from quote-grounded verified negatives.
+- separate diagnostic/potential concerns, obligation-grounded review issues, and quote-grounded verified negatives.
 
 ## Hard Constraints
 
@@ -37,11 +38,221 @@ Verified negative evidence must have:
 - weakened dimension / reason
 - paper grounding and semantic negative verification
 
-Missing-baseline, missing-ablation, insufficient-evaluation, and reproducibility gaps are often absence/coverage judgments. They may become `diagnosis_pending_potential_concern`, but they must not be counted as `verified_actionable_negative_flaw` unless Evidence Agent finds a real paper quote/locator and the verifier accepts it.
+Missing-baseline, missing-ablation, insufficient-evaluation, and reproducibility gaps are often absence/coverage judgments. They must not be counted as `review_negative_verified_count` unless there is a direct negative quote. They may count as `verified_review_issue_count` / obligation-grounded review issues only when the verifier has all of:
 
-## Current Negative Evidence Logic
+- locatable claim anchor;
+- concrete reviewer-discovered missing/mismatch item;
+- current claim requirement gap;
+- observed inventory quote/list/table anchor that is either verified support inventory or copied text locatable in the paper.
 
-There are two deliberately separate negative-evidence lanes. Keep them separate in code, metrics, dashboards, and paper narrative.
+## Current Review Issue Logic
+
+There are deliberately separate lanes. Keep them separate in code, metrics, dashboards, and paper narrative.
+
+### 2026-06-27 POSTQUALITY hardneg20 checkpoint (latest safety gate)
+
+Run and artifacts:
+
+- run: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_101215.jsonl`
+- log: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_101215.log`
+- dashboard: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_101215_POSTQUALITY_VS_090139_DASHBOARD.md`
+- review issue cases: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_101215_POSTQUALITY_REVIEW_ISSUE_CASES.md`
+- recovery cases: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_101215_POSTQUALITY_RECOVERY_CASE.md`
+
+Run settings:
+
+- `DRMAS_NEG_QUOTE_HYGIENE=1`
+- `DRMAS_TARGETED_NEGATIVE_SEARCH=1`
+- `DRMAS_FREEFORM_REVIEWER_NEGATIVE=1`
+- `DRMAS_REVIEW_ISSUE_BUNDLE=1`
+- `max_turns=7`, `max_tokens=1536`, `API_MAX_WORKERS=2`, `API_MAX_RETRIES=8`, `API_TIMEOUT=600`
+
+Key metrics after recomputing with the stricter post-run verifier:
+
+- protection PASS
+- `evidence_json_fallback_rate_pct=0`
+- `real_strong_support_total=73`
+- strict quote lane: `review_negative_verified_count=0`
+- issue-bundle lane: `verified_review_issue_count=3`, all obligation-grounded
+- `verified_actionable_negative_flaw_count=4`
+- `potential_concern_count=4`
+- dashboard recovery: `mark_contested_commit_count=3`, `recovery_effective_repair=3`
+- recovery case table: `verified_review_issue_repair=1`; two prior mark-contested repairs are now classified as stale reviewer-absence audit after the stricter verifier
+- safety lines: `negative_evidence_unlinked_to_flaw=0`, `positive_or_neutral_negative_candidate_count=0`, `semantic_negative_without_review_relation_count=0`, `author_limitation_only_count=0`
+
+Verified issue case table after quality gate:
+
+- `missing_ablation`: Graph2Tac lacks an ablation isolating the hierarchical representation component.
+- `efficiency_cost_gap`: PST performance claim lacks quantitative parameter/compute-cost comparison against baselines.
+- `method_support_gap`: NR-DCCA lacks concrete specification of noise type/distribution/magnitude.
+
+Why the count dropped from prior PAPERINV9:
+
+- The stricter verifier rejects candidate-introduced obligations unless the missing/mismatch entity is auditable from paper surface text or observed inventory.
+- Surface matching now handles LaTeX/hyphen variants such as `$k$ -NN`, but does not allow substring matches such as `SECO` inside `SECOND`.
+- Existing obligation-grounded `review_issues` are no longer preserved when the recomputed verifier rejects their backing evidence, preventing stale issue carryover.
+- Full-text counterevidence now rejects previously counted cases where the paper already contains the alleged missing comparison/result/protocol.
+
+Current interpretation:
+
+- MiMo can propose real reviewer issues; the bottleneck is not JSON parsing or model ability.
+- The strict verifier correctly removes several tempting false positives, so the latest safe count is lower but more defensible.
+- The next quantity increase should come from better issue-target construction: claim-specific obligation blueprints and richer experiment/inventory extraction, not looser verification.
+- Direct quote-negative evidence is still rare. The paper narrative should use `verified_review_issue_count` as the main real-review-issue metric and keep `review_negative_verified_count` as the strict direct quote lane.
+
+Code changes in this checkpoint:
+
+- Added surface-marker matching helpers for paper entities, including LaTeX/hyphen variants.
+- Added bundle-level auditable expectation checks so reviewer candidates cannot self-verify missing entities.
+- Rejected stale obligation-grounded review issues during `review_issues` sync when backing evidence no longer passes the verifier.
+- Started adding claim-specific entity examples into review-issue blueprints so Critique can propose concrete missing items without relaxing the verifier.
+
+本轮代码变动逻辑:
+
+- 保留两条负向通道: `review_negative_verified_count` 只统计论文文本中直接可引用的 quote-grounded reviewer negative; `verified_review_issue_count` 统计 claim obligation + observed inventory + concrete missing/mismatch item 组成的真实审稿问题包。
+- 不再把“模型提出了一个缺陷”直接算真负向。review issue bundle 必须同时满足: claim anchor 可追溯、observed inventory quote/list/table 可定位、missing/mismatch item 是具体实体或具体实验维度、并且全文/现有 inventory 没有反证。
+- 新增 surface marker 匹配是为了让 `$k$ -NN`、hyphen/LaTeX 这类论文表面写法能被识别，同时避免 `SECO` 命中 `SECOND` 这类假阳性。
+- 新增 bundle-level auditable expectation gate 是为了防止 reviewer candidate 自己凭空制造“应该比较某对象”的义务; 缺失对象必须能从论文 claim、paper surface 或 observed inventory 中审计出来。
+- `_sync_verified_review_issues` 不再保留已经被新版 verifier 否掉的旧 `obligation_grounded_review_issue`，避免 stale issue 继续污染 final view 和 recovery case table。
+- Recovery 仍只做非破坏式修复: verified review issue bundle 可以触发 `mark_contested`，但不能放开 fallback/context claim status patch，也不能把 generic gap 包装成 verified negative。
+
+### 2026-06-27 PAPERINV9 live hardneg20 checkpoint (previous high-recall result)
+
+Current best hardneg20 result after prompt tightening, longer missing-item preservation, truncated-item rejection, ablation counterevidence checks, and limitation/boundary claim target gating:
+
+- run: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_061606.jsonl`
+- dashboard: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_061606_PAPERINV9_LIVE_VS_QUOTECLASS6_DASHBOARD.md`
+- recovery case: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_061606_PAPERINV9_LIVE_RECOVERY_CASE.md`
+- review issue case table: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_061606_PAPERINV9_LIVE_REVIEW_ISSUE_CASES.md`
+
+Run settings:
+
+- `DRMAS_NEG_QUOTE_HYGIENE=1`
+- `DRMAS_TARGETED_NEGATIVE_SEARCH=1`
+- `DRMAS_FREEFORM_REVIEWER_NEGATIVE=1`
+- `DRMAS_REVIEW_ISSUE_BUNDLE=1`
+- `max_turns=7`, `max_tokens=1536`, `API_MAX_WORKERS=2`, `API_MAX_RETRIES=8`, `API_TIMEOUT=600`
+
+Key metrics:
+
+- protection PASS
+- `evidence_json_fallback_rate_pct=0`
+- `real_strong_support_total=81`
+- `review_negative_verified_count=1`
+- `verified_review_issue_count=12`
+- `obligation_grounded_review_issue_count=11`
+- `verified_actionable_negative_flaw_count=10`
+- `potential_concern_count=10`
+- `mark_contested_commit_count=3`
+- `recovery_effective_repair=3`
+- `recovery_case_verified_review_issue_repair=3`
+- `negative_evidence_unlinked_to_flaw=0`
+- `positive_or_neutral_negative_candidate_count=0`
+- `author_limitation_only_count=0`
+
+Review issue type mix:
+
+- `missing_ablation=4`
+- `missing_baseline=1`
+- `unfair_or_weak_baseline=1`
+- `insufficient_evaluation=1`
+- `missing_robustness_or_generalization=1`
+- `method_support_gap=1`
+- `reproducibility_gap=2`
+
+Current interpretation:
+
+- The main signal is now real reviewer-discovered review issues, not paper-self-negative quotes.
+- Direct quote-negative remains strict and small (`review_negative_verified_count=1`).
+- Obligation-grounded issue bundles are the main paper-narrative metric (`obligation_grounded_review_issue_count=11`).
+- Recovery is no longer just bookkeeping: 3 `mark_contested` repairs are tied to verified review issue bundle evidence.
+- The 053028 PAPERINV live run with 14 obligation-grounded issues is superseded as a loose pre-tightening checkpoint; do not cite it as the current result without saying it was before truncated-item and limitation-claim gates.
+
+New verifier rules added in this checkpoint:
+
+- Preserve `missing_or_weak_items` / coverage missing items up to 160 chars instead of truncating at 80.
+- Reject verified bundles when the missing/mismatch item is visibly truncated or incomplete.
+- Reject missing-ablation bundles when the claim anchor or observed inventory already reports the same ablation/variant signal.
+- Reject bundles targeting `claim_type=limitation_or_boundary` or claims tagged as limitation/boundary.
+- Prompt now requires complete noun-phrase missing items and forbids framing an issue as "the excerpt/current inventory does not show X".
+- Review issue case table now includes inventory count, inventory sources, and verification basis for manual audit.
+
+Remaining risks:
+
+- Some cases remain judgment-sensitive, especially method-support and reproducibility issues on theoretical/method papers.
+- Full paper text is available at runtime but not persisted in `review_state.paper_text`; dashboards prove from saved evidence/inventory, not from re-reading the original full text.
+- Next improvement should persist compact paper-inventory/audit snippets, not raw full paper text, so offline dashboards can prove rejection reasons and verified issue basis more completely.
+
+### 2026-06-27 paper-inventory live hardneg20 checkpoint
+
+Superseded loose live MiMo run after deterministic paper-inventory / issue-bundle changes:
+
+- run: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_053028.jsonl`
+- dashboard: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_053028_PAPERINV_LIVE_VS_QUOTECLASS6_DASHBOARD.md`
+- recovery case: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_053028_PAPERINV_LIVE_RECOVERY_CASE.md`
+- review issue case table: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_053028_PAPERINV_LIVE_REVIEW_ISSUE_CASES.md`
+
+Key live metrics:
+
+- protection PASS
+- `evidence_json_fallback_rate_pct=0`
+- `real_strong_support_total=90`
+- `review_negative_verified_count=0`
+- `verified_review_issue_count=14`
+- `obligation_grounded_review_issue_count=14`
+- `verified_actionable_negative_flaw_count=12`
+- `potential_concern_count=12`
+- `mark_contested_commit_count=6`
+- `recovery_effective_repair=6`
+- `recovery_case_verified_review_issue_repair=6`
+- `diagnosis_pending_potential_concern_count=71`
+
+What changed:
+
+- Added deterministic `paper_text_inventory` into `evaluation_inventory`, derived directly from full paper text. It records table/figure/experiment/method/protocol/efficiency anchors only; it is descriptive inventory, not support evidence and not negative evidence.
+- Review issue bundle verification can now use verified support inventory, candidate observed inventory, or deterministic paper inventory as the observed-inventory side of a claim-obligation mismatch.
+- Claim-restatement filtering prevents the claim sentence itself from becoming paper inventory.
+- Issue-type relevance gates prevent theory/proof snippets from validating missing baseline/efficiency/ablation issues.
+- Missing-item freshness now checks distinctive coverage tokens, so a missing heterophily/dataset-style issue is rejected if that exact entity is already present in observed inventory.
+- Review issue case table now deduplicates obligation-grounded issues by paper/claim/type/missing item instead of by evidence id.
+
+Interpretation:
+
+- This is the first run where the paper narrative is working in the intended lane: real reviewer issues are mostly obligation-grounded bundles, not copied negative quotes.
+- `review_negative_verified_count=0` is expected here; the direct quote-negative lane remains strict.
+- The improvement is material versus strict-anchor (`verified_review_issue_count 2 -> 14`, `verified_review_issue_repair 2 -> 6`) without breaking protection.
+- Remaining risk: some obligation-grounded cases are still judgment-sensitive. They should be manually audited before treating this as a frozen paper result, especially method-support and result-claim-mismatch cases.
+
+### 2026-06-27 hardneg20 strict-anchor checkpoint
+
+Latest real MiMo run:
+
+- run: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_041303.jsonl`
+- dashboard: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_041303_STRICTANCHOR3_VS_QUOTECLASS6_DASHBOARD.md`
+- recovery case: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_041303_STRICTANCHOR3_RECOVERY_CASE.md`
+- review issue case table: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_041303_STRICTANCHOR3_REVIEW_ISSUE_CASES.md`
+
+Strict-anchor recompute metrics:
+
+- protection PASS
+- `evidence_json_fallback_rate_pct=0`
+- `real_strong_support_total=66`
+- `review_negative_verified_count=0`
+- `verified_review_issue_count=2`
+- `obligation_grounded_review_issue_count=2`
+- `verified_actionable_negative_flaw_count=3`
+- `potential_concern_count=3`
+- `mark_contested_commit_count=5`
+- `recovery_effective_repair=5`
+- `recovery_case_verified_review_issue_repair=2`
+- `diagnosis_pending_potential_concern_count=81`
+
+Interpretation:
+
+- The system is now safer than the earlier loose bundle view, but true verified review issue recall is still too low.
+- Several initially counted cases were false positives caused by locatable but off-target inventory anchors: theorem/proof snippets for baseline/efficiency, data-statistics captions for method pipeline concerns, and efficiency quotes that already reported time/memory.
+- The verifier now rejects those with issue-type-specific inventory relevance and "missing item already observed" checks.
+- This exposes the real bottleneck: issue discovery and inventory construction are not structured enough. The next architectural step is not to relax bundle gates; it is to add stronger claim-obligation extraction and paper evaluation/method inventory passes so Critique proposes concrete, auditable missing items with the correct inventory anchor.
 
 ### 1. Quote-grounded reviewer negative
 
@@ -78,20 +289,23 @@ Expected metric behavior:
 - `semantic_negative_without_review_relation_count` must stay 0.
 - These records can support quote-grounded negative flaw promotion and recovery case type `verified_review_negative_repair`.
 
-### 2. Reviewer-inferred absence / coverage negative
+### 2. Obligation-grounded reviewer issue bundle
 
-This lane handles real reviewer concerns that are usually not directly quoteable, such as missing baseline, missing ablation, insufficient evaluation, missing reproducibility detail, or coverage gaps.
+This lane handles real reviewer concerns that are usually not directly quote-negative, such as missing baseline, missing ablation, insufficient evaluation, missing reproducibility detail, or coverage gaps.
 
 Source of truth:
 
 - deterministic claim-requirement / coverage audit over an auditable real paper claim;
-- the claim requires a support dimension, but the current support inventory does not satisfy it;
-- this is a reviewer-inferred absence finding, not copied negative paper text.
+- Critique/reviewer candidate names a concrete missing or mismatched item, not a generic requirement label;
+- observed inventory is anchored in verified support inventory or a candidate-supplied copied paper quote/list/table that the verifier can locate in full paper text;
+- the claim still lacks the required evidence type after freshness re-check.
 
 Current behavior:
 
-- It may produce final-view potential concerns and reviewer absence metrics:
+- It may produce final-view potential concerns and review-issue metrics:
   - `reviewer_absence_verified_count`
+  - `obligation_grounded_review_issue_count`
+  - `verified_review_issue_count`
   - `total_review_negative_verified_count`
   - `verified_negative_flaw_count`
   - `verified_actionable_negative_flaw_count`
@@ -101,14 +315,18 @@ Current behavior:
 - It must not be mixed into quote-grounded verified negative evidence.
 - Runtime `mark_contested` may use a fresh final-view reviewer absence audit finding as evidence for a non-destructive contested relation.
 - When such a recovery commit succeeds, the absence audit snapshot is persisted into `evidence_map` so the recovery case table has a real evidence object instead of `missing_evidence_id`.
-- Absence audit snapshots bypass quote-grounding verifier only because they are deterministic coverage findings; they are not paper quotes.
+- Absence/issue bundle records bypass negative-quote grounding only because their verification basis is claim obligation + observed paper inventory, not a copied negative quote.
 - A freshness gate must re-check support inventory. If the missing requirement is later satisfied, the snapshot becomes stale and must not count.
 
 Expected metric behavior:
 
-- Recovery case audit labels these as `reviewer_inferred_negative_repair`.
+- Recovery case audit labels these as `verified_review_issue_repair` / `obligation_grounded_review_issue`.
 - `recovery_case_effective_repair_without_verified_negative` should stay 0.
 - Stale snapshots should be visible as `stale_reviewer_absence_audit`, not counted as clean negative repair.
+
+### 3. Diagnosis-pending potential concern
+
+Generic claim-obligation gaps, model-only review suspicions, or candidates missing concrete observed inventory remain diagnosis-pending. They may be useful in the final report as potential concerns, but they must not count as verified review issues or quote-grounded negative evidence.
 
 ### Final and recovery routing
 
@@ -116,7 +334,7 @@ Expected metric behavior:
 - `mark_contested` is the preferred non-destructive recovery operation when a claim has real support plus a verified negative/absence concern.
 - `mark_contested` must not change claim status.
 - `record_diagnosis_pending_concern` is a state record, not an effective repair.
-- Recovery effective repair must be backed by either quote-grounded reviewer negative evidence or fresh reviewer-inferred absence audit evidence.
+- Recovery effective repair must be backed by either quote-grounded reviewer negative evidence or fresh obligation-grounded review issue evidence.
 - Do not increase negative/recovery counts by weakening verifier gates. If quote-grounded negatives remain 0, the fix is better reviewer critique discovery plus evidence retrieval, not metric relabeling.
 
 ## Current Mainline
@@ -142,82 +360,102 @@ MiMo runs should use:
 
 For smoke8, `--api-max-workers 2` is safer. For hardneg20/full39, larger workers can be tried after confirming the endpoint is stable. Legacy `max_tokens=768` is too truncation-prone for evidence JSON and should not be used for negative-evidence validation unless intentionally reproducing an old run.
 
-## Latest State: 2026-06-26
+## Latest State: 2026-06-27
 
 Active project directory: `/Users/zss/Downloads/zssmas-codex-p26-optimization-20260524`. Do not use `/Users/zss/Downloads/DrMAS-master`; it is stale.
 
 Current effective code changes:
 
-- Runtime `mark_contested` can now use final-view reviewer absence audit evidence.
-- When such a recovery commit succeeds, the reviewer absence audit snapshot is persisted into the live `evidence_map`.
-- Absence audit snapshots bypass quote-grounding because they are deterministic coverage findings, not copied paper quotes.
-- A freshness gate prevents stale absence snapshots from counting if later support inventory satisfies the missing requirement.
-- Final-view flaw generation no longer lets absence snapshots block flaw creation as if they were generic paper-negative candidates.
-- Stale absence snapshots no longer pollute quote-negative protection metrics.
-- Recovery case audit now separates:
-  - `verified_review_negative_repair`
-  - `reviewer_inferred_negative_repair`
-  - `effective_repair_without_verified_negative`
-  - `stale_reviewer_absence_audit`
+- `DRMAS_REVIEW_ISSUE_BUNDLE=1` is the current mainline direction.
+- ReviewState now carries derived `evaluation_inventory` from verified support evidence. This is a stable inventory of observed paper evidence, not a new LLM judgment.
+- Claim targets shown to Critique now include:
+  - `claim_obligations`
+  - `missing_requirements`
+  - `verified_support_inventory`
+  - `paper_evaluation_inventory`
+- Critique `review_issue_candidates` may include `observed_inventory` with a copied table/list/experiment quote and locator.
+- The verifier can now accept obligation-grounded issue bundles when candidate `observed_inventory` is locatable in full paper text, even if the quote is not a negative quote.
+- Candidate inventory is rejected if the quote cannot be located in the paper.
+- Candidate missing/mismatch items that only restate a requirement label, such as `ablation or component-isolation evidence` or `result/table/experiment evidence`, are rejected. A verified review issue must name a concrete baseline, component, dataset, metric, protocol, cost item, method detail, or reproducibility detail.
+- Generic obligation-only gaps remain diagnosis-pending and do not count as verified review issues.
+- Runtime `mark_contested` can use verified review issue bundles for non-destructive recovery.
+- Recovery case audit now displays obligation-grounded issue evidence as `missing/mismatch item + observed inventory quote`, not as an internal audit sentence.
 
 Important metric semantics:
 
 - `review_negative_verified_count` is still reserved for quote-grounded reviewer negatives.
-- Reviewer-inferred absence / coverage findings are counted separately through `reviewer_absence_verified_count`, `total_review_negative_verified_count`, final potential concerns, and recovery case audit fields.
+- Real review issues are counted through `verified_review_issue_count = quote_grounded_review_issue_count + obligation_grounded_review_issue_count`.
+- Obligation-grounded review issues also appear through `reviewer_absence_verified_count`, `total_review_negative_verified_count`, final potential concerns, and recovery case audit fields.
 - Do not merge reviewer-inferred absence into quote-grounded `review_negative_verified_count`.
 
 Latest validated results:
 
-- `mimo_v25_quoteclass13_absencesnapshot_smoke8_mt7_b4w2_api2_r8t600_tok1536_py3_20260626_170837.jsonl`
-  - Dashboard: `mimo_v25_quoteclass13_absencesnapshot_smoke8_mt7_b4w2_api2_r8t600_tok1536_py3_20260626_170837_RECOMPUTED2_VS_QUOTECLASS10_DASHBOARD.md`
-  - Recovery table: `mimo_v25_quoteclass13_absencesnapshot_smoke8_mt7_b4w2_api2_r8t600_tok1536_py3_20260626_170837_RECOMPUTED2_RECOVERY_CASE_TABLE.md`
-  - `evidence_json_fallback_rate_pct=0`
-  - `real_strong_support_total=37`
-  - `review_negative_verified_count=0`
-  - `reviewer_absence_verified_count=9`
-  - `total_review_negative_verified_count=9`
-  - `verified_negative_flaw_count=9`
-  - `verified_actionable_negative_flaw_count=9`
-  - `potential_concern_count=9`
-  - `final_potential_concern_total=10`
-  - `mark_contested_commit_count=3`
-  - `recovery_effective_repair=3`
-  - `recovery_case_reviewer_inferred_negative_repair=3`
-  - `recovery_case_effective_repair_without_verified_negative=0`
-  - `negative_evidence_unlinked_to_flaw=0`
-  - `semantic_negative_without_review_relation_count=0`
-  - Overall protection: FAIL because `hygiene_delta_or_safe_block_or_clean_state=4`, threshold is `>=5`.
+- Main hardneg20 run:
+  - Run: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok1536_20260627_031647.jsonl`
+  - Dashboard: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok1536_20260627_031647_STRICTMISSINGITEM_RECOMPUTE_VS_QUOTECLASS6_DASHBOARD.md`
+  - Recovery table: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok1536_20260627_031647_STRICTMISSINGITEM_RECOMPUTE_RECOVERY_CASE.md`
+  - Review issue case table: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok1536_20260627_031647_STRICTMISSINGITEM_RECOMPUTE_REVIEW_ISSUE_CASES.md`
+  - Compared to `mimo_v25_quoteclass6_prefix_absence_hardneg20_mt7_b4w2_api4_r8t600_tok1536_20260626_131605.jsonl`.
+  - MiMo parameters: hard_negative_20, mt7, b4w2, api4, retries8, timeout600, max_tokens1536, qhyg + targeted negative + freeform reviewer negative + review issue bundle.
+  - Runtime: completed 20/20; 429 throttling occurred but all requests recovered under retry.
+  - Overall protection: PASS.
+  - `evidence_json_fallback_rate_pct=0`.
+  - Positive support did not regress: `real_strong_support_total=82` vs baseline 79, `empirical_real_strong_support_count=57` vs 55, `claims_with_deep_support=38` vs 37.
+  - Strict direct quote lane: `review_negative_verified_count=1`, `quote_grounded_review_issue_count=1`.
+  - Review issue lane after strict missing-item recompute:
+    - `obligation_grounded_review_issue_count=13`
+    - `verified_review_issue_count=14`
+    - `verified_actionable_negative_flaw_count=13`
+    - `potential_concern_count=13`
+    - `total_review_negative_verified_count=14`
+  - Issue type counts:
+    - `missing_ablation=5`
+    - `result_claim_mismatch=2`
+    - `missing_robustness_or_generalization=2`
+    - `method_support_gap=1`
+    - `efficiency_cost_gap=1`
+    - `insufficient_evaluation=1`
+    - `unfair_or_weak_baseline=1`
+  - Recovery:
+    - `mark_contested_commit_count=8`
+    - `recovery_effective_repair=8`
+    - `recovery_case_verified_review_issue_repair=8`
+    - `recovery_case_turns_with_verified_review_issue_bundle_evidence=8`
+    - `recovery_no_effect_commit=0`
+    - `recovery_harmful_commit_risk=0`
+  - Hygiene:
+    - `negative_evidence_unlinked_to_flaw=0`
+    - `positive_or_neutral_negative_candidate_count=0`
+    - `semantic_negative_without_review_relation_count=0`
+    - `low_score_promoted_strong=0`
 
 Interpretation:
 
-- Recovery around reviewer-inferred negative findings improved substantially: `mark_contested` now has 3 effective reviewer-inferred negative repairs instead of appearing effective with missing evidence IDs.
-- Strict quote-grounded reviewer negative evidence is still absent: `review_negative_verified_count=0`.
-- The run is not complete enough to freeze because the dashboard still FAILs one hygiene threshold.
-- Do not overclaim this as restored quote-grounded negative discovery. The current paper story is improved reviewer-inferred absence recovery, not verified paper-quote negative recovery.
+- The system is now correctly oriented around real review issues, not only direct negative quotes.
+- Strict quote-grounded negatives remain rare by design; do not loosen that verifier.
+- The hardneg20 result is the first run where the review-issue story is quantitatively strong: verified review issues scale to 14/20 while positive support and protection pass.
+- The remaining bottleneck is still direct quote-grounded negative recall and missing-baseline/reproducibility coverage. Do not solve that by weakening verifier gates; improve Critique candidate specificity and inventory extraction.
 
 Validation:
 
 ```bash
+DRMAS_NEG_QUOTE_HYGIENE=1 DRMAS_TARGETED_NEGATIVE_SEARCH=1 \
+DRMAS_FREEFORM_REVIEWER_NEGATIVE=1 DRMAS_REVIEW_ISSUE_BUNDLE=1 \
 /opt/miniconda3/envs/DrMAS/bin/python -m pytest \
   tests/test_review_inference_runner.py \
   tests/test_review_decision_hygiene.py \
   tests/test_recovery_patch.py \
-  tests/test_coverage_gap_recovery.py \
   tests/test_case_audit.py -q
 ```
 
-Current result: `601 passed`.
+Current result: `609 passed`.
 
 Next steps:
 
-- Fix the remaining hygiene-threshold failure cases from the latest smoke8:
-  - `ye3NrNrYOY`: evidence misbinding present.
-  - `WNxlJJIEVj`: unattributed hygiene miss.
-  - `7Dub7UXTXN`: committed diagnosis-pending but no hygiene delta.
-  - `WpXq5n8yLb`: unattributed hygiene miss.
-- Rerun MiMo smoke8 with `max_turns=7`, `max_tokens=1536`.
-- Only after smoke8 protection passes, run hardneg20/full39.
-- Continue the separate workstream for true quote-grounded reviewer negatives; do not loosen gates or fold reviewer-inferred absence into quote-grounded negative metrics.
+- Run full39 with the same bundle flags and `max_tokens=1536`.
+- Continue improving candidate discovery for `missing_baseline`, `reproducibility_gap`, and `evaluation_protocol_risk`.
+- Keep strict missing-item guard active; generic requirement labels must remain diagnosis-pending, not verified issues.
+- Continue improving recovery operation diversity, but do not inflate effective repair without verified quote-grounded negative or verified review issue bundle evidence.
 
 ## Previous State: 2026-06-25
 
@@ -484,7 +722,7 @@ PYTHONPATH=/opt/miniconda3/envs/agent/lib/python3.12/site-packages:. \
   --manager-batch-size 4 \
   --temperature 1.0 \
   --top-p 0.95 \
-  --max-tokens 768 \
+  --max-tokens 1536 \
   --output-path <output.jsonl> \
   --log-dir <log_dir>
 ```

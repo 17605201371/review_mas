@@ -99,6 +99,7 @@ class ReviewEnv:
         worker_payloads = parsed_action["workers"] if parsed_action is not None else []
 
         state = self.task["review_state"]
+        state["paper_text"] = self.task.get("paper_text", state.get("paper_text", ""))
         previous_phase = str(state.get("phase") or "normal_review").strip().lower() or "normal_review"
         previous_phase_turn_index = int(state.get("phase_turn_index", 0) or 0)
         turn_revision_events = []

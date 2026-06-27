@@ -19,6 +19,7 @@ from agent_system.review_prompts import (
     GENERAL_REVIEWER_PROMPT,
     MANAGER_PROMPT,
     RECOVERY_PATCH_PROMPT,
+    REVIEW_ISSUE_DISCOVERY_PROMPT,
     TARGETED_NEGATIVE_EVIDENCE_PROMPT,
 )
 from agent_system import review_manager_policy as review_policy
@@ -109,12 +110,21 @@ RECOVERY_TURN_MODES = {"normal_evidence", "recovery_patch"}
 REVIEW_PHASES = {"normal_review", "recovery"}
 RECOVERY_ACTION_TYPES = {"challenge_previous_hypothesis", "request_evidence_recheck"}
 RECOVERY_PATCH_ACTION_TYPES = {"challenge_previous_hypothesis"}
-_DIAGPENDING_RECOVERY_ENABLED = os.environ.get("DRMAS_DIAGPENDING_RECOVERY", "").strip().lower() in {
-    "1",
-    "true",
-    "on",
-    "yes",
+_REVIEW_ISSUE_BUNDLE_ENABLED = os.environ.get("DRMAS_REVIEW_ISSUE_BUNDLE", "1").strip().lower() not in {
+    "0",
+    "false",
+    "off",
+    "no",
 }
+_DIAGPENDING_RECOVERY_ENABLED = (
+    os.environ.get("DRMAS_DIAGPENDING_RECOVERY", "").strip().lower() in {
+        "1",
+        "true",
+        "on",
+        "yes",
+    }
+    or _REVIEW_ISSUE_BUNDLE_ENABLED
+)
 
 
 def _diagpending_recovery_enabled() -> bool:
@@ -691,12 +701,13 @@ _ACTIONABLE_NEGATIVE_EVIDENCE_TYPES = frozenset(
         "missing_robustness_or_generalization",
         "evaluation_protocol_risk",
         "efficiency_cost_gap",
+        "reproducibility_gap",
         "method_support_gap",
         "scope_overclaim",
         "result_claim_mismatch",
     }
 )
-_LIMITATION_NEGATIVE_EVIDENCE_TYPES = frozenset({"scope_limitation", "reproducibility_gap", "generic_gap"})
+_LIMITATION_NEGATIVE_EVIDENCE_TYPES = frozenset({"scope_limitation", "generic_gap"})
 _TRUE_PAPER_NEGATIVE_EVIDENCE_TYPES = frozenset(
     {
         "direct_contradiction",
@@ -2754,6 +2765,12 @@ def _build_target_brief(task: Dict[str, Any], manager_payload: Dict[str, Any]) -
 
 def _resolve_prompt_template(agent_id: str, manager_payload: Optional[Dict[str, Any]] = None) -> str:
     if (
+        agent_id == "Critique Agent"
+        and isinstance(manager_payload, dict)
+        and manager_payload.get("review_issue_discovery_required")
+    ):
+        return REVIEW_ISSUE_DISCOVERY_PROMPT
+    if (
         agent_id == "Evidence Agent"
         and isinstance(manager_payload, dict)
         and manager_payload.get("freeform_reviewer_negative_discovery_required")
@@ -2896,11 +2913,21 @@ def build_worker_observation(task: Dict[str, Any], manager_payload: Dict[str, An
             "Primary task: use model judgment to test the target real claims for true paper-side weaknesses. "
             "Do not start from negative-sounding words. Use quote-bank or existing evidence only after diagnosing a real baseline, ablation, evaluation, result-claim, method, or reproducibility problem.\n\n"
         )
+    review_issue_discovery_block = ""
+    if manager_payload.get("review_issue_discovery_required") and agent_id == "Critique Agent":
+        review_issue_discovery_block = (
+            "# Review Issue Discovery Mode\n"
+            "review_issue_discovery_required=true\n"
+            "Primary task: act like a peer reviewer and propose review_issue_candidates for later verification. "
+            "Do not output verified evidence, claim status changes, or recovery patches. "
+            "Absence/coverage issues must name the concrete missing/mismatch item and point to a claim obligation.\n\n"
+        )
     routing = (
         f"{mode_block}"
         f"{negative_mode_block}"
         f"{targeted_negative_search_block}"
         f"{hard_negative_diagnosis_block}"
+        f"{review_issue_discovery_block}"
         "# Manager Focus\n"
         f"Action Type: {manager_payload.get('action_type', 'extract_claims')}\n"
         f"Effective Action Type: {manager_payload.get('effective_action_type') or manager_payload.get('action_type', 'extract_claims')}\n"
@@ -4403,6 +4430,20 @@ def _absence_audit_mark_contested_recovery_patch_payload(
         support_ids = _verified_positive_support_ids_for_claim(claim or {}, raw_evidence_lookup)
         if not support_ids:
             continue
+        issue_bundle_ids = []
+        for evidence_id in negative_ids:
+            evidence = next(
+                (
+                    item for item in view.get("evidence_map", []) or []
+                    if isinstance(item, dict) and str(item.get("evidence_id") or "").strip() == evidence_id
+                ),
+                {},
+            )
+            bundle = evidence.get("review_issue_bundle") if isinstance(evidence, dict) else {}
+            issue_id = str(evidence.get("review_issue_id") or (bundle or {}).get("issue_id") or "").strip() if isinstance(evidence, dict) else ""
+            if issue_id:
+                issue_bundle_ids.append(issue_id)
+        issue_bundle_basis = bool(issue_bundle_ids)
         return normalize_review_update_payload(
             {
                 "action": "apply_recovery_patch",
@@ -4412,6 +4453,9 @@ def _absence_audit_mark_contested_recovery_patch_payload(
                 "new_status": old_status,
                 "supporting_evidence_ids": negative_ids,
                 "reason_for_change": (
+                    "Verified review issue bundle contests a claim that also has verified positive support; "
+                    "recovery records a contested relation without changing claim status."
+                    if issue_bundle_basis else
                     "Reviewer-inferred absence evidence contests a claim that also has verified positive support; "
                     "recovery records a contested relation without changing claim status."
                 ),
@@ -4424,7 +4468,8 @@ def _absence_audit_mark_contested_recovery_patch_payload(
                     "support_evidence_ids": support_ids[:4],
                     "negative_evidence_ids": negative_ids,
                     "final_view": "potential_concern",
-                    "negative_evidence_basis": "reviewer_absence_audit",
+                    "negative_evidence_basis": "review_issue_bundle" if issue_bundle_basis else "reviewer_absence_audit",
+                    "review_issue_bundle_ids": issue_bundle_ids[:4],
                 },
             }
         )
@@ -4491,6 +4536,15 @@ def _fallback_recovery_patch_payload(state: Dict[str, Any], manager_payload: Dic
     }
     deferred_terminal_block: Optional[Dict[str, Any]] = None
     deferred_block: Optional[Dict[str, Any]] = None
+
+    # Non-destructive contested relations are the preferred recovery for a
+    # verified review issue that coexists with verified positive support on the
+    # same claim.  Run this before target-flaw lifecycle patches so a manager
+    # target like ``flaw-reviewer-absence-*`` cannot be consumed by a terminal
+    # reject or assessment-limitation route before the safer relation is tried.
+    absence_contested_patch = _absence_audit_mark_contested_recovery_patch_payload(state, manager_payload)
+    if absence_contested_patch is not None:
+        return absence_contested_patch
 
     for flaw_id in list(target_flaw_ids or []):
         flaw = flaw_lookup.get(flaw_id)
