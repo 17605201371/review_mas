@@ -10031,6 +10031,141 @@ def test_review_issue_bundle_flaw_materialization_survives_non_audit_id_collisio
     assert issue_evidence[0]["evidence_id"] in issue_flaws[0]["negative_evidence_ids"]
 
 
+def test_review_issue_bundle_rejects_structural_baseline_without_named_missing_target():
+    claim = "Empirical results show improved rank behavior compared with linear networks."
+    inventory_quote = "Our symmetry condition on the dataset incorporates several previous results as special cases."
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "comparison",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["baseline_or_comparison"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-generic-same-setting-baseline",
+                "claim_id": "claim-1",
+                "weakness": "The comparison needs a same-setting baseline.",
+                "negative_type": "missing_baseline",
+                "required_evidence_type": "baseline_or_comparison",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["same-setting baseline or comparison for the claimed improvement"],
+                "observed_inventory": [{"quote": inventory_quote, "locator": "Results"}],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["verified_review_issue_count"] == 0
+    assert hygiene["reviewer_absence_verified_count"] == 0
+
+
+def test_review_issue_bundle_rejects_intro_problem_inventory_for_insufficient_evaluation():
+    claim = (
+        "The corrected model achieves state-of-the-art zero-shot and weakly-supervised "
+        "results on benchmark datasets."
+    )
+    intro_quote = (
+        "Referring Image Segmentation (RIS) -- the problem of identifying objects in images "
+        "through natural language sentences -- is a challenging task currently mostly solved "
+        "through supervised training."
+    )
+    state = {
+        "paper_text": f"{claim}\n\n{intro_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "empirical",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["empirical_result"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-intro-only-eval",
+                "claim_id": "claim-1",
+                "weakness": "The empirical claim lacks a quantitative result table or metric.",
+                "negative_type": "insufficient_evaluation",
+                "required_evidence_type": "empirical_result",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["quantitative result table or metric for the claimed empirical effect"],
+                "observed_inventory": [{"quote": intro_quote, "locator": "Introduction"}],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["verified_review_issue_count"] == 0
+    assert hygiene["reviewer_absence_verified_count"] == 0
+
+
+def test_quote_grounded_review_negative_count_deduplicates_same_quote_issue():
+    quote = "However, adding the secure aggregator results in a less favorable outcome than the baseline system."
+    state = {
+        "paper_text": quote,
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The paper proposes a privacy-preserving federated recognition framework.",
+                "claim_kind": "paper_extracted",
+                "claim_type": "method",
+                "importance": "high",
+                "status": "supported",
+            }
+        ],
+        "evidence_map": [
+            _verified_negative("neg-1", "claim-1", "negative_result", quote),
+            _verified_negative("neg-2", "claim-1", "negative_result", quote),
+        ],
+        "flaw_candidates": [
+            {
+                "flaw_id": "flaw-1",
+                "title": "Secure aggregation underperforms the baseline.",
+                "description": "The same negative result was found twice.",
+                "status": "candidate",
+                "related_claim_ids": ["claim-1"],
+                "evidence_ids": ["neg-1", "neg-2"],
+                "negative_evidence_ids": ["neg-1", "neg-2"],
+                "negative_evidence_type": "negative_result",
+            }
+        ],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["review_negative_verified_count"] == 1
+    assert hygiene["quote_grounded_review_issue_count"] == 1
+    assert hygiene["negative_evidence_candidate_count"] == 1
+
+
 def test_review_issue_bundle_rejects_missing_ablation_when_full_text_reports_variant_removal():
     claim = "CDiffuser uses the contrastive learning component L_c to improve diffusion recommendations."
     ablation_quote = (

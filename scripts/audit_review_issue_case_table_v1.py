@@ -24,6 +24,7 @@ from agent_system.environments.env_package.review.state import (
     _is_grounded_paper_negative_evidence_record,
     _is_obligation_grounded_review_issue_evidence_record,
     _negative_evidence_type_for_record,
+    _review_negative_dedup_signature,
     build_decision_hygiene_view,
 )
 
@@ -156,7 +157,7 @@ def build_review_issue_case_table(rows: Iterable[Dict[str, Any]]) -> tuple[List[
                     _bundle_missing(bundle),
                 )
             else:
-                key = (_paper_id(row, state), bucket, neg_type, str(evidence.get("evidence_id") or claim_id))
+                key = (_paper_id(row, state), bucket, *_review_negative_dedup_signature(evidence, state))
             if key in seen:
                 continue
             seen.add(key)

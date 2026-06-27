@@ -1539,15 +1539,14 @@ def _coverage_item_is_specific_for_type(text: str, neg_type: str) -> bool:
     if neg_type in _COVERAGE_BASELINE_NEGATIVE_TYPES:
         # Without an external baseline registry, generic classes such as
         # "relevant recent methods" are not verifiable from the paper alone.
-        return bool(
-            re.search(
-                r"\b(?:baseline|baselines|comparison|comparisons|competitor|competitors|"
-                r"prior\s+method|prior\s+methods|existing\s+method|existing\s+methods|"
-                r"state[- ]of[- ]the[- ]art|sota)\b",
-                lower,
-            )
-            or re.search(r"\b(?:named|specific)\s+(?:baseline|method|competitor)\b", lower)
-        )
+        if not re.search(
+            r"\b(?:baseline|baselines|comparison|comparisons|competitor|competitors|"
+            r"prior\s+method|prior\s+methods|existing\s+method|existing\s+methods|"
+            r"state[- ]of[- ]the[- ]art|sota)\b",
+            lower,
+        ):
+            return False
+        return bool(_baseline_missing_counterevidence_terms([value]))
     if neg_type == "missing_ablation":
         return bool(
             re.search(
@@ -7073,6 +7072,40 @@ def _review_issue_observed_inventory_is_verifiable(bundle: Dict[str, Any]) -> bo
     return False
 
 
+def _review_issue_inventory_has_empirical_result_observation(
+    inventory_text: str,
+    inventory_quote_text: str,
+) -> bool:
+    text = str(inventory_text or "")
+    quote_text = str(inventory_quote_text or "")
+    context_result_signal = re.search(
+        r"\b(?:result|results|evaluation|experiment|experiments|metric|metrics|"
+        r"accuracy|f1|auc|mae|eer|score|scores|performance|outperform|outperforms|"
+        r"outperformed|achiev(?:e|es|ed)|state[- ]of[- ]the[- ]art|sota|baseline|baselines)\b",
+        text,
+        re.IGNORECASE,
+    )
+    if not context_result_signal:
+        return False
+    strong_quote_result_signal = re.search(
+        r"\b(?:result|results|evaluation|experiment|experiments|metric|metrics|"
+        r"accuracy|f1|auc|mae|eer|score|scores|performance|outperform|outperforms|"
+        r"outperformed|achiev(?:e|es|ed)|state[- ]of[- ]the[- ]art|sota|baseline|baselines)\b",
+        quote_text,
+        re.IGNORECASE,
+    )
+    has_quantity = _review_issue_text_has_quantitative_measure(quote_text)
+    problem_intro_only = re.search(
+        r"\b(?:problem\s+of|challenging\s+task|mostly\s+solved|currently\s+mostly|"
+        r"referring\s+image\s+segmentation|related\s+work|background)\b",
+        quote_text,
+        re.IGNORECASE,
+    )
+    if problem_intro_only and not (strong_quote_result_signal or has_quantity):
+        return False
+    return bool(strong_quote_result_signal or has_quantity)
+
+
 def _review_issue_observed_inventory_relevant_for_type(bundle: Dict[str, Any], neg_type: str) -> bool:
     """Reject inventory anchors that are locatable but irrelevant to the issue.
 
@@ -7117,7 +7150,9 @@ def _review_issue_observed_inventory_relevant_for_type(bundle: Dict[str, Any], n
                 inventory_text,
             )
         )
-    if neg_type in {"insufficient_evaluation", "missing_robustness_or_generalization", "scope_overclaim"}:
+    if neg_type == "insufficient_evaluation":
+        return _review_issue_inventory_has_empirical_result_observation(inventory_text, inventory_quote_text)
+    if neg_type in {"missing_robustness_or_generalization", "scope_overclaim"}:
         return bool(
             re.search(
                 r"\b(table|figure|fig\.?|result|results|evaluation|experiment|benchmark|dataset|datasets|"
@@ -7496,6 +7531,17 @@ _BASELINE_COUNTEREVIDENCE_GENERIC_TERMS = frozenset(
         "recent",
         "competitive",
         "named",
+        "fair",
+        "fairness",
+        "budget",
+        "same",
+        "same-setting",
+        "same-budget",
+        "setting",
+        "settings",
+        "claimed",
+        "improvement",
+        "improvements",
     }
 )
 
@@ -11887,22 +11933,11 @@ def _review_negative_dedup_signature(record: Dict[str, Any], state: Dict[str, An
     claim_id = str(record.get("claim_id") or "").strip()
     neg_type = _negative_evidence_type_for_record(record)
     review_label = _review_negative_label_for_record(record, state or {})
-    span_start = record.get("verified_source_span_start", record.get("source_span_start", -1))
-    span_end = record.get("verified_source_span_end", record.get("source_span_end", -1))
-    try:
-        start_int = int(span_start)
-        end_int = int(span_end)
-    except (TypeError, ValueError):
-        start_int = -1
-        end_int = -1
-    if start_int >= 0 and end_int >= start_int:
-        anchor = f"span:{start_int}:{end_int}"
-    else:
-        quote = _normalize_text(record.get("raw_quote") or record.get("evidence"), max_length=260).lower()
-        anchor = re.sub(r"\s+", " ", quote).strip()
     if _is_reviewer_absence_audit_evidence_record(record, state or {}):
         bundle = record.get("review_issue_bundle") if isinstance(record.get("review_issue_bundle"), dict) else {}
         missing = bundle.get("missing_or_mismatch") if isinstance(bundle.get("missing_or_mismatch"), dict) else {}
+        fallback_quote = _normalize_text(record.get("evidence"), max_length=220).lower()
+        fallback_anchor = re.sub(r"\s+", " ", fallback_quote).strip()
         missing_items = [
             _normalize_text(item, max_length=100).lower()
             for item in (missing.get("items") or [missing.get("entity")])
@@ -11912,7 +11947,27 @@ def _review_negative_dedup_signature(record: Dict[str, Any], state: Dict[str, An
             anchor = "absence:" + "|".join(sorted(dict.fromkeys(missing_items)))
         else:
             missing_requirement = str(record.get("missing_requirement") or record.get("required_evidence_type") or "").strip()
-            anchor = f"absence:{missing_requirement}:{anchor}"
+            anchor = f"absence:{missing_requirement}:{fallback_anchor}"
+    else:
+        quote = _normalize_text(
+            record.get("negative_quote") or record.get("raw_quote") or record.get("evidence"),
+            max_length=360,
+        ).lower()
+        quote = re.sub(r"\b(?:however|nevertheless|moreover|therefore),?\s+", "", quote)
+        quote = re.sub(r"\bit\s+is\s+important\s+to\s+note\s+that\s+", "", quote)
+        quote = re.sub(r"\s+", " ", quote).strip(" .;:")
+        if quote:
+            anchor = f"quote:{quote}"
+        else:
+            span_start = record.get("verified_source_span_start", record.get("source_span_start", -1))
+            span_end = record.get("verified_source_span_end", record.get("source_span_end", -1))
+            try:
+                start_int = int(span_start)
+                end_int = int(span_end)
+            except (TypeError, ValueError):
+                start_int = -1
+                end_int = -1
+            anchor = f"span:{start_int}:{end_int}" if start_int >= 0 and end_int >= start_int else ""
     return (review_label, claim_id, neg_type, anchor)
 
 
@@ -12504,15 +12559,17 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
     reviewer_absence_verified_count = int(
         review_negative_label_counts.get(REVIEW_NEGATIVE_ABSENCE_AUDIT_LABEL, 0)
     )
-    quote_grounded_review_negative_count = int(
-        review_negative_label_counts.get(REVIEW_NEGATIVE_VERIFIED_LABEL, 0)
-    )
     quote_grounded_review_negative_records = [
         record for record in view.get("evidence_map", []) or []
         if isinstance(record, dict)
         and _is_grounded_paper_negative_evidence_record(record, view)
         and not _is_reviewer_absence_audit_evidence_record(record, view)
     ]
+    quote_grounded_review_negative_signatures = {
+        _review_negative_dedup_signature(record, view)
+        for record in quote_grounded_review_negative_records
+    }
+    quote_grounded_review_negative_count = len(quote_grounded_review_negative_signatures)
     quote_grounded_review_negative_claim_ids = {
         str(record.get("claim_id") or "").strip()
         for record in quote_grounded_review_negative_records

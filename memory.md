@@ -49,15 +49,15 @@ Missing-baseline, missing-ablation, insufficient-evaluation, and reproducibility
 
 There are deliberately separate lanes. Keep them separate in code, metrics, dashboards, and paper narrative.
 
-### 2026-06-27 SURFACEHINT1 + BINDINGFIX1 hardneg20 checkpoint (latest)
+### 2026-06-27 SURFACEHINT1 + QUALITYFIX2 hardneg20 checkpoint (latest)
 
 Run and artifacts:
 
 - run: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_113021.jsonl`
 - log: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_113021.log`
-- dashboard: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_113021_SURFACEHINT1_BINDINGFIX1_RECOMPUTE_VS_101215_DASHBOARD.md`
-- review issue cases: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_113021_SURFACEHINT1_BINDINGFIX1_RECOMPUTE_REVIEW_ISSUE_CASES.md`
-- recovery cases: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_113021_SURFACEHINT1_BINDINGFIX1_RECOMPUTE_RECOVERY_CASE.md`
+- dashboard: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_113021_SURFACEHINT1_QUALITYFIX2_RECOMPUTE_VS_101215_DASHBOARD.md`
+- review issue cases: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_113021_SURFACEHINT1_QUALITYFIX2_RECOMPUTE_REVIEW_ISSUE_CASES.md`
+- recovery cases: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_113021_SURFACEHINT1_QUALITYFIX2_RECOMPUTE_RECOVERY_CASE.md`
 
 Run settings:
 
@@ -67,29 +67,30 @@ Run settings:
 - `DRMAS_REVIEW_ISSUE_BUNDLE=1`
 - `max_turns=7`, `max_tokens=1536`, `API_MAX_WORKERS=2`, `API_MAX_RETRIES=8`, `API_TIMEOUT=600`
 
-Key metrics after recomputing with BINDINGFIX1:
+Key metrics after recomputing with QUALITYFIX2:
 
 - protection PASS
 - `real_strong_support_total=71`
-- strict quote lane: `review_negative_verified_count=2`
-- issue-bundle lane: `verified_review_issue_count=10`
-- `quote_grounded_review_issue_count=2`
-- `obligation_grounded_review_issue_count=8`
-- `total_review_negative_verified_count=10`
-- `negative_evidence_candidate_count=10`
-- `negative_evidence_linked_to_flaw_count=10`
+- strict quote lane: `review_negative_verified_count=1`
+- issue-bundle lane: `verified_review_issue_count=7`
+- `quote_grounded_review_issue_count=1`
+- `obligation_grounded_review_issue_count=6`
+- `total_review_negative_verified_count=7`
+- `negative_evidence_candidate_count=7`
+- `negative_evidence_linked_to_flaw_count=7`
 - `negative_evidence_unlinked_to_flaw=0`
-- `verified_actionable_negative_flaw_count=11`
-- `potential_concern_count=11`
-- `final_potential_concern_total=29`
+- `verified_actionable_negative_flaw_count=9`
+- `potential_concern_count=9`
+- `final_potential_concern_total=26`
 - `mark_contested_commit_count=10`
-- recovery case table: `verified_review_issue_repair=6`, `verified_review_negative_repair=1`
+- recovery case table: `verified_review_issue_repair=5`, `verified_review_negative_repair=1`
 - protection safety lines: `positive_or_neutral_negative_candidate_count=0`, `semantic_negative_without_review_relation_count=0`
 
 Important caveats:
 
-- `author_limitation_only_count=2`, `negative_grounding_conflict_count=11`, and `assessment_limitation_flaw_count=25` remain elevated. They do not break protection, but they show quote-bank negative candidates still create limitation/noise pressure.
-- Some case-table items remain judgment-sensitive. This checkpoint is a stronger quantity/recovery result than STRUCTEXPECT2, not final proof that all issue bundles are equally high quality.
+- `author_limitation_only_count=2`, `negative_grounding_conflict_count=13`, and `assessment_limitation_flaw_count=27` remain elevated. They do not break protection, but they show quote-bank negative candidates still create limitation/noise pressure.
+- QUALITYFIX2 is deliberately more conservative than BINDINGFIX1. It removes the generic `7Dub7UXTXN` baseline issue, the intro/problem-only `TPAj63ax4Y` insufficient-evaluation issue, and duplicate XH3 quote-negative counting.
+- Some remaining case-table items are still judgment-sensitive, especially structural efficiency/reproducibility issues; do not present this as final solved quality.
 - Continue to treat `review_negative_verified_count` and `verified_review_issue_count` as separate lanes.
 
 本轮代码变动逻辑:
@@ -100,6 +101,9 @@ Important caveats:
 - Flaw materialization now filters issue evidence before linking: only current, claim-aligned, verifier-passing obligation-grounded evidence can enter an absence-audit flaw.
 - Existing live-state verified review issue evidence is now synchronized into a view-only `reviewer_absence_audit` flaw when no valid flaw links it, including cases where the evidence was created in an earlier turn and is not rebuilt by the current top-gap pass.
 - This preserves the hard protection invariant: every counted verified review issue/negative evidence item must be linked to a valid flaw, while fake author-limitation or quote-bank candidates remain excluded from verified negative accounting.
+- QUALITYFIX2 adds a stricter baseline gate: `missing_baseline` must name a concrete baseline/comparison target, not only "same-setting baseline or comparison for the claimed improvement".
+- QUALITYFIX2 adds a stricter insufficient-evaluation inventory gate: problem/introduction/background text and method-overview figures cannot verify a missing quantitative-result issue unless the quote itself has result/performance/metric/experiment or numeric evidence.
+- QUALITYFIX2 deduplicates direct quote-grounded negative issues by canonical claim/type/quote signature instead of evidence id or span, so overlapping copies of the same negative result count once in dashboard and case tables.
 
 Validation:
 
@@ -109,6 +113,10 @@ Validation:
   - `test_merge_review_state_materializes_verified_review_issue_bundle_for_recovery`
   - `test_review_issue_bundle_accepts_efficiency_gap_when_paper_only_says_efficient`
   - `test_review_issue_bundle_accepts_speedup_claim_efficiency_gap_without_explicit_obligation`
+- Additional QUALITYFIX2 direct test-function calls passed:
+  - `test_review_issue_bundle_rejects_structural_baseline_without_named_missing_target`
+  - `test_review_issue_bundle_rejects_intro_problem_inventory_for_insufficient_evaluation`
+  - `test_quote_grounded_review_negative_count_deduplicates_same_quote_issue`
 - Dashboard recompute with `--fail-on-violation` passed.
 
 ### 2026-06-27 STRUCTEXPECT2 hardneg20 checkpoint (previous stable baseline)
