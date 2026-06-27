@@ -10097,6 +10097,86 @@ def test_review_issue_bundle_accepts_efficiency_gap_when_paper_only_says_efficie
     assert hygiene["verified_review_issue_count"] == 1
 
 
+def test_claim_obligation_structural_efficiency_gap_verifies_without_reviewer_candidate():
+    claim = "The method is computationally efficient for processing long video sequences."
+    inventory_quote = "We design an efficient one-pass method for processing the whole video sequence."
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}\n\nExperiments report segmentation quality.",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "empirical",
+                "importance": "high",
+                "status": "supported",
+                "coverage_tags": ["empirical", "efficiency"],
+                "claim_obligations": ["efficiency_cost"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    view = build_decision_hygiene_view(copy.deepcopy(state))
+    hygiene = view["decision_hygiene"]
+    evidence = [
+        item for item in view["evidence_map"]
+        if item.get("review_issue_source") == "obligation_grounded_review_issue"
+    ]
+
+    assert hygiene["obligation_grounded_review_issue_count"] == 1
+    assert hygiene["verified_review_issue_count"] == 1
+    assert len(evidence) == 1
+    bundle = evidence[0]["review_issue_bundle"]
+    assert bundle["source_of_expectation"] == "claim_obligation"
+    assert bundle["missing_or_mismatch"]["source"] == "claim_obligation"
+    assert "runtime" in bundle["missing_or_mismatch"]["entity"].lower()
+    assert bundle["review_issue_expectation_basis"] in {
+        "explicit_claim_obligation_structural_dimension",
+        "inferred_claim_obligation_structural_dimension",
+        "structural_claim_requirement_audit",
+        "structural_claim_efficiency_cue",
+    }
+
+
+def test_claim_obligation_structural_efficiency_gap_rejected_when_cost_metrics_present():
+    claim = "The method is computationally efficient for processing long video sequences."
+    inventory_quote = (
+        "Table 3 reports runtime 12 ms, GPU memory 4 GB, and 15M parameters for the proposed method."
+    )
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}\n\nExperiments report segmentation quality.",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "empirical",
+                "importance": "high",
+                "status": "supported",
+                "coverage_tags": ["empirical", "efficiency"],
+                "claim_obligations": ["efficiency_cost"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["obligation_grounded_review_issue_count"] == 0
+    assert hygiene["verified_review_issue_count"] == 0
+
+
 def test_review_issue_bundle_rejects_candidate_introduced_efficiency_gap_without_claim_cue():
     claim = "OGL avoids projector attenuation in graph representation learning."
     inventory_quote = "Table 2 lists OGL accuracy results on graph benchmarks."

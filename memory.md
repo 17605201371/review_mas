@@ -49,15 +49,15 @@ Missing-baseline, missing-ablation, insufficient-evaluation, and reproducibility
 
 There are deliberately separate lanes. Keep them separate in code, metrics, dashboards, and paper narrative.
 
-### 2026-06-27 POSTQUALITY hardneg20 checkpoint (latest safety gate)
+### 2026-06-27 STRUCTEXPECT2 hardneg20 checkpoint (latest)
 
 Run and artifacts:
 
 - run: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_101215.jsonl`
 - log: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_101215.log`
-- dashboard: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_101215_POSTQUALITY_VS_090139_DASHBOARD.md`
-- review issue cases: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_101215_POSTQUALITY_REVIEW_ISSUE_CASES.md`
-- recovery cases: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_101215_POSTQUALITY_RECOVERY_CASE.md`
+- dashboard: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_101215_STRUCTEXPECT2_RECOMPUTE_VS_090139_DASHBOARD.md`
+- review issue cases: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_101215_STRUCTEXPECT2_RECOMPUTE_REVIEW_ISSUE_CASES.md`
+- recovery cases: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_101215_STRUCTEXPECT2_RECOMPUTE_RECOVERY_CASE.md`
 
 Run settings:
 
@@ -67,50 +67,68 @@ Run settings:
 - `DRMAS_REVIEW_ISSUE_BUNDLE=1`
 - `max_turns=7`, `max_tokens=1536`, `API_MAX_WORKERS=2`, `API_MAX_RETRIES=8`, `API_TIMEOUT=600`
 
-Key metrics after recomputing with the stricter post-run verifier:
+Key metrics after recomputing with the current structural-expectation verifier:
 
 - protection PASS
 - `evidence_json_fallback_rate_pct=0`
 - `real_strong_support_total=73`
 - strict quote lane: `review_negative_verified_count=0`
-- issue-bundle lane: `verified_review_issue_count=3`, all obligation-grounded
-- `verified_actionable_negative_flaw_count=4`
-- `potential_concern_count=4`
+- issue-bundle lane: `verified_review_issue_count=8`, all obligation-grounded
+- `reviewer_absence_verified_count=8`
+- `verified_actionable_negative_flaw_count=10`
+- `potential_concern_count=10`
 - dashboard recovery: `mark_contested_commit_count=3`, `recovery_effective_repair=3`
-- recovery case table: `verified_review_issue_repair=1`; two prior mark-contested repairs are now classified as stale reviewer-absence audit after the stricter verifier
+- recovery case table: `verified_review_issue_repair=2`; one prior mark-contested repair is now classified as stale reviewer-absence audit after the stricter verifier
 - safety lines: `negative_evidence_unlinked_to_flaw=0`, `positive_or_neutral_negative_candidate_count=0`, `semantic_negative_without_review_relation_count=0`, `author_limitation_only_count=0`
 
-Verified issue case table after quality gate:
+Verified issue type mix:
 
-- `missing_ablation`: Graph2Tac lacks an ablation isolating the hierarchical representation component.
-- `efficiency_cost_gap`: PST performance claim lacks quantitative parameter/compute-cost comparison against baselines.
-- `method_support_gap`: NR-DCCA lacks concrete specification of noise type/distribution/magnitude.
+- `missing_ablation=2`
+- `missing_baseline=1`
+- `insufficient_evaluation=3`
+- `efficiency_cost_gap=1`
+- `method_support_gap=1`
 
-Why the count dropped from prior PAPERINV9:
+Representative verified issue cases:
 
-- The stricter verifier rejects candidate-introduced obligations unless the missing/mismatch entity is auditable from paper surface text or observed inventory.
-- Surface matching now handles LaTeX/hyphen variants such as `$k$ -NN`, but does not allow substring matches such as `SECO` inside `SECOND`.
-- Existing obligation-grounded `review_issues` are no longer preserved when the recomputed verifier rejects their backing evidence, preventing stale issue carryover.
-- Full-text counterevidence now rejects previously counted cases where the paper already contains the alleged missing comparison/result/protocol.
+- `9zEBK3E9bX`: SECO baseline missing for a label-efficiency comparison claim.
+- `XyB4VvF01X`: Graph2Tac lacks an ablation isolating the hierarchical representation component.
+- `cklg91aPGk`: PROP/PROPGCL has insufficient evaluation / missing ablation concerns tied to observed result inventory.
+- `QAgwFiIY4p`: PST lacks quantitative parameter or compute-cost comparison for an efficiency-relevant performance claim.
+- `mHv6wcBb0z`: NR-DCCA has method-support and insufficient-evaluation issues tied to observed method/result inventory.
+
+Why this supersedes POSTQUALITY:
+
+- POSTQUALITY used a stricter but underpowered post-run verifier and counted only 3 issue bundles.
+- STRUCTEXPECT2 allows deterministic claim-obligation structural dimensions to verify as real review issues when the claim text itself contains the matching structural cue and the paper has observed inventory but no satisfying counterevidence.
+- It still rejects self-justified obligations: model-provided `coverage_tags` / `claim_obligations` cannot by themselves create a baseline/ablation/efficiency obligation.
+- The previously suspicious `7Dub7UXTXN` baseline issue disappeared because `claim_type=comparison` and model-filled obligations no longer self-justify a baseline gap.
+- The previously suspicious LogoRA efficiency issue disappeared because `multi-scale` no longer matches the efficiency/scalability regex.
+- Full-text structural counterevidence rejects structural gaps when the paper already has relevant baseline/result/scope/efficiency evidence.
 
 Current interpretation:
 
 - MiMo can propose real reviewer issues; the bottleneck is not JSON parsing or model ability.
-- The strict verifier correctly removes several tempting false positives, so the latest safe count is lower but more defensible.
-- The next quantity increase should come from better issue-target construction: claim-specific obligation blueprints and richer experiment/inventory extraction, not looser verification.
+- The strict direct quote-negative lane is still empty on this run; do not treat `review_negative_verified_count=0` as failure of the whole negative story.
+- The defensible main metric for paper narrative is `verified_review_issue_count=8`, not direct quote-negative count.
+- The next quantity increase should come from better issue-target construction, claim-specific obligation blueprints, and richer experiment/inventory extraction, not looser verification.
 - Direct quote-negative evidence is still rare. The paper narrative should use `verified_review_issue_count` as the main real-review-issue metric and keep `review_negative_verified_count` as the strict direct quote lane.
 
 Code changes in this checkpoint:
 
-- Added surface-marker matching helpers for paper entities, including LaTeX/hyphen variants.
-- Added bundle-level auditable expectation checks so reviewer candidates cannot self-verify missing entities.
-- Rejected stale obligation-grounded review issues during `review_issues` sync when backing evidence no longer passes the verifier.
-- Started adding claim-specific entity examples into review-issue blueprints so Critique can propose concrete missing items without relaxing the verifier.
+- Added structural default missing dimensions for deterministic claim-obligation gaps, e.g. efficiency requires runtime/memory/parameter/FLOP/hardware/compute-cost evidence instead of a generic "efficiency evidence" label.
+- Added structural expectation basis checks. Claim-obligation gaps can verify when the claim text itself has a matching structural cue, observed inventory exists, and no current support/counterevidence satisfies the requirement.
+- Tightened structural cues: `claim_type=comparison` alone no longer creates a baseline obligation; ablation/component cues must come from claim text; `multi-scale` no longer triggers an efficiency/scalability cue.
+- Preserved reviewer-candidate-specific verification: concrete reviewer-discovered missing items still require target-specific evidence/counterevidence handling and are not replaced by broad structural matching.
+- Added full-text structural counterevidence windows so generic structural dimensions are rejected if the paper already contains relevant result/baseline/scope/efficiency/method evidence.
+- Fixed issue-type selection so reviewer candidate issue type takes priority when it is compatible with the requirement; deterministic requirement defaults are only fallbacks.
 
 本轮代码变动逻辑:
 
 - 保留两条负向通道: `review_negative_verified_count` 只统计论文文本中直接可引用的 quote-grounded reviewer negative; `verified_review_issue_count` 统计 claim obligation + observed inventory + concrete missing/mismatch item 组成的真实审稿问题包。
 - 不再把“模型提出了一个缺陷”直接算真负向。review issue bundle 必须同时满足: claim anchor 可追溯、observed inventory quote/list/table 可定位、missing/mismatch item 是具体实体或具体实验维度、并且全文/现有 inventory 没有反证。
+- 对 absence / coverage 类审稿问题，本轮允许“结构性审稿义务”成为 verified review issue 的来源，但前提是 claim 正文真的提出了对应结构需求。例如 claim 说 efficient / faster 才能要求 runtime/memory/parameter/FLOP/cost evidence; claim 明确有 mechanism/component 才能要求 component-isolation ablation。
+- 不允许 coverage tag、claim_obligation 字段、claim_type 字段单独自证审稿义务，避免模型先写一个 obligation 再用它证明缺陷成立。
 - 新增 surface marker 匹配是为了让 `$k$ -NN`、hyphen/LaTeX 这类论文表面写法能被识别，同时避免 `SECO` 命中 `SECOND` 这类假阳性。
 - 新增 bundle-level auditable expectation gate 是为了防止 reviewer candidate 自己凭空制造“应该比较某对象”的义务; 缺失对象必须能从论文 claim、paper surface 或 observed inventory 中审计出来。
 - `_sync_verified_review_issues` 不再保留已经被新版 verifier 否掉的旧 `obligation_grounded_review_issue`，避免 stale issue 继续污染 final view 和 recovery case table。

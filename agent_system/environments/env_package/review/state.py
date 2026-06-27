@@ -5159,8 +5159,9 @@ _CLAIM_REQ_ROBUSTNESS_RE = re.compile(
     re.IGNORECASE,
 )
 _CLAIM_REQ_EFFICIENCY_RE = re.compile(
-    r"\b(efficient|efficiency|scal(?:e|es|able|ability)|speedup|faster|fast|one[- ]pass|runtime|latency|"
-    r"memory|parameters?|flops|compute|computational cost|cost-effective|practical)\b",
+    r"\b(efficient|efficiency|scal(?:able|ability)|large[- ]scale|speedup|faster|fast|"
+    r"one[- ]pass|runtime|latency|memory|parameters?|flops|compute|"
+    r"computational cost|cost-effective|practical)\b",
     re.IGNORECASE,
 )
 _CLAIM_REQ_EVALUATION_PROTOCOL_RE = re.compile(
@@ -5456,10 +5457,17 @@ def _review_issue_negative_type_for_gap(requirement: str, gap: Optional[Dict[str
             value = _canonical_negative_evidence_type(gap.get(field))
             if value:
                 candidate_types.append(value)
+    default_type = _REQUIREMENT_TO_NEGATIVE_TYPE.get(requirement, requirement)
+    if isinstance(gap, dict) and str(gap.get("reviewer_negative_candidate_id") or "").strip():
+        for candidate_type in dict.fromkeys(candidate_types):
+            if _review_issue_type_compatible_with_requirement(requirement, candidate_type):
+                return candidate_type
+    if default_type in candidate_types and _review_issue_type_compatible_with_requirement(requirement, default_type):
+        return default_type
     for candidate_type in dict.fromkeys(candidate_types):
         if _review_issue_type_compatible_with_requirement(requirement, candidate_type):
             return candidate_type
-    return _REQUIREMENT_TO_NEGATIVE_TYPE.get(requirement, requirement)
+    return default_type
 
 
 def _review_issue_candidate_can_override_requirement_satisfaction(negative_type: str) -> bool:
@@ -6800,12 +6808,38 @@ def _review_issue_missing_entity_for_requirement(
             "items": concrete_items[:6],
             "source": "reviewer_candidate",
         }
-    label = _REQUIREMENT_LABELS.get(requirement, str(requirement or "").replace("_", " "))
+    label = _review_issue_default_missing_item_for_requirement(requirement)
     return {
         "entity": label,
         "items": [label] if label else [],
         "source": "claim_obligation",
     }
+
+
+def _review_issue_default_missing_item_for_requirement(requirement: str) -> str:
+    """Concrete structural issue dimension used when the obligation itself is the source.
+
+    The old fallback reused generic requirement labels such as "baseline or
+    comparison evidence".  Those labels are intentionally rejected by the
+    review-issue verifier, which meant deterministic claim-obligation gaps
+    could almost never become first-class verified review issues.  These
+    phrases are still conservative: they name the exact review dimension a
+    reader can audit against an observed table/list/method inventory, rather
+    than inventing an external baseline or dataset name.
+    """
+
+    requirement = _canonical_required_evidence_type(requirement)
+    return {
+        "empirical_result": "quantitative result table or metric for the claimed empirical effect",
+        "baseline_or_comparison": "same-setting baseline or comparison for the claimed improvement",
+        "ablation_or_component": "component-isolation ablation for the claimed mechanism",
+        "robustness_or_generalization": "held-out domain, dataset, or stress condition matching the claim scope",
+        "scope_coverage": "evaluation setting or dataset coverage matching the claim scope",
+        "evaluation_protocol": "evaluation split, metric, threshold, seed, or same-budget protocol",
+        "efficiency_cost": "runtime, memory, parameter, FLOP, hardware, or compute-cost comparison",
+        "method_detail": "technical mechanism, assumption, objective, or implementation detail for the claimed method",
+        "reproducibility_detail": "training hyperparameters, data split, seed, code/config, or implementation detail",
+    }.get(requirement, _REQUIREMENT_LABELS.get(requirement, str(requirement or "").replace("_", " ")))
 
 
 _REVIEW_ISSUE_GENERIC_MISSING_ITEM_TOKENS = frozenset(
@@ -7375,6 +7409,58 @@ def _review_issue_full_text_target_windows(
     return windows
 
 
+def _review_issue_full_text_structural_windows(
+    body: str,
+    neg_type: str,
+    *,
+    window: int = 900,
+    max_windows: int = 16,
+) -> List[str]:
+    """Fallback counterevidence windows for structural review dimensions.
+
+    Default structural missing items such as "runtime, memory, parameter, FLOP,
+    hardware, or compute-cost comparison" should be disproved by any concrete
+    matching cost table, not only by a literal repeat of the whole phrase.
+    """
+
+    if not body:
+        return []
+    neg_type = _canonical_negative_evidence_type(neg_type)
+    patterns: List[re.Pattern[str]] = []
+    if neg_type in {
+        "insufficient_evaluation",
+        "missing_baseline",
+        "unfair_or_weak_baseline",
+        "missing_robustness_or_generalization",
+        "scope_overclaim",
+        "evaluation_protocol_risk",
+        "result_claim_mismatch",
+        "negative_result",
+    }:
+        patterns.append(_REVIEW_ISSUE_FULL_TEXT_EVAL_RE)
+    if neg_type in {"missing_ablation", "method_support_gap", "reproducibility_gap"}:
+        patterns.append(_REVIEW_ISSUE_FULL_TEXT_METHOD_RE)
+    if neg_type == "reproducibility_gap":
+        patterns.append(_REVIEW_ISSUE_FULL_TEXT_REPRO_RE)
+    structural_pattern = _REVIEW_ISSUE_STRUCTURAL_EXPECTATION_PATTERNS.get(neg_type)
+    if structural_pattern is not None:
+        patterns.append(structural_pattern)
+    windows: List[str] = []
+    seen: set[Tuple[int, int]] = set()
+    for pattern in patterns:
+        for match in pattern.finditer(body):
+            start = max(0, match.start() - window // 2)
+            end = min(len(body), match.end() + window // 2)
+            span = (start, end)
+            if span in seen:
+                continue
+            seen.add(span)
+            windows.append(body[start:end])
+            if len(windows) >= max_windows:
+                return windows
+    return windows
+
+
 def _review_issue_related_work_only_window(window: str) -> bool:
     text = str(window or "")
     if not _REVIEW_ISSUE_FULL_TEXT_RELATED_WORK_RE.search(text[:260]):
@@ -7475,6 +7561,20 @@ def _window_contains_any_target_marker(window: str, target_tokens: Sequence[str]
         if _text_contains_surface_marker(window, token):
             return True
     return False
+
+
+def _window_matches_missing_target_or_structural_dimension(
+    window: str,
+    missing_items: Sequence[str],
+    neg_type: str,
+) -> bool:
+    if _window_has_any_missing_target(window, missing_items):
+        return True
+    return _review_issue_structural_expectation_type_matches(
+        missing_items,
+        neg_type,
+        _NEGATIVE_TYPE_TO_PREFERRED_REQUIREMENT.get(_canonical_negative_evidence_type(neg_type), ""),
+    )
 
 
 def _ablation_counterevidence_window_resolves_target(window: str, target_tokens: Sequence[str]) -> bool:
@@ -7664,14 +7764,29 @@ def _review_issue_full_text_counterevidence_reason(
     anchor_quote = str(anchor.get("quote") or "").strip()
     if anchor_quote:
         body = body.replace(anchor_quote, " ", 1)
+    missing = bundle.get("missing_or_mismatch") if isinstance(bundle.get("missing_or_mismatch"), dict) else {}
     missing_items = _review_issue_missing_item_texts(bundle)
     target_tokens = _review_issue_full_text_target_tokens(missing_items)
     if not target_tokens:
         return ""
+    neg_type = _canonical_negative_evidence_type(neg_type)
+    claim_obligation_structural = (
+        str(missing.get("source") or "") == "claim_obligation"
+        and _review_issue_structural_expectation_type_matches(
+            missing_items,
+            neg_type,
+            _NEGATIVE_TYPE_TO_PREFERRED_REQUIREMENT.get(neg_type, ""),
+        )
+    )
     windows = _review_issue_full_text_target_windows(body, target_tokens)
+    if not windows and _review_issue_structural_expectation_type_matches(
+        missing_items,
+        neg_type,
+        _NEGATIVE_TYPE_TO_PREFERRED_REQUIREMENT.get(neg_type, ""),
+    ):
+        windows = _review_issue_full_text_structural_windows(body, neg_type)
     if not windows:
         return ""
-    neg_type = _canonical_negative_evidence_type(neg_type)
 
     if neg_type == "missing_ablation":
         missing_probe = {
@@ -7695,6 +7810,17 @@ def _review_issue_full_text_counterevidence_reason(
         for window in windows:
             if _review_issue_related_work_only_window(window):
                 continue
+            if (
+                claim_obligation_structural
+                and _REVIEW_ISSUE_FULL_TEXT_EVAL_RE.search(window)
+                and re.search(
+                    r"\b(?:baseline|baselines|comparison|compared|compare|sota|"
+                    r"state[- ]of[- ]the[- ]art|against)\b",
+                    window,
+                    re.I,
+                )
+            ):
+                return "full_text_baseline_or_comparison_counterevidence"
             if _REVIEW_ISSUE_FULL_TEXT_EVAL_RE.search(window) and re.search(
                 r"\b(?:baseline|baselines|comparison|compared|compare|table|result|results|evaluation|experiment)\b",
                 window,
@@ -7705,6 +7831,31 @@ def _review_issue_full_text_counterevidence_reason(
 
     if neg_type in {"insufficient_evaluation", "missing_robustness_or_generalization", "scope_overclaim"}:
         for window in windows:
+            if (
+                claim_obligation_structural
+                and neg_type == "insufficient_evaluation"
+                and _REVIEW_ISSUE_FULL_TEXT_EVAL_RE.search(window)
+                and re.search(
+                    r"\b(?:table|figure|fig\.?|reports?|result|results|metric|metrics|"
+                    r"accuracy|quality|rate|score|performance|benchmark|experiment)\b",
+                    window,
+                    re.I,
+                )
+            ):
+                return "full_text_evaluation_or_scope_counterevidence"
+            if (
+                claim_obligation_structural
+                and neg_type in {"missing_robustness_or_generalization", "scope_overclaim"}
+                and _REVIEW_ISSUE_FULL_TEXT_EVAL_RE.search(window)
+                and re.search(
+                    r"\b(?:table|figure|fig\.?|reports?|result|results|benchmark|benchmarks|"
+                    r"dataset|datasets|domain|domains|setting|settings|imagenet|cifar|"
+                    r"homophily|heterophily|external|held[- ]out|ood|out[- ]of[- ]domain)\b",
+                    window,
+                    re.I,
+                )
+            ):
+                return "full_text_evaluation_or_scope_counterevidence"
             if _window_resolves_evaluation_or_scope_missing(window, missing_items, neg_type):
                 return "full_text_evaluation_or_scope_counterevidence"
         return ""
@@ -7717,6 +7868,22 @@ def _review_issue_full_text_counterevidence_reason(
 
     if neg_type == "efficiency_cost_gap":
         for window in windows:
+            if claim_obligation_structural and re.search(
+                r"\b(?:runtime|latency|throughput|wall[- ]clock|running\s+time|"
+                r"memory|gpu|cpu|hardware|parameters?|flops?|compute|"
+                r"computational\s+(?:cost|time|budget)|fps|tokens?/s|ms|seconds?)\b",
+                window,
+                re.I,
+            ) and (
+                re.search(
+                    r"\d+(?:\.\d+)?\s*(?:ms|s|sec(?:onds?)?|fps|tokens?/s|gb|mb|"
+                    r"gflops?|tflops?|hours?|x|%)\b",
+                    window,
+                    re.I,
+                )
+                or re.search(r"\b(?:table|tab\.)\s*\d", window, re.I)
+            ):
+                return "full_text_efficiency_counterevidence"
             if _window_resolves_efficiency_missing(window, missing_items):
                 return "full_text_efficiency_counterevidence"
         return ""
@@ -7792,10 +7959,13 @@ def _review_issue_bundle_verification_failure(
         return "claim_anchor_not_locatable_in_paper"
     if _review_issue_targets_limitation_or_boundary_claim(bundle, state or {}):
         return "target_claim_is_limitation_or_boundary"
-    if str(bundle.get("source_of_expectation") or "") != "reviewer_candidate":
-        return "missing_entity_not_reviewer_candidate_specific"
-    if not _review_issue_bundle_has_auditable_expectation(bundle, state or {}, neg_type):
-        return "reviewer_candidate_expectation_not_auditable_in_paper"
+    expectation_failure = _review_issue_bundle_expectation_failure_reason(
+        bundle,
+        state or {},
+        neg_type,
+    )
+    if expectation_failure:
+        return expectation_failure
     if _review_issue_missing_items_look_truncated(missing_items):
         return "missing_entity_truncated_or_incomplete"
     if not _review_issue_missing_items_are_concrete(neg_type, missing_items):
@@ -7865,6 +8035,294 @@ def _review_issue_candidate_expectation_terms(
     }
 
 
+_REVIEW_ISSUE_STRUCTURAL_EXPECTATION_PATTERNS: Dict[str, re.Pattern[str]] = {
+    "missing_baseline": re.compile(
+        r"\b(?:same[- ]setting|same[- ]budget|fair(?:ness)?|baseline|comparison|"
+        r"state[- ]of[- ]the[- ]art|sota|competitor|prior\s+method|existing\s+method)\b",
+        re.IGNORECASE,
+    ),
+    "unfair_or_weak_baseline": re.compile(
+        r"\b(?:same[- ]setting|same[- ]budget|fair(?:ness)?|baseline|comparison|"
+        r"strong\s+baseline|competitor|prior\s+method|existing\s+method)\b",
+        re.IGNORECASE,
+    ),
+    "missing_ablation": re.compile(
+        r"\b(?:ablation|component[- ]isolation|component|module|mechanism|objective|loss|"
+        r"encoder|decoder|attention|routing|fusion|branch|stage|head|threshold|variant)\b",
+        re.IGNORECASE,
+    ),
+    "insufficient_evaluation": re.compile(
+        r"\b(?:quantitative|metric|result|results|table|benchmark|dataset|per[- ]dataset|"
+        r"score|accuracy|f1|auc|mae|evaluation|experiment)\b",
+        re.IGNORECASE,
+    ),
+    "missing_robustness_or_generalization": re.compile(
+        r"\b(?:held[- ]out|external|out[- ]of[- ]domain|ood|cross[- ]domain|domain|dataset|"
+        r"stress|corruption|robust(?:ness)?|generalization|generalisation|unseen)\b",
+        re.IGNORECASE,
+    ),
+    "scope_overclaim": re.compile(
+        r"\b(?:scope|setting|settings|dataset|datasets|benchmark|benchmarks|domain|domains|"
+        r"held[- ]out|external|coverage|generalization|generalisation)\b",
+        re.IGNORECASE,
+    ),
+    "evaluation_protocol_risk": re.compile(
+        r"\b(?:protocol|split|train|test|validation|metric|threshold|seed|seeds|"
+        r"same[- ]budget|same[- ]hardware|hardware|evaluation\s+budget|setting)\b",
+        re.IGNORECASE,
+    ),
+    "efficiency_cost_gap": re.compile(
+        r"\b(?:runtime|latency|throughput|wall[- ]clock|memory|gpu|cpu|hardware|"
+        r"parameter|parameters|flops?|compute|computational\s+cost|cost|speedup|"
+        r"same[- ]hardware|same[- ]budget)\b",
+        re.IGNORECASE,
+    ),
+    "result_claim_mismatch": re.compile(
+        r"\b(?:quantitative|metric|result|score|accuracy|f1|auc|mae|table|benchmark|"
+        r"claimed\s+improvement|comparison|baseline|underperform|worse)\b",
+        re.IGNORECASE,
+    ),
+    "method_support_gap": re.compile(
+        r"\b(?:technical|mechanism|assumption|objective|loss|algorithm|architecture|"
+        r"module|component|pipeline|implementation|definition|equation|proof|theorem)\b",
+        re.IGNORECASE,
+    ),
+    "reproducibility_gap": re.compile(
+        r"\b(?:training|hyperparameter|optimizer|learning\s+rate|batch|epoch|"
+        r"data\s+split|split|seed|seeds|code|config|configuration|implementation|"
+        r"preprocessing|reproducib)\b",
+        re.IGNORECASE,
+    ),
+}
+
+
+def _review_issue_structural_expectation_type_matches(
+    missing_items: Sequence[str],
+    neg_type: str,
+    requirement: str,
+) -> bool:
+    missing_text = " ".join(str(item or "") for item in missing_items or [])
+    if not missing_text.strip():
+        return False
+    neg_type = _canonical_negative_evidence_type(neg_type)
+    requirement = _canonical_required_evidence_type(requirement)
+    patterns: List[re.Pattern[str]] = []
+    if neg_type in _REVIEW_ISSUE_STRUCTURAL_EXPECTATION_PATTERNS:
+        patterns.append(_REVIEW_ISSUE_STRUCTURAL_EXPECTATION_PATTERNS[neg_type])
+    default_type = _REQUIREMENT_TO_NEGATIVE_TYPE.get(requirement)
+    if default_type in _REVIEW_ISSUE_STRUCTURAL_EXPECTATION_PATTERNS:
+        patterns.append(_REVIEW_ISSUE_STRUCTURAL_EXPECTATION_PATTERNS[default_type])
+    return any(pattern.search(missing_text) for pattern in patterns)
+
+
+def _review_issue_claim_for_bundle(bundle: Dict[str, Any], state: Dict[str, Any]) -> Dict[str, Any]:
+    claim_id = str(
+        (bundle.get("claim_anchor") or {}).get("claim_id")
+        if isinstance(bundle.get("claim_anchor"), dict)
+        else bundle.get("claim_id")
+    ).strip()
+    if not claim_id:
+        claim_id = str(bundle.get("claim_id") or "").strip()
+    for claim in (state or {}).get("claims", []) or []:
+        if isinstance(claim, dict) and str(claim.get("claim_id") or "").strip() == claim_id:
+            return claim
+    anchor = bundle.get("claim_anchor") if isinstance(bundle.get("claim_anchor"), dict) else {}
+    return {
+        "claim_id": claim_id,
+        "claim": str(anchor.get("quote") or ""),
+        "claim_type": "",
+        "claim_obligations": [bundle.get("required_evidence_type")] if bundle.get("required_evidence_type") else [],
+    }
+
+
+def _review_issue_claim_structural_cue_basis(
+    claim: Dict[str, Any],
+    requirement: str,
+    neg_type: str,
+    missing_items: Sequence[str],
+) -> str:
+    requirement = _canonical_required_evidence_type(requirement)
+    neg_type = _canonical_negative_evidence_type(neg_type)
+    claim_blob = _normalize_text(claim.get("claim") or claim.get("text"), max_length=520)
+    claim_type = str(claim.get("claim_type") or "").strip().lower()
+    missing_blob = " ".join(str(item or "") for item in missing_items or [])
+
+    if requirement == "efficiency_cost" or neg_type == "efficiency_cost_gap":
+        if _CLAIM_REQ_EFFICIENCY_RE.search(claim_blob):
+            return "structural_claim_efficiency_cue"
+        return ""
+
+    if requirement == "baseline_or_comparison" or neg_type in _COVERAGE_BASELINE_NEGATIVE_TYPES:
+        if _CLAIM_REQ_BASELINE_RE.search(claim_blob):
+            return "structural_claim_comparison_cue"
+        return ""
+
+    if requirement == "ablation_or_component" or neg_type == "missing_ablation":
+        if _CLAIM_REQ_ABLATION_RE.search(claim_blob):
+            return "structural_claim_ablation_cue"
+        if claim_type in {"method", "contribution"} and re.search(
+            r"\b(?:module|component|mechanism|architecture|objective|loss|encoder|decoder|"
+            r"attention|routing|fusion|branch|stage|pipeline|framework)\b",
+            claim_blob,
+            re.IGNORECASE,
+        ):
+            return "structural_claim_component_cue"
+        return ""
+
+    if requirement == "empirical_result" or neg_type in {"insufficient_evaluation", "result_claim_mismatch", "negative_result"}:
+        if claim_type in {"empirical", "comparison"} or _CLAIM_REQ_EMPIRICAL_RE.search(claim_blob):
+            return "structural_claim_empirical_cue"
+        return ""
+
+    if requirement in {"robustness_or_generalization", "scope_coverage"} or neg_type in {
+        "missing_robustness_or_generalization",
+        "scope_overclaim",
+    }:
+        if _CLAIM_REQ_ROBUSTNESS_RE.search(claim_blob) or _CLAIM_REQ_SCOPE_RE.search(claim_blob):
+            return "structural_claim_scope_or_robustness_cue"
+        return ""
+
+    if requirement == "evaluation_protocol" or neg_type == "evaluation_protocol_risk":
+        if _CLAIM_REQ_EVALUATION_PROTOCOL_RE.search(claim_blob):
+            return "structural_claim_protocol_cue"
+        if claim_type in {"empirical", "comparison"} and re.search(
+            r"\b(?:protocol|split|seed|threshold|metric|hardware|budget|setting|validation|test)\b",
+            missing_blob,
+            re.IGNORECASE,
+        ):
+            return "structural_empirical_claim_protocol_dimension"
+        return ""
+
+    if requirement == "method_detail" or neg_type == "method_support_gap":
+        if claim_type in {"method", "contribution"} or _CLAIM_REQ_METHOD_RE.search(claim_blob):
+            return "structural_claim_method_cue"
+        return ""
+
+    if requirement == "reproducibility_detail" or neg_type == "reproducibility_gap":
+        if _CLAIM_REQ_REPRO_RE.search(claim_blob):
+            return "structural_claim_reproducibility_cue"
+        if claim_type == "method" and re.search(
+            r"\b(?:training|implementation|optimizer|hyperparameter|data\s+split|architecture|configuration)\b",
+            claim_blob + " " + missing_blob,
+            re.IGNORECASE,
+        ):
+            return "structural_method_claim_reproducibility_cue"
+        return ""
+
+    return ""
+
+
+def _review_issue_structural_expectation_basis(
+    bundle: Dict[str, Any],
+    state: Dict[str, Any],
+    neg_type: str,
+) -> str:
+    """Return a non-empty basis when a structural review obligation is auditable.
+
+    This is the middle lane between "the exact missing baseline name appears in
+    the paper" and "the model invented a vague gap".  Many real reviewer
+    issues are structural: an efficiency claim needs runtime/memory/compute
+    evidence; a mechanism claim needs component isolation; a method claim needs
+    enough implementation detail.  These expectations are auditable from the
+    claim type/obligation plus observed paper inventory even when the missing
+    dimension is not literally named as absent by the paper.
+    """
+
+    if not isinstance(bundle, dict):
+        return ""
+    requirement = _canonical_required_evidence_type(bundle.get("required_evidence_type"))
+    if not requirement:
+        requirement = _NEGATIVE_TYPE_TO_PREFERRED_REQUIREMENT.get(_canonical_negative_evidence_type(neg_type), "")
+    missing = bundle.get("missing_or_mismatch") if isinstance(bundle.get("missing_or_mismatch"), dict) else {}
+    missing_items = [
+        str(item)
+        for item in (missing.get("items") or [missing.get("entity")])
+        if str(item or "").strip()
+    ]
+    if not requirement or not _review_issue_structural_expectation_type_matches(missing_items, neg_type, requirement):
+        return ""
+
+    claim = _review_issue_claim_for_bundle(bundle, state or {})
+    if not claim:
+        return ""
+    inferred_requirements = set(_claim_required_evidence_types(claim))
+    explicit_requirements = set(
+        _normalize_required_evidence_types(
+            claim.get("claim_obligations") or claim.get("required_evidence_types"),
+            max_items=12,
+        )
+    )
+    claim_text = _claim_requirement_text(claim)
+    claim_type = str(claim.get("claim_type") or "").strip().lower()
+    cue_basis = _review_issue_claim_structural_cue_basis(
+        claim,
+        requirement,
+        neg_type,
+        missing_items,
+    )
+    candidate = {
+        "weakness": bundle.get("reviewer_negative_candidate") or bundle.get("issue_type") or "",
+        "missing_or_weak_items": missing_items,
+        "negative_type": neg_type,
+        "required_evidence_type": requirement,
+    }
+    audit_like = {
+        "claim": claim_text,
+        "claim_type": claim_type,
+        "required_evidence_types": list(inferred_requirements | explicit_requirements),
+        "missing_requirements": [requirement],
+        "satisfied_requirements": [],
+    }
+    relevance = _review_issue_candidate_requirement_relevance_basis(
+        candidate,
+        audit_like,
+        requirement,
+        neg_type,
+    )
+    source_of_expectation = str(bundle.get("source_of_expectation") or "")
+    if relevance and relevance != "claim_requirement_audit":
+        return f"structural_{relevance}"
+    if cue_basis:
+        return cue_basis
+    if source_of_expectation == "reviewer_candidate" and relevance == "claim_requirement_audit":
+        # Candidate-specific issues can still be audited through the surface
+        # marker path.  Do not let a bare obligation field make a structural
+        # candidate valid without a claim cue.
+        return ""
+    if source_of_expectation == "claim_obligation":
+        return ""
+    return ""
+
+
+def _review_issue_bundle_auditable_expectation_basis(
+    bundle: Dict[str, Any],
+    state: Dict[str, Any],
+    neg_type: str,
+) -> str:
+    missing = bundle.get("missing_or_mismatch") if isinstance(bundle, dict) else {}
+    missing_items = []
+    if isinstance(missing, dict):
+        missing_items = [
+            str(item)
+            for item in (missing.get("items") or [missing.get("entity")])
+            if str(item or "").strip()
+        ]
+    terms = _review_issue_candidate_expectation_terms(missing_items, neg_type)
+    haystacks = [str((state or {}).get("paper_text") or "")]
+    for item in bundle.get("observed_inventory") or []:
+        if not isinstance(item, dict):
+            continue
+        haystacks.append(" ".join([
+            str(item.get("quote") or ""),
+            str(item.get("locator") or ""),
+            " ".join(str(part or "") for part in item.get("observed_items") or []),
+        ]))
+    joined = "\n".join(part for part in haystacks if part)
+    if terms and any(_text_contains_surface_marker(joined, term) for term in terms):
+        return "paper_surface_or_inventory_marker"
+    return _review_issue_structural_expectation_basis(bundle, state or {}, neg_type)
+
+
 def _review_issue_candidate_override_has_auditable_expectation(
     view: Dict[str, Any],
     candidate: Dict[str, Any],
@@ -7899,7 +8357,66 @@ def _review_issue_candidate_override_has_auditable_expectation(
             " ".join(str(part or "") for part in item.get("observed_items") or []),
         ]))
     joined = "\n".join(part for part in haystacks if part)
-    return any(_text_contains_surface_marker(joined, term) for term in terms)
+    if any(_text_contains_surface_marker(joined, term) for term in terms):
+        return True
+    claim_id = str(candidate.get("claim_id") or "").strip()
+    claim = next(
+        (
+            item for item in (view or {}).get("claims", []) or []
+            if isinstance(item, dict) and str(item.get("claim_id") or "").strip() == claim_id
+        ),
+        {},
+    )
+    bundle = {
+        "claim_id": claim_id,
+        "claim_anchor": {
+            "claim_id": claim_id,
+            "quote": str(claim.get("claim") or claim.get("text") or ""),
+        },
+        "required_evidence_type": _canonical_required_evidence_type(candidate.get("required_evidence_type"))
+        or _negative_type_to_required_evidence_type(neg_type),
+        "issue_type": _canonical_negative_evidence_type(neg_type),
+        "missing_or_mismatch": {
+            "entity": missing_items[0] if missing_items else "",
+            "items": missing_items,
+            "source": "reviewer_candidate",
+        },
+        "observed_inventory": _normalize_review_issue_observed_inventory_items(candidate.get("observed_inventory")),
+        "reviewer_negative_candidate": candidate.get("weakness") or candidate.get("reviewer_negative_candidate"),
+    }
+    return bool(_review_issue_structural_expectation_basis(bundle, view or {}, neg_type))
+
+
+def _review_issue_bundle_source_of_expectation_is_allowed(bundle: Dict[str, Any]) -> bool:
+    return str(bundle.get("source_of_expectation") or "") in {
+        "reviewer_candidate",
+        "claim_obligation",
+    }
+
+
+def _review_issue_bundle_claim_obligation_requires_structural_basis(
+    bundle: Dict[str, Any],
+    state: Dict[str, Any],
+    neg_type: str,
+) -> bool:
+    if str(bundle.get("source_of_expectation") or "") != "claim_obligation":
+        return True
+    basis = _review_issue_structural_expectation_basis(bundle, state or {}, neg_type)
+    return bool(basis)
+
+
+def _review_issue_bundle_expectation_failure_reason(
+    bundle: Dict[str, Any],
+    state: Dict[str, Any],
+    neg_type: str,
+) -> str:
+    if not _review_issue_bundle_source_of_expectation_is_allowed(bundle):
+        return "missing_entity_not_reviewer_candidate_specific"
+    if not _review_issue_bundle_has_auditable_expectation(bundle, state or {}, neg_type):
+        return "reviewer_candidate_expectation_not_auditable_in_paper"
+    if not _review_issue_bundle_claim_obligation_requires_structural_basis(bundle, state or {}, neg_type):
+        return "claim_obligation_expectation_not_structural"
+    return ""
 
 
 def _review_issue_bundle_has_auditable_expectation(
@@ -7907,28 +8424,7 @@ def _review_issue_bundle_has_auditable_expectation(
     state: Dict[str, Any],
     neg_type: str,
 ) -> bool:
-    missing = bundle.get("missing_or_mismatch") if isinstance(bundle, dict) else {}
-    missing_items = []
-    if isinstance(missing, dict):
-        missing_items = [
-            str(item)
-            for item in (missing.get("items") or [missing.get("entity")])
-            if str(item or "").strip()
-        ]
-    terms = _review_issue_candidate_expectation_terms(missing_items, neg_type)
-    if not terms:
-        return False
-    haystacks = [str((state or {}).get("paper_text") or "")]
-    for item in bundle.get("observed_inventory") or []:
-        if not isinstance(item, dict):
-            continue
-        haystacks.append(" ".join([
-            str(item.get("quote") or ""),
-            str(item.get("locator") or ""),
-            " ".join(str(part or "") for part in item.get("observed_items") or []),
-        ]))
-    joined = "\n".join(part for part in haystacks if part)
-    return any(_text_contains_surface_marker(joined, term) for term in terms)
+    return bool(_review_issue_bundle_auditable_expectation_basis(bundle, state or {}, neg_type))
 
 
 def _build_review_issue_bundle_from_gap(
@@ -8076,8 +8572,15 @@ def _build_review_issue_bundle_from_gap(
         bundle["verification_status"] = "diagnosis_pending_verification"
         bundle["review_issue_bundle_rejection_reason"] = verification_failure
         return None
+    expectation_basis = _review_issue_bundle_auditable_expectation_basis(
+        bundle,
+        view,
+        neg_type,
+    )
+    if expectation_basis:
+        bundle["review_issue_expectation_basis"] = expectation_basis
     bundle["review_issue_bundle_verification_basis"] = (
-        "claim_anchor_locatable_and_reviewer_candidate_specific_missing_item_with_verified_inventory"
+        "claim_anchor_locatable_and_auditable_expectation_with_verified_inventory"
     )
     return bundle
 
