@@ -2354,6 +2354,63 @@ def test_review_issue_discovery_targets_include_concrete_issue_blueprints(monkey
     assert all("concrete_missing_item_rule" in item for item in blueprints)
 
 
+def test_review_issue_discovery_targets_include_claim_surface_profile_hints(monkeypatch):
+    monkeypatch.setattr(review_state_mod, "_REVIEW_ISSUE_BUNDLE_ENABLED", True)
+    state = {
+        "paper_text": (
+            "Table 1 reports segmentation accuracy on DAVIS2016. "
+            "The method section describes the overall video segmentation pipeline."
+        ),
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": (
+                    "The Motion-Fusion module improves F1 on DAVIS2017 while remaining "
+                    "computationally efficient in FLOPs."
+                ),
+                "claim_type": "empirical",
+                "importance": "high",
+                "claim_kind": "paper_extracted",
+                "claim_obligations": [
+                    "empirical_result",
+                    "ablation_or_component",
+                    "method_detail",
+                    "efficiency_cost",
+                ],
+            }
+        ],
+        "evidence_map": [],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_summary": [],
+        "revision_summary": [],
+    }
+
+    slice_on = _render_critique_state_slice(state, review_issue_discovery_required=True)
+    target = slice_on["review_issue_discovery_targets"][0]
+    profile = target["claim_surface_profile"]
+    blueprints = target["issue_candidate_blueprints"]
+    examples = " ".join(
+        " ".join(item.get("candidate_missing_item_examples") or [])
+        for item in blueprints
+    )
+    blueprint_keys = {
+        (item["required_evidence_type"], item["issue_type"])
+        for item in blueprints
+    }
+
+    assert "Motion-Fusion" in profile["surface_entities"]
+    assert "DAVIS2017" in profile["surface_entities"]
+    assert "F1" in profile["surface_entities"]
+    assert "Motion-Fusion" in examples
+    assert "FLOPs" in examples or "flops" in examples
+    assert ("ablation_or_component", "missing_ablation") in blueprint_keys
+    assert ("method_detail", "method_support_gap") in blueprint_keys
+    assert ("efficiency_cost", "efficiency_cost_gap") in blueprint_keys
+    assert ("empirical_result", "insufficient_evaluation") in blueprint_keys
+
+
 def test_review_issue_discovery_uses_critique_prompt():
     payload = {"review_issue_discovery_required": True}
 

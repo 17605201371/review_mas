@@ -9657,6 +9657,122 @@ def _review_issue_claim_surface_entities(claim_text: str, *, max_items: int = 4)
     return results[:max_items]
 
 
+def _review_issue_claim_surface_profile(claim_text: str) -> Dict[str, List[str]]:
+    """Return non-evidence claim-surface hints for reviewer issue discovery.
+
+    These hints are shown to Critique so it can propose concrete review issue
+    candidates instead of generic "more experiments" gaps.  They are not used
+    as proof: the bundle verifier still needs claim anchors, observed inventory,
+    and freshness/counterevidence checks before anything counts.
+    """
+
+    text = re.sub(r"\s+", " ", str(claim_text or "")).strip()
+    if not text:
+        return {}
+
+    buckets: Dict[str, List[str]] = {
+        "surface_entities": _review_issue_claim_surface_entities(text, max_items=8),
+        "comparison_targets": [],
+        "datasets_or_benchmarks": [],
+        "components_or_mechanisms": [],
+        "metrics_or_protocols": [],
+        "resource_dimensions": [],
+    }
+
+    def add(bucket: str, raw: str, *, max_length: int = 80) -> None:
+        value = re.sub(r"\s+", " ", str(raw or "").strip(" ,.;:()[]{}")).strip()
+        if not value:
+            return
+        value = _normalize_text(value, max_length=max_length)
+        lowered = value.lower()
+        if lowered in {
+            "approach",
+            "baseline",
+            "baselines",
+            "benchmark",
+            "benchmarks",
+            "comparison",
+            "dataset",
+            "datasets",
+            "evaluation",
+            "experiment",
+            "experiments",
+            "framework",
+            "method",
+            "model",
+            "models",
+            "paper",
+            "performance",
+            "result",
+            "results",
+            "sota",
+            "state of the art",
+            "task",
+        }:
+            return
+        values = buckets.setdefault(bucket, [])
+        if lowered not in {item.lower() for item in values}:
+            values.append(value)
+
+    def add_entity_list(bucket: str, raw: str) -> None:
+        for part in re.split(r"\s*(?:,|;|/|\band\b|\bor\b)\s*", str(raw or "")):
+            part = part.strip()
+            if not part:
+                continue
+            # Keep compact capitalized or acronym-like names; drop ordinary
+            # prose fragments so the prompt does not get pseudo-entities.
+            for match in re.findall(
+                r"\b(?:[A-Z]{2,}[A-Za-z0-9_-]*|[A-Z][A-Za-z0-9]*[A-Z][A-Za-z0-9_-]*|"
+                r"[A-Za-z]+[-/][A-Za-z0-9_-]+|[A-Za-z]+[A-Za-z0-9_-]*\d[A-Za-z0-9_-]*)\b",
+                part,
+            ):
+                add(bucket, match)
+
+    for pattern in (
+        r"\b(?:baseline|baselines)\s+(?:such as|including|like|e\.g\.,?)\s+([^.;]{3,120})",
+        r"\b(?:compared|compare|comparison)\s+(?:with|against|to)\s+([^.;]{3,120})",
+        r"\boutperform(?:s|ing|ed)?\s+([^.;]{3,100})",
+    ):
+        for match in re.finditer(pattern, text, re.IGNORECASE):
+            add_entity_list("comparison_targets", match.group(1))
+
+    for pattern in (
+        r"\b(?:on|across|over|using|evaluated on|benchmarked on)\s+([^.;]{3,120})",
+        r"\b(?:dataset|datasets|benchmark|benchmarks)\s+(?:such as|including|like|e\.g\.,?)\s+([^.;]{3,120})",
+    ):
+        for match in re.finditer(pattern, text, re.IGNORECASE):
+            add_entity_list("datasets_or_benchmarks", match.group(1))
+
+    for pattern in (
+        r"\b([A-Za-z0-9_/-]{3,60})\s+(?:module|component|encoder|decoder|objective|loss|mechanism|branch|stage)\b",
+        r"\b(?:module|component|encoder|decoder|objective|loss|mechanism|branch|stage)\s+(?:called|named)?\s*([A-Za-z0-9_/-]{3,60})\b",
+        r"\b(?:via|with|using|based on)\s+(?:a|an|the)?\s*([A-Z][A-Za-z0-9_/-]{2,60})\b",
+    ):
+        for match in re.finditer(pattern, text, re.IGNORECASE):
+            add("components_or_mechanisms", match.group(1))
+
+    metric_terms = re.findall(
+        r"\b(?:accuracy|acc\.?|f1|f-?score|auc|auroc|bleu|rouge|mrr|ndcg|"
+        r"precision|recall|latency|runtime|throughput|memory|parameters?|flops|"
+        r"train(?:ing)?/?test split|validation split|random seed|threshold|metric)\b",
+        text,
+        re.IGNORECASE,
+    )
+    for term in metric_terms:
+        bucket = "resource_dimensions" if re.search(
+            r"latency|runtime|throughput|memory|parameters?|flops",
+            term,
+            re.IGNORECASE,
+        ) else "metrics_or_protocols"
+        add(bucket, term.lower())
+
+    for entity in buckets.get("surface_entities", []):
+        if re.search(r"\b(?:dataset|bench|imagenet|cifar|davis|nuscenes|coco|mnist)\b", entity, re.IGNORECASE):
+            add("datasets_or_benchmarks", entity)
+
+    return {key: values[:6] for key, values in buckets.items() if values}
+
+
 def _review_issue_candidate_blueprints_for_claim(
     claim: Dict[str, Any],
     audit_item: Optional[Dict[str, Any]],
@@ -9679,7 +9795,8 @@ def _review_issue_candidate_blueprints_for_claim(
         for item in inventory_items or []
         if isinstance(item, dict) and _normalize_text(item.get("locator") or item.get("evidence_id"), max_length=80)
     ][:3]
-    claim_entities = _review_issue_claim_surface_entities(claim_text)
+    claim_surface_profile = _review_issue_claim_surface_profile(claim_text)
+    claim_entities = claim_surface_profile.get("surface_entities") or []
     primary_entity = claim_entities[0] if claim_entities else ""
 
     def _blueprint(
@@ -9729,6 +9846,8 @@ def _review_issue_candidate_blueprints_for_claim(
             examples.insert(0, "recent GNN or graph-transformer baselines on the same graph benchmarks")
         if re.search(r"\b(segmentation|referring|ris|mask)\b", claim_blob):
             examples.insert(0, "standard RIS/segmentation baselines and datasets used by the claim scope")
+        for target in reversed(claim_surface_profile.get("comparison_targets", [])[:2]):
+            examples.insert(0, f"same-setting comparison against {target}")
         if primary_entity:
             examples.insert(0, f"same-budget comparison for {primary_entity} against the strongest baseline family named by the paper task")
         blueprints.append(
@@ -9741,17 +9860,20 @@ def _review_issue_candidate_blueprints_for_claim(
             )
         )
     if "evaluation_protocol" in active_reqs or re.search(r"\b(protocol|setting|split|seed|threshold|metric)\b", claim_blob):
+        protocol_examples = [
+            "train/test or validation split definition",
+            "metric definition or threshold selection protocol",
+            "random seed / repeated-run protocol",
+            "same-budget or same-hardware comparison setting",
+        ]
+        for item in reversed(claim_surface_profile.get("metrics_or_protocols", [])[:2]):
+            protocol_examples.insert(0, f"{item} reporting protocol or comparability setting")
         blueprints.append(
             _blueprint(
                 "evaluation_protocol",
                 "evaluation_protocol_risk",
                 "Name the exact protocol dimension that makes the result hard to compare or reproduce.",
-                [
-                    "train/test or validation split definition",
-                    "metric definition or threshold selection protocol",
-                    "random seed / repeated-run protocol",
-                    "same-budget or same-hardware comparison setting",
-                ]
+                protocol_examples
                 + ([f"protocol definition for evaluating {primary_entity} under the claimed setting"] if primary_entity else []),
                 route="absence_or_requirement_gap",
                 priority=88,
@@ -9774,47 +9896,91 @@ def _review_issue_candidate_blueprints_for_claim(
             )
         )
     if "ablation_or_component" in active_reqs:
+        component_examples = [
+            "ablation of the named module/component in the claim",
+            "component-removal experiment for the claimed mechanism",
+        ]
+        for item in reversed(claim_surface_profile.get("components_or_mechanisms", [])[:3]):
+            component_examples.insert(0, f"ablation isolating {item}")
         blueprints.append(
             _blueprint(
                 "ablation_or_component",
                 "missing_ablation",
                 "Name the exact module/component/objective whose isolated effect is missing.",
-                [
-                    "ablation of the named module/component in the claim",
-                    "component-removal experiment for the claimed mechanism",
-                ]
+                component_examples
                 + ([f"ablation isolating {primary_entity} or its named component"] if primary_entity else []),
                 priority=82,
             )
         )
+    if "method_detail" in active_reqs:
+        method_examples = [
+            "technical mechanism or objective that supports the method claim",
+            "assumption, loss, algorithm step, or implementation detail for the claimed mechanism",
+        ]
+        for item in reversed(claim_surface_profile.get("components_or_mechanisms", [])[:3]):
+            method_examples.insert(0, f"mechanism or implementation detail for {item}")
+        blueprints.append(
+            _blueprint(
+                "method_detail",
+                "method_support_gap",
+                "Name the exact method component, assumption, objective, or implementation detail that is underspecified.",
+                method_examples
+                + ([f"technical support for {primary_entity}"] if primary_entity else []),
+                priority=80,
+            )
+        )
     if "robustness_or_generalization" in active_reqs or "scope_coverage" in active_reqs:
+        scope_examples = [
+            "out-of-domain / cross-domain test setting",
+            "additional benchmark dataset matching the claim scope",
+            "stress or corruption robustness condition",
+        ]
+        for item in reversed(claim_surface_profile.get("datasets_or_benchmarks", [])[:3]):
+            scope_examples.insert(0, f"coverage or held-out evaluation for {item}")
         blueprints.append(
             _blueprint(
                 "robustness_or_generalization",
                 "missing_robustness_or_generalization",
                 "Name the exact held-out domain, dataset, stress condition, or scale setting absent from the inventory.",
-                [
-                    "out-of-domain / cross-domain test setting",
-                    "additional benchmark dataset matching the claim scope",
-                    "stress or corruption robustness condition",
-                ]
+                scope_examples
                 + ([f"held-out benchmark or stress setting for {primary_entity}"] if primary_entity else []),
                 priority=78,
             )
         )
     if "efficiency_cost" in active_reqs:
+        resource_examples = [
+            "wall-clock latency or throughput",
+            "GPU memory / parameter count / FLOPs",
+            "same-hardware compute-cost comparison",
+        ]
+        for item in reversed(claim_surface_profile.get("resource_dimensions", [])[:3]):
+            resource_examples.insert(0, f"{item} comparison under the claimed setting")
         blueprints.append(
             _blueprint(
                 "efficiency_cost",
                 "efficiency_cost_gap",
                 "Name the exact resource dimension missing from the claim's support.",
-                [
-                    "wall-clock latency or throughput",
-                    "GPU memory / parameter count / FLOPs",
-                    "same-hardware compute-cost comparison",
-                ]
+                resource_examples
                 + ([f"runtime, parameter count, or compute-cost comparison for {primary_entity}"] if primary_entity else []),
                 priority=76,
+            )
+        )
+    if "empirical_result" in active_reqs:
+        empirical_examples = [
+            "specific metric table for the named benchmark",
+            "per-dataset result for the claim's stated task",
+        ]
+        for item in reversed(claim_surface_profile.get("datasets_or_benchmarks", [])[:2]):
+            empirical_examples.insert(0, f"quantitative result for {item}")
+        for item in reversed(claim_surface_profile.get("metrics_or_protocols", [])[:2]):
+            empirical_examples.insert(0, f"{item} result table for the claimed effect")
+        blueprints.append(
+            _blueprint(
+                "empirical_result",
+                "insufficient_evaluation",
+                "Name the concrete result, metric, dataset, or comparison dimension not supported by the observed inventory.",
+                empirical_examples,
+                priority=74,
             )
         )
     if not blueprints and source_counts:
@@ -10299,6 +10465,9 @@ def _hard_negative_diagnosis_targets(
         if not checks:
             continue
         support_profile = _claim_support_profile_for_diagnosis(state, claim_id)
+        claim_surface_profile = _review_issue_claim_surface_profile(
+            _normalize_text(claim.get("claim") or claim.get("text"), max_length=260)
+        )
         paper_inventory = _evaluation_inventory_items_for_claim(
             state,
             claim_id,
@@ -10310,6 +10479,7 @@ def _hard_negative_diagnosis_targets(
             "claim_type": str(claim.get("claim_type") or ""),
             "importance": str(claim.get("importance") or ""),
             "coverage_tags": _normalize_list_of_strings(claim.get("coverage_tags"), max_items=6, max_length=80),
+            "claim_surface_profile": claim_surface_profile,
             "claim_obligations": _normalize_required_evidence_types(
                 claim.get("claim_obligations") or claim.get("required_evidence_types"),
                 max_items=6,

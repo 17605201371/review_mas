@@ -282,6 +282,10 @@ The verifier will reject generic obligation labels. "baseline evidence", "ablati
   missing/mismatch item the verifier can audit. Convert a blueprint into a candidate only when you can name a
   concrete item such as a baseline family, dataset, component, protocol dimension, hyperparameter/split detail,
   hardware setting, or reproducibility detail. Do not copy the blueprint's generic rule as the missing item.
+- Use `claim_surface_profile` when present as a hint for concrete item names. It may contain entities, datasets,
+  components, metrics, resource dimensions, or comparison targets extracted from the claim text. These hints are
+  not evidence and do not prove a flaw; they only help you write a specific missing/mismatch item that a later
+  verifier can check against observed inventory.
 - When `paper_evaluation_inventory` or the visible excerpt shows a table/list/experiment setup, include one
   `observed_inventory` item with a copied `quote`, `locator`, and short `observed_items`. This quote is not a
   negative quote; it is the paper-side inventory anchor that lets the verifier check an obligation mismatch.

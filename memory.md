@@ -122,6 +122,10 @@ Code changes in this checkpoint:
 - Preserved reviewer-candidate-specific verification: concrete reviewer-discovered missing items still require target-specific evidence/counterevidence handling and are not replaced by broad structural matching.
 - Added full-text structural counterevidence windows so generic structural dimensions are rejected if the paper already contains relevant result/baseline/scope/efficiency/method evidence.
 - Fixed issue-type selection so reviewer candidate issue type takes priority when it is compatible with the requirement; deterministic requirement defaults are only fallbacks.
+- Follow-up target-construction change: `review_issue_discovery_targets` now include a non-evidence `claim_surface_profile` extracted from the claim text, with surface entities, comparison targets, datasets/benchmarks, components/mechanisms, metrics/protocols, and resource dimensions.
+- Issue candidate blueprints now use that profile to give Critique concrete examples such as "ablation isolating Motion-Fusion", "F1 reporting protocol", "FLOPs comparison", or "coverage for DAVIS2017"; these are candidate-construction hints only and still require the existing bundle verifier.
+- Added first-class method-detail and empirical-result blueprints so Critique can propose method-support and insufficient-evaluation issues from claim obligations instead of relying only on baseline/ablation/protocol/reproducibility paths.
+- `REVIEW_ISSUE_DISCOVERY_PROMPT` now explicitly tells Critique that `claim_surface_profile` is not evidence and must only be used to name concrete missing/mismatch items for later verification.
 
 本轮代码变动逻辑:
 
@@ -129,6 +133,8 @@ Code changes in this checkpoint:
 - 不再把“模型提出了一个缺陷”直接算真负向。review issue bundle 必须同时满足: claim anchor 可追溯、observed inventory quote/list/table 可定位、missing/mismatch item 是具体实体或具体实验维度、并且全文/现有 inventory 没有反证。
 - 对 absence / coverage 类审稿问题，本轮允许“结构性审稿义务”成为 verified review issue 的来源，但前提是 claim 正文真的提出了对应结构需求。例如 claim 说 efficient / faster 才能要求 runtime/memory/parameter/FLOP/cost evidence; claim 明确有 mechanism/component 才能要求 component-isolation ablation。
 - 不允许 coverage tag、claim_obligation 字段、claim_type 字段单独自证审稿义务，避免模型先写一个 obligation 再用它证明缺陷成立。
+- 上游发现层现在会把 claim 正文里的实体、数据集、组件、指标、资源维度抽成 `claim_surface_profile`，交给 Critique 作为“提出什么审稿问题”的提示。它不参与验证，不会直接提高计数，只帮助下一轮 MiMo 更像真实审稿人一样提出具体问题。
+- 蓝图不再只说“缺 baseline/ablation/evaluation”，而是尽量带上 claim 表面的具体候选对象；但最终是否进入 `verified_review_issue_count` 仍由 claim anchor、observed inventory、missing/mismatch、全文反证和 freshness gate 决定。
 - 新增 surface marker 匹配是为了让 `$k$ -NN`、hyphen/LaTeX 这类论文表面写法能被识别，同时避免 `SECO` 命中 `SECOND` 这类假阳性。
 - 新增 bundle-level auditable expectation gate 是为了防止 reviewer candidate 自己凭空制造“应该比较某对象”的义务; 缺失对象必须能从论文 claim、paper surface 或 observed inventory 中审计出来。
 - `_sync_verified_review_issues` 不再保留已经被新版 verifier 否掉的旧 `obligation_grounded_review_issue`，避免 stale issue 继续污染 final view 和 recovery case table。
