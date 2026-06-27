@@ -179,6 +179,7 @@ def _normalize_review_issue_observed_inventory_items(value: Any) -> List[Dict[st
                 max_length=120,
             )
             evidence_id = _normalize_text(item.get("evidence_id"), max_length=100)
+            inventory_id = _normalize_text(item.get("inventory_id") or item.get("inventory_ref"), max_length=100)
             quote_id = _normalize_text(item.get("quote_id"), max_length=100)
             observed_items = _normalize_list_of_strings(
                 item.get("observed_items")
@@ -198,12 +199,13 @@ def _normalize_review_issue_observed_inventory_items(value: Any) -> List[Dict[st
             quote = _normalize_text(item, max_length=260)
             locator = ""
             evidence_id = ""
+            inventory_id = ""
             quote_id = ""
             observed_items = []
             inventory_type = ""
-        if not quote:
+        if not quote and not (inventory_id or evidence_id or quote_id):
             continue
-        key = (quote.lower(), locator.lower(), evidence_id.lower() or quote_id.lower())
+        key = (quote.lower(), locator.lower(), evidence_id.lower() or inventory_id.lower() or quote_id.lower())
         if key in seen:
             continue
         seen.add(key)
@@ -214,6 +216,8 @@ def _normalize_review_issue_observed_inventory_items(value: Any) -> List[Dict[st
         }
         if evidence_id:
             normalized["evidence_id"] = evidence_id
+        if inventory_id:
+            normalized["inventory_id"] = inventory_id
         if quote_id:
             normalized["quote_id"] = quote_id
         if inventory_type:
@@ -796,6 +800,68 @@ def _normalize_reviewer_negative_candidates(value: Any) -> List[Dict[str, Any]]:
         if len(results) >= 12:
             break
     return results
+
+
+def _review_issue_slot_candidates(value: Any) -> List[Dict[str, Any]]:
+    """Flatten fixed review-issue slots into the existing candidate list schema."""
+
+    if value in (None, ""):
+        return []
+    raw_slots: List[Tuple[str, Any]] = []
+    if isinstance(value, dict):
+        raw_slots = [(str(key or ""), slot_value) for key, slot_value in value.items()]
+    elif isinstance(value, list):
+        raw_slots = [
+            (str((slot_value or {}).get("slot") or (slot_value or {}).get("issue_type") or idx), slot_value)
+            for idx, slot_value in enumerate(value, start=1)
+        ]
+    else:
+        return []
+
+    candidates: List[Dict[str, Any]] = []
+    for slot_name, slot_value in raw_slots:
+        if not isinstance(slot_value, dict):
+            continue
+        candidate_value = (
+            slot_value.get("candidate")
+            or slot_value.get("review_issue_candidate")
+            or slot_value.get("issue")
+        )
+        if candidate_value in (None, "", False):
+            continue
+        if isinstance(candidate_value, list):
+            candidate_items = [item for item in candidate_value if isinstance(item, dict)]
+        elif isinstance(candidate_value, dict):
+            candidate_items = [candidate_value]
+        elif slot_value.get("claim_id") and (slot_value.get("weakness") or slot_value.get("finding")):
+            candidate_items = [slot_value]
+        else:
+            continue
+        normalized_slot = slot_name.strip().lower().replace("-", "_").replace(" ", "_")
+        slot_issue_type = {
+            "baseline": "missing_baseline",
+            "missing_baseline": "missing_baseline",
+            "ablation": "missing_ablation",
+            "missing_ablation": "missing_ablation",
+            "scope": "scope_overclaim",
+            "scope_or_robustness": "missing_robustness_or_generalization",
+            "robustness": "missing_robustness_or_generalization",
+            "protocol": "evaluation_protocol_risk",
+            "protocol_or_reproducibility": "reproducibility_gap",
+            "reproducibility": "reproducibility_gap",
+            "efficiency": "efficiency_cost_gap",
+            "efficiency_cost": "efficiency_cost_gap",
+            "result_claim_mismatch": "result_claim_mismatch",
+        }.get(normalized_slot, normalized_slot)
+        for item in candidate_items:
+            candidate = dict(item)
+            if normalized_slot and normalized_slot not in {"candidate", "review_issue_candidate"}:
+                candidate.setdefault("issue_type", slot_issue_type)
+                candidate.setdefault("slot", normalized_slot)
+            if slot_value.get("no_candidate_reason") and not candidate.get("rationale"):
+                candidate["rationale"] = slot_value.get("no_candidate_reason")
+            candidates.append(candidate)
+    return candidates
 
 
 def _normalize_conflict_item(item: Any, fallback_index: int) -> Optional[Dict[str, Any]]:
@@ -6528,16 +6594,53 @@ def _evaluation_inventory_from_evidence(state: Dict[str, Any], *, max_items: int
     }
 
 
+def _evaluation_inventory_raw_items(
+    state: Dict[str, Any],
+    *,
+    max_items: int = 64,
+) -> List[Dict[str, Any]]:
+    inventory = state.get("evaluation_inventory")
+    if not isinstance(inventory, dict) or not (
+        isinstance(inventory.get("items"), list)
+        or isinstance(inventory.get("inventory_items"), list)
+    ):
+        inventory = _evaluation_inventory_from_evidence(state, max_items=max_items)
+    raw_items = inventory.get("items") if isinstance(inventory.get("items"), list) else inventory.get("inventory_items", [])
+    return [item for item in raw_items or [] if isinstance(item, dict)][:max_items]
+
+
+def _evaluation_inventory_item_for_ref(
+    state: Dict[str, Any],
+    *,
+    inventory_id: str = "",
+    evidence_id: str = "",
+    quote_id: str = "",
+) -> Dict[str, Any]:
+    refs = {
+        "inventory_id": str(inventory_id or "").strip(),
+        "evidence_id": str(evidence_id or "").strip(),
+        "quote_id": str(quote_id or "").strip(),
+    }
+    if not any(refs.values()):
+        return {}
+    for item in _evaluation_inventory_raw_items(state, max_items=96):
+        for field, ref in refs.items():
+            if ref and str(item.get(field) or "").strip() == ref:
+                return item
+    if refs["evidence_id"]:
+        for item in (state or {}).get("evidence_map", []) or []:
+            if isinstance(item, dict) and str(item.get("evidence_id") or "").strip() == refs["evidence_id"]:
+                return item
+    return {}
+
+
 def _evaluation_inventory_items_for_claim(
     state: Dict[str, Any],
     claim_id: str,
     *,
     max_items: int = 5,
 ) -> List[Dict[str, Any]]:
-    inventory = state.get("evaluation_inventory")
-    if not isinstance(inventory, dict) or not isinstance(inventory.get("items"), list):
-        inventory = _evaluation_inventory_from_evidence(state)
-    raw_items = [item for item in inventory.get("items", []) or [] if isinstance(item, dict)]
+    raw_items = _evaluation_inventory_raw_items(state, max_items=64)
     claim_items = [item for item in raw_items if str(item.get("claim_id") or "") == str(claim_id or "")]
     global_items = [
         item for item in raw_items
@@ -6855,6 +6958,20 @@ def _review_issue_candidate_observed_inventory(
     for raw_item in candidate_inventory:
         if not isinstance(raw_item, dict):
             continue
+        inventory_id = _normalize_text(raw_item.get("inventory_id") or raw_item.get("inventory_ref"), max_length=100)
+        evidence_id = _normalize_text(raw_item.get("evidence_id"), max_length=100)
+        quote_id = _normalize_text(raw_item.get("quote_id"), max_length=100)
+        if inventory_id or evidence_id or quote_id:
+            resolved_item = _evaluation_inventory_item_for_ref(
+                view or {},
+                inventory_id=inventory_id,
+                evidence_id=evidence_id,
+                quote_id=quote_id,
+            )
+            if resolved_item:
+                merged_item = dict(resolved_item)
+                merged_item.update({key: value for key, value in raw_item.items() if value not in (None, "", [])})
+                raw_item = merged_item
         quote = _normalize_text(
             raw_item.get("quote") or raw_item.get("raw_quote") or raw_item.get("evidence"),
             max_length=260,
@@ -6865,8 +6982,9 @@ def _review_issue_candidate_observed_inventory(
             raw_item.get("locator") or raw_item.get("source_locator") or raw_item.get("source"),
             max_length=120,
         )
-        evidence_id = _normalize_text(raw_item.get("evidence_id"), max_length=100)
-        quote_id = _normalize_text(raw_item.get("quote_id"), max_length=100)
+        inventory_id = _normalize_text(raw_item.get("inventory_id") or inventory_id, max_length=100)
+        evidence_id = _normalize_text(raw_item.get("evidence_id") or evidence_id, max_length=100)
+        quote_id = _normalize_text(raw_item.get("quote_id") or quote_id, max_length=100)
         verified = None
         source_bucket = ""
         if evidence_id and isinstance(evidence_by_id.get(evidence_id), dict):
@@ -6891,6 +7009,7 @@ def _review_issue_candidate_observed_inventory(
         seen_quotes.add(key)
         normalized = {
             "evidence_id": evidence_id,
+            "inventory_id": inventory_id,
             "quote_id": quote_id,
             "quote": quote,
             "locator": locator or "paper text",
@@ -6942,16 +7061,57 @@ def _review_issue_inventory_item_matches_requirement(
     return bool(requirements)
 
 
+def _review_issue_inventory_anchor_score(
+    item: Dict[str, Any],
+    claim_id: str,
+    requirement: str,
+    neg_type: str,
+) -> int:
+    score = 0
+    item_claim_id = str(item.get("claim_id") or "").strip()
+    item_claim_ids = {
+        str(value or "").strip()
+        for value in (item.get("claim_ids") or [])
+        if str(value or "").strip()
+    }
+    if item_claim_id and item_claim_id == str(claim_id or "").strip():
+        score += 100
+    if claim_id and claim_id in item_claim_ids:
+        score += 100
+    requirement = _canonical_required_evidence_type(requirement)
+    reqs = {_canonical_required_evidence_type(req) for req in (item.get("requirement_types") or []) if str(req or "").strip()}
+    if requirement and requirement in reqs:
+        score += 30
+    inventory_type = str(item.get("inventory_type") or "").strip()
+    expected_type = _inventory_type_for_requirements([requirement], str(item.get("quote") or ""))
+    if inventory_type and expected_type and inventory_type == expected_type:
+        score += 12
+    if _review_issue_inventory_item_matches_requirement(item, requirement, neg_type):
+        score += 10
+    source = str(item.get("inventory_source") or item.get("support_bucket") or "")
+    if source == "verified_support_inventory":
+        score += 8
+    if source == "paper_text_inventory":
+        score += 4
+    return score
+
+
 def _review_issue_paper_inventory_for_bundle(
     view: Dict[str, Any],
     claim_id: str,
     requirement: str,
     neg_type: str,
     *,
+    missing_items: Optional[Sequence[str]] = None,
     max_items: int = 4,
 ) -> List[Dict[str, Any]]:
     """Return deterministic paper-inventory anchors relevant to a candidate issue."""
-    inventory_items = _evaluation_inventory_items_for_claim(view, claim_id, max_items=12)
+    inventory_items = _evaluation_inventory_raw_items(view, max_items=96)
+    inventory_items = sorted(
+        inventory_items,
+        key=lambda item: _review_issue_inventory_anchor_score(item, claim_id, requirement, neg_type),
+        reverse=True,
+    )
     results: List[Dict[str, Any]] = []
     seen: set[str] = set()
     for item in inventory_items:
@@ -6959,7 +7119,7 @@ def _review_issue_paper_inventory_for_bundle(
             continue
         if not _review_issue_inventory_item_matches_requirement(item, requirement, neg_type):
             continue
-        quote = _normalize_text(item.get("quote"), max_length=260)
+        quote = _normalize_text(item.get("quote") or item.get("raw_quote") or item.get("evidence"), max_length=260)
         if not quote:
             continue
         source = str(item.get("inventory_source") or "")
@@ -6983,7 +7143,10 @@ def _review_issue_paper_inventory_for_bundle(
             "verified_grounding_label": str(item.get("verified_grounding_label") or ""),
             "verified_quote_match_type": str(item.get("verified_quote_match_type") or ""),
         }
-        tentative_bundle = {"observed_inventory": [normalized]}
+        tentative_bundle = {
+            "observed_inventory": [normalized],
+            "missing_or_mismatch": _review_issue_missing_entity_for_requirement(requirement, missing_items or []),
+        }
         if not _review_issue_observed_inventory_relevant_for_type(tentative_bundle, neg_type):
             continue
         results.append(normalized)
@@ -9067,6 +9230,7 @@ def _build_review_issue_bundle_from_gap(
         claim_id,
         requirement,
         neg_type,
+        missing_items=candidate_missing_items,
         max_items=4,
     )
     if paper_observed_inventory:
@@ -9530,6 +9694,7 @@ def _review_issue_candidate_funnel_metrics(
                 claim_id,
                 requirement,
                 neg_type,
+                missing_items=missing_items,
                 max_items=1,
             )
         observed_inventory = candidate_inventory or paper_inventory
@@ -9658,6 +9823,7 @@ def _reviewer_candidate_absence_gap_items(
                     claim_id,
                     req,
                     neg_type,
+                    missing_items=raw_missing_items,
                     max_items=1,
                 )
             )
@@ -11176,6 +11342,7 @@ def _review_issue_discovery_contrast_hints_for_claim(
             continue
         inventory_anchors.append(
             {
+                "inventory_id": str(item.get("inventory_id") or item.get("evidence_id") or ""),
                 "locator": locator,
                 "requirement_types": list(item.get("requirement_types") or [])[:4],
                 "observed_items": _normalize_list_of_strings(
@@ -11230,6 +11397,39 @@ def _review_issue_discovery_contrast_hints_for_claim(
             "Never write that the provided excerpt/current inventory is missing, truncated, or insufficient."
         ),
     }
+
+
+def _review_issue_inventory_menu_for_claim(
+    inventory_items: Sequence[Dict[str, Any]],
+    *,
+    max_items: int = 6,
+) -> List[Dict[str, Any]]:
+    menu: List[Dict[str, Any]] = []
+    for idx, item in enumerate(inventory_items or [], start=1):
+        if not isinstance(item, dict):
+            continue
+        quote = _normalize_text(item.get("quote"), max_length=180)
+        locator = _normalize_text(item.get("locator") or item.get("inventory_id") or item.get("evidence_id"), max_length=100)
+        if not quote or not locator:
+            continue
+        menu.append(
+            {
+                "menu_id": f"I{len(menu) + 1}",
+                "inventory_id": str(item.get("inventory_id") or item.get("evidence_id") or f"inventory-menu-{idx}"),
+                "inventory_type": str(item.get("inventory_type") or ""),
+                "requirement_types": list(item.get("requirement_types") or [])[:4],
+                "locator": locator,
+                "observed_items": _normalize_list_of_strings(
+                    item.get("observed_items") or [item.get("observed_entity")],
+                    max_items=6,
+                    max_length=60,
+                ),
+                "quote": quote,
+            }
+        )
+        if len(menu) >= max_items:
+            break
+    return menu
 
 
 def _freeform_reviewer_negative_candidate_tasks(
@@ -11747,6 +11947,7 @@ def _hard_negative_diagnosis_targets(
                 max_items=4,
             ),
             "paper_evaluation_inventory": paper_inventory,
+            "inventory_menu": _review_issue_inventory_menu_for_claim(paper_inventory, max_items=6),
             "normalized_paper_inventory": normalized_inventory,
             "support_profile": support_profile,
             "diagnostic_checks": checks,
@@ -14319,6 +14520,7 @@ def normalize_review_update_payload(payload: Any, required_fields: Optional[Iter
             raw_reviewer_negative_candidates.extend(candidate_value)
         elif candidate_value not in (None, ""):
             raw_reviewer_negative_candidates.append(candidate_value)
+    raw_reviewer_negative_candidates.extend(_review_issue_slot_candidates(payload.get("review_issue_slots")))
     reviewer_negative_candidates = _normalize_reviewer_negative_candidates(raw_reviewer_negative_candidates)
     conflict_notes = _normalize_conflicts(payload.get("conflict_notes"))
     evidence_gaps = _normalize_evidence_gaps(payload.get("evidence_gaps"), max_items=10)

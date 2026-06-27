@@ -1275,6 +1275,7 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
         "verified_review_negative",
         "obligation_grounded_review_issue",
         "reviewer_absence_audit",
+        "stale_reviewer_absence_audit",
         "author_limitation_only",
         "prior_work_limitation",
         "positive_or_neutral_support",
@@ -1290,6 +1291,11 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
         out[f"recovery_case_evidence_bucket_{bucket}"] = int(
             recovery_case_summary.get(f"evidence_bucket::{bucket}", 0) or 0
         )
+    out["verified_issue_contested_repair"] = out.get("recovery_case_verified_review_issue_repair", 0)
+    out["stale_absence_contested_repair"] = min(
+        out.get("recovery_case_effective_repair_without_verified_negative", 0),
+        out.get("recovery_case_evidence_bucket_stale_reviewer_absence_audit", 0),
+    )
     out["recovery_case_effective_repair_turns"] = int(
         recovery_case_summary.get("effective_repair_turns", 0) or 0
     )
@@ -1863,6 +1869,8 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "recovery_case_decision_hygiene_error_count",
         "recovery_case_verified_review_negative_repair",
         "recovery_case_verified_review_issue_repair",
+        "verified_issue_contested_repair",
+        "stale_absence_contested_repair",
         "recovery_case_reviewer_inferred_negative_repair",
         "recovery_case_verified_negative_flaw_lifecycle_downgrade",
         "recovery_case_verified_review_issue_lifecycle_downgrade",
@@ -1882,6 +1890,7 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "recovery_case_evidence_bucket_verified_review_negative",
         "recovery_case_evidence_bucket_obligation_grounded_review_issue",
         "recovery_case_evidence_bucket_reviewer_absence_audit",
+        "recovery_case_evidence_bucket_stale_reviewer_absence_audit",
         "recovery_case_evidence_bucket_author_limitation_only",
         "recovery_case_evidence_bucket_prior_work_limitation",
         "recovery_case_evidence_bucket_positive_or_neutral_support",

@@ -2448,6 +2448,40 @@ def test_review_issue_candidates_normalize_into_reviewer_negative_candidates():
     assert candidates[0]["source_of_expectation"] == "claim_obligation"
 
 
+def test_review_issue_slots_normalize_into_reviewer_negative_candidates_with_inventory_id():
+    payload = normalize_review_update_payload(
+        {
+            "review_issue_slots": {
+                "missing_baseline": {
+                    "candidate": {
+                        "candidate_id": "slot-candidate-1",
+                        "claim_id": "claim-1",
+                        "claim": "The method outperforms strong baselines.",
+                        "weakness": "The comparison does not cover a LAVT same-setting baseline.",
+                        "required_evidence_type": "baseline_or_comparison",
+                        "quote_grounding_mode": "absence_or_requirement_gap",
+                        "missing_or_weak_items": ["LAVT same-setting baseline"],
+                        "observed_inventory": [{"inventory_id": "inv-table-2"}],
+                        "status": "pending_absence_audit",
+                        "source_of_expectation": "reviewer_candidate",
+                    },
+                    "no_candidate_reason": "",
+                },
+                "missing_ablation": {
+                    "candidate": None,
+                    "no_candidate_reason": "no concrete component plus ablation inventory anchor visible",
+                },
+            }
+        }
+    )
+
+    candidates = payload["reviewer_negative_candidates"]
+    assert len(candidates) == 1
+    assert candidates[0]["candidate_id"] == "slot-candidate-1"
+    assert candidates[0]["negative_type"] == "missing_baseline"
+    assert candidates[0]["observed_inventory"][0]["inventory_id"] == "inv-table-2"
+
+
 def test_critique_prompt_baseline_excludes_hardneg_additions():
     baseline = review_prompts_mod._critique_prompt_baseline()
     enhanced = review_prompts_mod._CRITIQUE_PROMPT_HARDNEG

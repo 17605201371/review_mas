@@ -10082,6 +10082,56 @@ def test_review_issue_bundle_allows_empirical_claim_with_noisy_limitation_tag():
     assert hygiene["verified_review_issue_count"] == 1
 
 
+def test_reviewer_candidate_missing_inventory_gets_hydrated_from_paper_inventory():
+    claim = "The proposed model outperforms baselines on the RefCOCO segmentation benchmark."
+    inventory_quote = (
+        "Table 2 compares the proposed model with MCN and VLT baselines on RefCOCO "
+        "and reports mIoU and precision for each method."
+    )
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "comparison",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["baseline_or_comparison"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-candidate-lavt",
+                "claim_id": "claim-1",
+                "weakness": "The comparison omits a same-setting LAVT baseline for RefCOCO segmentation.",
+                "negative_type": "missing_baseline",
+                "required_evidence_type": "baseline_or_comparison",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["LAVT same-setting baseline"],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+    bundle_items = hygiene["review_issue_bundle_items"]
+
+    assert hygiene["reviewer_candidate_review_issue_count"] == 1
+    assert hygiene["verified_review_issue_count"] == 1
+    assert bundle_items[0]["source_of_expectation"] == "reviewer_candidate"
+    assert bundle_items[0]["observed_inventory_count"] == 1
+    assert bundle_items[0]["observed_inventory_status"] == "verified_support_candidate_or_paper_inventory"
+    assert hygiene.get("review_issue_candidate_missing_inventory_rejected", 0) == 0
+
+
 def test_merge_review_state_materializes_verified_review_issue_bundle_for_recovery():
     claim = "The method compares favorably against baselines on Benchmark-X."
     inventory_quote = (

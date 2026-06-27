@@ -87,6 +87,21 @@ Important interpretation:
 - After tightening, P28 is precision-first but not paper-ready on recall: it leaves only two current verified review issue cases (QAgwFiIY4p efficiency/parameter measurement, TPAj63ax4Y LAVT same-setting comparison). It does not meet the planned `verified_review_issue_count>=10` or `reviewer_candidate_review_issue_count>=8` target.
 - Next work should improve entity-level candidate discovery and normalized inventory extraction. Do not loosen the verifier to recover the 21-count result.
 
+### 2026-06-27 P28 follow-up: reviewer-candidate inventory bridge
+
+Implemented after the P28 audit found `review_issue_candidate_total=4` but all four reviewer candidates were rejected for missing inventory anchors:
+
+- `review_issue_slots` is now accepted as a fixed-slot Critique output shape and flattened into the existing `reviewer_negative_candidates` path. The old `review_issue_candidates` list remains supported for compatibility.
+- Candidate observed inventory can cite `inventory_id` / `inventory_ref` without copying the quote. The verifier resolves the id against normalized inventory and still requires the resolved quote to be paper-locatable.
+- Reviewer candidates that omit `observed_inventory` now get one deterministic inventory recheck before `missing_inventory` rejection. The recheck ranks same-claim inventory first, then type-matching paper inventory, and still runs the normal bundle gates: real claim anchor, concrete missing item, relevant/verifiable inventory, missing item not already observed, and full-text counterevidence.
+- Review-issue discovery targets now expose an `inventory_menu` with `menu_id`, `inventory_id`, `inventory_type`, requirement types, locator, observed items, and copied quote so the model can bind candidates to inventory anchors instead of paraphrasing long context.
+- Dashboard aggregation now exposes `verified_issue_contested_repair` and `stale_absence_contested_repair` so paper-facing recovery tables do not mix current verified issue repairs with stale absence-audit repairs.
+
+Validation so far:
+
+- `/opt/miniconda3/envs/DrMAS/bin/python -m pytest tests/test_review_decision_hygiene.py tests/test_review_inference_runner.py -q --tb=short` -> `611 passed`.
+- This has not yet been re-run on hardneg20. Treat it as an engineering bridge for candidate-to-inventory binding, not as evidence that review issue recall has improved.
+
 ### 2026-06-27 COUNTERFIX1 hardneg20 checkpoint
 
 Run and artifacts:
