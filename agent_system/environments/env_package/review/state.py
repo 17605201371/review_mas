@@ -9126,6 +9126,11 @@ def _add_reviewer_absence_audit_artifacts(
         for item in view.get("flaw_candidates", []) or []
         if isinstance(item, dict) and str(item.get("flaw_id") or "")
     }
+    existing_flaws_by_id = {
+        str(item.get("flaw_id") or ""): item
+        for item in view.get("flaw_candidates", []) or []
+        if isinstance(item, dict) and str(item.get("flaw_id") or "")
+    }
     existing_absence_claim_ids = {
         str(flaw.get("related_claim_ids", [""])[0] if isinstance(flaw.get("related_claim_ids"), list) and flaw.get("related_claim_ids") else flaw.get("claim_id") or "")
         for flaw in view.get("flaw_candidates", []) or []
@@ -9270,13 +9275,46 @@ def _add_reviewer_absence_audit_artifacts(
             existing_evidence_ids.add(evidence_id)
             added_evidence_ids.append(evidence_id)
             type_counts[neg_type] += 1
-        evidence_ids_for_flaw = [eid for eid in evidence_ids_for_flaw if eid]
-        if not evidence_ids_for_flaw or claim_id in existing_absence_claim_ids:
+        evidence_by_id_once = _evidence_records_by_id({"evidence_map": view.get("evidence_map", [])})
+        evidence_ids_for_flaw = [
+            eid
+            for eid in dict.fromkeys(evidence_ids_for_flaw)
+            if eid
+            and isinstance(evidence_by_id_once.get(eid), dict)
+            and str(evidence_by_id_once[eid].get("claim_id") or "").strip() == claim_id
+            and _is_obligation_grounded_review_issue_evidence_record(evidence_by_id_once[eid], view)
+        ]
+        if not evidence_ids_for_flaw:
+            continue
+        def _existing_absence_flaw_links_issue(flaw: Dict[str, Any]) -> bool:
+            if not isinstance(flaw, dict):
+                return False
+            if str(flaw.get("source") or "") != ABSENCE_AUDIT_SOURCE:
+                return False
+            flaw_claim_ids = {str(item or "").strip() for item in flaw.get("related_claim_ids", []) or [] if str(item or "").strip()}
+            if claim_id not in flaw_claim_ids:
+                return False
+            linked_ids = {
+                str(item or "").strip()
+                for item in list(flaw.get("negative_evidence_ids") or []) + list(flaw.get("evidence_ids") or [])
+                if str(item or "").strip()
+            }
+            return bool(linked_ids.intersection(evidence_ids_for_flaw))
+
+        if any(_existing_absence_flaw_links_issue(flaw) for flaw in existing_flaws_by_id.values()):
             continue
         flaw_id = _slugify("flaw-reviewer-absence", f"{claim_id}-{'-'.join(neg_types_for_flaw)}", gap_index)
         if flaw_id in existing_flaw_ids:
-            continue
-        evidence_by_id_once = _evidence_records_by_id({"evidence_map": view.get("evidence_map", [])})
+            base_flaw_id = flaw_id
+            suffix_index = 1
+            while flaw_id in existing_flaw_ids:
+                existing_flaw = existing_flaws_by_id.get(flaw_id)
+                if _existing_absence_flaw_links_issue(existing_flaw):
+                    break
+                flaw_id = f"{base_flaw_id}-audit-{suffix_index}"
+                suffix_index += 1
+            if flaw_id in existing_flaw_ids:
+                continue
         review_issue_ids_for_flaw = [
             str((evidence_by_id_once.get(eid) or {}).get("review_issue_id") or "")
             for eid in evidence_ids_for_flaw
@@ -9311,6 +9349,93 @@ def _add_reviewer_absence_audit_artifacts(
             }
         )
         existing_flaw_ids.add(flaw_id)
+        existing_flaws_by_id[flaw_id] = view["flaw_candidates"][-1]
+        existing_absence_claim_ids.add(claim_id)
+        added_flaw_ids.append(flaw_id)
+        added_claim_ids.append(claim_id)
+
+    def _absence_flaw_links_record(flaw: Dict[str, Any], record: Dict[str, Any]) -> bool:
+        if not isinstance(flaw, dict) or not isinstance(record, dict):
+            return False
+        if str(flaw.get("source") or "") != ABSENCE_AUDIT_SOURCE:
+            return False
+        evidence_id = str(record.get("evidence_id") or "").strip()
+        claim_id = str(record.get("claim_id") or "").strip()
+        if not evidence_id or not claim_id:
+            return False
+        flaw_claim_ids = {str(item or "").strip() for item in flaw.get("related_claim_ids", []) or [] if str(item or "").strip()}
+        if claim_id not in flaw_claim_ids:
+            return False
+        linked_ids = {
+            str(item or "").strip()
+            for item in list(flaw.get("negative_evidence_ids") or []) + list(flaw.get("evidence_ids") or [])
+            if str(item or "").strip()
+        }
+        return evidence_id in linked_ids
+
+    for record in list(view.get("evidence_map", []) or []):
+        if not isinstance(record, dict):
+            continue
+        if not _is_obligation_grounded_review_issue_evidence_record(record, view):
+            continue
+        if any(_absence_flaw_links_record(flaw, record) for flaw in existing_flaws_by_id.values()):
+            continue
+        evidence_id = str(record.get("evidence_id") or "").strip()
+        claim_id = str(record.get("claim_id") or "").strip()
+        if not evidence_id or not claim_id:
+            continue
+        neg_type = _negative_evidence_type_for_record(record)
+        if neg_type not in ACTIONABLE_NEGATIVE_EVIDENCE_TYPES:
+            continue
+        bundle = record.get("review_issue_bundle") if isinstance(record.get("review_issue_bundle"), dict) else {}
+        claim_anchor = bundle.get("claim_anchor") if isinstance(bundle.get("claim_anchor"), dict) else {}
+        missing_or_mismatch = bundle.get("missing_or_mismatch") if isinstance(bundle.get("missing_or_mismatch"), dict) else {}
+        claim_text = _normalize_text(
+            claim_anchor.get("quote")
+            or (claim_lookup.get(claim_id) or {}).get("claim")
+            or (claim_lookup.get(claim_id) or {}).get("text"),
+            max_length=220,
+        )
+        missing_items = _normalize_list_of_strings(
+            missing_or_mismatch.get("items") or [missing_or_mismatch.get("entity")],
+            max_items=4,
+            max_length=140,
+        )
+        missing_text = ", ".join(dict.fromkeys(missing_items)) or _readable_negative_evidence_type(neg_type)
+        issue_type_text = _readable_negative_evidence_type(neg_type)
+        description = (
+            f"The paper's visible evaluation or method inventory leaves a {issue_type_text} concern "
+            f"for claim '{claim_text}'. The specific unchecked item is {missing_text}."
+        )
+        base_flaw_id = _slugify("flaw-reviewer-absence", f"{claim_id}-{neg_type}", len(existing_flaw_ids) + 1)
+        flaw_id = base_flaw_id
+        suffix_index = 1
+        while flaw_id in existing_flaw_ids:
+            flaw_id = f"{base_flaw_id}-audit-{suffix_index}"
+            suffix_index += 1
+        issue_id = str(record.get("review_issue_id") or bundle.get("issue_id") or "").strip()
+        view["flaw_candidates"].append(
+            {
+                "flaw_id": flaw_id,
+                "title": f"Reviewer-inferred missing evidence: {missing_text}",
+                "description": description,
+                "flaw": description,
+                "severity": "major",
+                "status": "candidate",
+                "related_claim_ids": [claim_id],
+                "evidence_ids": [evidence_id],
+                "negative_evidence_ids": [evidence_id],
+                "grounding_status": "absence_audit_verified_candidate",
+                "source": ABSENCE_AUDIT_SOURCE,
+                "negative_evidence_type": neg_type,
+                "absence_audit_verified": True,
+                "review_issue_source": REVIEW_ISSUE_BUNDLE_SOURCE,
+                "review_issue_ids": [issue_id] if issue_id else [],
+                "audit_basis": "verified_review_issue_evidence_sync",
+            }
+        )
+        existing_flaw_ids.add(flaw_id)
+        existing_flaws_by_id[flaw_id] = view["flaw_candidates"][-1]
         existing_absence_claim_ids.add(claim_id)
         added_flaw_ids.append(flaw_id)
         added_claim_ids.append(claim_id)

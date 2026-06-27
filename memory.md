@@ -49,7 +49,69 @@ Missing-baseline, missing-ablation, insufficient-evaluation, and reproducibility
 
 There are deliberately separate lanes. Keep them separate in code, metrics, dashboards, and paper narrative.
 
-### 2026-06-27 STRUCTEXPECT2 hardneg20 checkpoint (latest)
+### 2026-06-27 SURFACEHINT1 + BINDINGFIX1 hardneg20 checkpoint (latest)
+
+Run and artifacts:
+
+- run: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_113021.jsonl`
+- log: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_113021.log`
+- dashboard: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_113021_SURFACEHINT1_BINDINGFIX1_RECOMPUTE_VS_101215_DASHBOARD.md`
+- review issue cases: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_113021_SURFACEHINT1_BINDINGFIX1_RECOMPUTE_REVIEW_ISSUE_CASES.md`
+- recovery cases: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_113021_SURFACEHINT1_BINDINGFIX1_RECOMPUTE_RECOVERY_CASE.md`
+
+Run settings:
+
+- `DRMAS_NEG_QUOTE_HYGIENE=1`
+- `DRMAS_TARGETED_NEGATIVE_SEARCH=1`
+- `DRMAS_FREEFORM_REVIEWER_NEGATIVE=1`
+- `DRMAS_REVIEW_ISSUE_BUNDLE=1`
+- `max_turns=7`, `max_tokens=1536`, `API_MAX_WORKERS=2`, `API_MAX_RETRIES=8`, `API_TIMEOUT=600`
+
+Key metrics after recomputing with BINDINGFIX1:
+
+- protection PASS
+- `real_strong_support_total=71`
+- strict quote lane: `review_negative_verified_count=2`
+- issue-bundle lane: `verified_review_issue_count=10`
+- `quote_grounded_review_issue_count=2`
+- `obligation_grounded_review_issue_count=8`
+- `total_review_negative_verified_count=10`
+- `negative_evidence_candidate_count=10`
+- `negative_evidence_linked_to_flaw_count=10`
+- `negative_evidence_unlinked_to_flaw=0`
+- `verified_actionable_negative_flaw_count=11`
+- `potential_concern_count=11`
+- `final_potential_concern_total=29`
+- `mark_contested_commit_count=10`
+- recovery case table: `verified_review_issue_repair=6`, `verified_review_negative_repair=1`
+- protection safety lines: `positive_or_neutral_negative_candidate_count=0`, `semantic_negative_without_review_relation_count=0`
+
+Important caveats:
+
+- `author_limitation_only_count=2`, `negative_grounding_conflict_count=11`, and `assessment_limitation_flaw_count=25` remain elevated. They do not break protection, but they show quote-bank negative candidates still create limitation/noise pressure.
+- Some case-table items remain judgment-sensitive. This checkpoint is a stronger quantity/recovery result than STRUCTEXPECT2, not final proof that all issue bundles are equally high quality.
+- Continue to treat `review_negative_verified_count` and `verified_review_issue_count` as separate lanes.
+
+本轮代码变动逻辑:
+
+- `claim_surface_profile` is used only to help Critique propose concrete reviewer issue candidates; it is not evidence and cannot by itself verify a flaw.
+- The verifier still requires claim anchor + observed inventory + concrete missing/mismatch item + no current counterevidence for obligation-grounded review issues.
+- BINDINGFIX1 fixes a state-sync bug exposed by `fGXyvmWpw6`: a model/quote-bank flaw reused a deterministic `flaw-reviewer-absence-*` id while pointing to the wrong claim/evidence. The deterministic reviewer-absence materializer now refuses to let non-`reviewer_absence_audit` collisions block verified issue flaw materialization.
+- Flaw materialization now filters issue evidence before linking: only current, claim-aligned, verifier-passing obligation-grounded evidence can enter an absence-audit flaw.
+- Existing live-state verified review issue evidence is now synchronized into a view-only `reviewer_absence_audit` flaw when no valid flaw links it, including cases where the evidence was created in an earlier turn and is not rebuilt by the current top-gap pass.
+- This preserves the hard protection invariant: every counted verified review issue/negative evidence item must be linked to a valid flaw, while fake author-limitation or quote-bank candidates remain excluded from verified negative accounting.
+
+Validation:
+
+- `python3 -m py_compile agent_system/environments/env_package/review/state.py tests/test_review_decision_hygiene.py`
+- Direct test-function calls passed because local Python environments lack pytest:
+  - `test_review_issue_bundle_flaw_materialization_survives_non_audit_id_collision`
+  - `test_merge_review_state_materializes_verified_review_issue_bundle_for_recovery`
+  - `test_review_issue_bundle_accepts_efficiency_gap_when_paper_only_says_efficient`
+  - `test_review_issue_bundle_accepts_speedup_claim_efficiency_gap_without_explicit_obligation`
+- Dashboard recompute with `--fail-on-violation` passed.
+
+### 2026-06-27 STRUCTEXPECT2 hardneg20 checkpoint (previous stable baseline)
 
 Run and artifacts:
 

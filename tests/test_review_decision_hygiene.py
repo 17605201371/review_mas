@@ -9960,6 +9960,77 @@ def test_merge_review_state_materializes_verified_review_issue_bundle_for_recove
     assert issue_evidence[0]["evidence_id"] in merged["review_issues"][0]["evidence_ids"]
 
 
+def test_review_issue_bundle_flaw_materialization_survives_non_audit_id_collision():
+    claim = "The proposed Local-Global Distillation method is computationally efficient."
+    inventory_quote = "The paper states that Local-Global Distillation is more computationally efficient."
+    colliding_flaw_id = "flaw-reviewer-absence-claim-1-efficiency-cost-gap"
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "empirical",
+                "importance": "high",
+                "status": "supported",
+                "coverage_tags": ["empirical", "efficiency"],
+                "claim_obligations": ["efficiency_cost"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-runtime-cost",
+                "claim_id": "claim-1",
+                "weakness": "The efficiency claim lacks runtime, memory, or FLOP measurements.",
+                "negative_type": "efficiency_cost_gap",
+                "required_evidence_type": "efficiency_cost",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["runtime and FLOPs comparison"],
+                "observed_inventory": [{"quote": inventory_quote, "locator": "Section 5"}],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [
+            {
+                "flaw_id": colliding_flaw_id,
+                "title": "Candidate scope limitation quote with a colliding reviewer-absence id",
+                "description": "A quote-bank candidate should not block the deterministic reviewer issue flaw.",
+                "status": "candidate",
+                "source": "quote-bank-negative-grounding",
+                "related_claim_ids": ["claim-2"],
+                "evidence_ids": ["evidence-negative-quote-bank-candidate"],
+                "negative_evidence_ids": ["evidence-negative-quote-bank-candidate"],
+                "negative_evidence_type": "scope_limitation",
+                "review_issue_ids": ["review-issue-claim-1-efficiency-cost-runtime-"],
+            }
+        ],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    view = build_decision_hygiene_view(copy.deepcopy(state))
+    hygiene = view["decision_hygiene"]
+    issue_evidence = [
+        item for item in view["evidence_map"]
+        if item.get("source") == "reviewer_absence_audit"
+    ]
+    issue_flaws = [
+        item for item in view["flaw_candidates"]
+        if item.get("source") == "reviewer_absence_audit"
+    ]
+
+    assert hygiene["verified_review_issue_count"] == 1
+    assert hygiene["negative_evidence_unlinked_to_flaw_count"] == 0
+    assert len(issue_evidence) == 1
+    assert len(issue_flaws) == 1
+    assert issue_flaws[0]["flaw_id"].startswith(f"{colliding_flaw_id}-audit-")
+    assert issue_evidence[0]["evidence_id"] in issue_flaws[0]["negative_evidence_ids"]
+
+
 def test_review_issue_bundle_rejects_missing_ablation_when_full_text_reports_variant_removal():
     claim = "CDiffuser uses the contrastive learning component L_c to improve diffusion recommendations."
     ablation_quote = (
