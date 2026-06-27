@@ -49,15 +49,15 @@ Missing-baseline, missing-ablation, insufficient-evaluation, and reproducibility
 
 There are deliberately separate lanes. Keep them separate in code, metrics, dashboards, and paper narrative.
 
-### 2026-06-27 CANDPRIORITY1 hardneg20 checkpoint (latest)
+### 2026-06-27 CANDKEY2 hardneg20 checkpoint (latest)
 
 Run and artifacts:
 
 - run: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_113021.jsonl`
 - log: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_113021.log`
-- dashboard: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_113021_CANDPRIORITY1_RECOMPUTE_VS_101215_DASHBOARD.md`
-- review issue cases: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_113021_CANDPRIORITY1_RECOMPUTE_REVIEW_ISSUE_CASES.md`
-- recovery cases: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_113021_CANDPRIORITY1_RECOMPUTE_RECOVERY_CASE.md`
+- dashboard: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_113021_CANDKEY2_RECOMPUTE_VS_101215_DASHBOARD.md`
+- review issue cases: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_113021_CANDKEY2_RECOMPUTE_REVIEW_ISSUE_CASES.md`
+- recovery cases: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_113021_CANDKEY2_RECOMPUTE_RECOVERY_CASE.md`
 
 Run settings:
 
@@ -67,7 +67,7 @@ Run settings:
 - `DRMAS_REVIEW_ISSUE_BUNDLE=1`
 - `max_turns=7`, `max_tokens=1536`, `API_MAX_WORKERS=2`, `API_MAX_RETRIES=8`, `API_TIMEOUT=600`
 
-Key metrics after recomputing with CANDPRIORITY1:
+Key metrics after recomputing with CANDKEY2:
 
 - protection PASS
 - `real_strong_support_total=71`
@@ -75,25 +75,27 @@ Key metrics after recomputing with CANDPRIORITY1:
 - issue-bundle lane: `verified_review_issue_count=8`
 - `quote_grounded_review_issue_count=1`
 - `obligation_grounded_review_issue_count=7`
-- `reviewer_candidate_review_issue_count=3`
-- `claim_obligation_review_issue_count=4`
+- `reviewer_candidate_review_issue_count=4`
+- `claim_obligation_review_issue_count=3`
 - `total_review_negative_verified_count=8`
 - `negative_evidence_candidate_count=8`
 - `negative_evidence_linked_to_flaw_count=8`
 - `negative_evidence_unlinked_to_flaw=0`
-- `verified_actionable_negative_flaw_count=10`
-- `potential_concern_count=10`
-- `final_potential_concern_total=27`
+- `verified_actionable_negative_flaw_count=12`
+- `potential_concern_count=12`
+- `final_potential_concern_total=28`
 - `mark_contested_commit_count=10`
-- recovery case table: `verified_review_issue_repair=5`, `verified_review_negative_repair=1`
+- recovery case table: `verified_review_issue_repair=4`, `turns_with_verified_review_issue_bundle_evidence=5`
 - protection safety lines: `positive_or_neutral_negative_candidate_count=0`, `semantic_negative_without_review_relation_count=0`
 
 Important caveats:
 
-- `author_limitation_only_count=2`, `negative_grounding_conflict_count=13`, and `assessment_limitation_flaw_count=27` remain elevated. They do not break protection, but they show quote-bank negative candidates still create limitation/noise pressure.
-- CANDPRIORITY1 is still conservative relative to the earlier loose runs. It keeps the QUALITYFIX2 removals: generic `7Dub7UXTXN` baseline issue, intro/problem-only `TPAj63ax4Y` insufficient-evaluation issue, and duplicate XH3 quote-negative counting.
+- `author_limitation_only_count=2`, `negative_grounding_conflict_count=14`, and `assessment_limitation_flaw_count=29` remain elevated. They do not break protection, but they show quote-bank negative candidates still create limitation/noise pressure.
+- CANDKEY2 is conservative relative to the earlier loose runs. It keeps the QUALITYFIX2 removals: generic `7Dub7UXTXN` baseline issue, `TPAj63ax4Y` default insufficient-evaluation issue, and duplicate XH3 quote-negative counting.
 - The case table now separates `reviewer_candidate` issues from `claim_obligation` fallback issues. This is the main paper-narrative distinction: reviewer-candidate issues are model-proposed review concerns that survived bundle verification; claim-obligation issues are deterministic fallback gaps.
-- New reviewer-candidate case added by this recompute: `uOrfve3prk` `evaluation_protocol_risk`, missing "Validation of normalized edit distance proxy against human judgment", anchored by intervention-success evaluation inventory.
+- Important reviewer-candidate cases in this recompute:
+  - `uOrfve3prk` `evaluation_protocol_risk`, missing "Validation of normalized edit distance proxy against human judgment", anchored by intervention-success evaluation inventory.
+  - `cklg91aPGk` `insufficient_evaluation`, missing "evaluation on link prediction task" and "evaluation on graph classification task", anchored by node-classification inventory. This case depends on exact task-phrase matching so node classification no longer counterevidences graph classification.
 - Some remaining case-table items are still judgment-sensitive, especially structural efficiency/reproducibility issues; do not present this as final solved quality.
 - Continue to treat `review_negative_verified_count` and `verified_review_issue_count` as separate lanes.
 
@@ -108,9 +110,12 @@ Important caveats:
 - QUALITYFIX2 adds a stricter baseline gate: `missing_baseline` must name a concrete baseline/comparison target, not only "same-setting baseline or comparison for the claimed improvement".
 - QUALITYFIX2 adds a stricter insufficient-evaluation inventory gate: problem/introduction/background text and method-overview figures cannot verify a missing quantitative-result issue unless the quote itself has result/performance/metric/experiment or numeric evidence.
 - QUALITYFIX2 deduplicates direct quote-grounded negative issues by canonical claim/type/quote signature instead of evidence id or span, so overlapping copies of the same negative result count once in dashboard and case tables.
-- CANDPRIORITY1 changes `_add_reviewer_absence_audit_artifacts` to prioritize reviewer-discovered candidate gaps before deterministic `verified_coverage_gap_items`; deterministic gaps now fill remaining slots instead of crowding out model-proposed review issues.
-- CANDPRIORITY1 adds `reviewer_candidate_review_issue_count` / `claim_obligation_review_issue_count` and matching claim/type metrics so dashboard and case tables can distinguish real reviewer-discovered issues from fallback structural gaps.
-- CANDPRIORITY1 keeps baseline specificity strict but lets protocol/evaluation candidates use concrete review dimensions such as human-judgment validation, proxy validation, threshold/protocol checks, substructure tasks, or result-table dimensions.
+- CANDPRIORITY1 changed `_add_reviewer_absence_audit_artifacts` to prioritize reviewer-discovered candidate gaps before deterministic `verified_coverage_gap_items`; deterministic gaps fill remaining slots instead of crowding out model-proposed review issues.
+- CANDPRIORITY1 added `reviewer_candidate_review_issue_count` / `claim_obligation_review_issue_count` and matching claim/type metrics so dashboard and case tables can distinguish real reviewer-discovered issues from fallback structural gaps.
+- CANDKEY2 fixes same-claim/same-requirement overwrites by deduping reviewer-absence gaps on `(claim_id, requirement, negative_type)` and by including the negative type in synthetic evidence ids.
+- CANDKEY2 tightens task/domain counterevidence: when a missing item names a known task phrase, each named task must be independently observed. "node classification" no longer resolves missing "graph classification" or "link prediction".
+- CANDKEY2 prevents generic default `insufficient_evaluation` issues from surviving when paper inventory/full text already reports empirical results with quantitative measures. This removes the `TPAj63ax4Y` default "quantitative result table or metric" false positive.
+- CANDKEY2 still allows concrete "missing quantitative metric" issues when the observed inventory is qualitative but paper-locatable and target-matched, e.g. a figure qualitatively showing the relevant phenomenon while no quantitative metric is present.
 
 Validation:
 
@@ -127,6 +132,12 @@ Validation:
 - Additional CANDPRIORITY1 direct test-function calls passed:
   - `test_reviewer_candidate_review_issue_takes_priority_over_deterministic_gap_budget`
   - `test_review_issue_specificity_accepts_protocol_validation_dimension_not_generic_baseline`
+- Additional CANDKEY2 direct test-function calls passed:
+  - `test_reviewer_issue_bundle_keeps_missing_graph_tasks_when_only_node_classification_is_observed`
+  - `test_reviewer_issue_bundle_rejects_missing_graph_tasks_when_all_named_tasks_are_observed`
+  - `test_reviewer_candidate_same_requirement_different_issue_type_does_not_overwrite_valid_issue`
+  - `test_review_issue_bundle_rejects_default_quantitative_gap_when_results_are_reported`
+  - `test_review_issue_bundle_accepts_quantitative_gap_when_inventory_is_qualitative`
 - Dashboard recompute with `--fail-on-violation` passed.
 
 ### 2026-06-27 STRUCTEXPECT2 hardneg20 checkpoint (previous stable baseline)

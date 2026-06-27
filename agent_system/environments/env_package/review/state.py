@@ -7153,7 +7153,19 @@ def _review_issue_observed_inventory_relevant_for_type(bundle: Dict[str, Any], n
             )
         )
     if neg_type == "insufficient_evaluation":
-        return _review_issue_inventory_has_empirical_result_observation(inventory_text, inventory_quote_text)
+        if _review_issue_inventory_has_empirical_result_observation(inventory_text, inventory_quote_text):
+            return True
+        missing_items = _review_issue_missing_item_texts(bundle)
+        missing_text = _missing_joined_text(missing_items)
+        return bool(
+            re.search(r"\b(?:quantitative|metric|metrics|score|scores|measurement|measurements)\b", missing_text)
+            and _window_has_any_missing_target(inventory_text, missing_items)
+            and re.search(
+                r"\b(?:figure|fig\.?|table|plot|curve|qualitative|qualitatively|visuali[sz]e|"
+                r"shows?|demonstrates?|experiment|evaluation)\b",
+                inventory_text,
+            )
+        )
     if neg_type in {"missing_robustness_or_generalization", "scope_overclaim"}:
         return bool(
             re.search(
@@ -7602,6 +7614,39 @@ def _window_has_any_missing_target(window: str, missing_items: Sequence[str]) ->
     return bool(_window_contains_any_target_marker(window, target_tokens))
 
 
+def _review_issue_missing_is_default_empirical_result_dimension(
+    missing_items: Sequence[str],
+) -> bool:
+    missing_text = _missing_joined_text(missing_items)
+    if not missing_text:
+        return False
+    if _review_issue_task_phrases(missing_text):
+        return False
+    return bool(
+        re.search(r"\bquantitative\b", missing_text)
+        and re.search(r"\b(?:result|results|table|metric|metrics|score|scores)\b", missing_text)
+        and re.search(r"\b(?:claimed\s+)?empirical\s+(?:effect|claim|result)\b", missing_text)
+    )
+
+
+def _review_issue_text_has_empirical_quantitative_result(text: str) -> bool:
+    value = str(text or "")
+    if not _REVIEW_ISSUE_FULL_TEXT_EVAL_RE.search(value):
+        return False
+    if not _review_issue_text_has_quantitative_measure(value):
+        return False
+    return bool(
+        re.search(
+            r"\b(?:result|results|experiment|experiments|evaluation|evaluated|"
+            r"metric|metrics|accuracy|f1|auc|mae|eer|score|scores|performance|"
+            r"outperform|outperforms|outperformed|improv(?:e|es|ed|ement|ements)|"
+            r"achiev(?:e|es|ed)|baseline|baselines|comparison|compared)\b",
+            value,
+            re.IGNORECASE,
+        )
+    )
+
+
 def _window_contains_any_target_marker(window: str, target_tokens: Sequence[str]) -> bool:
     for token in sorted({str(item or "").strip().lower() for item in target_tokens if str(item or "").strip()}, key=len, reverse=True):
         if len(token) < 3:
@@ -7649,13 +7694,62 @@ def _ablation_counterevidence_window_resolves_target(window: str, target_tokens:
     return False
 
 
+_REVIEW_ISSUE_TASK_PHRASE_RE = re.compile(
+    r"\b(?:link\s+prediction|graph\s+classification|node\s+classification|image\s+classification|"
+    r"object\s+detection|semantic\s+segmentation|motion\s+segmentation|video\s+object\s+segmentation|"
+    r"substructure\s+counting|theorem\s+proving|definition\s+task|intervention\s+success|"
+    r"face\s+recognition|action\s+recognition|few[- ]shot\s+classification)\b",
+    re.IGNORECASE,
+)
+
+
+def _review_issue_task_phrases(text: str) -> set[str]:
+    return {
+        re.sub(r"\s+", " ", match.group(0).strip().lower())
+        for match in _REVIEW_ISSUE_TASK_PHRASE_RE.finditer(str(text or ""))
+        if match.group(0).strip()
+    }
+
+
+def _window_satisfies_missing_task_phrase(window: str, missing_text: str) -> bool:
+    """Require exact task/domain phrase coverage when the missing item names one.
+
+    Token overlap is too weak for review issues: node classification is not
+    graph classification, and an arbitrary classification table does not cover
+    a missing link-prediction or substructure-counting evaluation.
+    """
+
+    phrases = _review_issue_task_phrases(missing_text)
+    if not phrases:
+        return True
+    window_text = re.sub(r"\s+", " ", str(window or "").lower())
+    return any(phrase in window_text for phrase in phrases)
+
+
 def _window_resolves_evaluation_or_scope_missing(
     window: str,
     missing_items: Sequence[str],
     neg_type: str,
 ) -> bool:
     text = str(window or "")
+    normalized_missing_items = [
+        str(item)
+        for item in missing_items or []
+        if str(item or "").strip()
+    ]
+    if len(normalized_missing_items) > 1:
+        return all(
+            _window_resolves_evaluation_or_scope_missing(text, [item], neg_type)
+            for item in normalized_missing_items
+        )
     lower_missing = _missing_joined_text(missing_items)
+    if not _window_satisfies_missing_task_phrase(text, lower_missing):
+        return False
+    if (
+        _canonical_negative_evidence_type(neg_type) == "insufficient_evaluation"
+        and _review_issue_missing_is_default_empirical_result_dimension(normalized_missing_items)
+    ):
+        return _review_issue_text_has_empirical_quantitative_result(text)
     if not _window_has_any_missing_target(text, missing_items):
         return False
     if re.search(r"\b(?:sensitivity|threshold|hyperparameter|tuning|range|sweep)\b", lower_missing):
@@ -7878,6 +7972,17 @@ def _review_issue_full_text_counterevidence_reason(
         return ""
 
     if neg_type in {"insufficient_evaluation", "missing_robustness_or_generalization", "scope_overclaim"}:
+        if len(missing_items) > 1 and not claim_obligation_structural:
+            resolved_items = {
+                item: any(
+                    _window_resolves_evaluation_or_scope_missing(window, [item], neg_type)
+                    for window in windows
+                )
+                for item in missing_items
+            }
+            if all(resolved_items.values()):
+                return "full_text_evaluation_or_scope_counterevidence"
+            return ""
         for window in windows:
             if (
                 claim_obligation_structural
@@ -8576,11 +8681,17 @@ def _build_review_issue_bundle_from_gap(
             if quote_key and quote_key not in seen_inventory_quotes:
                 observed_inventory.append(item)
                 seen_inventory_quotes.add(quote_key)
+    missing_or_mismatch = _review_issue_missing_entity_for_requirement(requirement, candidate_missing_items)
     observed_inventory = [
         item for item in observed_inventory
-        if _review_issue_observed_inventory_relevant_for_type({"observed_inventory": [item]}, neg_type)
+        if _review_issue_observed_inventory_relevant_for_type(
+            {
+                "observed_inventory": [item],
+                "missing_or_mismatch": missing_or_mismatch,
+            },
+            neg_type,
+        )
     ]
-    missing_or_mismatch = _review_issue_missing_entity_for_requirement(requirement, candidate_missing_items)
     source_of_expectation = "reviewer_candidate" if candidate_id else "claim_obligation"
     issue_id = _slugify(
         "review-issue",
@@ -9076,6 +9187,29 @@ def _add_reviewer_absence_audit_artifacts(
             if str(req)
         ]
 
+    def _gap_negative_type_list(gap: Dict[str, Any]) -> List[str]:
+        values = _normalize_list_of_strings(
+            gap.get("missing_negative_types")
+            or gap.get("negative_types")
+            or gap.get("review_issue_types"),
+            max_items=6,
+            max_length=80,
+        )
+        if values:
+            return [_canonical_negative_evidence_type(value) for value in values if _canonical_negative_evidence_type(value)]
+        return [
+            _REQUIREMENT_TO_NEGATIVE_TYPE.get(req, req)
+            for req in _gap_requirement_list(gap)
+            if req
+        ]
+
+    def _gap_dedupe_key(gap: Dict[str, Any]) -> Tuple[str, str, str]:
+        return (
+            str(gap.get("claim_id") or ""),
+            "|".join(_gap_requirement_list(gap)),
+            "|".join(_gap_negative_type_list(gap)),
+        )
+
     def _merge_reviewer_candidate_gap_metadata(existing: Dict[str, Any], incoming: Dict[str, Any]) -> None:
         for field in (
             "reviewer_negative_candidate_id",
@@ -9105,6 +9239,7 @@ def _add_reviewer_absence_audit_artifacts(
             return
         item_claim_id = str(item.get("claim_id") or "")
         item_requirements = set(_gap_requirement_list(item))
+        item_negative_types = set(_gap_negative_type_list(item))
         if not item_claim_id or not item_requirements:
             return
         overlapping_existing = next(
@@ -9114,6 +9249,10 @@ def _add_reviewer_absence_audit_artifacts(
                 if str(existing.get("claim_id") or "") == item_claim_id
                 and item_requirements
                 and item_requirements.intersection(_gap_requirement_list(existing))
+                and (
+                    not item_negative_types
+                    or item_negative_types.intersection(_gap_negative_type_list(existing))
+                )
             ),
             None,
         )
@@ -9122,11 +9261,11 @@ def _add_reviewer_absence_audit_artifacts(
                 _merge_reviewer_candidate_gap_metadata(item, overlapping_existing)
                 idx = gap_items.index(overlapping_existing)
                 gap_items[idx] = item
-                existing_by_key[(item_claim_id, "|".join(_gap_requirement_list(item)))] = item
+                existing_by_key[_gap_dedupe_key(item)] = item
             else:
                 _merge_reviewer_candidate_gap_metadata(overlapping_existing, item)
             return
-        key = (item_claim_id, "|".join(_gap_requirement_list(item)))
+        key = _gap_dedupe_key(item)
         existing = existing_by_key.get(key)
         if isinstance(existing, dict):
             if candidate_priority and item.get("reviewer_negative_candidate_id"):
@@ -9264,7 +9403,11 @@ def _add_reviewer_absence_audit_artifacts(
             )
             if not review_issue_bundle:
                 continue
-            evidence_id = _slugify("evidence-reviewer-absence", f"{claim_id}-{requirement}", gap_index * 10 + req_index)
+            evidence_id = _slugify(
+                "evidence-reviewer-absence",
+                f"{claim_id}-{requirement}-{neg_type}",
+                gap_index * 10 + req_index,
+            )
             evidence_ids_for_flaw.append(evidence_id)
             readable_missing.append(_REQUIREMENT_LABELS.get(requirement, requirement.replace("_", " ")))
             neg_types_for_flaw.append(neg_type)

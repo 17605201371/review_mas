@@ -10124,6 +10124,53 @@ def test_review_issue_bundle_rejects_intro_problem_inventory_for_insufficient_ev
     assert hygiene["reviewer_absence_verified_count"] == 0
 
 
+def test_review_issue_bundle_rejects_default_quantitative_gap_when_results_are_reported():
+    claim = "The two-step generation pipeline improves zero-shot performance against baselines."
+    result_quote = (
+        "In our experiments, using only the first two steps already outperforms other "
+        "zero-shot baselines by as much as 16.5%, while the full method further improves "
+        "the result."
+    )
+    state = {
+        "paper_text": f"{claim}\n\nResults.\n{result_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "empirical",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["empirical_result"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-default-quant-gap",
+                "claim_id": "claim-1",
+                "weakness": "The empirical claim lacks a quantitative result table or metric.",
+                "negative_type": "insufficient_evaluation",
+                "required_evidence_type": "empirical_result",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["quantitative result table or metric for the claimed empirical effect"],
+                "observed_inventory": [{"quote": result_quote, "locator": "Results"}],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["verified_review_issue_count"] == 0
+    assert hygiene["reviewer_absence_verified_count"] == 0
+
+
 def test_quote_grounded_review_negative_count_deduplicates_same_quote_issue():
     quote = "However, adding the secure aggregator results in a less favorable outcome than the baseline system."
     state = {
@@ -10669,3 +10716,158 @@ def test_review_issue_specificity_accepts_protocol_validation_dimension_not_gene
         "stronger baselines for the claimed improvement",
         "missing_baseline",
     )
+
+
+def test_reviewer_issue_bundle_keeps_missing_graph_tasks_when_only_node_classification_is_observed():
+    claim = "The propagation method is competitive across diverse graph learning tasks."
+    observed_quote = "Table 5: Test accuracy of homophily node classification benchmarks."
+    state = {
+        "paper_text": f"{claim}\n\n{observed_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "empirical",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["empirical_result"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-graph-task-coverage",
+                "claim_id": "claim-1",
+                "weakness": "The evaluation covers node classification only, not other graph tasks.",
+                "negative_type": "insufficient_evaluation",
+                "required_evidence_type": "empirical_result",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": [
+                    "evaluation on link prediction task",
+                    "evaluation on graph classification task",
+                ],
+                "observed_inventory": [{"quote": observed_quote, "locator": "Table 5"}],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["reviewer_candidate_review_issue_count"] == 1
+    assert hygiene["reviewer_candidate_review_issue_type_counts"]["insufficient_evaluation"] == 1
+    assert hygiene["verified_review_issue_count"] == 1
+
+
+def test_reviewer_issue_bundle_rejects_missing_graph_tasks_when_all_named_tasks_are_observed():
+    claim = "The propagation method is competitive across diverse graph learning tasks."
+    node_quote = "Table 5: Test accuracy of homophily node classification benchmarks."
+    link_quote = "Table 6: Link prediction results compare the method against graph baselines."
+    graph_quote = "Table 7: Graph classification accuracy on benchmark datasets."
+    state = {
+        "paper_text": f"{claim}\n\n{node_quote}\n\n{link_quote}\n\n{graph_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "empirical",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["empirical_result"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-graph-task-covered",
+                "claim_id": "claim-1",
+                "weakness": "The evaluation covers node classification only, not other graph tasks.",
+                "negative_type": "insufficient_evaluation",
+                "required_evidence_type": "empirical_result",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": [
+                    "evaluation on link prediction task",
+                    "evaluation on graph classification task",
+                ],
+                "observed_inventory": [{"quote": node_quote, "locator": "Table 5"}],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["reviewer_candidate_review_issue_count"] == 0
+    assert hygiene["verified_review_issue_count"] == 0
+
+
+def test_reviewer_candidate_same_requirement_different_issue_type_does_not_overwrite_valid_issue():
+    claim = "The propagation method is competitive across diverse graph learning tasks."
+    observed_quote = "Table 5: Test accuracy of homophily node classification benchmarks."
+    mismatch_quote = "Table 6: Heterophily benchmark results are reported for node classification."
+    state = {
+        "paper_text": f"{claim}\n\n{observed_quote}\n\n{mismatch_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "empirical",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["empirical_result"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-task-coverage",
+                "claim_id": "claim-1",
+                "weakness": "The evaluation covers node classification only, not other graph tasks.",
+                "negative_type": "insufficient_evaluation",
+                "required_evidence_type": "empirical_result",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": [
+                    "evaluation on link prediction task",
+                    "evaluation on graph classification task",
+                ],
+                "observed_inventory": [{"quote": observed_quote, "locator": "Table 5"}],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            },
+            {
+                "candidate_id": "reviewer-neg-candidate-heterophily-table",
+                "claim_id": "claim-1",
+                "weakness": "The heterophily table is missing.",
+                "negative_type": "result_claim_mismatch",
+                "required_evidence_type": "empirical_result",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["heterophily benchmark results"],
+                "observed_inventory": [{"quote": mismatch_quote, "locator": "Table 6"}],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            },
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["reviewer_candidate_review_issue_count"] == 1
+    assert hygiene["reviewer_candidate_review_issue_type_counts"]["insufficient_evaluation"] == 1
+    assert "result_claim_mismatch" not in hygiene["reviewer_candidate_review_issue_type_counts"]
