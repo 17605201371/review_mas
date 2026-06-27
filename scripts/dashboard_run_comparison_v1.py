@@ -745,6 +745,10 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     out["quote_grounded_review_issue_count"] = _sum(rows, "quote_grounded_review_issue_count")
     out["obligation_grounded_review_issue_count"] = _sum(rows, "obligation_grounded_review_issue_count")
     out["obligation_grounded_review_issue_claim_count"] = _sum(rows, "obligation_grounded_review_issue_claim_count")
+    out["reviewer_candidate_review_issue_count"] = _sum(rows, "reviewer_candidate_review_issue_count")
+    out["reviewer_candidate_review_issue_claim_count"] = _sum(rows, "reviewer_candidate_review_issue_claim_count")
+    out["claim_obligation_review_issue_count"] = _sum(rows, "claim_obligation_review_issue_count")
+    out["claim_obligation_review_issue_claim_count"] = _sum(rows, "claim_obligation_review_issue_claim_count")
     out["verified_review_issue_count"] = _sum(rows, "verified_review_issue_count")
     out["verified_review_issue_claim_count"] = _sum(rows, "verified_review_issue_claim_count")
     out["review_issue_bundle_count"] = _sum(rows, "review_issue_bundle_count")
@@ -1643,6 +1647,10 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "quote_grounded_review_issue_count",
         "obligation_grounded_review_issue_count",
         "obligation_grounded_review_issue_claim_count",
+        "reviewer_candidate_review_issue_count",
+        "reviewer_candidate_review_issue_claim_count",
+        "claim_obligation_review_issue_count",
+        "claim_obligation_review_issue_claim_count",
         "verified_review_issue_count",
         "verified_review_issue_claim_count",
         "review_issue_bundle_count",

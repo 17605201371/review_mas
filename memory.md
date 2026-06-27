@@ -49,15 +49,15 @@ Missing-baseline, missing-ablation, insufficient-evaluation, and reproducibility
 
 There are deliberately separate lanes. Keep them separate in code, metrics, dashboards, and paper narrative.
 
-### 2026-06-27 SURFACEHINT1 + QUALITYFIX2 hardneg20 checkpoint (latest)
+### 2026-06-27 CANDPRIORITY1 hardneg20 checkpoint (latest)
 
 Run and artifacts:
 
 - run: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_113021.jsonl`
 - log: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_113021.log`
-- dashboard: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_113021_SURFACEHINT1_QUALITYFIX2_RECOMPUTE_VS_101215_DASHBOARD.md`
-- review issue cases: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_113021_SURFACEHINT1_QUALITYFIX2_RECOMPUTE_REVIEW_ISSUE_CASES.md`
-- recovery cases: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_113021_SURFACEHINT1_QUALITYFIX2_RECOMPUTE_RECOVERY_CASE.md`
+- dashboard: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_113021_CANDPRIORITY1_RECOMPUTE_VS_101215_DASHBOARD.md`
+- review issue cases: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_113021_CANDPRIORITY1_RECOMPUTE_REVIEW_ISSUE_CASES.md`
+- recovery cases: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_113021_CANDPRIORITY1_RECOMPUTE_RECOVERY_CASE.md`
 
 Run settings:
 
@@ -67,21 +67,23 @@ Run settings:
 - `DRMAS_REVIEW_ISSUE_BUNDLE=1`
 - `max_turns=7`, `max_tokens=1536`, `API_MAX_WORKERS=2`, `API_MAX_RETRIES=8`, `API_TIMEOUT=600`
 
-Key metrics after recomputing with QUALITYFIX2:
+Key metrics after recomputing with CANDPRIORITY1:
 
 - protection PASS
 - `real_strong_support_total=71`
 - strict quote lane: `review_negative_verified_count=1`
-- issue-bundle lane: `verified_review_issue_count=7`
+- issue-bundle lane: `verified_review_issue_count=8`
 - `quote_grounded_review_issue_count=1`
-- `obligation_grounded_review_issue_count=6`
-- `total_review_negative_verified_count=7`
-- `negative_evidence_candidate_count=7`
-- `negative_evidence_linked_to_flaw_count=7`
+- `obligation_grounded_review_issue_count=7`
+- `reviewer_candidate_review_issue_count=3`
+- `claim_obligation_review_issue_count=4`
+- `total_review_negative_verified_count=8`
+- `negative_evidence_candidate_count=8`
+- `negative_evidence_linked_to_flaw_count=8`
 - `negative_evidence_unlinked_to_flaw=0`
-- `verified_actionable_negative_flaw_count=9`
-- `potential_concern_count=9`
-- `final_potential_concern_total=26`
+- `verified_actionable_negative_flaw_count=10`
+- `potential_concern_count=10`
+- `final_potential_concern_total=27`
 - `mark_contested_commit_count=10`
 - recovery case table: `verified_review_issue_repair=5`, `verified_review_negative_repair=1`
 - protection safety lines: `positive_or_neutral_negative_candidate_count=0`, `semantic_negative_without_review_relation_count=0`
@@ -89,7 +91,9 @@ Key metrics after recomputing with QUALITYFIX2:
 Important caveats:
 
 - `author_limitation_only_count=2`, `negative_grounding_conflict_count=13`, and `assessment_limitation_flaw_count=27` remain elevated. They do not break protection, but they show quote-bank negative candidates still create limitation/noise pressure.
-- QUALITYFIX2 is deliberately more conservative than BINDINGFIX1. It removes the generic `7Dub7UXTXN` baseline issue, the intro/problem-only `TPAj63ax4Y` insufficient-evaluation issue, and duplicate XH3 quote-negative counting.
+- CANDPRIORITY1 is still conservative relative to the earlier loose runs. It keeps the QUALITYFIX2 removals: generic `7Dub7UXTXN` baseline issue, intro/problem-only `TPAj63ax4Y` insufficient-evaluation issue, and duplicate XH3 quote-negative counting.
+- The case table now separates `reviewer_candidate` issues from `claim_obligation` fallback issues. This is the main paper-narrative distinction: reviewer-candidate issues are model-proposed review concerns that survived bundle verification; claim-obligation issues are deterministic fallback gaps.
+- New reviewer-candidate case added by this recompute: `uOrfve3prk` `evaluation_protocol_risk`, missing "Validation of normalized edit distance proxy against human judgment", anchored by intervention-success evaluation inventory.
 - Some remaining case-table items are still judgment-sensitive, especially structural efficiency/reproducibility issues; do not present this as final solved quality.
 - Continue to treat `review_negative_verified_count` and `verified_review_issue_count` as separate lanes.
 
@@ -104,6 +108,9 @@ Important caveats:
 - QUALITYFIX2 adds a stricter baseline gate: `missing_baseline` must name a concrete baseline/comparison target, not only "same-setting baseline or comparison for the claimed improvement".
 - QUALITYFIX2 adds a stricter insufficient-evaluation inventory gate: problem/introduction/background text and method-overview figures cannot verify a missing quantitative-result issue unless the quote itself has result/performance/metric/experiment or numeric evidence.
 - QUALITYFIX2 deduplicates direct quote-grounded negative issues by canonical claim/type/quote signature instead of evidence id or span, so overlapping copies of the same negative result count once in dashboard and case tables.
+- CANDPRIORITY1 changes `_add_reviewer_absence_audit_artifacts` to prioritize reviewer-discovered candidate gaps before deterministic `verified_coverage_gap_items`; deterministic gaps now fill remaining slots instead of crowding out model-proposed review issues.
+- CANDPRIORITY1 adds `reviewer_candidate_review_issue_count` / `claim_obligation_review_issue_count` and matching claim/type metrics so dashboard and case tables can distinguish real reviewer-discovered issues from fallback structural gaps.
+- CANDPRIORITY1 keeps baseline specificity strict but lets protocol/evaluation candidates use concrete review dimensions such as human-judgment validation, proxy validation, threshold/protocol checks, substructure tasks, or result-table dimensions.
 
 Validation:
 
@@ -117,6 +124,9 @@ Validation:
   - `test_review_issue_bundle_rejects_structural_baseline_without_named_missing_target`
   - `test_review_issue_bundle_rejects_intro_problem_inventory_for_insufficient_evaluation`
   - `test_quote_grounded_review_negative_count_deduplicates_same_quote_issue`
+- Additional CANDPRIORITY1 direct test-function calls passed:
+  - `test_reviewer_candidate_review_issue_takes_priority_over_deterministic_gap_budget`
+  - `test_review_issue_specificity_accepts_protocol_validation_dimension_not_generic_baseline`
 - Dashboard recompute with `--fail-on-violation` passed.
 
 ### 2026-06-27 STRUCTEXPECT2 hardneg20 checkpoint (previous stable baseline)

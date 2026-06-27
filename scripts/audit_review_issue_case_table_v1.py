@@ -106,16 +106,25 @@ def _evidence_case(row: Dict[str, Any], state: Dict[str, Any], evidence: Dict[st
         verification_basis = _clip(bundle.get("review_issue_bundle_verification_basis"), 180)
         inventory_count = inventory.get("count", "0")
         inventory_sources = inventory.get("sources", "")
+        source_of_expectation = _clip(bundle.get("source_of_expectation"), 80)
+        reviewer_candidate_id = _clip(
+            evidence.get("reviewer_negative_candidate_id") or bundle.get("reviewer_negative_candidate_id"),
+            100,
+        )
     else:
         verification_basis = _clip(evidence.get("verified_grounding_label") or evidence.get("review_negative_label"), 180)
         inventory_count = "1" if quote else "0"
         inventory_sources = _clip(evidence.get("source") or evidence.get("support_bucket"), 120)
+        source_of_expectation = "direct_quote"
+        reviewer_candidate_id = ""
 
     return {
         "paper_id": _paper_id(row, state),
         "bucket": bucket,
         "issue_type": neg_type,
         "claim_id": claim_id,
+        "source_of_expectation": source_of_expectation,
+        "reviewer_candidate_id": reviewer_candidate_id,
         "missing_or_mismatch": missing,
         "inventory_or_quote_locator": locator,
         "inventory_or_quote": quote,
@@ -166,6 +175,8 @@ def build_review_issue_case_table(rows: Iterable[Dict[str, Any]]) -> tuple[List[
             summary["verified_review_issue_cases"] += 1
             summary[f"bucket::{bucket}"] += 1
             summary[f"type::{neg_type}"] += 1
+            if case.get("source_of_expectation"):
+                summary[f"source::{case.get('source_of_expectation')}"] += 1
     return cases, dict(summary)
 
 
@@ -181,9 +192,11 @@ def render_markdown(input_path: Path, cases: List[Dict[str, Any]], summary: Dict
         f"- verified review issue cases: `{summary.get('verified_review_issue_cases', 0)}`",
         f"- quote-grounded cases: `{summary.get('bucket::quote_grounded_review_issue', 0)}`",
         f"- obligation-grounded cases: `{summary.get('bucket::obligation_grounded_review_issue', 0)}`",
+        f"- reviewer-candidate cases: `{summary.get('source::reviewer_candidate', 0)}`",
+        f"- claim-obligation fallback cases: `{summary.get('source::claim_obligation', 0)}`",
         "",
-        "| paper_id | bucket | issue_type | claim_id | missing/mismatch | inventory count | inventory sources | verification basis | inventory/quote locator | inventory/quote | claim anchor |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+        "| paper_id | bucket | issue_type | claim_id | source | candidate id | missing/mismatch | inventory count | inventory sources | verification basis | inventory/quote locator | inventory/quote | claim anchor |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for case in cases:
         lines.append(
@@ -195,6 +208,8 @@ def render_markdown(input_path: Path, cases: List[Dict[str, Any]], summary: Dict
                     "bucket",
                     "issue_type",
                     "claim_id",
+                    "source_of_expectation",
+                    "reviewer_candidate_id",
                     "missing_or_mismatch",
                     "inventory_count",
                     "inventory_sources",

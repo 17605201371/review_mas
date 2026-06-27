@@ -1570,7 +1570,9 @@ def _coverage_item_is_specific_for_type(text: str, neg_type: str) -> bool:
                 r"runtime|latency|memory|flops|throughput|compute|computational\s+cost|"
                 r"efficiency|hyperparameter\s+sensitivity|sensitivity\s+analysis|"
                 r"model\s+scale|architectural\s+family|architecture\s+diversity|"
-                r"large[- ]scale\s+models?)\b",
+                r"large[- ]scale\s+models?|validation|gold[- ]standard|human\s+judg(?:e|ment)|"
+                r"proxy|intervention\s+success|task|tasks|substructure|result\s+table|"
+                r"results\s+table|metric\s+table|threshold|protocol)\b",
                 lower,
             )
             or re.search(r"\b[A-Z]{2,}[A-Za-z0-9_-]*\b|\b[A-Za-z]+[-/][A-Za-z0-9_-]+\b|\d", value)
@@ -9067,85 +9069,94 @@ def _add_reviewer_absence_audit_artifacts(
     absence findings available to final-view flaw accounting while keeping them
     explicitly separate from quote-grounded negative evidence.
     """
-    gap_items = [
-        item for item in requirement_audit.get("verified_coverage_gap_items", []) or []
-        if isinstance(item, dict)
-    ][:max_gap_items]
-    if len(gap_items) < max_gap_items:
-        def _gap_requirement_list(gap: Dict[str, Any]) -> List[str]:
-            return [
-                str(req)
-                for req in (gap.get("coverage_gap_missing_requirements") or gap.get("missing_requirements") or [])
-                if str(req)
-            ]
+    def _gap_requirement_list(gap: Dict[str, Any]) -> List[str]:
+        return [
+            str(req)
+            for req in (gap.get("coverage_gap_missing_requirements") or gap.get("missing_requirements") or [])
+            if str(req)
+        ]
 
-        existing_by_key = {
-            (
-                str(item.get("claim_id") or ""),
-                "|".join(_gap_requirement_list(item)),
-            ): item
-            for item in gap_items
-        }
-        for item in _reviewer_candidate_absence_gap_items(
-            view,
-            requirement_audit,
-            max_items=max_gap_items - len(gap_items),
+    def _merge_reviewer_candidate_gap_metadata(existing: Dict[str, Any], incoming: Dict[str, Any]) -> None:
+        for field in (
+            "reviewer_negative_candidate_id",
+            "reviewer_negative_candidate",
+            "reviewer_negative_candidate_missing_items",
+            "reviewer_negative_candidate_observed_inventory",
+            "candidate_obligation_relevance_basis",
         ):
-            item_claim_id = str(item.get("claim_id") or "")
-            item_requirements = set(_gap_requirement_list(item))
-            overlapping_existing = next(
-                (
-                    existing
-                    for existing in gap_items
-                    if str(existing.get("claim_id") or "") == item_claim_id
-                    and item_requirements
-                    and item_requirements.intersection(_gap_requirement_list(existing))
-                ),
-                None,
-            )
-            if isinstance(overlapping_existing, dict):
-                existing_requirements = set(_gap_requirement_list(overlapping_existing))
-                if existing_requirements == item_requirements:
-                    for field in (
-                        "reviewer_negative_candidate_id",
-                        "reviewer_negative_candidate",
-                        "reviewer_negative_candidate_missing_items",
-                        "reviewer_negative_candidate_observed_inventory",
-                    ):
-                        if item.get(field) and not overlapping_existing.get(field):
-                            overlapping_existing[field] = item.get(field)
-                    if item.get("missing_negative_types"):
-                        overlapping_existing["missing_negative_types"] = list(dict.fromkeys(
-                            list(item.get("missing_negative_types") or [])
-                            + list(overlapping_existing.get("missing_negative_types") or [])
-                        ))
-                    if item.get("candidate_introduced_review_obligation"):
-                        overlapping_existing["candidate_introduced_review_obligation"] = True
-                    continue
-            key = (
-                item_claim_id,
-                "|".join(_gap_requirement_list(item)),
-            )
-            existing = existing_by_key.get(key)
-            if isinstance(existing, dict):
-                for field in (
-                    "reviewer_negative_candidate_id",
-                    "reviewer_negative_candidate",
-                    "reviewer_negative_candidate_missing_items",
-                    "reviewer_negative_candidate_observed_inventory",
-                ):
-                    if item.get(field) and not existing.get(field):
-                        existing[field] = item.get(field)
-                if item.get("missing_negative_types"):
-                    existing["missing_negative_types"] = list(dict.fromkeys(
-                        list(item.get("missing_negative_types") or [])
-                        + list(existing.get("missing_negative_types") or [])
-                    ))
-                if item.get("candidate_introduced_review_obligation"):
-                    existing["candidate_introduced_review_obligation"] = True
-                continue
-            existing_by_key[key] = item
-            gap_items.append(item)
+            if incoming.get(field) and not existing.get(field):
+                existing[field] = incoming.get(field)
+        if incoming.get("missing_negative_types"):
+            existing["missing_negative_types"] = list(dict.fromkeys(
+                list(incoming.get("missing_negative_types") or [])
+                + list(existing.get("missing_negative_types") or [])
+            ))
+        if incoming.get("candidate_introduced_review_obligation"):
+            existing["candidate_introduced_review_obligation"] = True
+        if str(incoming.get("audit_basis") or "") == "reviewer_candidate_vs_claim_requirement_support_absence":
+            existing["audit_basis"] = "reviewer_candidate_vs_claim_requirement_support_absence"
+            existing["final_view_layer"] = "reviewer_candidate_absence_audit"
+
+    gap_items: List[Dict[str, Any]] = []
+    existing_by_key: Dict[Tuple[str, str], Dict[str, Any]] = {}
+
+    def _append_or_merge_gap(item: Dict[str, Any], *, candidate_priority: bool) -> None:
+        if not isinstance(item, dict):
+            return
+        item_claim_id = str(item.get("claim_id") or "")
+        item_requirements = set(_gap_requirement_list(item))
+        if not item_claim_id or not item_requirements:
+            return
+        overlapping_existing = next(
+            (
+                existing
+                for existing in gap_items
+                if str(existing.get("claim_id") or "") == item_claim_id
+                and item_requirements
+                and item_requirements.intersection(_gap_requirement_list(existing))
+            ),
+            None,
+        )
+        if isinstance(overlapping_existing, dict) and set(_gap_requirement_list(overlapping_existing)) == item_requirements:
+            if candidate_priority and item.get("reviewer_negative_candidate_id"):
+                _merge_reviewer_candidate_gap_metadata(item, overlapping_existing)
+                idx = gap_items.index(overlapping_existing)
+                gap_items[idx] = item
+                existing_by_key[(item_claim_id, "|".join(_gap_requirement_list(item)))] = item
+            else:
+                _merge_reviewer_candidate_gap_metadata(overlapping_existing, item)
+            return
+        key = (item_claim_id, "|".join(_gap_requirement_list(item)))
+        existing = existing_by_key.get(key)
+        if isinstance(existing, dict):
+            if candidate_priority and item.get("reviewer_negative_candidate_id"):
+                _merge_reviewer_candidate_gap_metadata(item, existing)
+                idx = gap_items.index(existing)
+                gap_items[idx] = item
+                existing_by_key[key] = item
+            else:
+                _merge_reviewer_candidate_gap_metadata(existing, item)
+            return
+        if len(gap_items) >= max_gap_items:
+            return
+        existing_by_key[key] = item
+        gap_items.append(item)
+
+    # Reviewer-discovered issues are the paper-narrative path: a model first
+    # names a concrete review concern, then the verifier checks it against claim
+    # obligations and observed inventory.  Give these candidates the first audit
+    # slots; deterministic claim-obligation gaps remain as conservative fallback.
+    for item in _reviewer_candidate_absence_gap_items(
+        view,
+        requirement_audit,
+        max_items=max_gap_items,
+    ):
+        _append_or_merge_gap(item, candidate_priority=True)
+
+    for item in requirement_audit.get("verified_coverage_gap_items", []) or []:
+        if len(gap_items) >= max_gap_items:
+            break
+        _append_or_merge_gap(item, candidate_priority=False)
     if not gap_items:
         review_issue_sync = _sync_verified_review_issues(view)
         return {
@@ -12607,6 +12618,28 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
     obligation_grounded_review_issue_type_counts: Counter[str] = Counter(
         signature[1] for signature in review_issue_signatures if signature[1]
     )
+    def _review_issue_record_expectation_source(record: Dict[str, Any]) -> str:
+        bundle = record.get("review_issue_bundle")
+        return str(bundle.get("source_of_expectation") or "") if isinstance(bundle, dict) else ""
+
+    reviewer_candidate_review_issue_signatures = {
+        signature
+        for signature, record in review_issue_records_by_signature.items()
+        if _review_issue_record_expectation_source(record) == "reviewer_candidate"
+    }
+    claim_obligation_review_issue_signatures = review_issue_signatures - reviewer_candidate_review_issue_signatures
+    reviewer_candidate_review_issue_type_counts: Counter[str] = Counter(
+        signature[1] for signature in reviewer_candidate_review_issue_signatures if signature[1]
+    )
+    claim_obligation_review_issue_type_counts: Counter[str] = Counter(
+        signature[1] for signature in claim_obligation_review_issue_signatures if signature[1]
+    )
+    reviewer_candidate_review_issue_claim_ids = {
+        signature[0] for signature in reviewer_candidate_review_issue_signatures if signature[0]
+    }
+    claim_obligation_review_issue_claim_ids = {
+        signature[0] for signature in claim_obligation_review_issue_signatures if signature[0]
+    }
     review_issue_bundle_items = []
     for record in review_issue_records_by_signature.values():
         bundle = record.get("review_issue_bundle") if isinstance(record.get("review_issue_bundle"), dict) else {}
@@ -12685,6 +12718,12 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
         "obligation_grounded_review_issue_count": obligation_grounded_review_issue_count,
         "obligation_grounded_review_issue_claim_count": len(obligation_grounded_review_issue_claim_ids),
         "obligation_grounded_review_issue_type_counts": dict(obligation_grounded_review_issue_type_counts),
+        "reviewer_candidate_review_issue_count": len(reviewer_candidate_review_issue_signatures),
+        "reviewer_candidate_review_issue_claim_count": len(reviewer_candidate_review_issue_claim_ids),
+        "reviewer_candidate_review_issue_type_counts": dict(reviewer_candidate_review_issue_type_counts),
+        "claim_obligation_review_issue_count": len(claim_obligation_review_issue_signatures),
+        "claim_obligation_review_issue_claim_count": len(claim_obligation_review_issue_claim_ids),
+        "claim_obligation_review_issue_type_counts": dict(claim_obligation_review_issue_type_counts),
         "verified_review_issue_count": quote_grounded_review_negative_count + obligation_grounded_review_issue_count,
         "verified_review_issue_claim_count": len(
             quote_grounded_review_negative_claim_ids | obligation_grounded_review_issue_claim_ids

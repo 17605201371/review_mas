@@ -10602,3 +10602,70 @@ def test_review_issue_bundle_rejects_generalization_gap_when_full_text_has_image
 
     assert hygiene["obligation_grounded_review_issue_count"] == 0
     assert hygiene["verified_review_issue_count"] == 0
+
+
+def test_reviewer_candidate_review_issue_takes_priority_over_deterministic_gap_budget():
+    filler_claims = [
+        {
+            "claim_id": f"claim-{idx}",
+            "claim": f"The paper reports empirical improvement for synthetic task {idx}.",
+            "claim_kind": "paper_extracted",
+            "claim_type": "empirical",
+            "importance": "high",
+            "status": "uncertain",
+            "claim_obligations": ["empirical_result"],
+        }
+        for idx in range(1, 9)
+    ]
+    target_claim = {
+        "claim_id": "claim-9",
+        "claim": "The paper uses normalized edit distance as a proxy for intervention success.",
+        "claim_kind": "paper_extracted",
+        "claim_type": "empirical",
+        "importance": "high",
+        "status": "supported",
+        "claim_obligations": ["evaluation_protocol"],
+    }
+    inventory_quote = "Table 2: Evaluation of intervention success rate for each method under normalized edit distance."
+    paper_text = "\n".join([claim["claim"] for claim in filler_claims] + [target_claim["claim"], inventory_quote])
+    state = {
+        "paper_text": paper_text,
+        "claims": filler_claims + [target_claim],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "review-issue-candidate-proxy-validation",
+                "claim_id": "claim-9",
+                "weakness": "The protocol proxy is not validated against human judgment.",
+                "negative_type": "evaluation_protocol_risk",
+                "required_evidence_type": "evaluation_protocol",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["Validation of normalized edit distance proxy against human judgment"],
+                "observed_inventory": [{"quote": inventory_quote, "locator": "Table 2"}],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["reviewer_candidate_review_issue_count"] == 1
+    assert hygiene["reviewer_candidate_review_issue_claim_count"] == 1
+    assert hygiene["reviewer_candidate_review_issue_type_counts"]["evaluation_protocol_risk"] == 1
+    assert hygiene["verified_review_issue_count"] >= 1
+
+
+def test_review_issue_specificity_accepts_protocol_validation_dimension_not_generic_baseline():
+    assert _coverage_item_is_specific_for_type(
+        "Validation of normalized edit distance proxy against human judgment",
+        "evaluation_protocol_risk",
+    )
+    assert not _coverage_item_is_specific_for_type(
+        "stronger baselines for the claimed improvement",
+        "missing_baseline",
+    )
