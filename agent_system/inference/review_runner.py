@@ -4467,6 +4467,7 @@ def _absence_audit_mark_contested_recovery_patch_payload(
                     "claim_id": claim_id,
                     "support_evidence_ids": support_ids[:4],
                     "negative_evidence_ids": negative_ids,
+                    "relation_type": "supported_but_contested_by_review_issue",
                     "final_view": "potential_concern",
                     "negative_evidence_basis": "review_issue_bundle" if issue_bundle_basis else "reviewer_absence_audit",
                     "review_issue_bundle_ids": issue_bundle_ids[:4],

@@ -711,6 +711,7 @@ def _normalize_reviewer_negative_candidate_item(item: Any, fallback_index: int) 
         status = "pending_absence_audit"
     normalized = {
         "candidate_id": candidate_id,
+        "obligation_id": _normalize_text(item.get("obligation_id") or item.get("claim_obligation_id"), max_length=140),
         "claim_id": claim_id,
         "claim": _normalize_text(item.get("claim"), max_length=240),
         "weakness": weakness,
@@ -765,6 +766,8 @@ def _normalize_reviewer_negative_candidate_item(item: Any, fallback_index: int) 
     source_of_expectation = _normalize_text(item.get("source_of_expectation"), max_length=80)
     if source_of_expectation:
         normalized["source_of_expectation"] = source_of_expectation
+    if not normalized.get("obligation_id"):
+        normalized.pop("obligation_id", None)
     if _review_issue_candidate_is_retrieval_gap(normalized):
         return None
     return normalized
@@ -1995,6 +1998,8 @@ def _is_table_scope_absence_negative(
         and not _coverage_quote_has_visible_observed_scope(quote, evidence)
     ):
         return False
+    if not coverage_missing_items and neg_type == "missing_ablation":
+        return False
     if coverage_missing_items and not _coverage_quote_has_visible_observed_scope(quote, evidence):
         return False
     if (
@@ -2011,7 +2016,7 @@ def _is_table_scope_absence_negative(
     if coverage_missing_items:
         target_text = " ".join(coverage_missing_items)
     else:
-        target_text = combined
+        target_text = evidence_absence_text
     target_tokens = _absence_target_tokens(target_text) - quote_tokens
     target_tokens = {
         token
@@ -2028,6 +2033,8 @@ def _is_table_scope_absence_negative(
     if coverage_missing_items:
         evidence_tokens |= _semantic_tokens(" ".join(coverage_missing_items))
     if not (target_tokens & evidence_tokens):
+        return False
+    if not coverage_missing_items and not (target_tokens & claim_tokens):
         return False
     if not (target_tokens & (claim_tokens | evidence_tokens)):
         return False
@@ -3176,6 +3183,8 @@ def _has_trusted_existing_grounding(evidence: Dict[str, Any]) -> bool:
         "quote_bank_id_canonical",
         "quote_bank_raw_canonical",
         "quote_bank_claim_overlap_canonical",
+        "candidate_window_quote_bank_exact_substring",
+        "candidate_window_quote_bank_normalized_substring",
         "full_paper_exact_substring",
         "full_paper_normalized_substring",
     }
@@ -5912,6 +5921,11 @@ def _claim_requirement_audit(state: Dict[str, Any]) -> Dict[str, Any]:
             status = "partial_gap"
         else:
             status = "unsupported_gap"
+        entity_claim_obligations = _entity_level_claim_obligations_for_claim(
+            claim,
+            requirements=requirements,
+            max_items=8,
+        )
         audits.append({
             "gap_id": _slugify("claim-requirement-gap", f"{claim_id}-{'-'.join(missing)}", idx + 1),
             "claim_id": claim_id,
@@ -5923,6 +5937,11 @@ def _claim_requirement_audit(state: Dict[str, Any]) -> Dict[str, Any]:
             "satisfied_requirements": satisfied,
             "missing_requirements": missing,
             "missing_negative_types": [_REQUIREMENT_TO_NEGATIVE_TYPE.get(req, req) for req in missing],
+            "entity_claim_obligations": entity_claim_obligations,
+            "entity_claim_obligations_for_missing_requirements": [
+                item for item in entity_claim_obligations
+                if str(item.get("required_evidence_type") or "") in set(missing)
+            ],
             "available_support_ids": [str(item.get("evidence_id") or "") for item in support_items if item.get("evidence_id")][:6],
             "evidence_by_requirement": evidence_by_requirement,
             "requirement_status": status,
@@ -6166,6 +6185,127 @@ def _paper_inventory_observed_items(quote: str, *, max_items: int = 12) -> List[
     return items
 
 
+_INVENTORY_TYPE_BY_REQUIREMENT = {
+    "ablation_or_component": "ablation",
+    "baseline_or_comparison": "baseline",
+    "empirical_result": "metric",
+    "robustness_or_generalization": "dataset",
+    "scope_coverage": "dataset",
+    "evaluation_protocol": "protocol",
+    "efficiency_cost": "runtime",
+    "method_detail": "training_detail",
+    "reproducibility_detail": "training_detail",
+}
+
+_NORMALIZED_INVENTORY_BUCKET_BY_REQUIREMENT = {
+    "ablation_or_component": "ablations",
+    "baseline_or_comparison": "baselines",
+    "empirical_result": "metrics",
+    "robustness_or_generalization": "datasets",
+    "scope_coverage": "tasks",
+    "evaluation_protocol": "protocol_dimensions",
+    "efficiency_cost": "resource_measurements",
+    "method_detail": "components_tested",
+    "reproducibility_detail": "reproducibility_details",
+}
+
+
+def _inventory_type_for_requirements(requirements: Sequence[str], quote: str = "") -> str:
+    reqs = [_canonical_required_evidence_type(req) for req in requirements or []]
+    lower = str(quote or "").lower()
+    if "ablation_or_component" in reqs or re.search(r"\bablation|with(?:out)?\s+and\s+without|w/o\b|variant", lower):
+        return "ablation"
+    if "baseline_or_comparison" in reqs or re.search(r"\bbaseline|sota|state[- ]of[- ]the[- ]art|comparison", lower):
+        return "baseline"
+    if "efficiency_cost" in reqs or re.search(r"\bruntime|latency|memory|flops?|throughput|gpu|hardware", lower):
+        return "runtime"
+    if "evaluation_protocol" in reqs or re.search(r"\bsplit|seed|threshold|protocol|setting", lower):
+        return "protocol"
+    if "reproducibility_detail" in reqs or re.search(r"\bhyperparameter|optimizer|learning\s+rate|batch|epoch|code", lower):
+        return "training_detail"
+    if "method_detail" in reqs:
+        return "training_detail"
+    if "robustness_or_generalization" in reqs or "scope_coverage" in reqs:
+        return "dataset"
+    if "empirical_result" in reqs:
+        return "metric"
+    for req in reqs:
+        if req in _INVENTORY_TYPE_BY_REQUIREMENT:
+            return _INVENTORY_TYPE_BY_REQUIREMENT[req]
+    return "paper_inventory"
+
+
+def _inventory_observed_entity(quote: str, observed_items: Sequence[str]) -> str:
+    for item in observed_items or []:
+        value = _normalize_text(item, max_length=80)
+        if value and value not in _PAPER_INVENTORY_ENTITY_STOPWORDS:
+            return value
+    extracted = _paper_inventory_observed_items(quote, max_items=1)
+    return extracted[0] if extracted else ""
+
+
+def _normalized_inventory_buckets(items: Sequence[Dict[str, Any]]) -> Dict[str, List[str]]:
+    buckets: Dict[str, List[str]] = {
+        "datasets": [],
+        "tasks": [],
+        "baselines": [],
+        "metrics": [],
+        "ablations": [],
+        "components_tested": [],
+        "protocol_dimensions": [],
+        "resource_measurements": [],
+        "reproducibility_details": [],
+    }
+
+    def add(bucket: str, raw: str) -> None:
+        value = _normalize_text(raw, max_length=80)
+        if not value:
+            return
+        lowered = value.lower()
+        values = buckets.setdefault(bucket, [])
+        if lowered not in {item.lower() for item in values}:
+            values.append(value)
+
+    for item in items or []:
+        if not isinstance(item, dict):
+            continue
+        observed_items = _normalize_list_of_strings(
+            item.get("observed_items") or [item.get("observed_entity")],
+            max_items=8,
+            max_length=80,
+        )
+        if not observed_items:
+            observed_entity = _normalize_text(item.get("observed_entity"), max_length=80)
+            if observed_entity:
+                observed_items = [observed_entity]
+        for req in item.get("requirement_types") or []:
+            bucket = _NORMALIZED_INVENTORY_BUCKET_BY_REQUIREMENT.get(
+                _canonical_required_evidence_type(req)
+            )
+            if not bucket:
+                continue
+            for observed in observed_items:
+                add(bucket, observed)
+        inventory_type = str(item.get("inventory_type") or "").strip()
+        if inventory_type == "ablation":
+            for observed in observed_items:
+                add("ablations", observed)
+                add("components_tested", observed)
+        elif inventory_type == "baseline":
+            for observed in observed_items:
+                add("baselines", observed)
+        elif inventory_type == "runtime":
+            for observed in observed_items:
+                add("resource_measurements", observed)
+        elif inventory_type == "protocol":
+            for observed in observed_items:
+                add("protocol_dimensions", observed)
+        elif inventory_type == "training_detail":
+            for observed in observed_items:
+                add("reproducibility_details", observed)
+    return {key: values[:12] for key, values in buckets.items()}
+
+
 def _paper_inventory_quote_restates_claim(quote: str, claim_texts: Sequence[str]) -> bool:
     quote_tokens = _semantic_tokens(quote)
     if len(quote_tokens) < 6:
@@ -6240,16 +6380,21 @@ def _paper_inventory_from_text(state: Dict[str, Any], *, max_items: int = 20) ->
         for req in requirements:
             type_counts[req] += 1
         idx = len(items) + 1
+        observed_items = _paper_inventory_observed_items(quote)
+        inventory_type = _inventory_type_for_requirements(requirements, quote)
         items.append(
             {
                 "inventory_id": f"paper-inventory-{idx}",
                 "evidence_id": "",
                 "claim_id": "",
+                "claim_ids": [],
                 "requirement_types": requirements,
+                "inventory_type": inventory_type,
+                "observed_entity": _inventory_observed_entity(quote, observed_items),
                 "quote": quote,
                 "locator": _paper_inventory_locator_for_quote(quote, idx),
                 "support_bucket": "paper_text_inventory",
-                "observed_items": _paper_inventory_observed_items(quote),
+                "observed_items": observed_items,
                 "inventory_source": "paper_text_inventory",
                 "paper_inventory_source": "full_paper_text",
                 "verified_grounding_label": str(verification.get("verified_grounding_label") or ""),
@@ -6262,6 +6407,8 @@ def _paper_inventory_from_text(state: Dict[str, Any], *, max_items: int = 20) ->
             break
     return {
         "items": items,
+        "inventory_items": items,
+        "evaluation_inventory": _normalized_inventory_buckets(items),
         "type_counts": dict(type_counts),
         "claim_ids": [],
     }
@@ -6331,20 +6478,25 @@ def _evaluation_inventory_from_evidence(state: Dict[str, Any], *, max_items: int
             type_counts[req] += 1
         if evidence_id:
             seen.add(evidence_id)
+        observed_items = _normalize_list_of_strings(
+            evidence.get("coverage_observed_items") or evidence.get("observed_items"),
+            max_items=10,
+            max_length=80,
+        )
+        inventory_type = _inventory_type_for_requirements(requirements, quote)
         items.append(
             {
                 "inventory_id": evidence_id or _slugify("inventory", quote, len(items) + 1),
                 "evidence_id": evidence_id,
                 "claim_id": claim_id,
+                "claim_ids": [claim_id] if claim_id else [],
                 "requirement_types": requirements[:5],
+                "inventory_type": inventory_type,
+                "observed_entity": _inventory_observed_entity(quote, observed_items),
                 "quote": quote,
                 "locator": _normalize_text(evidence.get("source_locator") or evidence.get("source"), max_length=120),
                 "support_bucket": _decision_support_source_bucket(evidence),
-                "observed_items": _normalize_list_of_strings(
-                    evidence.get("coverage_observed_items") or evidence.get("observed_items"),
-                    max_items=10,
-                    max_length=80,
-                ),
+                "observed_items": observed_items,
                 "inventory_source": "verified_support_inventory",
                 "verified_grounding_label": str(evidence.get("verified_grounding_label") or ""),
                 "verified_quote_match_type": str(evidence.get("verified_quote_match_type") or ""),
@@ -6369,6 +6521,8 @@ def _evaluation_inventory_from_evidence(state: Dict[str, Any], *, max_items: int
                 break
     return {
         "items": items,
+        "inventory_items": items,
+        "evaluation_inventory": _normalized_inventory_buckets(items),
         "type_counts": dict(type_counts),
         "claim_ids": sorted({str(item.get("claim_id") or "") for item in items if str(item.get("claim_id") or "")})[:12],
     }
@@ -6398,7 +6552,10 @@ def _evaluation_inventory_items_for_claim(
                 "inventory_id": str(item.get("inventory_id") or ""),
                 "evidence_id": str(item.get("evidence_id") or ""),
                 "claim_id": str(item.get("claim_id") or ""),
+                "claim_ids": _normalize_list_of_strings(item.get("claim_ids") or [item.get("claim_id")], max_items=6, max_length=80),
                 "requirement_types": list(item.get("requirement_types") or [])[:5],
+                "inventory_type": str(item.get("inventory_type") or ""),
+                "observed_entity": _normalize_text(item.get("observed_entity"), max_length=80),
                 "quote": _normalize_text(item.get("quote"), max_length=180),
                 "locator": _normalize_text(item.get("locator"), max_length=100),
                 "support_bucket": str(item.get("support_bucket") or ""),
@@ -6771,13 +6928,13 @@ def _review_issue_inventory_item_matches_requirement(
     if neg_type in _COVERAGE_BASELINE_NEGATIVE_TYPES:
         return bool(requirements & {"baseline_or_comparison"})
     if neg_type == "missing_ablation":
-        return bool(requirements & {"ablation_or_component", "method_detail", "empirical_result"})
+        return bool(requirements & {"ablation_or_component"})
     if neg_type in {"insufficient_evaluation", "missing_robustness_or_generalization", "scope_overclaim"}:
         return bool(requirements & {"empirical_result", "robustness_or_generalization", "scope_coverage"})
     if neg_type == "evaluation_protocol_risk":
-        return bool(requirements & {"evaluation_protocol", "empirical_result"})
+        return bool(requirements & {"evaluation_protocol"})
     if neg_type == "efficiency_cost_gap":
-        return bool(requirements & {"efficiency_cost", "empirical_result", "baseline_or_comparison"})
+        return bool(requirements & {"efficiency_cost"})
     if neg_type in {"method_support_gap", "reproducibility_gap"}:
         return bool(requirements & {"method_detail", "reproducibility_detail"})
     if neg_type == "result_claim_mismatch":
@@ -7188,8 +7345,9 @@ def _review_issue_observed_inventory_relevant_for_type(bundle: Dict[str, Any], n
     if neg_type == "missing_ablation":
         return bool(
             re.search(
-                r"\b(method|module|component|architecture|objective|loss|stage|block|head|"
-                r"encoder|decoder|attention|ablation|variant|framework|figure|fig\.?)\b",
+                r"\b(ablation|ablat(?:e|ed|ion|ions)|variant|variants|w/o|without|"
+                r"remove[sd]?|removing|isolate[sd]?|component\s+(?:study|analysis)|"
+                r"module\s+(?:study|analysis))\b",
                 inventory_text,
             )
         )
@@ -7277,7 +7435,70 @@ def _review_issue_missing_items_already_observed(bundle: Dict[str, Any]) -> bool
     if not inventory_text:
         return False
     issue_type = _canonical_negative_evidence_type(bundle.get("issue_type"))
+    if str(bundle.get("source_of_expectation") or "") == "claim_obligation":
+        distinctive_tokens = {
+            token
+            for item in missing_items
+            for token in _absence_target_tokens(item)
+            if len(token) >= 6
+            and token not in {
+                "ablation",
+                "baseline",
+                "baselines",
+                "comparison",
+                "component",
+                "components",
+                "dataset",
+                "datasets",
+                "evaluation",
+                "metric",
+                "metrics",
+                "module",
+                "quantitative",
+                "result",
+                "results",
+                "runtime",
+                "support",
+                "table",
+            }
+        }
+        entity_observed = bool(distinctive_tokens) and any(
+            _text_contains_surface_marker(inventory_text, token)
+            for token in distinctive_tokens
+        )
+        if entity_observed:
+            if issue_type == "insufficient_evaluation" and _review_issue_inventory_has_empirical_result_observation(
+                inventory_text,
+                inventory_text,
+            ):
+                return True
+            if issue_type == "missing_ablation" and re.search(
+                r"\b(?:ablation|ablat(?:e|ed|ion|ions)|variant|variants|with\s+and\s+without|without|w/o|remove[sd]?)\b",
+                inventory_text,
+                re.IGNORECASE,
+            ):
+                return True
+            if issue_type == "efficiency_cost_gap" and _window_resolves_efficiency_missing(inventory_text, missing_items):
+                return True
+            if issue_type in {"evaluation_protocol_risk", "result_claim_mismatch"} and _window_resolves_protocol_or_result_missing(
+                inventory_text,
+                missing_items,
+                issue_type,
+            ):
+                return True
+            if issue_type in {"method_support_gap", "reproducibility_gap"} and re.search(
+                r"\b(?:method|algorithm|implementation|architecture|module|component|training|hyperparameter|optimizer|seed|split|code)\b",
+                inventory_text,
+                re.IGNORECASE,
+            ):
+                return True
     if issue_type == "efficiency_cost_gap":
+        missing_text = _missing_joined_text(missing_items)
+        if (
+            re.search(r"\b(?:runtime|latency|time|memory|flops?|compute|computational|hardware|gpu|parameters?)\b", missing_text)
+            and re.search(r"\b(?:runtime|latency|time|computational\s+time|memory|flops?|compute|computational|hardware|gpu|parameters?)\b", inventory_text, re.I)
+        ):
+            return True
         return _window_resolves_efficiency_missing(inventory_text, missing_items)
     if issue_type in _COVERAGE_BASELINE_NEGATIVE_TYPES:
         missing_text = " ".join(missing_items).lower()
@@ -7292,6 +7513,13 @@ def _review_issue_missing_items_already_observed(bundle: Dict[str, Any]) -> bool
         # reviewer-named baseline is absent.
         return False
     if issue_type in {"insufficient_evaluation", "missing_robustness_or_generalization", "scope_overclaim"}:
+        missing_text = _missing_joined_text(missing_items)
+        if (
+            issue_type == "insufficient_evaluation"
+            and re.search(r"\b(?:quantitative|result|results|table|metric|metrics|score|accuracy|performance)\b", missing_text)
+            and _review_issue_inventory_has_empirical_result_observation(inventory_text, inventory_text)
+        ):
+            return True
         return _window_resolves_evaluation_or_scope_missing(inventory_text, missing_items, issue_type)
     if issue_type in {"evaluation_protocol_risk", "result_claim_mismatch"}:
         return _window_resolves_protocol_or_result_missing(inventory_text, missing_items, issue_type)
@@ -8094,6 +8322,7 @@ def _review_issue_full_text_counterevidence_reason(
         for window in windows:
             if claim_obligation_structural and re.search(
                 r"\b(?:runtime|latency|throughput|wall[- ]clock|running\s+time|"
+                r"training\s+time|search\s+time|inference\s+time|"
                 r"memory|gpu|cpu|hardware|parameters?|flops?|compute|"
                 r"computational\s+(?:cost|time|budget)|fps|tokens?/s|ms|seconds?)\b",
                 window,
@@ -8165,6 +8394,67 @@ def _review_issue_targets_limitation_or_boundary_claim(bundle: Dict[str, Any], s
     return False
 
 
+_CLAIM_OBLIGATION_BROAD_DOMAIN_RE = re.compile(
+    r"\b(?:rl|fl|uda|gnns?|graphs?|trade[- ]offs?|per[- ]reference|"
+    r"time[- ]series|federated\s+learning|offline\s+rl|reinforcement\s+learning)\b",
+    re.IGNORECASE,
+)
+
+
+def _claim_obligation_expected_entity_too_broad(obligation: Dict[str, Any], neg_type: str) -> bool:
+    """Block template-level obligation entities from becoming verified issues.
+
+    Claim-obligation gaps are useful search targets, but a verified review issue
+    needs a concrete missing entity.  Broad fields/tasks such as "RL", "GNNs",
+    or "UDA" are not a named missing baseline/dataset/protocol by themselves.
+    """
+
+    expected = _normalize_text((obligation or {}).get("expected_entity"), max_length=180)
+    source = str((obligation or {}).get("entity_source") or "").strip().lower()
+    neg_type = _canonical_negative_evidence_type(neg_type)
+    if not expected:
+        return True
+    lowered = expected.lower()
+    if neg_type in {"scope_overclaim", "missing_robustness_or_generalization"} and source == "claim_obligation":
+        return True
+    if neg_type in {"scope_overclaim", "missing_robustness_or_generalization"} and lowered.startswith(
+        ("held-out or coverage evaluation for ", "held-out dataset, domain, or stress setting for ")
+    ):
+        return True
+    if neg_type in {
+        "missing_baseline",
+        "unfair_or_weak_baseline",
+        "insufficient_evaluation",
+        "evaluation_protocol_risk",
+        "scope_overclaim",
+        "missing_robustness_or_generalization",
+    } and _CLAIM_OBLIGATION_BROAD_DOMAIN_RE.search(lowered):
+        return True
+    if neg_type == "missing_ablation":
+        generic_component_tokens = {
+            "ablation",
+            "component",
+            "designed",
+            "framework",
+            "isolating",
+            "learning",
+            "mechanism",
+            "method",
+            "model",
+            "module",
+            "proposed",
+            "system",
+        }
+        core_tokens = {
+            token
+            for token in _specific_surface_tokens(expected)
+            if token not in generic_component_tokens
+        }
+        if not core_tokens:
+            return True
+    return False
+
+
 def _review_issue_bundle_verification_failure(
     bundle: Dict[str, Any],
     state: Dict[str, Any],
@@ -8179,6 +8469,17 @@ def _review_issue_bundle_verification_failure(
             for item in (missing.get("items") or [missing.get("entity")])
             if str(item or "").strip()
         ]
+    if str(bundle.get("source_of_expectation") or "") == "claim_obligation":
+        obligation = bundle.get("claim_obligation") if isinstance(bundle.get("claim_obligation"), dict) else {}
+        expected_entity = _normalize_text(obligation.get("expected_entity"), max_length=140)
+        if not obligation or not bool(obligation.get("entity_level")):
+            return "claim_obligation_missing_entity_level_record"
+        if not expected_entity or not _review_issue_missing_items_are_concrete(neg_type, [expected_entity]):
+            return "claim_obligation_expected_entity_not_concrete"
+        if expected_entity.lower() not in {_normalize_text(item, max_length=140).lower() for item in missing_items}:
+            return "claim_obligation_expected_entity_not_bound"
+        if _claim_obligation_expected_entity_too_broad(obligation, neg_type):
+            return "claim_obligation_expected_entity_too_broad"
     if not _review_issue_claim_anchor_is_locatable(bundle, state or {}):
         return "claim_anchor_not_locatable_in_paper"
     if _review_issue_targets_limitation_or_boundary_claim(bundle, state or {}):
@@ -8514,6 +8815,24 @@ def _review_issue_structural_expectation_basis(
         # candidate valid without a claim cue.
         return ""
     if source_of_expectation == "claim_obligation":
+        obligation = bundle.get("claim_obligation") if isinstance(bundle.get("claim_obligation"), dict) else {}
+        expected_entity = _normalize_text(obligation.get("expected_entity"), max_length=140)
+        if (
+            obligation
+            and bool(obligation.get("entity_level"))
+            and expected_entity
+            and _review_issue_missing_items_are_concrete(neg_type, [expected_entity])
+        ):
+            claim_tokens = _semantic_tokens(claim_text)
+            entity_tokens = _specific_surface_tokens(expected_entity)
+            if entity_tokens and (entity_tokens & claim_tokens):
+                return "entity_level_claim_obligation_surface_overlap"
+            if _review_issue_structural_expectation_type_matches(
+                [expected_entity],
+                neg_type,
+                requirement,
+            ):
+                return "entity_level_claim_obligation_structural"
         return ""
     return ""
 
@@ -8684,6 +9003,11 @@ def _build_review_issue_bundle_from_gap(
         max_length=160,
     )
     candidate_id = str(gap.get("reviewer_negative_candidate_id") or "").strip()
+    claim_obligation = _select_entity_claim_obligation_for_gap(gap, requirement, neg_type)
+    if claim_obligation and not candidate_id:
+        expected_entity = _normalize_text(claim_obligation.get("expected_entity"), max_length=140)
+        if expected_entity and expected_entity.lower() not in {item.lower() for item in candidate_missing_items}:
+            candidate_missing_items = [expected_entity] + candidate_missing_items
     if candidate_id and not candidate_missing_items:
         return None
     candidate_relevance_basis = ""
@@ -8774,6 +9098,8 @@ def _build_review_issue_bundle_from_gap(
         "claim_id": claim_id,
         "issue_type": neg_type,
         "required_evidence_type": requirement,
+        "obligation_id": str(claim_obligation.get("obligation_id") or ""),
+        "claim_obligation": claim_obligation,
         "claim_anchor": _claim_anchor_for_review_issue_bundle(claim, claim_text, claim_id, view),
         "observed_inventory": observed_inventory,
         "observed_inventory_status": (
@@ -9051,6 +9377,189 @@ def _sync_verified_review_issues(view: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def _entity_claim_obligation_lookup(
+    view: Dict[str, Any],
+    requirement_audit: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Dict[str, Any]]:
+    lookup: Dict[str, Dict[str, Any]] = {}
+    audit_items = []
+    if isinstance(requirement_audit, dict):
+        audit_items = [
+            item for item in requirement_audit.get("claim_requirement_audit", []) or []
+            if isinstance(item, dict)
+        ]
+    for audit in audit_items:
+        for obligation in audit.get("entity_claim_obligations") or []:
+            if not isinstance(obligation, dict):
+                continue
+            obligation_id = str(obligation.get("obligation_id") or "").strip()
+            if obligation_id:
+                lookup[obligation_id] = obligation
+    if lookup:
+        return lookup
+    for claim in (view or {}).get("claims", []) or []:
+        if not isinstance(claim, dict):
+            continue
+        for obligation in _entity_level_claim_obligations_for_claim(claim, max_items=8):
+            obligation_id = str(obligation.get("obligation_id") or "").strip()
+            if obligation_id:
+                lookup[obligation_id] = obligation
+    return lookup
+
+
+def _select_entity_claim_obligation_for_gap(
+    gap: Dict[str, Any],
+    requirement: str,
+    neg_type: str,
+) -> Dict[str, Any]:
+    requirement = _canonical_required_evidence_type(requirement)
+    neg_type = _canonical_negative_evidence_type(neg_type)
+    candidates: List[Dict[str, Any]] = []
+    explicit = gap.get("claim_obligation")
+    if isinstance(explicit, dict):
+        candidates.append(explicit)
+    candidates.extend([
+        item for item in gap.get("entity_claim_obligations_for_missing_requirements", []) or []
+        if isinstance(item, dict)
+    ])
+    candidates.extend([
+        item for item in gap.get("entity_claim_obligations", []) or []
+        if isinstance(item, dict)
+    ])
+    seen: set[str] = set()
+    for obligation in candidates:
+        obligation_id = str(obligation.get("obligation_id") or "").strip()
+        if obligation_id and obligation_id in seen:
+            continue
+        if obligation_id:
+            seen.add(obligation_id)
+        if _canonical_required_evidence_type(obligation.get("required_evidence_type")) != requirement:
+            continue
+        issue_type = _canonical_negative_evidence_type(obligation.get("issue_type"))
+        if issue_type and issue_type != neg_type and not _review_issue_type_compatible_with_requirement(requirement, issue_type):
+            continue
+        expected_entity = _normalize_text(obligation.get("expected_entity"), max_length=140)
+        if not expected_entity:
+            continue
+        if not _review_issue_missing_items_are_concrete(neg_type, [expected_entity]):
+            continue
+        normalized = dict(obligation)
+        normalized["expected_entity"] = expected_entity
+        return normalized
+    return {}
+
+
+def _review_issue_candidate_funnel_metrics(
+    view: Dict[str, Any],
+    verified_records: Sequence[Dict[str, Any]],
+) -> Dict[str, Any]:
+    candidates = [
+        item for item in (view or {}).get("reviewer_negative_candidates", []) or []
+        if isinstance(item, dict)
+    ]
+    verified_candidate_ids = {
+        str(record.get("reviewer_negative_candidate_id") or "").strip()
+        for record in verified_records or []
+        if isinstance(record, dict) and str(record.get("reviewer_negative_candidate_id") or "").strip()
+    }
+    metrics = Counter()
+    metrics["review_issue_candidate_total"] = len(candidates)
+    metrics["review_issue_candidate_verified"] = len(verified_candidate_ids)
+    if not candidates:
+        return dict(metrics)
+    try:
+        audit = (view or {}).get("claim_requirement_audit")
+        if not isinstance(audit, dict) or not audit.get("claim_requirement_audit"):
+            audit = _claim_requirement_audit(view or {})
+    except Exception:
+        audit = {}
+    audit_by_claim = {
+        str(item.get("claim_id") or ""): item
+        for item in (audit.get("claim_requirement_audit", []) if isinstance(audit, dict) else [])
+        if isinstance(item, dict) and str(item.get("claim_id") or "")
+    }
+    real_claim_ids = _real_claim_ids_from_state(view or {})
+    obligation_lookup = _entity_claim_obligation_lookup(view or {}, audit if isinstance(audit, dict) else {})
+    for candidate in candidates:
+        candidate_id = str(candidate.get("candidate_id") or "").strip()
+        if candidate_id and candidate_id in verified_candidate_ids:
+            continue
+        if _review_issue_candidate_is_retrieval_gap(candidate):
+            metrics["review_issue_candidate_retrieval_gap_rejected"] += 1
+            continue
+        claim_id = str(candidate.get("claim_id") or "").strip()
+        if not claim_id or claim_id not in real_claim_ids or claim_id not in audit_by_claim:
+            metrics["review_issue_candidate_off_claim_rejected"] += 1
+            continue
+        obligation_id = str(candidate.get("obligation_id") or "").strip()
+        obligation = obligation_lookup.get(obligation_id, {}) if obligation_id else {}
+        neg_type = _canonical_negative_evidence_type(
+            candidate.get("negative_type")
+            or candidate.get("issue_type")
+            or (obligation.get("issue_type") if obligation else "")
+        )
+        missing_items = _normalize_list_of_strings(
+            candidate.get("missing_or_weak_items")
+            or candidate.get("coverage_missing_items")
+            or candidate.get("missing_items")
+            or candidate.get("expected_missing_items"),
+            max_items=6,
+            max_length=160,
+        )
+        if obligation:
+            expected_entity = _normalize_text(obligation.get("expected_entity"), max_length=140)
+            if expected_entity and expected_entity.lower() not in {item.lower() for item in missing_items}:
+                missing_items = [expected_entity] + missing_items
+        if not neg_type or not any(_coverage_item_is_specific_for_type(item, neg_type) for item in missing_items):
+            metrics["review_issue_candidate_generic_item_rejected"] += 1
+            continue
+        requirement = _canonical_required_evidence_type(
+            candidate.get("required_evidence_type")
+            or (obligation.get("required_evidence_type") if obligation else "")
+            or _negative_type_to_required_evidence_type(neg_type)
+        )
+        candidate_inventory = _review_issue_candidate_observed_inventory(
+            view or {},
+            _normalize_review_issue_observed_inventory_items(candidate.get("observed_inventory")),
+            max_items=1,
+        )
+        paper_inventory = []
+        if requirement:
+            paper_inventory = _review_issue_paper_inventory_for_bundle(
+                view or {},
+                claim_id,
+                requirement,
+                neg_type,
+                max_items=1,
+            )
+        observed_inventory = candidate_inventory or paper_inventory
+        if not observed_inventory:
+            metrics["review_issue_candidate_missing_inventory_rejected"] += 1
+            continue
+        bundle = {
+            "claim_id": claim_id,
+            "issue_type": neg_type,
+            "required_evidence_type": requirement,
+            "missing_or_mismatch": {
+                "entity": missing_items[0],
+                "items": missing_items,
+                "source": "reviewer_candidate",
+            },
+            "observed_inventory": observed_inventory,
+            "reviewer_negative_candidate": candidate.get("weakness") or "",
+        }
+        reason = _review_issue_full_text_counterevidence_reason(
+            bundle,
+            view or {},
+            neg_type=neg_type,
+        )
+        if reason:
+            metrics["review_issue_candidate_counterevidence_rejected"] += 1
+        else:
+            metrics["review_issue_candidate_missing_inventory_rejected"] += 1
+    return dict(metrics)
+
+
 def _reviewer_candidate_absence_gap_items(
     view: Dict[str, Any],
     requirement_audit: Dict[str, Any],
@@ -9069,6 +9578,7 @@ def _reviewer_candidate_absence_gap_items(
         for item in requirement_audit.get("claim_requirement_audit", []) or []
         if isinstance(item, dict) and str(item.get("claim_id") or "")
     }
+    obligation_lookup = _entity_claim_obligation_lookup(view, requirement_audit)
     results: List[Dict[str, Any]] = []
     seen: set[Tuple[str, str, str]] = set()
     for candidate in view.get("reviewer_negative_candidates", []) or []:
@@ -9086,8 +9596,15 @@ def _reviewer_candidate_absence_gap_items(
         audit = audit_by_claim.get(claim_id)
         if not audit:
             continue
+        obligation_id = str(candidate.get("obligation_id") or "").strip()
+        bound_obligation = obligation_lookup.get(obligation_id, {}) if obligation_id else {}
+        if bound_obligation and str(bound_obligation.get("claim_id") or "").strip() != claim_id:
+            bound_obligation = {}
         neg_type = _canonical_negative_evidence_type(
-            candidate.get("negative_type") or candidate.get("review_issue_type") or candidate.get("issue_type")
+            candidate.get("negative_type")
+            or candidate.get("review_issue_type")
+            or candidate.get("issue_type")
+            or (bound_obligation.get("issue_type") if bound_obligation else "")
         )
         if neg_type not in ACTIONABLE_NEGATIVE_EVIDENCE_TYPES:
             continue
@@ -9101,6 +9618,10 @@ def _reviewer_candidate_absence_gap_items(
             max_items=6,
             max_length=160,
         )
+        if bound_obligation:
+            expected_entity = _normalize_text(bound_obligation.get("expected_entity"), max_length=140)
+            if expected_entity and expected_entity.lower() not in {item.lower() for item in raw_missing_items}:
+                raw_missing_items = [expected_entity] + raw_missing_items
         missing_items = [
             item for item in raw_missing_items
             if _coverage_item_is_specific_for_type(item, neg_type)
@@ -9113,6 +9634,11 @@ def _reviewer_candidate_absence_gap_items(
         declared_requirement = _canonical_required_evidence_type(candidate.get("required_evidence_type"))
         if declared_requirement:
             candidate_requirements.append(declared_requirement)
+        bound_requirement = _canonical_required_evidence_type(
+            bound_obligation.get("required_evidence_type") if bound_obligation else ""
+        )
+        if bound_requirement:
+            candidate_requirements.insert(0, bound_requirement)
         inferred_requirement = _negative_type_to_required_evidence_type(neg_type)
         if inferred_requirement:
             candidate_requirements.append(inferred_requirement)
@@ -9148,6 +9674,9 @@ def _reviewer_candidate_absence_gap_items(
             )
             if basis:
                 candidate_requirement_relevance[req] = basis
+            if bound_obligation and req == bound_requirement:
+                candidate_requirement_relevance[req] = "entity_level_claim_obligation"
+                return "entity_level_claim_obligation"
             return basis
 
         selected_requirements = [
@@ -9229,6 +9758,9 @@ def _reviewer_candidate_absence_gap_items(
                 for req in candidate_introduced_requirements
                 if candidate_requirement_relevance.get(req, "")
             }
+        if bound_obligation:
+            gap["claim_obligation_id"] = str(bound_obligation.get("obligation_id") or obligation_id)
+            gap["claim_obligation"] = bound_obligation
         gap["reviewer_negative_candidate_id"] = candidate_id
         gap["reviewer_negative_candidate"] = _normalize_text(candidate.get("weakness"), max_length=220)
         gap["reviewer_negative_candidate_missing_items"] = missing_items
@@ -10099,6 +10631,23 @@ def _review_issue_claim_surface_profile(claim_text: str) -> Dict[str, List[str]]
             "method",
             "model",
             "models",
+            "improve",
+            "improves",
+            "improved",
+            "improving",
+            "reduce",
+            "reduces",
+            "reduced",
+            "reducing",
+            "outperform",
+            "outperforms",
+            "outperformed",
+            "low-quality",
+            "high-quality",
+            "large-scale",
+            "small-scale",
+            "real-world",
+            "synthetic",
             "paper",
             "performance",
             "result",
@@ -10169,6 +10718,199 @@ def _review_issue_claim_surface_profile(claim_text: str) -> Dict[str, List[str]]
             add("datasets_or_benchmarks", entity)
 
     return {key: values[:6] for key, values in buckets.items() if values}
+
+
+_ENTITY_OBLIGATION_SPECS: Dict[str, Dict[str, str]] = {
+    "baseline_or_comparison": {
+        "issue_type": "missing_baseline",
+        "expected_inventory_type": "baseline_comparison",
+        "entity_source": "comparison_target",
+    },
+    "ablation_or_component": {
+        "issue_type": "missing_ablation",
+        "expected_inventory_type": "component_isolation",
+        "entity_source": "method_component",
+    },
+    "empirical_result": {
+        "issue_type": "insufficient_evaluation",
+        "expected_inventory_type": "dataset_eval",
+        "entity_source": "claim_surface",
+    },
+    "robustness_or_generalization": {
+        "issue_type": "missing_robustness_or_generalization",
+        "expected_inventory_type": "dataset_eval",
+        "entity_source": "claim_scope",
+    },
+    "scope_coverage": {
+        "issue_type": "scope_overclaim",
+        "expected_inventory_type": "dataset_eval",
+        "entity_source": "claim_scope",
+    },
+    "evaluation_protocol": {
+        "issue_type": "evaluation_protocol_risk",
+        "expected_inventory_type": "protocol_analysis",
+        "entity_source": "protocol_claim",
+    },
+    "efficiency_cost": {
+        "issue_type": "efficiency_cost_gap",
+        "expected_inventory_type": "resource_measurement",
+        "entity_source": "resource_claim",
+    },
+    "method_detail": {
+        "issue_type": "method_support_gap",
+        "expected_inventory_type": "method_detail",
+        "entity_source": "method_component",
+    },
+    "reproducibility_detail": {
+        "issue_type": "reproducibility_gap",
+        "expected_inventory_type": "reproducibility_detail",
+        "entity_source": "protocol_claim",
+    },
+}
+
+
+def _review_issue_entity_obligation_candidates(
+    claim_text: str,
+    requirement: str,
+    profile: Dict[str, List[str]],
+    *,
+    max_items: int = 4,
+) -> List[Tuple[str, str]]:
+    requirement = _canonical_required_evidence_type(requirement)
+    surface_entities = list(profile.get("surface_entities") or [])
+    primary_entity = surface_entities[0] if surface_entities else ""
+    raw: List[Tuple[str, str]] = []
+    if requirement == "baseline_or_comparison":
+        for item in profile.get("comparison_targets") or []:
+            raw.append((f"same-setting comparison against {item}", "comparison_target"))
+        if primary_entity:
+            raw.append((f"same-setting baseline comparison for {primary_entity}", "claim_surface"))
+    elif requirement == "ablation_or_component":
+        for item in profile.get("components_or_mechanisms") or []:
+            raw.append((f"ablation isolating {item} module", "method_component"))
+        if primary_entity:
+            raw.append((f"component-isolation ablation for {primary_entity}", "claim_surface"))
+    elif requirement in {"robustness_or_generalization", "scope_coverage"}:
+        for item in profile.get("datasets_or_benchmarks") or []:
+            raw.append((f"held-out or coverage evaluation for {item}", "claim_scope"))
+        if primary_entity:
+            raw.append((f"held-out dataset, domain, or stress setting for {primary_entity}", "claim_surface"))
+    elif requirement == "empirical_result":
+        for item in profile.get("datasets_or_benchmarks") or []:
+            raw.append((f"quantitative result table for {item}", "claim_scope"))
+        for item in profile.get("metrics_or_protocols") or []:
+            raw.append((f"{item} result table for the claimed effect", "claim_surface"))
+        if primary_entity:
+            raw.append((f"quantitative result table or metric for {primary_entity}", "claim_surface"))
+    elif requirement == "evaluation_protocol":
+        for item in profile.get("metrics_or_protocols") or []:
+            raw.append((f"{item} reporting protocol or comparability setting", "protocol_claim"))
+        if primary_entity:
+            raw.append((f"evaluation split, threshold, seed, or same-budget protocol for {primary_entity}", "claim_surface"))
+    elif requirement == "efficiency_cost":
+        for item in profile.get("resource_dimensions") or []:
+            raw.append((f"{item} measurement under the claimed setting", "resource_claim"))
+        if primary_entity:
+            raw.append((f"runtime, memory, parameter, FLOP, or hardware measurement for {primary_entity}", "claim_surface"))
+    elif requirement == "method_detail":
+        for item in profile.get("components_or_mechanisms") or []:
+            raw.append((f"technical mechanism, objective, or implementation detail for {item}", "method_component"))
+        if primary_entity:
+            raw.append((f"technical mechanism, objective, or implementation detail for {primary_entity}", "claim_surface"))
+    elif requirement == "reproducibility_detail":
+        if primary_entity:
+            raw.append((f"training hyperparameters, split, seed, code/config, or implementation detail for {primary_entity}", "claim_surface"))
+
+    results: List[Tuple[str, str]] = []
+    seen: set[str] = set()
+    neg_type = _ENTITY_OBLIGATION_SPECS.get(requirement, {}).get(
+        "issue_type",
+        _REQUIREMENT_TO_NEGATIVE_TYPE.get(requirement, requirement),
+    )
+    for entity, source in raw:
+        entity = _normalize_text(entity, max_length=140)
+        if not entity:
+            continue
+        if _review_issue_missing_item_is_generic_requirement_label(entity):
+            continue
+        if not _review_issue_missing_items_are_concrete(neg_type, [entity]):
+            continue
+        key = entity.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        results.append((entity, source))
+        if len(results) >= max_items:
+            break
+    return results
+
+
+def _entity_level_claim_obligations_for_claim(
+    claim: Dict[str, Any],
+    requirements: Optional[Sequence[str]] = None,
+    *,
+    max_items: int = 8,
+) -> List[Dict[str, Any]]:
+    claim_id = str((claim or {}).get("claim_id") or "").strip()
+    claim_text = _normalize_text((claim or {}).get("claim") or (claim or {}).get("text"), max_length=260)
+    if not claim_id or not claim_text:
+        return []
+    if claim_id.lower().startswith(("claim-paper-context-", "claim-context-", "claim-paper-fallback-", "claim-fallback-")):
+        return []
+    profile = _review_issue_claim_surface_profile(claim_text)
+    requirement_list = list(
+        dict.fromkeys(
+            _normalize_required_evidence_types(
+                requirements or (claim or {}).get("claim_obligations") or (claim or {}).get("required_evidence_types"),
+                max_items=12,
+            )
+            or _claim_required_evidence_types(claim or {})
+        )
+    )
+    obligations: List[Dict[str, Any]] = []
+    seen: set[Tuple[str, str]] = set()
+    for requirement in requirement_list:
+        spec = _ENTITY_OBLIGATION_SPECS.get(requirement)
+        if not spec:
+            continue
+        for expected_entity, entity_source in _review_issue_entity_obligation_candidates(
+            claim_text,
+            requirement,
+            profile,
+            max_items=3,
+        ):
+            key = (requirement, expected_entity.lower())
+            if key in seen:
+                continue
+            seen.add(key)
+            idx = len(obligations) + 1
+            obligations.append(
+                {
+                    "claim_id": claim_id,
+                    "obligation_id": _slugify(
+                        "obligation",
+                        f"{claim_id}-{spec['issue_type']}-{expected_entity}",
+                        idx,
+                    ),
+                    "issue_type": spec["issue_type"],
+                    "required_evidence_type": requirement,
+                    "expected_entity": expected_entity,
+                    "entity_source": entity_source or spec["entity_source"],
+                    "expected_inventory_type": spec["expected_inventory_type"],
+                    "claim_anchor_quote": claim_text,
+                    "claim_anchor_locator": _normalize_text(
+                        (claim or {}).get("claim_source")
+                        or (claim or {}).get("claim_extraction_source")
+                        or (claim or {}).get("claim_origin")
+                        or "claim extraction",
+                        max_length=120,
+                    ),
+                    "entity_level": True,
+                }
+            )
+            if len(obligations) >= max_items:
+                return obligations
+    return obligations
 
 
 def _review_issue_candidate_blueprints_for_claim(
@@ -10395,7 +11137,7 @@ def _review_issue_candidate_blueprints_for_claim(
             )
         )
     blueprints.sort(key=lambda item: int(item.get("priority") or 0), reverse=True)
-    return blueprints[:4]
+    return blueprints[:6]
 
 
 def _review_issue_discovery_contrast_hints_for_claim(
@@ -10970,6 +11712,21 @@ def _hard_negative_diagnosis_targets(
             paper_inventory,
             checks,
         )
+        entity_claim_obligations = list(
+            (audit_item or {}).get("entity_claim_obligations_for_missing_requirements")
+            or (audit_item or {}).get("entity_claim_obligations")
+            or _entity_level_claim_obligations_for_claim(
+                claim,
+                requirements=(audit_item or {}).get("missing_requirements") or _claim_required_evidence_types(claim),
+                max_items=8,
+            )
+        )
+        normalized_inventory = {}
+        inventory_state = state.get("evaluation_inventory")
+        if not isinstance(inventory_state, dict):
+            inventory_state = _evaluation_inventory_from_evidence(state)
+        if isinstance(inventory_state, dict):
+            normalized_inventory = inventory_state.get("evaluation_inventory") or {}
         targets.append({
             "claim_id": claim_id,
             "claim": _normalize_text(claim.get("claim") or claim.get("text"), max_length=260),
@@ -10981,6 +11738,7 @@ def _hard_negative_diagnosis_targets(
                 claim.get("claim_obligations") or claim.get("required_evidence_types"),
                 max_items=6,
             ),
+            "entity_level_claim_obligations": entity_claim_obligations[:8],
             "missing_requirements": list((audit_item or {}).get("missing_requirements") or [])[:6],
             "satisfied_requirements": list((audit_item or {}).get("satisfied_requirements") or [])[:6],
             "verified_support_inventory": _review_issue_observed_inventory(
@@ -10989,6 +11747,7 @@ def _hard_negative_diagnosis_targets(
                 max_items=4,
             ),
             "paper_evaluation_inventory": paper_inventory,
+            "normalized_paper_inventory": normalized_inventory,
             "support_profile": support_profile,
             "diagnostic_checks": checks,
             "issue_candidate_blueprints": issue_blueprints,
@@ -12969,6 +13728,8 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
                 "required_evidence_type": str(record.get("missing_requirement") or record.get("required_evidence_type") or ""),
                 "claim_anchor": bundle.get("claim_anchor", {}),
                 "missing_or_mismatch": bundle.get("missing_or_mismatch", {}),
+                "obligation_id": str(bundle.get("obligation_id") or ""),
+                "claim_obligation": bundle.get("claim_obligation", {}),
                 "observed_inventory_count": len(bundle.get("observed_inventory", []) or []),
                 "observed_inventory_status": str(bundle.get("observed_inventory_status") or ""),
                 "source_of_expectation": str(bundle.get("source_of_expectation") or ""),
@@ -12996,6 +13757,30 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
         for claim_id in reviewer_absence_audit.get("claim_ids", []) or []
         if str(claim_id)
     }
+    review_issue_candidate_funnel = _review_issue_candidate_funnel_metrics(
+        view,
+        list(review_issue_records_by_signature.values()),
+    )
+    contested_review_issue_ids = {
+        str(issue_id or "").strip()
+        for relation in view.get("contested_relations", []) or []
+        if isinstance(relation, dict)
+        for issue_id in relation.get("review_issue_bundle_ids", []) or []
+        if str(issue_id or "").strip()
+    }
+    contested_review_issue_evidence_ids = {
+        str(evidence_id or "").strip()
+        for relation in view.get("contested_relations", []) or []
+        if isinstance(relation, dict)
+        for evidence_id in relation.get("negative_evidence_ids", []) or []
+        if str(evidence_id or "").strip()
+    }
+    verified_issue_without_recovery_count = sum(
+        1
+        for item in review_issue_bundle_items
+        if str(item.get("issue_id") or "") not in contested_review_issue_ids
+        and str(item.get("evidence_id") or "") not in contested_review_issue_evidence_ids
+    )
     coverage_gap_not_already_flaw_claim_ids = verified_coverage_gap_claim_ids - reviewer_absence_claim_ids
     recorded_extra_claim_ids = recorded_diagnosis_claim_ids - verified_coverage_gap_claim_ids
     view["decision_hygiene"] = {
@@ -13046,6 +13831,8 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
         ),
         "review_issue_bundle_count": obligation_grounded_review_issue_count,
         "review_issue_bundle_items": review_issue_bundle_items[:8],
+        "verified_issue_without_recovery_count": verified_issue_without_recovery_count,
+        **review_issue_candidate_funnel,
         # Final-view accounting for reviewer-inferred concerns.  These are
         # deliberately parallel to quote-grounded potential concerns and must
         # not be added to ``review_negative_verified_count``.
@@ -15119,6 +15906,7 @@ def merge_review_state(state: Dict[str, Any], payload: Dict[str, Any]) -> Dict[s
         entity_type="reviewer_negative_candidate",
         tracked_fields=(
             "claim_id",
+            "obligation_id",
             "claim",
             "weakness",
             "negative_type",
@@ -16397,13 +17185,14 @@ def _candidate_relevant_paper_windows(
                 {
                     "window_id": f"candidate-window-{len(scored) + 1}",
                     "task_id": str(task_item.get("task_id") or ""),
+                    "reviewer_negative_candidate_id": str(task_item.get("reviewer_negative_candidate_id") or ""),
                     "claim_id": str(task_item.get("claim_id") or ""),
                     "negative_type": negative_type,
                     "required_evidence_type": requirement,
                     "score": score,
                     "matched_terms": matched_terms,
                     "matched_cues": matched_phrases,
-                    "window_text": _truncate_snippet_text(snippet, 760),
+                    "window_text": _truncate_snippet_text(snippet, 620),
                     "source_span_start": span_start,
                     "source_span_end": span_end,
                 },
@@ -17961,12 +18750,13 @@ def render_evidence_observation(task: Dict[str, Any], manager_payload: Optional[
                     {
                         "window_id": str(item.get("window_id") or ""),
                         "task_id": str(item.get("task_id") or ""),
+                        "reviewer_negative_candidate_id": str(item.get("reviewer_negative_candidate_id") or ""),
                         "claim_id": str(item.get("claim_id") or ""),
                         "negative_type": str(item.get("negative_type") or ""),
                         "required_evidence_type": str(item.get("required_evidence_type") or ""),
                         "matched_terms": _normalize_list_of_strings(item.get("matched_terms"), max_items=8, max_length=32),
                         "matched_cues": _normalize_list_of_strings(item.get("matched_cues"), max_items=4, max_length=60),
-                        "window_text": _truncate_snippet_text(str(item.get("window_text") or ""), 620),
+                        "window_text": _truncate_snippet_text(str(item.get("window_text") or ""), 520),
                     }
                     for item in candidate_windows[:3]
                     if isinstance(item, dict) and str(item.get("window_text") or "").strip()
@@ -18212,7 +19002,9 @@ def render_critique_observation(task: Dict[str, Any], manager_payload: Optional[
             "# Review Issue Discovery Rules\n"
             "Propose review_issue_candidates, not verified evidence. For absence/coverage issues, name the concrete missing or mismatched item and bind it to a claim obligation. "
             "Use issue_candidate_blueprints as concrete templates, but never copy a generic blueprint rule as the missing item. "
+            "When entity_level_claim_obligations are present, prefer candidates that copy a matching obligation_id and expected_entity. "
             "Use review_issue_contrast_hints to compare missing requirements against observed inventory anchors; these hints are not evidence. "
+            "Cover slots when safe: baseline/comparison, ablation/component isolation, robustness/scope, protocol/reproducibility, efficiency/resource, result-claim mismatch; leave unsafe slots empty. "
             "For baseline/protocol/reproducibility issues, name the exact baseline family, protocol dimension, hyperparameter/split/detail, or setting to check. "
             "When paper_evaluation_inventory or the paper context shows what was evaluated, include observed_inventory with a copied quote/list/table anchor and locator. "
             "Do not emit candidates framed as provided-excerpt/current-context/current-inventory gaps; those are retrieval failures, not paper-side review issues. "
@@ -19153,6 +19945,50 @@ def _render_claim_requirement_gap_concerns(state: Dict[str, Any], max_items: int
     return lines
 
 
+def _render_verified_review_issue_bundle_lines(state: Dict[str, Any], max_items: int = 4) -> List[str]:
+    hygiene = state.get("decision_hygiene") if isinstance(state.get("decision_hygiene"), dict) else {}
+    items = [
+        item for item in hygiene.get("review_issue_bundle_items", []) or []
+        if isinstance(item, dict)
+    ]
+    lines: List[str] = []
+    seen: set[str] = set()
+    for item in items:
+        issue_type = _readable_negative_evidence_type(str(item.get("issue_type") or "review_issue"))
+        claim_id = str(item.get("claim_id") or "").strip()
+        claim_text = ""
+        for claim in state.get("claims", []) or []:
+            if isinstance(claim, dict) and str(claim.get("claim_id") or "").strip() == claim_id:
+                claim_text = _normalize_text(claim.get("claim") or claim.get("text"), max_length=170)
+                break
+        missing = item.get("missing_or_mismatch") if isinstance(item.get("missing_or_mismatch"), dict) else {}
+        missing_items = _normalize_list_of_strings(
+            missing.get("items") or [missing.get("entity")],
+            max_items=3,
+            max_length=100,
+        )
+        obligation = item.get("claim_obligation") if isinstance(item.get("claim_obligation"), dict) else {}
+        expected_entity = _normalize_text(obligation.get("expected_entity"), max_length=120)
+        expected = expected_entity or (missing_items[0] if missing_items else "")
+        observed_count = int(item.get("observed_inventory_count") or 0)
+        parts = [f"[{issue_type}]"]
+        if claim_text:
+            parts.append(f"claim: {claim_text}")
+        if expected:
+            parts.append(f"expected item not covered: {expected}")
+        parts.append(f"observed inventory anchors: {observed_count}")
+        parts.append("verification: claim anchor + paper inventory mismatch, not a copied negative quote")
+        line = "; ".join(parts)
+        key = line.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        lines.append(line)
+        if len(lines) >= max_items:
+            break
+    return lines
+
+
 def _render_potential_concerns(state: Dict[str, Any]) -> List[str]:
     """Return active flaws that did not pass the grounded-weakness bar.
 
@@ -19799,6 +20635,10 @@ def _build_review_diagnostic_parts(
         _render_potential_concerns(decision_state) + _render_claim_requirement_gap_concerns(decision_state),
         max_items=4,
     )
+    verified_review_issues = _filter_report_visible_items(
+        _render_verified_review_issue_bundle_lines(decision_state),
+        max_items=4,
+    )
 
     coverage_line = _render_support_coverage_summary(decision_hygiene)
     strength_items = list(strengths)
@@ -19814,6 +20654,9 @@ def _build_review_diagnostic_parts(
         weakness_lines.extend(f"  - {item}" for item in weaknesses)
     else:
         weakness_lines.append("- Grounded paper weaknesses: none passed the paper-evidence grounding filter.")
+    if verified_review_issues:
+        weakness_lines.append("- Verified review issues:")
+        weakness_lines.extend(f"  - {item}" for item in verified_review_issues)
     if potential_concerns:
         weakness_lines.append("- Potential concerns requiring verification:")
         weakness_lines.extend(f"  - {item}" for item in potential_concerns)

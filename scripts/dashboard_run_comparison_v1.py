@@ -752,6 +752,14 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     out["verified_review_issue_count"] = _sum(rows, "verified_review_issue_count")
     out["verified_review_issue_claim_count"] = _sum(rows, "verified_review_issue_claim_count")
     out["review_issue_bundle_count"] = _sum(rows, "review_issue_bundle_count")
+    out["verified_issue_without_recovery_count"] = _sum(rows, "verified_issue_without_recovery_count")
+    out["review_issue_candidate_total"] = _sum(rows, "review_issue_candidate_total")
+    out["review_issue_candidate_verified"] = _sum(rows, "review_issue_candidate_verified")
+    out["review_issue_candidate_retrieval_gap_rejected"] = _sum(rows, "review_issue_candidate_retrieval_gap_rejected")
+    out["review_issue_candidate_generic_item_rejected"] = _sum(rows, "review_issue_candidate_generic_item_rejected")
+    out["review_issue_candidate_counterevidence_rejected"] = _sum(rows, "review_issue_candidate_counterevidence_rejected")
+    out["review_issue_candidate_missing_inventory_rejected"] = _sum(rows, "review_issue_candidate_missing_inventory_rejected")
+    out["review_issue_candidate_off_claim_rejected"] = _sum(rows, "review_issue_candidate_off_claim_rejected")
     review_issue_type_counts: Counter[str] = Counter()
     for row in rows:
         review_issue_type_counts.update(_hygiene(row).get("obligation_grounded_review_issue_type_counts") or {})
@@ -1654,6 +1662,14 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "verified_review_issue_count",
         "verified_review_issue_claim_count",
         "review_issue_bundle_count",
+        "verified_issue_without_recovery_count",
+        "review_issue_candidate_total",
+        "review_issue_candidate_verified",
+        "review_issue_candidate_retrieval_gap_rejected",
+        "review_issue_candidate_generic_item_rejected",
+        "review_issue_candidate_counterevidence_rejected",
+        "review_issue_candidate_missing_inventory_rejected",
+        "review_issue_candidate_off_claim_rejected",
         "review_issue_type_missing_ablation",
         "review_issue_type_missing_baseline",
         "review_issue_type_unfair_or_weak_baseline",

@@ -49,7 +49,45 @@ Missing-baseline, missing-ablation, insufficient-evaluation, and reproducibility
 
 There are deliberately separate lanes. Keep them separate in code, metrics, dashboards, and paper narrative.
 
-### 2026-06-27 COUNTERFIX1 hardneg20 checkpoint (latest)
+### 2026-06-27 P28 entity-level issue bundle checkpoint (latest)
+
+Implemented P28 code path:
+
+- entity-level `claim_obligations` are derived from real paper claims only; fallback/context/synthetic claims remain excluded;
+- normalized `evaluation_inventory` now exposes inventory buckets plus `inventory_items` with `inventory_type`, `observed_entity`, `claim_ids`, copied quote/list/table anchor, and locator;
+- Critique issue discovery prompt is slot-based and can bind `obligation_id`, but candidate hints remain non-evidence;
+- obligation-grounded `review_issue_bundle` verification stays separate from direct quote negatives;
+- final view/dashboard report `verified_review_issue_count`, candidate funnel metrics, `claim_obligation_review_issue_count`, `reviewer_candidate_review_issue_count`, and `verified_issue_without_recovery_count`;
+- recovery bridge schedules non-destructive `mark_contested` for claims with verified positive support plus same-claim verified review issue evidence; it does not change claim status.
+
+Latest P28 hardneg20 run:
+
+- run: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_162459.jsonl`
+- dashboard: `P28_HARDNEG20_DASHBOARD.md`
+- review issue cases: `P28_REVIEW_ISSUE_CASE_TABLE.md`
+- recovery cases: `P28_RECOVERY_CASE_TABLE.md`
+
+Strict recompute after false-positive guard tightening:
+
+- `verified_review_issue_count=2`
+- `review_negative_verified_count=0`
+- `reviewer_candidate_review_issue_count=0`
+- `claim_obligation_review_issue_count=2`
+- `review_issue_candidate_total=4`, all rejected by verifier (`missing_inventory=4`)
+- `mark_contested_commit_count=6`
+- `turns_with_verified_review_issue_bundle_evidence=3`
+- `negative_evidence_unlinked_to_flaw=0`
+- `positive_or_neutral_negative_candidate_count=0`
+- `real_strong_support_total=51`
+
+Important interpretation:
+
+- The first P28 verifier pass inflated `verified_review_issue_count` to 21 by treating template-like claim-obligation gaps as verified issues. Manual audit found false positives such as broad `held-out coverage for RL/GNNs`, generic `same-setting comparison against FL/UDA`, and a direct quote false positive where "we apply OGL to two baselines" was counted as a missing-ablation negative.
+- The verifier was tightened so table-scope missing-ablation requires explicit `coverage_missing_items`, missing-ablation inventory must be real ablation/variant inventory, broad domain entities are blocked for claim-obligation verification, and efficiency counterevidence recognizes training/search/inference time.
+- After tightening, P28 is precision-first but not paper-ready on recall: it leaves only two current verified review issue cases (QAgwFiIY4p efficiency/parameter measurement, TPAj63ax4Y LAVT same-setting comparison). It does not meet the planned `verified_review_issue_count>=10` or `reviewer_candidate_review_issue_count>=8` target.
+- Next work should improve entity-level candidate discovery and normalized inventory extraction. Do not loosen the verifier to recover the 21-count result.
+
+### 2026-06-27 COUNTERFIX1 hardneg20 checkpoint
 
 Run and artifacts:
 

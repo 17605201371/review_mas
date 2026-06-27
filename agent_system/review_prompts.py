@@ -285,6 +285,9 @@ The verifier will reject generic obligation labels. "baseline evidence", "ablati
   missing/mismatch item the verifier can audit. Convert a blueprint into a candidate only when you can name a
   concrete item such as a baseline family, dataset, component, protocol dimension, hyperparameter/split detail,
   hardware setting, or reproducibility detail. Do not copy the blueprint's generic rule as the missing item.
+- Use `entity_level_claim_obligations` when present. Prefer binding a candidate to one `obligation_id`; copy that
+  `obligation_id` into the candidate and use its `expected_entity` as the concrete missing/mismatch item only if
+  it is a real paper-side obligation, not a generic label.
 - Use `claim_surface_profile` when present as a hint for concrete item names. It may contain entities, datasets,
   components, metrics, resource dimensions, or comparison targets extracted from the claim text. These hints are
   not evidence and do not prove a flaw; they only help you write a specific missing/mismatch item that a later
@@ -307,7 +310,10 @@ The verifier will reject generic obligation labels. "baseline evidence", "ablati
   claim and observed inventory make that mismatch auditable.
 
 # Output Rules
-Return up to 4 `review_issue_candidates`. Prefer covering at least 2 different real claims when the targets support it.
+Try issue slots in this order, leaving unsafe slots empty: baseline/comparison, ablation/component isolation,
+robustness/generalization/scope, protocol/reproducibility, efficiency/resource, result-claim mismatch.
+Return up to 6 `review_issue_candidates`, with at most 2 candidates per `issue_type`. Prefer covering at least 2
+different real claims when the targets support it.
 Return `evidence_map: []` and `flaw_candidates: []`.
 Do not cite `negative_evidence_ids`. Do not output recovery patches.
 At least 2 candidates should be `absence_or_requirement_gap` or `table_scope_absence` when concrete claim obligations and inventory anchors are visible; direct quote-groundable candidates still take priority when there is a real protocol/result/cost contradiction.
@@ -315,7 +321,7 @@ If no candidate is safe, return an empty candidate list plus an unresolved quest
 inventory or claim anchor would be needed; do not emit a retrieval-gap candidate.
 
 Required shape:
-<json>{"evidence_map":[],"flaw_candidates":[],"review_issue_candidates":[{"candidate_id":"review-issue-candidate-1","claim_id":"claim-1","claim":"short target claim","weakness":"reviewer-style issue to verify","issue_type":"missing_baseline|unfair_or_weak_baseline|missing_ablation|insufficient_evaluation|missing_robustness_or_generalization|evaluation_protocol_risk|efficiency_cost_gap|scope_overclaim|result_claim_mismatch|method_support_gap|reproducibility_gap","required_evidence_type":"baseline_or_comparison|ablation_or_component|empirical_result|robustness_or_generalization|scope_coverage|evaluation_protocol|efficiency_cost|method_detail|reproducibility_detail","quote_grounding_mode":"quote_groundable_internal_negative|table_scope_absence|absence_or_requirement_gap","verification_question":"what exact quote/table/inventory or obligation audit would verify this issue?","expected_quote_cues":["Table","baseline","ablation"],"missing_or_weak_items":["specific named baseline/component/dataset/setting/dimension"],"observed_inventory":[{"quote":"copied paper table/list/experiment quote showing what was evaluated","locator":"Table 2 / Section 4.1","observed_items":["dataset/baseline/component/metric actually shown"]}],"candidate_raw_quote":"verbatim quote cue if visible, else empty","quote_id":"quote id if visible, else empty","source_locator":"section/table/figure if visible, else empty","source_of_expectation":"reviewer_candidate","rationale":"why a reviewer should check this issue against verified_support_inventory and paper_evaluation_inventory","confidence":0.75,"status":"pending_quote_verification|pending_absence_audit"}],"conflict_notes":[],"unresolved_questions":[],"dialogue_summary":"brief review-issue discovery summary","recommendation":"undecided"}</json>
+<json>{"evidence_map":[],"flaw_candidates":[],"review_issue_candidates":[{"candidate_id":"review-issue-candidate-1","claim_id":"claim-1","obligation_id":"obligation-claim-1-missing-ablation-component","claim":"short target claim","weakness":"reviewer-style issue to verify","issue_type":"missing_baseline|unfair_or_weak_baseline|missing_ablation|insufficient_evaluation|missing_robustness_or_generalization|evaluation_protocol_risk|efficiency_cost_gap|scope_overclaim|result_claim_mismatch|method_support_gap|reproducibility_gap","required_evidence_type":"baseline_or_comparison|ablation_or_component|empirical_result|robustness_or_generalization|scope_coverage|evaluation_protocol|efficiency_cost|method_detail|reproducibility_detail","quote_grounding_mode":"quote_groundable_internal_negative|table_scope_absence|absence_or_requirement_gap","verification_question":"what exact quote/table/inventory or obligation audit would verify this issue?","expected_quote_cues":["Table","baseline","ablation"],"missing_or_weak_items":["specific named baseline/component/dataset/setting/dimension"],"observed_inventory":[{"quote":"copied paper table/list/experiment quote showing what was evaluated","locator":"Table 2 / Section 4.1","observed_items":["dataset/baseline/component/metric actually shown"]}],"candidate_raw_quote":"verbatim quote cue if visible, else empty","quote_id":"quote id if visible, else empty","source_locator":"section/table/figure if visible, else empty","source_of_expectation":"reviewer_candidate","rationale":"why a reviewer should check this issue against verified_support_inventory and paper_evaluation_inventory","confidence":0.75,"status":"pending_quote_verification|pending_absence_audit"}],"conflict_notes":[],"unresolved_questions":[],"dialogue_summary":"brief review-issue discovery summary","recommendation":"undecided"}</json>
 """
 
 

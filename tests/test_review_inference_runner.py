@@ -9515,11 +9515,8 @@ def test_fallback_recovery_patch_marks_absence_audit_gap_contested_when_supporte
 
 def test_fallback_recovery_patch_marks_verified_review_issue_bundle_contested(monkeypatch):
     monkeypatch.setattr(review_runner_mod, "_DIAGPENDING_RECOVERY_ENABLED", True)
-    claim = "The proposed method achieves parameter-efficient competitive performance compared to baseline GNNs."
-    inventory_quote = (
-        "Table 3 reports PST uses fewer parameters than GCN and GAT while matching accuracy "
-        "on the benchmark datasets."
-    )
+    claim = "The theorem-proving model outperforms existing ATP baselines."
+    inventory_quote = "Table 2 compares our model with k-NN, Proof State Transformer, and CoqHammer."
     state = merge_review_state(
         {
             "paper_text": f"{claim}\n\n{inventory_quote}",
@@ -9535,26 +9532,27 @@ def test_fallback_recovery_patch_marks_verified_review_issue_bundle_contested(mo
                     "claim_id": "claim-1",
                     "claim": claim,
                     "claim_kind": "paper_extracted",
-                    "claim_type": "empirical",
-                    "coverage_tags": ["empirical", "comparison", "efficiency"],
+                    "claim_type": "comparison",
+                    "coverage_tags": ["empirical", "comparison"],
                     "importance": "high",
                     "status": "supported",
+                    "claim_obligations": ["baseline_or_comparison"],
                 }
             ],
             "review_issue_candidates": [
                 {
-                    "candidate_id": "reviewer-neg-candidate-efficiency-live",
+                    "candidate_id": "reviewer-neg-candidate-atp-live",
                     "claim_id": "claim-1",
-                    "weakness": "The efficiency comparison omits hardware and training-resource settings.",
-                    "issue_type": "efficiency_cost_gap",
-                    "required_evidence_type": "efficiency_cost",
-                    "quote_grounding_mode": "absence_or_requirement_gap",
-                    "missing_or_weak_items": ["hardware and training resource specification"],
+                    "weakness": "The table scope omits a named ATP baseline family.",
+                    "issue_type": "missing_baseline",
+                    "required_evidence_type": "baseline_or_comparison",
+                    "quote_grounding_mode": "table_scope_absence",
+                    "missing_or_weak_items": ["E-prover ATP baseline"],
                     "observed_inventory": [
                         {
                             "quote": inventory_quote,
-                            "locator": "Table 3",
-                            "observed_items": ["PST", "fewer parameters", "GCN", "GAT"],
+                            "locator": "Table 2",
+                            "observed_items": ["k-NN", "Proof State Transformer", "CoqHammer"],
                         }
                     ],
                     "source_of_expectation": "reviewer_candidate",
@@ -9573,8 +9571,8 @@ def test_fallback_recovery_patch_marks_verified_review_issue_bundle_contested(mo
             "strength": "strong",
             "evidence": inventory_quote,
             "raw_quote": inventory_quote,
-            "source_locator": "Table 1",
-            "source": "Table 1",
+            "source_locator": "Table 2",
+            "source": "Table 2",
             "support_source_bucket": "baseline_or_comparison",
             "binding_status": "bound_real_claim",
             "verified_grounding_label": "paper_grounded_exact",
@@ -9631,6 +9629,7 @@ def test_fallback_recovery_patch_marks_verified_review_issue_bundle_contested(mo
     assert payload["recovery_patch_operation"] == "mark_contested"
     assert payload["mark_contested"] is True
     assert payload["contested_relation"]["negative_evidence_basis"] == "review_issue_bundle"
+    assert payload["contested_relation"]["relation_type"] == "supported_but_contested_by_review_issue"
     assert payload["contested_relation"]["negative_evidence_ids"] == issue_evidence_ids[:4]
 
     new_state = merge_review_state(state, payload)
@@ -11275,6 +11274,9 @@ def test_supplemental_hard_negative_discovery_routes_unlinked_negative_before_mo
                 "binding_status": "bound_real_claim",
                 "negative_evidence_type": "missing_baseline",
                 "verified_grounding_label": "paper_grounded_exact",
+                "verified_quote_match_type": "exact",
+                "verified_source_span_start": 10,
+                "verified_source_span_end": 72,
                 "semantic_grounding_label": "semantic_negative_verified",
                 "review_negative_label": "review_negative_verified",
                 "review_negative_relation_score": 0.9,
@@ -11298,7 +11300,7 @@ def test_supplemental_hard_negative_discovery_routes_unlinked_negative_before_mo
         recent_turn_logs=[{"policy_source": "hard_negative_discovery_override", "negative_evidence_formation_required": True}],
     )
 
-    assert payload.get("effective_action_type") == "analyze_flaws"
+    assert payload.get("effective_action_type") == "challenge_previous_hypothesis"
     assert payload.get("selected_agents") == ["Critique Agent"]
     assert payload.get("negative_evidence_formation_required") is not True
 

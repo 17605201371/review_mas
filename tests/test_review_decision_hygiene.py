@@ -38,6 +38,7 @@ from agent_system.environments.env_package.review.state import (
     _coverage_item_is_specific_for_type,
     _decision_primary_claim_ids,
     _evidence_human_anchor,
+    _entity_level_claim_obligations_for_claim,
     _evaluation_inventory_from_evidence,
     _evidence_negative_locator_or_bucket_signal,
     _evidence_section_bucket,
@@ -7264,6 +7265,48 @@ def test_table_scope_absence_accepts_concrete_freeform_coverage_item():
     assert _is_grounded_paper_negative_evidence_record(ev, merged)
 
 
+def test_table_scope_absence_rejects_model_inferred_ablation_without_claim_target():
+    quote = "In this study, we apply OGL to two popular single-path one-shot NAS baselines."
+    paper_text, quote_bank = _grounding_bank([("quote-ogl-baselines", quote, "results")])
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "OGL effectively mitigates multi-model forgetting in one-shot NAS.",
+                "claim_kind": "paper_extracted",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "e-ogl-inferred-ablation-gap",
+                "claim_id": "claim-1",
+                "evidence": (
+                    "The paper applies OGL to two baselines but does not include an ablation "
+                    "study isolating the OGL component."
+                ),
+                "source": "section 4.1",
+                "source_locator": "section 4.1",
+                "stance": "missing",
+                "strength": "missing",
+                "raw_quote": quote,
+                "quote_id": "quote-ogl-baselines",
+                "negative_evidence_type": "missing_ablation",
+            }
+        ],
+        "paper_text": paper_text,
+        "evidence_quote_bank": quote_bank,
+    }
+
+    merged = merge_review_state(state, {"evidence_map": state["evidence_map"]})
+    ev = merged["evidence_map"][0]
+    hygiene = build_decision_hygiene_view(merged)["decision_hygiene"]
+
+    assert "table_scope_absence_verified" not in ev.get("semantic_grounding_reasons", [])
+    assert ev["review_negative_label"] != "review_negative_verified"
+    assert hygiene["review_negative_verified_count"] == 0
+    assert not _is_grounded_paper_negative_evidence_record(ev, merged)
+
+
 def test_missing_ablation_negative_rejected_when_paper_reports_target_ablation():
     module_quote = (
         "CDiffuser is composed of two modules: the Planning Module and the Contrastive Module. "
@@ -9845,6 +9888,150 @@ def test_claim_normalization_fills_deterministic_obligations_when_model_omits_th
     assert claim["claim_obligation_source"] == "deterministic_inference"
 
 
+def test_entity_level_claim_obligations_extract_component_and_resource_entities():
+    claim = {
+        "claim_id": "claim-1",
+        "claim": "The RankHead module improves ranking accuracy while reducing runtime.",
+        "claim_kind": "paper_extracted",
+        "claim_type": "method",
+        "claim_obligations": ["ablation_or_component", "efficiency_cost"],
+    }
+
+    obligations = _entity_level_claim_obligations_for_claim(claim)
+
+    assert any(item["required_evidence_type"] == "ablation_or_component" for item in obligations)
+    assert any("RankHead" in item["expected_entity"] for item in obligations)
+    assert all(item.get("obligation_id") for item in obligations)
+    assert all(item.get("entity_level") is True for item in obligations)
+
+
+def test_evaluation_inventory_exposes_normalized_buckets_and_item_fields():
+    quote = "Table 3 reports RankHead module accuracy results on Benchmark-X with runtime in milliseconds."
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The RankHead module improves ranking accuracy on Benchmark-X.",
+                "claim_kind": "paper_extracted",
+                "claim_type": "empirical",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "evidence-1",
+                "claim_id": "claim-1",
+                "raw_quote": quote,
+                "evidence": quote,
+                "source_locator": "Table 3",
+                "stance": "supports",
+                "strength": "strong",
+                "binding_status": "bound_real_claim",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_support_verified",
+            }
+        ],
+    }
+
+    inventory = _evaluation_inventory_from_evidence(state)
+    first = inventory["items"][0]
+
+    assert first["inventory_type"] in {"baseline", "metric", "runtime"}
+    assert first["observed_entity"]
+    assert first["claim_ids"] == ["claim-1"]
+    assert inventory["evaluation_inventory"]["metrics"] or inventory["evaluation_inventory"]["resource_measurements"]
+
+
+def test_entity_claim_obligation_gap_becomes_verified_review_issue_bundle():
+    claim = "The RankHead module improves ranking accuracy on Benchmark-X."
+    support_quote = "Table 1 reports RankHead module accuracy results on Benchmark-X for Ours and BERT baselines."
+    ablation_inventory_quote = "Table 2: Ablation study comparing Full model, w/o encoder, and w/o decoder on Benchmark-X."
+    state = {
+        "paper_text": f"{claim}\n\n{support_quote}\n\n{ablation_inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "method",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["ablation_or_component"],
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "evidence-support-rankhead",
+                "claim_id": "claim-1",
+                "raw_quote": support_quote,
+                "evidence": support_quote,
+                "source_locator": "Table 1",
+                "stance": "supports",
+                "strength": "strong",
+                "binding_status": "bound_real_claim",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_support_verified",
+            }
+        ],
+        "reviewer_negative_candidates": [],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    view = build_decision_hygiene_view(copy.deepcopy(state))
+    hygiene = view["decision_hygiene"]
+    bundle_items = hygiene["review_issue_bundle_items"]
+
+    assert hygiene["claim_obligation_review_issue_count"] == 1
+    assert hygiene["verified_review_issue_count"] == 1
+    assert bundle_items[0]["obligation_id"]
+    assert bundle_items[0]["claim_obligation"]["expected_entity"]
+    assert hygiene["negative_evidence_unlinked_to_flaw_count"] == 0
+
+
+def test_generic_claim_obligation_without_entity_stays_unverified():
+    claim = "The method is broadly useful."
+    support_quote = "Table 1 reports results for the proposed method."
+    state = {
+        "paper_text": f"{claim}\n\n{support_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "method",
+                "status": "supported",
+                "claim_obligations": ["ablation_or_component"],
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "evidence-support-generic",
+                "claim_id": "claim-1",
+                "raw_quote": support_quote,
+                "evidence": support_quote,
+                "source_locator": "Table 1",
+                "stance": "supports",
+                "strength": "strong",
+                "binding_status": "bound_real_claim",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_support_verified",
+            }
+        ],
+        "reviewer_negative_candidates": [],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["claim_obligation_review_issue_count"] == 0
+    assert hygiene["verified_review_issue_count"] == 0
+
+
 def test_review_issue_bundle_allows_empirical_claim_with_noisy_limitation_tag():
     claim = "CDiffuser demonstrates a significant advantage over baselines in low-quality datasets."
     inventory_quote = "Table 2 reports CDiffuser and baseline performance on Kitchen low-quality datasets."
@@ -10386,19 +10573,9 @@ def test_claim_obligation_structural_efficiency_gap_verifies_without_reviewer_ca
         if item.get("review_issue_source") == "obligation_grounded_review_issue"
     ]
 
-    assert hygiene["obligation_grounded_review_issue_count"] == 1
-    assert hygiene["verified_review_issue_count"] == 1
-    assert len(evidence) == 1
-    bundle = evidence[0]["review_issue_bundle"]
-    assert bundle["source_of_expectation"] == "claim_obligation"
-    assert bundle["missing_or_mismatch"]["source"] == "claim_obligation"
-    assert "runtime" in bundle["missing_or_mismatch"]["entity"].lower()
-    assert bundle["review_issue_expectation_basis"] in {
-        "explicit_claim_obligation_structural_dimension",
-        "inferred_claim_obligation_structural_dimension",
-        "structural_claim_requirement_audit",
-        "structural_claim_efficiency_cue",
-    }
+    assert hygiene["obligation_grounded_review_issue_count"] == 0
+    assert hygiene["verified_review_issue_count"] == 0
+    assert evidence == []
 
 
 def test_claim_obligation_structural_efficiency_gap_rejected_when_cost_metrics_present():

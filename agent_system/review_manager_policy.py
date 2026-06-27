@@ -2634,6 +2634,31 @@ def apply_finalize_policy(
             and not has_recovery
             and step < turn_cap
         )
+        verified_issue_recovery_claim_ids = _absence_audit_contested_recovery_claim_ids(state, limit=_NEGATIVE_TARGET_CLAIM_LIMIT)
+        if (
+            mode == "s4"
+            and verified_issue_recovery_claim_ids
+            and "challenge_previous_hypothesis" in allowed_actions
+            and payload.get("action_type") not in auto_finalize_blocked_actions
+            and str(payload.get("phase") or state.get("phase") or "").strip().lower() != "recovery"
+        ):
+            payload["decision"] = "continue"
+            payload["action_type"] = "challenge_previous_hypothesis"
+            payload["effective_action_type"] = "challenge_previous_hypothesis"
+            payload["target_claim_ids"] = verified_issue_recovery_claim_ids[:_NEGATIVE_TARGET_CLAIM_LIMIT]
+            payload["target_flaw_ids"] = []
+            payload["target_evidence_ids"] = []
+            payload["final_decision"] = "undecided"
+            payload["final_report"] = ""
+            payload["policy_source"] = "s4_verified_review_issue_recovery_bridge"
+            policy_notes = list(payload.get("policy_notes", []))
+            policy_notes.append(
+                "Verified review issue bundles with same-claim positive support are routed to non-destructive mark_contested recovery."
+            )
+            payload["policy_notes"] = list(dict.fromkeys(policy_notes))[:8]
+            payload["focus"] = payload.get("focus") or "Record supported-but-contested relations for verified review issue bundles."
+            payload["selected_agents"] = pick_workers_for_action("challenge_previous_hypothesis", worker_ids, worker_limit) or list(worker_ids[:worker_limit])
+            return payload, list(payload.get("selected_agents", []))
 
         if (
             payload.get("action_type") not in auto_finalize_blocked_actions
@@ -3058,6 +3083,22 @@ def apply_manager_policy_fallback(
         policy_source = "flaw_progress_override"
         policy_notes.append("Evidence already exists, so the policy moved beyond evidence verification to grounded flaw analysis or recheck.")
         action_type = inferred_action
+    verified_issue_recovery_claim_ids = _absence_audit_contested_recovery_claim_ids(state, limit=_NEGATIVE_TARGET_CLAIM_LIMIT)
+    if (
+        mode == "s4"
+        and verified_issue_recovery_claim_ids
+        and "challenge_previous_hypothesis" in allowed_actions
+        and action_type in {"verify_evidence", "request_evidence_recheck", "analyze_flaws", "summarize_progress", "finalize"}
+        and str(payload.get("phase") or state.get("phase") or "").strip().lower() != "recovery"
+    ):
+        policy_source = "s4_verified_review_issue_recovery_bridge"
+        policy_notes.append(
+            "S4 routes verified review issue bundles with same-claim positive support to non-destructive mark_contested recovery."
+        )
+        payload["target_claim_ids"] = verified_issue_recovery_claim_ids[:_NEGATIVE_TARGET_CLAIM_LIMIT]
+        payload["target_flaw_ids"] = []
+        payload["target_evidence_ids"] = []
+        action_type = "challenge_previous_hypothesis"
     # Mainline-Final-Integrated P0-2: hard-negative discovery override.
     # Placed AFTER ``evidence_progress_override`` and ``flaw_progress_override``
     # so it can re-route turns where the manager would otherwise spend the
