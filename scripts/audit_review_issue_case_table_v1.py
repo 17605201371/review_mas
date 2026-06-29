@@ -23,6 +23,7 @@ if str(REPO_ROOT) not in sys.path:
 from agent_system.environments.env_package.review.state import (
     _is_grounded_paper_negative_evidence_record,
     _is_obligation_grounded_review_issue_evidence_record,
+    _missing_ablation_target_quality,
     _negative_evidence_type_for_record,
     _review_negative_dedup_signature,
     build_decision_hygiene_view,
@@ -107,6 +108,12 @@ def _evidence_case(row: Dict[str, Any], state: Dict[str, Any], evidence: Dict[st
         inventory_count = inventory.get("count", "0")
         inventory_sources = inventory.get("sources", "")
         source_of_expectation = _clip(bundle.get("source_of_expectation"), 80)
+        ablation_quality_info = _missing_ablation_target_quality(bundle) if neg_type == "missing_ablation" else {}
+        ablation_target_quality = _clip(bundle.get("ablation_target_quality") or ablation_quality_info.get("quality"), 40)
+        ablation_target_quality_reason = _clip(
+            bundle.get("ablation_target_quality_reason") or ablation_quality_info.get("reason"),
+            100,
+        )
         reviewer_candidate_id = _clip(
             evidence.get("reviewer_negative_candidate_id") or bundle.get("reviewer_negative_candidate_id"),
             100,
@@ -116,6 +123,8 @@ def _evidence_case(row: Dict[str, Any], state: Dict[str, Any], evidence: Dict[st
         inventory_count = "1" if quote else "0"
         inventory_sources = _clip(evidence.get("source") or evidence.get("support_bucket"), 120)
         source_of_expectation = "direct_quote"
+        ablation_target_quality = ""
+        ablation_target_quality_reason = ""
         reviewer_candidate_id = ""
 
     return {
@@ -130,6 +139,8 @@ def _evidence_case(row: Dict[str, Any], state: Dict[str, Any], evidence: Dict[st
         "inventory_or_quote": quote,
         "inventory_count": inventory_count,
         "inventory_sources": inventory_sources,
+        "ablation_target_quality": ablation_target_quality,
+        "ablation_target_quality_reason": ablation_target_quality_reason,
         "verification_basis": verification_basis,
         "claim_anchor": claim_anchor,
         "evidence_id": str(evidence.get("evidence_id") or ""),
@@ -195,8 +206,8 @@ def render_markdown(input_path: Path, cases: List[Dict[str, Any]], summary: Dict
         f"- reviewer-candidate cases: `{summary.get('source::reviewer_candidate', 0)}`",
         f"- claim-obligation fallback cases: `{summary.get('source::claim_obligation', 0)}`",
         "",
-        "| paper_id | bucket | issue_type | claim_id | source | candidate id | missing/mismatch | inventory count | inventory sources | verification basis | inventory/quote locator | inventory/quote | claim anchor |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+        "| paper_id | bucket | issue_type | claim_id | source | candidate id | missing/mismatch | inventory count | inventory sources | ablation target quality | ablation target reason | verification basis | inventory/quote locator | inventory/quote | claim anchor |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for case in cases:
         lines.append(
@@ -213,6 +224,8 @@ def render_markdown(input_path: Path, cases: List[Dict[str, Any]], summary: Dict
                     "missing_or_mismatch",
                     "inventory_count",
                     "inventory_sources",
+                    "ablation_target_quality",
+                    "ablation_target_quality_reason",
                     "verification_basis",
                     "inventory_or_quote_locator",
                     "inventory_or_quote",

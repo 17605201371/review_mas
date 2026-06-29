@@ -53,6 +53,7 @@ from agent_system.environments.env_package.review.state import (
     _assess_review_negative_relation,
     _is_paper_negative_evidence_record,
     _is_grounded_paper_negative_evidence_record,
+    _missing_ablation_target_quality,
     _render_assessment_limitation_flaws,
     _render_claim_requirement_gap_concerns,
     _render_potential_concerns,
@@ -7842,6 +7843,135 @@ def test_review_issue_specificity_accepts_concrete_experiment_dimensions_not_gen
     assert not _coverage_item_is_specific_for_type("component-isolation ablation for pre-trained", "missing_ablation")
     assert not _coverage_item_is_specific_for_type("component-isolation ablation for when using NCE loss", "missing_ablation")
     assert _coverage_item_is_specific_for_type("component-isolation ablation for prediction head", "missing_ablation")
+
+
+def test_missing_ablation_target_quality_rejects_generic_components_and_actions():
+    def quality(item, claim="The method improves performance."):
+        return _missing_ablation_target_quality(
+            {
+                "missing_or_mismatch": {"entity": item, "items": [item]},
+                "claim_anchor": {"quote": claim},
+                "observed_inventory": [{"quote": "Section 3 describes the model component.", "locator": "Method"}],
+            }
+        )
+
+    for item in [
+        "component-isolation ablation for decoder",
+        "component-isolation ablation for Encoder",
+        "component-isolation ablation for convolutional network",
+        "component-isolation ablation for predicts a textual representation",
+        "component-isolation ablation for is trained with full-batch gradient",
+        "component-isolation ablation for study the square loss",
+        "component-isolation ablation for fed into the trainable module",
+    ]:
+        assert quality(item)["quality"] == "reject"
+
+    assert quality(
+        "component-isolation ablation for trained acceptance prediction head",
+        claim="The acceptance prediction head drives adaptive stopping and improves speed.",
+    )["quality"] in {"high", "medium"}
+    assert quality(
+        "component-isolation ablation for orthogonal gradient learning",
+        claim="Orthogonal Gradient Learning is the proposed mechanism for avoiding forgetting.",
+    )["quality"] in {"high", "medium"}
+    assert quality(
+        "component-isolation ablation for generalized noise regularization",
+        claim="Noise Regularization for DCCA prevents model collapse and improves performance.",
+    )["quality"] in {"high", "medium"}
+
+
+def test_review_issue_bundle_rejects_generic_missing_ablation_target_with_inventory():
+    claim = "The decoder improves the generated text quality."
+    inventory_quote = "Table 4: Ablation study compares the full model and w/o attention variant."
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "method",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["ablation_or_component"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-decoder-ablation",
+                "claim_id": "claim-1",
+                "weakness": "The decoder is not isolated in an ablation.",
+                "negative_type": "missing_ablation",
+                "required_evidence_type": "ablation_or_component",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["component-isolation ablation for decoder"],
+                "observed_inventory": [{"quote": inventory_quote, "locator": "Section 3"}],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["obligation_grounded_review_issue_count"] == 0
+    assert hygiene["verified_review_issue_count"] == 0
+    assert hygiene["review_issue_candidate_missing_ablation_target_rejected"] == 1
+    assert hygiene["review_issue_candidate_missing_ablation_generic_component_rejected"] == 1
+
+
+def test_review_issue_bundle_keeps_named_missing_ablation_target_with_quality_metadata():
+    claim = "SpecDec++ uses an acceptance prediction head to improve adaptive speculative decoding."
+    inventory_quote = "We augment the draft model with a trained acceptance prediction head to predict conditional acceptance probability."
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "method",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["ablation_or_component"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-head-ablation",
+                "claim_id": "claim-1",
+                "weakness": "The acceptance prediction head is not isolated in an ablation.",
+                "negative_type": "missing_ablation",
+                "required_evidence_type": "ablation_or_component",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["component-isolation ablation for trained acceptance prediction head"],
+                "observed_inventory": [{"quote": inventory_quote, "locator": "Method"}],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+    bundle = hygiene["review_issue_bundle_items"][0]
+
+    assert hygiene["obligation_grounded_review_issue_count"] == 1
+    assert hygiene["verified_review_issue_count"] == 1
+    assert bundle["ablation_target_quality"] in {"high", "medium"}
+    assert (
+        hygiene["verified_missing_ablation_high_confidence"]
+        + hygiene["verified_missing_ablation_medium_confidence"]
+    ) == 1
 
 
 def test_reviewer_issue_bundle_rejects_short_acronym_baseline_already_observed():

@@ -29,6 +29,7 @@ from agent_system.environments.env_package.review.state import (
     REVIEW_NEGATIVE_VERIFIED_LABEL,
     _classify_negative_evidence_type,
     _hard_negative_diagnosis_targets,
+    _missing_ablation_target_quality,
     build_turn_action,
     build_decision_hygiene_view,
     infer_final_decision,
@@ -2666,6 +2667,25 @@ def _select_review_issue_seed_inventory(
 
 def _seed_items_from_review_issue_blueprint(target: Dict[str, Any], blueprint: Dict[str, Any]) -> List[str]:
     issue_type = str(blueprint.get("issue_type") or "")
+
+    def usable_missing_ablation_item(text: str) -> bool:
+        if issue_type != "missing_ablation":
+            return True
+        observed_inventory = []
+        for field in ("inventory_menu", "paper_evaluation_inventory", "verified_support_inventory"):
+            for item in target.get(field) or []:
+                if isinstance(item, dict):
+                    observed_inventory.append(item)
+        quality = _missing_ablation_target_quality(
+            {
+                "missing_or_mismatch": {"entity": text, "items": [text]},
+                "claim_anchor": {"quote": str(target.get("claim") or "")},
+                "observed_inventory": observed_inventory[:3],
+                "reviewer_negative_candidate": str(blueprint.get("prompt") or blueprint.get("description") or ""),
+            }
+        )
+        return str(quality.get("quality") or "") in {"high", "medium"}
+
     if issue_type in {"missing_baseline", "unfair_or_weak_baseline"}:
         baseline_items: List[str] = []
         claim_text = str(target.get("claim") or "")
@@ -2741,6 +2761,8 @@ def _seed_items_from_review_issue_blueprint(target: Dict[str, Any], blueprint: D
             lower,
         ):
             continue
+        if issue_type == "missing_ablation" and not usable_missing_ablation_item(text):
+            continue
         examples.append(text)
     if examples:
         return examples[:2]
@@ -2763,7 +2785,16 @@ def _seed_items_from_review_issue_blueprint(target: Dict[str, Any], blueprint: D
     if issue_type in {"missing_baseline", "unfair_or_weak_baseline"}:
         return []
     if issue_type == "missing_ablation":
-        return [f"component-isolation ablation for {primary}"] if primary else []
+        component_entities = [
+            _candidate_text(item, 80)
+            for item in (surface.get("components_or_mechanisms") or [])
+            if _candidate_text(item, 80)
+        ]
+        for entity in component_entities + ([primary] if primary else []):
+            candidate = f"component-isolation ablation for {entity}"
+            if usable_missing_ablation_item(candidate):
+                return [candidate]
+        return []
     if issue_type in {"missing_robustness_or_generalization", "scope_overclaim"}:
         return [f"held-out robustness or scope evaluation for {primary}"] if primary else []
     if issue_type == "evaluation_protocol_risk":

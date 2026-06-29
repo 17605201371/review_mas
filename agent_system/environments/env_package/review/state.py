@@ -1856,6 +1856,117 @@ def _coverage_item_is_specific_for_type(text: str, neg_type: str) -> bool:
     return True
 
 
+_MISSING_ABLATION_TARGET_GENERIC_COMPONENT_RE = re.compile(
+    r"^(?:the\s+|a\s+|an\s+)?(?:abstract\s+)?(?:encoder|decoder|network|neural\s+network|"
+    r"convolutional\s+network|transformer|model|module|component|framework|architecture|"
+    r"representation|textual\s+representation|feature\s+representation|training|pre[- ]?training|"
+    r"pre[- ]?trained|output|input)$",
+    re.IGNORECASE,
+)
+
+_MISSING_ABLATION_TARGET_WEAK_ACTION_RE = re.compile(
+    r"^(?:is\s+|are\s+|was\s+|were\s+)?(?:trained|training|pre[- ]?trained|"
+    r"predicts?|predicting|outputs?|generates?|uses?|using|applies?|applying|"
+    r"learns?|learning|operates?|implemented|evaluated|compares?|stud(?:y|ies|ying|ied)|"
+    r"fed|feeds?|feeding)\b",
+    re.IGNORECASE,
+)
+
+_MISSING_ABLATION_TARGET_STRONG_SIGNAL_RE = re.compile(
+    r"\b(?:head|predictor|classifier|loss|objective|criterion|regulari[sz]ation|"
+    r"gradient|attention|fusion|alignment|descriptor|coordinate|routing|selector|"
+    r"policy|stage|branch|layer|mechanism|distillation|draft\s+model|acceptance|"
+    r"threshold|score|hyperparameter|lora|controlnet|constraint|orthogonal|"
+    r"noise\s+regulari[sz]ation|rankhead)\b",
+    re.IGNORECASE,
+)
+
+_MISSING_ABLATION_TARGET_CONTEXT_SIGNAL_RE = re.compile(
+    r"\b(?:propose|proposed|novel|contribution|novelty|driven\s+by|key\s+aspect|"
+    r"critical|improves?|boosts?|performance\s+gains?|ablation|component\s+analysis|"
+    r"with\s+and\s+without|w/o|effect\s+of|impact\s+of)\b",
+    re.IGNORECASE,
+)
+
+
+def _missing_ablation_target_quality(bundle: Dict[str, Any]) -> Dict[str, str]:
+    """Classify whether a missing-ablation target is review-worthy.
+
+    This is stricter than generic specificity: "decoder" is concrete text, but
+    not a defensible verified review issue unless the paper frames a named,
+    contribution-bearing decoder mechanism.  Quantity is preserved by allowing
+    medium-confidence paper-specific mechanisms while rejecting architecture
+    placeholders and action fragments.
+    """
+
+    missing = bundle.get("missing_or_mismatch") if isinstance(bundle, dict) else {}
+    raw_items = []
+    if isinstance(missing, dict):
+        raw_items = [
+            str(item or "").strip()
+            for item in (missing.get("items") or [missing.get("entity")])
+            if str(item or "").strip()
+        ]
+    raw = raw_items[0] if raw_items else ""
+    target = _missing_ablation_target_text(raw)
+    target = re.sub(r"^(?:train|training)\s+(?:an?\s+|the\s+)?", "", target, flags=re.IGNORECASE).strip()
+    target = re.sub(r"^(?:with|using)\s+(?:an?\s+|the\s+)?", "", target, flags=re.IGNORECASE).strip()
+    target = re.sub(r"\s+", " ", target).strip(" ,.;:")
+    lowered = target.lower()
+    target_core = re.sub(
+        r"\s+(?:module|component|mechanism|network|model|architecture|framework)$",
+        "",
+        lowered,
+        flags=re.IGNORECASE,
+    ).strip()
+    context_parts: List[str] = [str(bundle.get("reviewer_negative_candidate") or "")]
+    anchor = bundle.get("claim_anchor") if isinstance(bundle.get("claim_anchor"), dict) else {}
+    context_parts.append(str(anchor.get("quote") or ""))
+    obligation = bundle.get("claim_obligation") if isinstance(bundle.get("claim_obligation"), dict) else {}
+    context_parts.append(str(obligation.get("expected_entity") or ""))
+    for item in bundle.get("observed_inventory") or []:
+        if isinstance(item, dict):
+            context_parts.append(str(item.get("quote") or ""))
+            context_parts.extend(str(part or "") for part in item.get("observed_items") or [])
+    context = " ".join(context_parts)
+    target_context = f"{target} {context}"
+
+    if not target:
+        return {"quality": "reject", "reason": "missing_ablation_target_empty"}
+    if re.fullmatch(r"(?:encoder|decoder|network|neural\s+network|convolutional\s+network|transformer|model|module|component)", lowered):
+        return {"quality": "reject", "reason": "missing_ablation_target_generic_component"}
+    if re.match(r"^(?:section|table|figure|fig\.?|appendix|algorithm)\b", lowered) or (
+        len(lowered.split()) >= 4
+        and re.search(r"\b(?:describes?|states?|reports?|shows?|presents?|introduces?|contains?|uses?|used)\b", lowered)
+    ):
+        return {"quality": "reject", "reason": "missing_ablation_target_prose_fragment"}
+    if _MISSING_ABLATION_TARGET_WEAK_ACTION_RE.search(lowered):
+        return {"quality": "reject", "reason": "missing_ablation_target_weak_action"}
+    if _MISSING_ABLATION_TARGET_GENERIC_COMPONENT_RE.fullmatch(lowered) or _MISSING_ABLATION_TARGET_GENERIC_COMPONENT_RE.fullmatch(target_core):
+        if not (
+            _MISSING_ABLATION_TARGET_STRONG_SIGNAL_RE.search(target_context)
+            and _MISSING_ABLATION_TARGET_CONTEXT_SIGNAL_RE.search(context)
+            and not re.fullmatch(r"(?:encoder|decoder|network|convolutional\s+network|transformer|model|module|component)", target_core or lowered)
+        ):
+            return {"quality": "reject", "reason": "missing_ablation_target_generic_component"}
+    if re.fullmatch(r"(?:component[- ]isolation\s+)?ablation\s+for\s+(?:encoder|decoder|network|transformer|model|module|component)", str(raw or ""), re.IGNORECASE):
+        return {"quality": "reject", "reason": "missing_ablation_target_generic_component"}
+    if lowered in {"predicts a textual representation", "predict a textual representation", "trained with full-batch gradient", "full-batch gradient"}:
+        return {"quality": "reject", "reason": "missing_ablation_target_weak_action"}
+    if _MISSING_ABLATION_TARGET_STRONG_SIGNAL_RE.search(target_context):
+        named_signal = bool(
+            re.search(r"\b[A-Z]{2,}[A-Za-z0-9_-]*\b|\b[A-Za-z]+[-/][A-Za-z0-9_-]+\b|\d", target)
+            or re.search(r"\b(?:head|predictor|loss|objective|regulari[sz]ation|gradient|attention|fusion|alignment|distillation)\b", lowered)
+        )
+        return {
+            "quality": "high" if named_signal and _MISSING_ABLATION_TARGET_CONTEXT_SIGNAL_RE.search(context) else "medium",
+            "reason": "missing_ablation_target_named_or_mechanistic",
+        }
+    if re.search(r"\b[A-Z]{2,}[A-Za-z0-9_-]*\b|\b[A-Za-z]+[-/][A-Za-z0-9_-]+\b|\d", target):
+        return {"quality": "medium", "reason": "missing_ablation_target_paper_specific_name"}
+    return {"quality": "low", "reason": "missing_ablation_target_low_confidence"}
+
+
 def _review_issue_missing_items_are_resource_cost_dimension(missing_items: Sequence[str]) -> bool:
     text = _missing_joined_text(missing_items)
     if not text:
@@ -9922,6 +10033,11 @@ def _review_issue_bundle_verification_failure(
         return "primary_missing_entity_not_type_specific"
     if not _review_issue_missing_items_are_concrete(neg_type, missing_items):
         return "missing_entity_not_concrete_or_type_specific"
+    if neg_type == "missing_ablation":
+        ablation_quality = _missing_ablation_target_quality(bundle)
+        quality = str(ablation_quality.get("quality") or "")
+        if quality in {"", "low", "reject"}:
+            return str(ablation_quality.get("reason") or "missing_ablation_target_low_confidence")
     if not _review_issue_observed_inventory_is_verifiable(bundle):
         return "observed_inventory_missing"
     if not _review_issue_observed_inventory_relevant_for_type(bundle, neg_type):
@@ -10576,6 +10692,10 @@ def _build_review_issue_bundle_from_gap(
     }
     if candidate_relevance_basis:
         bundle["candidate_obligation_relevance_basis"] = candidate_relevance_basis
+    if neg_type == "missing_ablation":
+        ablation_quality = _missing_ablation_target_quality(bundle)
+        bundle["ablation_target_quality"] = ablation_quality.get("quality", "")
+        bundle["ablation_target_quality_reason"] = ablation_quality.get("reason", "")
     verification_failure = _review_issue_bundle_verification_failure(
         bundle,
         view,
@@ -11006,6 +11126,19 @@ def _review_issue_candidate_funnel_metrics(
             "observed_inventory": observed_inventory,
             "reviewer_negative_candidate": candidate.get("weakness") or "",
         }
+        if neg_type == "missing_ablation":
+            ablation_quality = _missing_ablation_target_quality(bundle)
+            quality = str(ablation_quality.get("quality") or "")
+            reason = str(ablation_quality.get("reason") or "")
+            if quality in {"", "low", "reject"}:
+                metrics["review_issue_candidate_missing_ablation_target_rejected"] += 1
+                if reason == "missing_ablation_target_weak_action":
+                    metrics["review_issue_candidate_missing_ablation_weak_action_rejected"] += 1
+                elif reason == "missing_ablation_target_generic_component":
+                    metrics["review_issue_candidate_missing_ablation_generic_component_rejected"] += 1
+                else:
+                    metrics["review_issue_candidate_generic_item_rejected"] += 1
+                continue
         reason = _review_issue_full_text_counterevidence_reason(
             bundle,
             view or {},
@@ -15587,9 +15720,22 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
     claim_obligation_review_issue_claim_ids = {
         signature[0] for signature in claim_obligation_review_issue_signatures if signature[0]
     }
+    verified_missing_ablation_quality_counts: Counter[str] = Counter()
+    for record in review_issue_records_by_signature.values():
+        bundle = record.get("review_issue_bundle") if isinstance(record.get("review_issue_bundle"), dict) else {}
+        if _negative_evidence_type_for_record(record) == "missing_ablation":
+            quality_info = _missing_ablation_target_quality(bundle)
+            quality = str(bundle.get("ablation_target_quality") or quality_info.get("quality") or "").strip()
+            if quality:
+                verified_missing_ablation_quality_counts[quality] += 1
     review_issue_bundle_items = []
     for record in review_issue_records_by_signature.values():
         bundle = record.get("review_issue_bundle") if isinstance(record.get("review_issue_bundle"), dict) else {}
+        ablation_quality_info = (
+            _missing_ablation_target_quality(bundle)
+            if _negative_evidence_type_for_record(record) == "missing_ablation"
+            else {}
+        )
         issue_id = str(record.get("review_issue_id") or bundle.get("issue_id") or record.get("evidence_id") or "")
         review_issue_bundle_items.append(
             {
@@ -15605,6 +15751,8 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
                 "observed_inventory_count": len(bundle.get("observed_inventory", []) or []),
                 "observed_inventory_status": str(bundle.get("observed_inventory_status") or ""),
                 "source_of_expectation": str(bundle.get("source_of_expectation") or ""),
+                "ablation_target_quality": str(bundle.get("ablation_target_quality") or ablation_quality_info.get("quality") or ""),
+                "ablation_target_quality_reason": str(bundle.get("ablation_target_quality_reason") or ablation_quality_info.get("reason") or ""),
             }
         )
     paper_text_review_negative_count = max(
@@ -15703,6 +15851,8 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
         ),
         "review_issue_bundle_count": obligation_grounded_review_issue_count,
         "review_issue_bundle_items": review_issue_bundle_items[:8],
+        "verified_missing_ablation_high_confidence": int(verified_missing_ablation_quality_counts.get("high", 0)),
+        "verified_missing_ablation_medium_confidence": int(verified_missing_ablation_quality_counts.get("medium", 0)),
         "mark_contested_commit_count": len(
             [
                 relation for relation in view.get("contested_relations", []) or []

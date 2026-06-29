@@ -49,9 +49,9 @@ Missing-baseline, missing-ablation, insufficient-evaluation, and reproducibility
 
 There are deliberately separate lanes. Keep them separate in code, metrics, dashboards, and paper narrative.
 
-### 2026-06-27 P28 entity-level issue bundle checkpoint (latest)
+### 2026-06-29 P28 canonical checkpoint: missing-ablation target-quality guard (latest)
 
-Implemented P28 code path:
+Current P28 code path:
 
 - entity-level `claim_obligations` are derived from real paper claims only; fallback/context/synthetic claims remain excluded;
 - normalized `evaluation_inventory` now exposes inventory buckets plus `inventory_items` with `inventory_type`, `observed_entity`, `claim_ids`, copied quote/list/table anchor, and locator;
@@ -59,33 +59,68 @@ Implemented P28 code path:
 - obligation-grounded `review_issue_bundle` verification stays separate from direct quote negatives;
 - final view/dashboard report `verified_review_issue_count`, candidate funnel metrics, `claim_obligation_review_issue_count`, `reviewer_candidate_review_issue_count`, and `verified_issue_without_recovery_count`;
 - recovery bridge schedules non-destructive `mark_contested` for claims with verified positive support plus same-claim verified review issue evidence; it does not change claim status.
+- missing-ablation now has a target-quality gate: `high` / `medium` targets can count as verified review issues, while `low` / `reject` targets stay out of `verified_review_issue_count`.
+- The gate rejects generic architecture/action targets such as `decoder`, `Encoder`, `convolutional network`, `predicts a textual representation`, and `is trained with full-batch gradient`; it preserves named or mechanistic targets such as `acceptance prediction head`, `orthogonal gradient`, `generalized noise regularization`, `LoRA module`, and paper-specific mechanism/loss/objective/head/stage/branch targets.
 
-Latest P28 hardneg20 run:
+Latest P28 hardneg20 source run and canonical recompute:
 
-- run: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260627_162459.jsonl`
-- dashboard: `P28_HARDNEG20_DASHBOARD.md`
-- review issue cases: `P28_REVIEW_ISSUE_CASE_TABLE.md`
-- recovery cases: `P28_RECOVERY_CASE_TABLE.md`
+- source run: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260628_093956.jsonl`
+- canonical dashboard: `P28_CANONICAL_HARDNEG20_DASHBOARD.md/json`
+- canonical audit: `P28_CANONICAL_HARDNEG20_AUDIT.json`
+- canonical review issue cases: `P28_CANONICAL_REVIEW_ISSUE_CASE_TABLE.md/json`
+- canonical recovery cases: `P28_CANONICAL_RECOVERY_CASE_TABLE.md/json`
+- fresh API run: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260629_202551.jsonl`
+- fresh dashboard: `P28_TARGETGUARD_FRESH_202551_HARDNEG20_DASHBOARD.md/json`
+- fresh audit: `P28_TARGETGUARD_FRESH_202551_HARDNEG20_AUDIT.json`
+- fresh review issue cases: `P28_TARGETGUARD_FRESH_202551_REVIEW_ISSUE_CASE_TABLE.md/json`
+- fresh recovery cases: `P28_TARGETGUARD_FRESH_202551_RECOVERY_CASE_TABLE.md/json`
 
-Strict recompute after false-positive guard tightening:
+Canonical metrics after missing-ablation target-quality guard:
 
-- `verified_review_issue_count=2`
+- `verified_review_issue_count=22`
 - `review_negative_verified_count=0`
-- `reviewer_candidate_review_issue_count=0`
-- `claim_obligation_review_issue_count=2`
-- `review_issue_candidate_total=4`, all rejected by verifier (`missing_inventory=4`)
-- `mark_contested_commit_count=6`
-- `turns_with_verified_review_issue_bundle_evidence=3`
+- `reviewer_candidate_review_issue_count=17`
+- `claim_obligation_review_issue_count=5`
+- `review_issue_candidate_total=64`
+- `review_issue_candidate_verified=17`
+- `review_issue_type_missing_ablation=11`
+- `verified_missing_ablation_high_confidence=7`
+- `verified_missing_ablation_medium_confidence=4`
+- `review_issue_candidate_missing_ablation_target_rejected=3`
+- `review_issue_candidate_missing_ablation_weak_action_rejected=1`
+- `mark_contested_commit_count=12`
+- `turns_with_verified_review_issue_bundle_evidence=4`
 - `negative_evidence_unlinked_to_flaw=0`
 - `positive_or_neutral_negative_candidate_count=0`
-- `real_strong_support_total=51`
+
+Fresh API 202551 metrics after the same guard:
+
+- `verified_review_issue_count=19`
+- `review_negative_verified_count=0`
+- `reviewer_candidate_review_issue_count=19`
+- `claim_obligation_review_issue_count=0`
+- `review_issue_candidate_total=91`
+- `review_issue_candidate_verified=19`
+- `review_issue_type_missing_ablation=15`
+- `verified_missing_ablation_high_confidence=12`
+- `verified_missing_ablation_medium_confidence=3`
+- `review_issue_candidate_missing_ablation_target_rejected=3`
+- `review_issue_candidate_missing_ablation_weak_action_rejected=2`
+- `review_issue_candidate_missing_ablation_generic_component_rejected=1`
+- `mark_contested_commit_count=8`
+- `turns_with_verified_review_issue_bundle_evidence=6`
+- `negative_evidence_unlinked_to_flaw=0`
+- `positive_or_neutral_negative_candidate_count=0`
+- `evidence_json_fallback_rate_pct=0`
+- The source `.jsonl` was generated before the final weak-action extension that rejects `study ...` / `fed ...` missing-ablation targets. Treat the recomputed `P28_TARGETGUARD_FRESH_202551_*` dashboard/case/recovery artifacts as authoritative for this checkpoint; raw embedded `final_report` text in the source jsonl can still contain pre-recompute live-report wording.
 
 Important interpretation:
 
-- The first P28 verifier pass inflated `verified_review_issue_count` to 21 by treating template-like claim-obligation gaps as verified issues. Manual audit found false positives such as broad `held-out coverage for RL/GNNs`, generic `same-setting comparison against FL/UDA`, and a direct quote false positive where "we apply OGL to two baselines" was counted as a missing-ablation negative.
-- The verifier was tightened so table-scope missing-ablation requires explicit `coverage_missing_items`, missing-ablation inventory must be real ablation/variant inventory, broad domain entities are blocked for claim-obligation verification, and efficiency counterevidence recognizes training/search/inference time.
-- After tightening, P28 is precision-first but not paper-ready on recall: it leaves only two current verified review issue cases (QAgwFiIY4p efficiency/parameter measurement, TPAj63ax4Y LAVT same-setting comparison). It does not meet the planned `verified_review_issue_count>=10` or `reviewer_candidate_review_issue_count>=8` target.
-- Next work should improve entity-level candidate discovery and normalized inventory extraction. Do not loosen the verifier to recover the 21-count result.
+- 093956 proved the reviewer-candidate path, normalized inventory bridge, and recovery bridge are active. The prior "candidate recall too low" diagnosis is stale for current artifacts.
+- The current bottleneck is precision, specifically template-like `missing_ablation` targets. The canonical guard reduces 31 raw verified issues to 22, and the fresh API run lands at 19, while keeping quantity above the paper-facing target and removing the obvious generic/action false positives (`decoder`, `Encoder`, `convolutional network`, `predicts a textual representation`, `is trained with full-batch gradient`, `study the square loss`, `fed into the trainable module`).
+- Direct quote-grounded negatives remain rare (`review_negative_verified_count=0`). The defensible paper narrative is obligation-grounded review issue bundles, not copied negative quotes.
+- Recovery still needs interpretation: canonical has `mark_contested_commit_count=12`, fresh has `mark_contested_commit_count=8`, and fresh recovery case table has 6 current verified-review-issue repairs. Do not use stale absence repairs as evidence of current verified issue recovery.
+- Next work should manually audit the 19 fresh issue cases, especially medium-confidence missing-ablation targets and gradient/RNN-style targets, before treating the result as paper-ready.
 
 ### 2026-06-27 P28 follow-up: reviewer-candidate inventory bridge
 
