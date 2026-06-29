@@ -1967,6 +1967,169 @@ def _missing_ablation_target_quality(bundle: Dict[str, Any]) -> Dict[str, str]:
     return {"quality": "low", "reason": "missing_ablation_target_low_confidence"}
 
 
+def _review_issue_primary_missing_text(bundle: Dict[str, Any], *, neg_type: str = "") -> str:
+    missing = bundle.get("missing_or_mismatch") if isinstance(bundle, dict) else {}
+    raw_items: List[str] = []
+    if isinstance(missing, dict):
+        raw_items = [
+            str(item or "").strip()
+            for item in (missing.get("items") or [missing.get("entity")])
+            if str(item or "").strip()
+        ]
+    raw = raw_items[0] if raw_items else ""
+    if _canonical_negative_evidence_type(neg_type) == "missing_ablation":
+        raw = _missing_ablation_target_text(raw)
+    return re.sub(r"\s+", " ", raw).strip(" ,.;:")
+
+
+def _review_issue_normalized_cluster_target(bundle: Dict[str, Any], neg_type: str) -> str:
+    """Stable target family for paper-facing issue cluster counts."""
+
+    neg_type = _canonical_negative_evidence_type(neg_type)
+    target = _review_issue_primary_missing_text(bundle, neg_type=neg_type)
+    target = re.sub(
+        r"^(?:of\s+the|of|with\s+(?:an?\s+|the\s+)?|using\s+(?:an?\s+|the\s+)?|"
+        r"train(?:ing)?\s+(?:an?\s+|the\s+)?)",
+        "",
+        target,
+        flags=re.IGNORECASE,
+    ).strip()
+    target = re.sub(r"\bmodule\s+module\b", "module", target, flags=re.IGNORECASE)
+    lowered = target.lower()
+
+    if neg_type == "missing_ablation":
+        if re.search(r"\bacceptance\s+prediction\s+head\b", lowered):
+            return "acceptance_prediction_head"
+        if re.search(r"\borthogonal\s+gradient(?:\s+learning)?\b|\bogl\b", lowered):
+            return "orthogonal_gradient_learning"
+        if re.search(r"\bgeneralized\s+noise\s+regulari[sz]ation\b|\bnoise\s+regulari[sz]ation\b|\bnr-dcca\b", lowered):
+            return "generalized_noise_regularization"
+        if re.search(r"\brecurrent\s+drafter\b|\brecurrent\s+neural\s+network\b|\brnn\b", lowered):
+            return "recurrent_draft_model"
+        if re.search(r"\blocal\s+virtual\s+data\b", lowered):
+            return "local_virtual_data_regularization"
+        if re.search(r"\bfederated\s+gradient(?:\s+matching)?\b", lowered):
+            return "federated_gradient_matching"
+        if re.search(r"\bdistributed\s+gradient\b", lowered):
+            return "distributed_gradient"
+        if re.search(r"\blong[- ]term\s+model(?:ing|ling)?\b|\blt-ms\b", lowered):
+            return "long_term_modeling"
+
+    if neg_type in {"missing_baseline", "unfair_or_weak_baseline"} and re.search(r"\bequalal\b", lowered):
+        return "equalal_baseline"
+    if neg_type in {"missing_robustness_or_generalization", "scope_overclaim"} and re.search(
+        r"\bgraph[- ]level\b|\bgraph\s+classification\b", lowered
+    ):
+        return "graph_classification_coverage"
+    if neg_type == "efficiency_cost_gap":
+        return "efficiency_resource_measurement"
+    if neg_type == "reproducibility_gap":
+        if re.search(r"\bhyperparameter|implementation|code|config|split|seed\b", lowered):
+            return "implementation_reproducibility_details"
+
+    tokens = [
+        token.lower()
+        for token in re.findall(r"[A-Za-z][A-Za-z0-9_-]{2,}", target)
+        if token.lower()
+        not in {
+            "ablation",
+            "component",
+            "isolation",
+            "isolating",
+            "comparison",
+            "same-setting",
+            "against",
+            "measurement",
+            "evaluation",
+            "runtime",
+            "memory",
+            "parameter",
+            "hardware",
+        }
+    ]
+    return "_".join(tokens[:8]) or "unspecified_target"
+
+
+def _review_issue_cluster_signature_for_record(record: Dict[str, Any]) -> Tuple[str, str]:
+    neg_type = _negative_evidence_type_for_record(record)
+    bundle = record.get("review_issue_bundle") if isinstance(record.get("review_issue_bundle"), dict) else {}
+    return (neg_type, _review_issue_normalized_cluster_target(bundle, neg_type))
+
+
+def _review_issue_cluster_id_for_record(record: Dict[str, Any]) -> str:
+    claim_id = str(record.get("claim_id") or "")
+    paper_hint = str(record.get("paper_id") or "")
+    neg_type, target = _review_issue_cluster_signature_for_record(record)
+    return _slugify("review-issue-cluster", f"{paper_hint}-{neg_type}-{target or claim_id}", 0)
+
+
+def _review_issue_observed_inventory_text(bundle: Dict[str, Any]) -> str:
+    parts: List[str] = []
+    for item in (bundle.get("observed_inventory") or []) if isinstance(bundle, dict) else []:
+        if isinstance(item, dict):
+            parts.append(str(item.get("quote") or ""))
+            parts.append(str(item.get("locator") or ""))
+            parts.extend(str(part or "") for part in item.get("observed_items") or [])
+    return " ".join(parts)
+
+
+def _review_issue_bundle_review_worthiness_failure(
+    bundle: Dict[str, Any],
+    state: Dict[str, Any],
+    *,
+    neg_type: str,
+) -> str:
+    """Reject verifier-passing bundles that are not reviewer-worthy issues.
+
+    The bundle verifier checks grounding.  This layer checks whether the
+    grounded mismatch is actually a review-worthy defect rather than a template
+    demand such as "ablate ordinary distributed gradient".
+    """
+
+    neg_type = _canonical_negative_evidence_type(neg_type)
+    missing_text = _review_issue_primary_missing_text(bundle, neg_type=neg_type)
+    missing_l = missing_text.lower()
+    anchor = bundle.get("claim_anchor") if isinstance(bundle.get("claim_anchor"), dict) else {}
+    anchor_quote = str(anchor.get("quote") or "")
+    anchor_l = anchor_quote.lower()
+    inventory_text = _review_issue_observed_inventory_text(bundle)
+    inventory_l = inventory_text.lower()
+
+    if neg_type == "missing_ablation":
+        cluster_target = _review_issue_normalized_cluster_target(bundle, neg_type)
+        if cluster_target == "distributed_gradient":
+            return "missing_ablation_target_not_review_worthy_generic_training_mechanism"
+        if cluster_target == "long_term_modeling" and re.search(
+            r"\bablation\b.{0,140}\b(?:three\s+main\s+components|one\s+component\s+at\s+a\s+time|components\s+of\s+our\s+method)\b",
+            inventory_l,
+            re.IGNORECASE,
+        ):
+            return "missing_ablation_target_already_covered_by_component_ablation"
+        if re.search(r"\b(?:optimizer|sgd|adam|gradient\s+descent|distributed\s+gradient)\b", missing_l) and not re.search(
+            r"\b(?:orthogonal|federated\s+gradient\s+matching|novel|proposed|contribution|key\s+aspect|drives?)\b",
+            f"{missing_l} {anchor_l} {inventory_l}",
+            re.IGNORECASE,
+        ):
+            return "missing_ablation_target_not_contribution_bound"
+
+    if neg_type == "efficiency_cost_gap":
+        body = str((state or {}).get("paper_text") or "")
+        if re.search(r"\b(?:speedup|latency|runtime|throughput|inference|gpu|h100|mlx|tensorrt|metal)\b", body, re.I) and re.search(
+            r"\b\d+(?:\.\d+)?\s*(?:x|%|ms|s|sec(?:onds?)?|gpu|gpus|h100|tokens?/s)\b",
+            body,
+            re.I,
+        ):
+            return "full_text_efficiency_counterevidence"
+
+    if neg_type in {"missing_robustness_or_generalization", "scope_overclaim", "insufficient_evaluation"}:
+        if re.search(r"\bgraph[- ]level\b|\bgraph\s+classification\b", missing_l) and re.search(
+            r"\bnode\s+classification\b", anchor_l
+        ) and not re.search(r"\bgraph\s+classification\b", anchor_l):
+            return "missing_scope_not_claim_bound"
+
+    return ""
+
+
 def _review_issue_missing_items_are_resource_cost_dimension(missing_items: Sequence[str]) -> bool:
     text = _missing_joined_text(missing_items)
     if not text:
@@ -10046,6 +10209,13 @@ def _review_issue_bundle_verification_failure(
         return "missing_entity_already_observed_in_inventory"
     if _review_issue_bundle_has_ablation_counterevidence(bundle):
         return "missing_ablation_counterevidence_in_claim_or_inventory"
+    worthiness_failure = _review_issue_bundle_review_worthiness_failure(
+        bundle,
+        state or {},
+        neg_type=neg_type,
+    )
+    if worthiness_failure:
+        return worthiness_failure
     full_text_counterevidence = _review_issue_full_text_counterevidence_reason(
         bundle,
         state or {},
@@ -11139,6 +11309,22 @@ def _review_issue_candidate_funnel_metrics(
                 else:
                     metrics["review_issue_candidate_generic_item_rejected"] += 1
                 continue
+        worthiness_reason = _review_issue_bundle_review_worthiness_failure(
+            bundle,
+            view or {},
+            neg_type=neg_type,
+        )
+        if worthiness_reason:
+            metrics["review_issue_candidate_review_worthiness_rejected"] += 1
+            if neg_type == "missing_ablation":
+                metrics["review_issue_candidate_missing_ablation_target_rejected"] += 1
+                if "generic_training_mechanism" in worthiness_reason or "contribution_bound" in worthiness_reason:
+                    metrics["review_issue_candidate_missing_ablation_generic_component_rejected"] += 1
+            elif worthiness_reason in {"missing_scope_not_claim_bound"}:
+                metrics["review_issue_candidate_off_claim_rejected"] += 1
+            else:
+                metrics["review_issue_candidate_counterevidence_rejected"] += 1
+            continue
         reason = _review_issue_full_text_counterevidence_reason(
             bundle,
             view or {},
@@ -15720,6 +15906,29 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
     claim_obligation_review_issue_claim_ids = {
         signature[0] for signature in claim_obligation_review_issue_signatures if signature[0]
     }
+    review_issue_cluster_records: Dict[Tuple[str, str], List[Dict[str, Any]]] = defaultdict(list)
+    for record in review_issue_records_by_signature.values():
+        cluster_signature = _review_issue_cluster_signature_for_record(record)
+        if cluster_signature[0] and cluster_signature[1]:
+            review_issue_cluster_records[cluster_signature].append(record)
+    reviewer_candidate_review_issue_cluster_signatures = {
+        cluster_signature
+        for cluster_signature, records in review_issue_cluster_records.items()
+        if any(_review_issue_record_expectation_source(record) == "reviewer_candidate" for record in records)
+    }
+    claim_obligation_review_issue_cluster_signatures = set(review_issue_cluster_records) - reviewer_candidate_review_issue_cluster_signatures
+    obligation_grounded_review_issue_cluster_count = len(review_issue_cluster_records)
+    reviewer_candidate_review_issue_cluster_count = len(reviewer_candidate_review_issue_cluster_signatures)
+    claim_obligation_review_issue_cluster_count = len(claim_obligation_review_issue_cluster_signatures)
+    review_issue_cluster_type_counts: Counter[str] = Counter(
+        signature[0] for signature in review_issue_cluster_records if signature[0]
+    )
+    reviewer_candidate_review_issue_cluster_type_counts: Counter[str] = Counter(
+        signature[0] for signature in reviewer_candidate_review_issue_cluster_signatures if signature[0]
+    )
+    claim_obligation_review_issue_cluster_type_counts: Counter[str] = Counter(
+        signature[0] for signature in claim_obligation_review_issue_cluster_signatures if signature[0]
+    )
     verified_missing_ablation_quality_counts: Counter[str] = Counter()
     for record in review_issue_records_by_signature.values():
         bundle = record.get("review_issue_bundle") if isinstance(record.get("review_issue_bundle"), dict) else {}
@@ -15737,6 +15946,15 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
             else {}
         )
         issue_id = str(record.get("review_issue_id") or bundle.get("issue_id") or record.get("evidence_id") or "")
+        cluster_signature = _review_issue_cluster_signature_for_record(record)
+        cluster_records = review_issue_cluster_records.get(cluster_signature, [])
+        cluster_claim_ids = sorted(
+            {
+                str(cluster_record.get("claim_id") or "")
+                for cluster_record in cluster_records
+                if str(cluster_record.get("claim_id") or "")
+            }
+        )
         review_issue_bundle_items.append(
             {
                 "issue_id": issue_id,
@@ -15753,6 +15971,12 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
                 "source_of_expectation": str(bundle.get("source_of_expectation") or ""),
                 "ablation_target_quality": str(bundle.get("ablation_target_quality") or ablation_quality_info.get("quality") or ""),
                 "ablation_target_quality_reason": str(bundle.get("ablation_target_quality_reason") or ablation_quality_info.get("reason") or ""),
+                "issue_cluster_key": "|".join(cluster_signature),
+                "issue_cluster_id": _review_issue_cluster_id_for_record(record),
+                "issue_cluster_target": cluster_signature[1],
+                "issue_cluster_size": len(cluster_records) or 1,
+                "issue_cluster_claim_ids": cluster_claim_ids,
+                "issue_cluster_representative": bool(cluster_records and cluster_records[0] is record),
             }
         )
     paper_text_review_negative_count = max(
@@ -15801,6 +16025,16 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
         if str(item.get("issue_id") or "") not in contested_review_issue_ids
         and str(item.get("evidence_id") or "") not in contested_review_issue_evidence_ids
     )
+    verified_issue_cluster_without_recovery_count = 0
+    for records in review_issue_cluster_records.values():
+        cluster_recovered = any(
+            str(record.get("review_issue_id") or record.get("review_issue_bundle", {}).get("issue_id") or "") in contested_review_issue_ids
+            or str(record.get("evidence_id") or "") in contested_review_issue_evidence_ids
+            for record in records
+            if isinstance(record, dict)
+        )
+        if not cluster_recovered:
+            verified_issue_cluster_without_recovery_count += 1
     coverage_gap_not_already_flaw_claim_ids = verified_coverage_gap_claim_ids - reviewer_absence_claim_ids
     recorded_extra_claim_ids = recorded_diagnosis_claim_ids - verified_coverage_gap_claim_ids
     view["decision_hygiene"] = {
@@ -15846,10 +16080,23 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
         "claim_obligation_review_issue_claim_count": len(claim_obligation_review_issue_claim_ids),
         "claim_obligation_review_issue_type_counts": dict(claim_obligation_review_issue_type_counts),
         "verified_review_issue_count": quote_grounded_review_negative_count + obligation_grounded_review_issue_count,
+        "verified_review_issue_row_count": quote_grounded_review_negative_count + obligation_grounded_review_issue_count,
         "verified_review_issue_claim_count": len(
             quote_grounded_review_negative_claim_ids | obligation_grounded_review_issue_claim_ids
         ),
         "review_issue_bundle_count": obligation_grounded_review_issue_count,
+        "obligation_grounded_review_issue_cluster_count": obligation_grounded_review_issue_cluster_count,
+        "reviewer_candidate_review_issue_cluster_count": reviewer_candidate_review_issue_cluster_count,
+        "claim_obligation_review_issue_cluster_count": claim_obligation_review_issue_cluster_count,
+        "verified_review_issue_cluster_count": quote_grounded_review_negative_count + obligation_grounded_review_issue_cluster_count,
+        "duplicate_review_issue_row_count": max(
+            0,
+            obligation_grounded_review_issue_count - obligation_grounded_review_issue_cluster_count,
+        ),
+        "review_issue_cluster_type_counts": dict(review_issue_cluster_type_counts),
+        "reviewer_candidate_review_issue_cluster_type_counts": dict(reviewer_candidate_review_issue_cluster_type_counts),
+        "claim_obligation_review_issue_cluster_type_counts": dict(claim_obligation_review_issue_cluster_type_counts),
+        "verified_missing_ablation_cluster_count": int(review_issue_cluster_type_counts.get("missing_ablation", 0)),
         "review_issue_bundle_items": review_issue_bundle_items[:8],
         "verified_missing_ablation_high_confidence": int(verified_missing_ablation_quality_counts.get("high", 0)),
         "verified_missing_ablation_medium_confidence": int(verified_missing_ablation_quality_counts.get("medium", 0)),
@@ -15860,6 +16107,7 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
             ]
         ),
         "verified_issue_without_recovery_count": verified_issue_without_recovery_count,
+        "verified_issue_cluster_without_recovery_count": verified_issue_cluster_without_recovery_count,
         **review_issue_candidate_funnel,
         # Final-view accounting for reviewer-inferred concerns.  These are
         # deliberately parallel to quote-grounded potential concerns and must

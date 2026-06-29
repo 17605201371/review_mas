@@ -1055,6 +1055,52 @@ Manual audit notes:
 - CLEAN5 adds the HALO case as a defensible paper-named missing-baseline issue: the paper states an absence of other ADA studies and compares the CS->ACDC result to RIPU while its own related-work inventory names EqualAL/Labor/PixelPick-style AL methods. The counted case is `YXn76HMetm`, missing same-setting comparison against paper-named `EqualAL`.
 - Remaining risk: some component-ablation issues inherited from CLEAN1 are still terse and should be manually case-audited before paper-ready claims, especially duplicate-looking prediction-head cases. Do not inflate the count by relaxing these gates.
 
+## 2026-06-29 P28 CLUSTERGUARD: row inflation control + review-worthiness gate
+
+Authoritative source run for this checkpoint:
+`mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260629_202551.jsonl`
+
+Previous `P28_TARGETGUARD_FRESH_202551` established that recall/bridge were no longer the main bottleneck: `verified_review_issue_count=19`, `reviewer_candidate_review_issue_count=19`, `mark_contested_commit_count=8`, protection lines PASS. Manual audit showed this should not be narrated as 19 true defects because rows contained duplicates and several D-class false positives.
+
+This turn adds two precision-preserving quantity controls without relaxing verifier:
+
+- Issue clustering: paper-facing counts now distinguish row count from cluster count. Cluster signature is `(issue_type, normalized_missing_target)` within each paper/final-view. Dashboard and case table expose `verified_review_issue_row_count`, `verified_review_issue_cluster_count`, `duplicate_review_issue_row_count`, cluster type counts, cluster target, cluster size, representative row, and cluster claim ids.
+- Review-worthiness gate: verifier-passing bundles can still be demoted when the mismatch is not a review-worthy defect. Current guarded cases include ordinary `distributed_gradient` ablation targets, long-term modeling targets already covered by a component-ablation table, efficiency-cost gaps when full text contains concrete runtime/hardware/speedup measurements, and graph-classification coverage demands attached only to node-classification claims.
+- Candidate funnel now records `review_issue_candidate_review_worthiness_rejected`, so demotions are visible rather than silently disappearing.
+
+Offline recompute artifacts:
+
+- `P28_CLUSTERGUARD_RECOMPUTE_202551_HARDNEG20_DASHBOARD.md/json`
+- `P28_CLUSTERGUARD_RECOMPUTE_202551_HARDNEG20_AUDIT.json`
+- `P28_CLUSTERGUARD_RECOMPUTE_202551_REVIEW_ISSUE_CASE_TABLE.md/json`
+- `P28_CLUSTERGUARD_RECOMPUTE_202551_RECOVERY_CASE_TABLE.md/json`
+
+CLUSTERGUARD headline metrics:
+
+- `verified_review_issue_count=15`
+- `verified_review_issue_row_count=15`
+- `verified_review_issue_cluster_count=8`
+- `duplicate_review_issue_row_count=7`
+- `reviewer_candidate_review_issue_count=15`
+- `reviewer_candidate_review_issue_cluster_count=8`
+- `review_issue_type_missing_ablation=13`
+- `review_issue_cluster_type_missing_ablation=6`
+- `review_negative_verified_count=0` (direct quote-negative lane remains strict)
+- `mark_contested_commit_count=8`
+- `recovery_case_verified_review_issue_repair=5`
+- `negative_evidence_unlinked_to_flaw=0`
+- `positive_or_neutral_negative_candidate_count=0`
+- protection lines: PASS
+
+Demoted from TARGETGUARD by CLUSTERGUARD:
+
+- `WpXq5n8yLb` efficiency-cost gap: paper has concrete H100/TensorRT/MLX/speedup/resource measurement context.
+- `cklg91aPGk` graph-classification robustness: off-claim for a node-classification claim.
+- `xUe1YqEgd6` long-term modeling ablation: observed inventory already reports component ablation over the main components.
+- `XH3OiIhtvf` distributed-gradient ablation: ordinary training/distributed optimization mechanism, not a contribution-bound component flaw.
+
+Current narrative: use cluster count as the paper-facing review-issue quantity. The result is not "19 true defects"; it is "15 verifier-passing rows, 8 deduplicated review-worthy clusters, with strict protection lines passing." Remaining bottleneck is issue diversity: missing-ablation still dominates (`13/15` rows, `6/8` clusters). Next work should improve entity-level obligation/inventory diversity, not loosen direct negative quote verification.
+
 ## Validation Commands
 
 Focused review tests:

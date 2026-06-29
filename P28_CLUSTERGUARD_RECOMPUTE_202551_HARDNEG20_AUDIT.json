@@ -1,0 +1,1662 @@
+{
+  "summary": {
+    "paper_count": 20,
+    "metrics_subset": {
+      "hygiene_delta_or_safe_block_or_clean_state": 14,
+      "recovery_safe_resolution_or_clean_state": 15,
+      "recovery_patch_committed": 12,
+      "recovery_effective_repair": 8,
+      "hygiene_delta_improved": 8,
+      "contamination_evidence_misbinding": 15,
+      "evidence_gap_resolved_count": 57,
+      "evidence_gap_superseded_count": 0,
+      "evidence_gap_not_assessable_count": 0,
+      "recovery_no_effect_commit": 0,
+      "recovery_harmful_commit_risk": 0
+    },
+    "protection_failures": [],
+    "hygiene_case_reason_counts": {
+      "clean_state_recognized": 8,
+      "evidence_misbinding_present": 4,
+      "hygiene_delta_improved": 6,
+      "negative_semantic_rejected": 1,
+      "patch_committed_but_no_hygiene_delta": 1,
+      "safe_block_counted": 4,
+      "unattributed_hygiene_line_miss": 1,
+      "validator_blocked_without_final_safe_state": 2
+    }
+  },
+  "lists": {
+    "hygiene_fail_case_list": [
+      "7Dub7UXTXN",
+      "a6SntIisgg",
+      "mHv6wcBb0z",
+      "xUe1YqEgd6",
+      "YXn76HMetm",
+      "XH3OiIhtvf"
+    ],
+    "evidence_misbinding_case_list": [
+      "7Dub7UXTXN",
+      "GE6iywJtsV",
+      "WpXq5n8yLb",
+      "NnExMNiTHw",
+      "a6SntIisgg",
+      "cklg91aPGk",
+      "fGXyvmWpw6",
+      "xUe1YqEgd6",
+      "KOUAayk5Kx",
+      "XH3OiIhtvf"
+    ],
+    "no_effect_patch_case_list": [],
+    "harmful_commit_risk_case_list": [],
+    "not_assessable_gap_case_list": [],
+    "negative_semantic_rejected_case_list": [
+      "cklg91aPGk"
+    ],
+    "recovery_committed_but_ineffective_case_list": [
+      "ye3NrNrYOY",
+      "9zEBK3E9bX",
+      "XyB4VvF01X",
+      "XH3OiIhtvf"
+    ],
+    "validator_blocked_without_final_safe_state_case_list": [
+      "7Dub7UXTXN",
+      "mHv6wcBb0z"
+    ],
+    "recovery_unknown_target_case_list": [
+      "XyB4VvF01X"
+    ],
+    "recovery_invalid_status_transition_case_list": [
+      "7Dub7UXTXN",
+      "mHv6wcBb0z"
+    ],
+    "recovery_evidence_target_mismatch_case_list": []
+  },
+  "cases": [
+    {
+      "paper_id": "ye3NrNrYOY",
+      "final_decision": "reject",
+      "reward": 0.6772608175749593,
+      "counted_for_hygiene_delta_or_safe_block_or_clean_state": true,
+      "hygiene_case_reasons": [
+        "clean_state_recognized"
+      ],
+      "state_contamination_count": 0,
+      "harmful_state_contamination_count": 0,
+      "contamination_type_counts": {},
+      "gap_status_counts": {
+        "resolved": 4
+      },
+      "unresolved_reason_counts": {
+        "missing_reason": 10
+      },
+      "recovery_attempted_turns": 1,
+      "recovery_committed_turns": 1,
+      "recovery_effective_repair_turns": 0,
+      "safe_block_turns": 0,
+      "no_effect_commit_turns": 0,
+      "harmful_commit_risk_turns": 0,
+      "recovery_unknown_target_turns": 0,
+      "recovery_invalid_status_transition_turns": 0,
+      "recovery_evidence_target_mismatch_turns": 0,
+      "recovery_turns": [
+        {
+          "turn_id": 6,
+          "operation": "record_diagnosis_pending_concern",
+          "target_type": "claim_requirement_gap",
+          "target_id": "claim-3",
+          "gate": "diagnosis_pending_target",
+          "failure_code": "SUCCESS",
+          "committed": true,
+          "effective_repair": false,
+          "no_effect_commit": false,
+          "harmful_commit_risk": false,
+          "state_delta": {
+            "before": {
+              "open_conflict_count": 2,
+              "open_evidence_gap_count": 0,
+              "stale_evidence_gap_count": 0,
+              "claims_reconciled_with_strong_support_count": 0,
+              "grounded_weakness_count": 0,
+              "verified_potential_concern_count": 0,
+              "potential_concern_count": 0,
+              "verified_review_issue_count": 0,
+              "obligation_grounded_review_issue_count": 0,
+              "assessment_limitation_flaw_count": 0,
+              "negative_grounding_conflict_count": 0,
+              "confirmed_flaw_without_verified_negative_count": 0,
+              "meta_or_fallback_flaw_count": 0
+            },
+            "after": {
+              "open_conflict_count": 2,
+              "open_evidence_gap_count": 0,
+              "stale_evidence_gap_count": 0,
+              "claims_reconciled_with_strong_support_count": 0,
+              "grounded_weakness_count": 0,
+              "verified_potential_concern_count": 0,
+              "potential_concern_count": 0,
+              "verified_review_issue_count": 0,
+              "obligation_grounded_review_issue_count": 0,
+              "assessment_limitation_flaw_count": 0,
+              "negative_grounding_conflict_count": 0,
+              "confirmed_flaw_without_verified_negative_count": 0,
+              "meta_or_fallback_flaw_count": 0
+            },
+            "delta": {
+              "open_conflict_count": 0,
+              "open_evidence_gap_count": 0,
+              "stale_evidence_gap_count": 0,
+              "claims_reconciled_with_strong_support_count": 0,
+              "grounded_weakness_count": 0,
+              "verified_potential_concern_count": 0,
+              "potential_concern_count": 0,
+              "verified_review_issue_count": 0,
+              "obligation_grounded_review_issue_count": 0,
+              "assessment_limitation_flaw_count": 0,
+              "negative_grounding_conflict_count": 0,
+              "confirmed_flaw_without_verified_negative_count": 0,
+              "meta_or_fallback_flaw_count": 0
+            },
+            "improved_keys": [],
+            "worsened_keys": [],
+            "tolerated_worsened_keys": [],
+            "consistency_improved": false,
+            "negative_recovery_commit": false,
+            "contested_relation_delta": 0,
+            "contested_relation_added": false,
+            "diagnosis_pending_concern_delta": 1,
+            "diagnosis_pending_concern_added": true
+          }
+        }
+      ]
+    },
+    {
+      "paper_id": "WNxlJJIEVj",
+      "final_decision": "reject",
+      "reward": 0.6984920102716687,
+      "counted_for_hygiene_delta_or_safe_block_or_clean_state": true,
+      "hygiene_case_reasons": [
+        "clean_state_recognized",
+        "hygiene_delta_improved"
+      ],
+      "state_contamination_count": 0,
+      "harmful_state_contamination_count": 0,
+      "contamination_type_counts": {},
+      "gap_status_counts": {
+        "resolved": 3
+      },
+      "unresolved_reason_counts": {
+        "missing_reason": 10
+      },
+      "recovery_attempted_turns": 1,
+      "recovery_committed_turns": 1,
+      "recovery_effective_repair_turns": 1,
+      "safe_block_turns": 0,
+      "no_effect_commit_turns": 0,
+      "harmful_commit_risk_turns": 0,
+      "recovery_unknown_target_turns": 0,
+      "recovery_invalid_status_transition_turns": 0,
+      "recovery_evidence_target_mismatch_turns": 0,
+      "recovery_turns": [
+        {
+          "turn_id": 5,
+          "operation": "mark_contested",
+          "target_type": "claim",
+          "target_id": "claim-3",
+          "gate": "real_target",
+          "failure_code": "SUCCESS",
+          "committed": true,
+          "effective_repair": true,
+          "no_effect_commit": false,
+          "harmful_commit_risk": false,
+          "state_delta": {
+            "before": {
+              "open_conflict_count": 0,
+              "open_evidence_gap_count": 0,
+              "stale_evidence_gap_count": 0,
+              "claims_reconciled_with_strong_support_count": 0,
+              "grounded_weakness_count": 0,
+              "verified_potential_concern_count": 0,
+              "potential_concern_count": 0,
+              "verified_review_issue_count": 0,
+              "obligation_grounded_review_issue_count": 0,
+              "assessment_limitation_flaw_count": 0,
+              "negative_grounding_conflict_count": 0,
+              "confirmed_flaw_without_verified_negative_count": 0,
+              "meta_or_fallback_flaw_count": 0
+            },
+            "after": {
+              "open_conflict_count": 0,
+              "open_evidence_gap_count": 0,
+              "stale_evidence_gap_count": 0,
+              "claims_reconciled_with_strong_support_count": 0,
+              "grounded_weakness_count": 0,
+              "verified_potential_concern_count": 0,
+              "potential_concern_count": 0,
+              "verified_review_issue_count": 0,
+              "obligation_grounded_review_issue_count": 0,
+              "assessment_limitation_flaw_count": 0,
+              "negative_grounding_conflict_count": 0,
+              "confirmed_flaw_without_verified_negative_count": 0,
+              "meta_or_fallback_flaw_count": 0
+            },
+            "delta": {
+              "open_conflict_count": 0,
+              "open_evidence_gap_count": 0,
+              "stale_evidence_gap_count": 0,
+              "claims_reconciled_with_strong_support_count": 0,
+              "grounded_weakness_count": 0,
+              "verified_potential_concern_count": 0,
+              "potential_concern_count": 0,
+              "verified_review_issue_count": 0,
+              "obligation_grounded_review_issue_count": 0,
+              "assessment_limitation_flaw_count": 0,
+              "negative_grounding_conflict_count": 0,
+              "confirmed_flaw_without_verified_negative_count": 0,
+              "meta_or_fallback_flaw_count": 0
+            },
+            "improved_keys": [],
+            "worsened_keys": [],
+            "tolerated_worsened_keys": [],
+            "consistency_improved": false,
+            "negative_recovery_commit": false,
+            "contested_relation_delta": 1,
+            "contested_relation_added": true,
+            "diagnosis_pending_concern_delta": 0,
+            "diagnosis_pending_concern_added": false
+          }
+        }
+      ]
+    },
+    {
+      "paper_id": "uOrfve3prk",
+      "final_decision": "reject",
+      "reward": 0.5259750599420706,
+      "counted_for_hygiene_delta_or_safe_block_or_clean_state": true,
+      "hygiene_case_reasons": [
+        "clean_state_recognized",
+        "hygiene_delta_improved"
+      ],
+      "state_contamination_count": 0,
+      "harmful_state_contamination_count": 0,
+      "contamination_type_counts": {},
+      "gap_status_counts": {
+        "resolved": 3,
+        "open": 1
+      },
+      "unresolved_reason_counts": {
+        "missing_reason": 6
+      },
+      "recovery_attempted_turns": 1,
+      "recovery_committed_turns": 1,
+      "recovery_effective_repair_turns": 1,
+      "safe_block_turns": 0,
+      "no_effect_commit_turns": 0,
+      "harmful_commit_risk_turns": 0,
+      "recovery_unknown_target_turns": 0,
+      "recovery_invalid_status_transition_turns": 0,
+      "recovery_evidence_target_mismatch_turns": 0,
+      "recovery_turns": [
+        {
+          "turn_id": 5,
+          "operation": "mark_contested",
+          "target_type": "claim",
+          "target_id": "claim-2",
+          "gate": "real_target",
+          "failure_code": "SUCCESS",
+          "committed": true,
+          "effective_repair": true,
+          "no_effect_commit": false,
+          "harmful_commit_risk": false,
+          "state_delta": {
+            "before": {
+              "open_conflict_count": 0,
+              "open_evidence_gap_count": 1,
+              "stale_evidence_gap_count": 0,
+              "claims_reconciled_with_strong_support_count": 0,
+              "grounded_weakness_count": 0,
+              "verified_potential_concern_count": 1,
+              "potential_concern_count": 1,
+              "verified_review_issue_count": 1,
+              "obligation_grounded_review_issue_count": 1,
+              "assessment_limitation_flaw_count": 0,
+              "negative_grounding_conflict_count": 0,
+              "confirmed_flaw_without_verified_negative_count": 0,
+              "meta_or_fallback_flaw_count": 0
+            },
+            "after": {
+              "open_conflict_count": 0,
+              "open_evidence_gap_count": 1,
+              "stale_evidence_gap_count": 0,
+              "claims_reconciled_with_strong_support_count": 0,
+              "grounded_weakness_count": 0,
+              "verified_potential_concern_count": 1,
+              "potential_concern_count": 1,
+              "verified_review_issue_count": 1,
+              "obligation_grounded_review_issue_count": 1,
+              "assessment_limitation_flaw_count": 0,
+              "negative_grounding_conflict_count": 0,
+              "confirmed_flaw_without_verified_negative_count": 0,
+              "meta_or_fallback_flaw_count": 0
+            },
+            "delta": {
+              "open_conflict_count": 0,
+              "open_evidence_gap_count": 0,
+              "stale_evidence_gap_count": 0,
+              "claims_reconciled_with_strong_support_count": 0,
+              "grounded_weakness_count": 0,
+              "verified_potential_concern_count": 0,
+              "potential_concern_count": 0,
+              "verified_review_issue_count": 0,
+              "obligation_grounded_review_issue_count": 0,
+              "assessment_limitation_flaw_count": 0,
+              "negative_grounding_conflict_count": 0,
+              "confirmed_flaw_without_verified_negative_count": 0,
+              "meta_or_fallback_flaw_count": 0
+            },
+            "improved_keys": [],
+            "worsened_keys": [],
+            "tolerated_worsened_keys": [],
+            "consistency_improved": false,
+            "negative_recovery_commit": false,
+            "contested_relation_delta": 1,
+            "contested_relation_added": true,
+            "diagnosis_pending_concern_delta": 0,
+            "diagnosis_pending_concern_added": false
+          }
+        }
+      ]
+    },
+    {
+      "paper_id": "7Dub7UXTXN",
+      "final_decision": "reject",
+      "reward": 0.533423360965066,
+      "counted_for_hygiene_delta_or_safe_block_or_clean_state": false,
+      "hygiene_case_reasons": [
+        "evidence_misbinding_present",
+        "validator_blocked_without_final_safe_state"
+      ],
+      "state_contamination_count": 2,
+      "harmful_state_contamination_count": 0,
+      "contamination_type_counts": {
+        "evidence_misbinding": 2
+      },
+      "gap_status_counts": {
+        "resolved": 1,
+        "converted": 2,
+        "open": 1
+      },
+      "unresolved_reason_counts": {
+        "missing_reason": 9
+      },
+      "recovery_attempted_turns": 2,
+      "recovery_committed_turns": 0,
+      "recovery_effective_repair_turns": 0,
+      "safe_block_turns": 0,
+      "no_effect_commit_turns": 0,
+      "harmful_commit_risk_turns": 0,
+      "recovery_unknown_target_turns": 0,
+      "recovery_invalid_status_transition_turns": 1,
+      "recovery_evidence_target_mismatch_turns": 0,
+      "recovery_turns": [
+        {
+          "turn_id": 6,
+          "operation": "reject_patch",
+          "target_type": "claim",
+          "target_id": "claim-2",
+          "gate": "weak_target",
+          "failure_code": "NO_EFFECT_PATCH",
+          "committed": false,
+          "effective_repair": false,
+          "no_effect_commit": false,
+          "harmful_commit_risk": false,
+          "state_delta": {}
+        },
+        {
+          "turn_id": 7,
+          "operation": "reject_patch",
+          "target_type": "claim",
+          "target_id": "claim-2",
+          "gate": "weak_target",
+          "failure_code": "INVALID_STATUS_TRANSITION",
+          "committed": false,
+          "effective_repair": false,
+          "no_effect_commit": false,
+          "harmful_commit_risk": false,
+          "state_delta": {}
+        }
+      ]
+    },
+    {
+      "paper_id": "9zEBK3E9bX",
+      "final_decision": "reject",
+      "reward": 0.7064264515445023,
+      "counted_for_hygiene_delta_or_safe_block_or_clean_state": true,
+      "hygiene_case_reasons": [
+        "clean_state_recognized"
+      ],
+      "state_contamination_count": 0,
+      "harmful_state_contamination_count": 0,
+      "contamination_type_counts": {},
+      "gap_status_counts": {
+        "resolved": 3
+      },
+      "unresolved_reason_counts": {
+        "missing_reason": 4
+      },
+      "recovery_attempted_turns": 1,
+      "recovery_committed_turns": 1,
+      "recovery_effective_repair_turns": 0,
+      "safe_block_turns": 0,
+      "no_effect_commit_turns": 0,
+      "harmful_commit_risk_turns": 0,
+      "recovery_unknown_target_turns": 0,
+      "recovery_invalid_status_transition_turns": 0,
+      "recovery_evidence_target_mismatch_turns": 0,
+      "recovery_turns": [
+        {
+          "turn_id": 4,
+          "operation": "record_diagnosis_pending_concern",
+          "target_type": "claim_requirement_gap",
+          "target_id": "claim-1",
+          "gate": "diagnosis_pending_target",
+          "failure_code": "SUCCESS",
+          "committed": true,
+          "effective_repair": false,
+          "no_effect_commit": false,
+          "harmful_commit_risk": false,
+          "state_delta": {
+            "before": {
+              "open_conflict_count": 2,
+              "open_evidence_gap_count": 1,
+              "stale_evidence_gap_count": 0,
+              "claims_reconciled_with_strong_support_count": 0,
+              "grounded_weakness_count": 0,
+              "verified_potential_concern_count": 0,
+              "potential_concern_count": 0,
+              "verified_review_issue_count": 0,
+              "obligation_grounded_review_issue_count": 0,
+              "assessment_limitation_flaw_count": 0,
+              "negative_grounding_conflict_count": 0,
+              "confirmed_flaw_without_verified_negative_count": 0,
+              "meta_or_fallback_flaw_count": 0
+            },
+            "after": {
+              "open_conflict_count": 2,
+              "open_evidence_gap_count": 1,
+              "stale_evidence_gap_count": 0,
+              "claims_reconciled_with_strong_support_count": 0,
+              "grounded_weakness_count": 0,
+              "verified_potential_concern_count": 0,
+              "potential_concern_count": 0,
+              "verified_review_issue_count": 0,
+              "obligation_grounded_review_issue_count": 0,
+              "assessment_limitation_flaw_count": 0,
+              "negative_grounding_conflict_count": 0,
+              "confirmed_flaw_without_verified_negative_count": 0,
+              "meta_or_fallback_flaw_count": 0
+            },
+            "delta": {
+              "open_conflict_count": 0,
+              "open_evidence_gap_count": 0,
+              "stale_evidence_gap_count": 0,
+              "claims_reconciled_with_strong_support_count": 0,
+              "grounded_weakness_count": 0,
+              "verified_potential_concern_count": 0,
+              "potential_concern_count": 0,
+              "verified_review_issue_count": 0,
+              "obligation_grounded_review_issue_count": 0,
+              "assessment_limitation_flaw_count": 0,
+              "negative_grounding_conflict_count": 0,
+              "confirmed_flaw_without_verified_negative_count": 0,
+              "meta_or_fallback_flaw_count": 0
+            },
+            "improved_keys": [],
+            "worsened_keys": [],
+            "tolerated_worsened_keys": [],
+            "consistency_improved": false,
+            "negative_recovery_commit": false,
+            "contested_relation_delta": 0,
+            "contested_relation_added": false,
+            "diagnosis_pending_concern_delta": 1,
+            "diagnosis_pending_concern_added": true
+          }
+        }
+      ]
+    },
+    {
+      "paper_id": "XyB4VvF01X",
+      "final_decision": "reject",
+      "reward": 0.5090848339486196,
+      "counted_for_hygiene_delta_or_safe_block_or_clean_state": true,
+      "hygiene_case_reasons": [
+        "clean_state_recognized"
+      ],
+      "state_contamination_count": 0,
+      "harmful_state_contamination_count": 0,
+      "contamination_type_counts": {},
+      "gap_status_counts": {
+        "resolved": 2,
+        "open": 2
+      },
+      "unresolved_reason_counts": {
+        "missing_reason": 9
+      },
+      "recovery_attempted_turns": 2,
+      "recovery_committed_turns": 1,
+      "recovery_effective_repair_turns": 0,
+      "safe_block_turns": 0,
+      "no_effect_commit_turns": 0,
+      "harmful_commit_risk_turns": 0,
+      "recovery_unknown_target_turns": 1,
+      "recovery_invalid_status_transition_turns": 0,
+      "recovery_evidence_target_mismatch_turns": 0,
+      "recovery_turns": [
+        {
+          "turn_id": 4,
+          "operation": "reject_patch",
+          "target_type": "claim_requirement_gap",
+          "target_id": "claim-1",
+          "gate": "weak_target",
+          "failure_code": "UNKNOWN_TARGET",
+          "committed": false,
+          "effective_repair": false,
+          "no_effect_commit": false,
+          "harmful_commit_risk": false,
+          "state_delta": {}
+        },
+        {
+          "turn_id": 6,
+          "operation": "record_diagnosis_pending_concern",
+          "target_type": "claim_requirement_gap",
+          "target_id": "claim-3",
+          "gate": "diagnosis_pending_target",
+          "failure_code": "SUCCESS",
+          "committed": true,
+          "effective_repair": false,
+          "no_effect_commit": false,
+          "harmful_commit_risk": false,
+          "state_delta": {
+            "before": {
+              "open_conflict_count": 2,
+              "open_evidence_gap_count": 2,
+              "stale_evidence_gap_count": 0,
+              "claims_reconciled_with_strong_support_count": 0,
+              "grounded_weakness_count": 0,
+              "verified_potential_concern_count": 0,
+              "potential_concern_count": 0,
+              "verified_review_issue_count": 0,
+              "obligation_grounded_review_issue_count": 0,
+              "assessment_limitation_flaw_count": 0,
+              "negative_grounding_conflict_count": 0,
+              "confirmed_flaw_without_verified_negative_count": 0,
+              "meta_or_fallback_flaw_count": 0
+            },
+            "after": {
+              "open_conflict_count": 2,
+              "open_evidence_gap_count": 2,
+              "stale_evidence_gap_count": 0,
+              "claims_reconciled_with_strong_support_count": 0,
+              "grounded_weakness_count": 0,
+              "verified_potential_concern_count": 0,
+              "potential_concern_count": 0,
+              "verified_review_issue_count": 0,
+              "obligation_grounded_review_issue_count": 0,
+              "assessment_limitation_flaw_count": 0,
+              "negative_grounding_conflict_count": 0,
+              "confirmed_flaw_without_verified_negative_count": 0,
+              "meta_or_fallback_flaw_count": 0
+            },
+            "delta": {
+              "open_conflict_count": 0,
+              "open_evidence_gap_count": 0,
+              "stale_evidence_gap_count": 0,
+              "claims_reconciled_with_strong_support_count": 0,
+              "grounded_weakness_count": 0,
+              "verified_potential_concern_count": 0,
+              "potential_concern_count": 0,
+              "verified_review_issue_count": 0,
+              "obligation_grounded_review_issue_count": 0,
+              "assessment_limitation_flaw_count": 0,
+              "negative_grounding_conflict_count": 0,
+              "confirmed_flaw_without_verified_negative_count": 0,
+              "meta_or_fallback_flaw_count": 0
+            },
+            "improved_keys": [],
+            "worsened_keys": [],
+            "tolerated_worsened_keys": [],
+            "consistency_improved": false,
+            "negative_recovery_commit": false,
+            "contested_relation_delta": 0,
+            "contested_relation_added": false,
+            "diagnosis_pending_concern_delta": 1,
+            "diagnosis_pending_concern_added": true
+          }
+        }
+      ]
+    },
+    {
+      "paper_id": "GE6iywJtsV",
+      "final_decision": "reject",
+      "reward": 0.5076164036855366,
+      "counted_for_hygiene_delta_or_safe_block_or_clean_state": true,
+      "hygiene_case_reasons": [
+        "safe_block_counted"
+      ],
+      "state_contamination_count": 1,
+      "harmful_state_contamination_count": 0,
+      "contamination_type_counts": {
+        "evidence_misbinding": 1
+      },
+      "gap_status_counts": {
+        "resolved": 2,
+        "open": 2
+      },
+      "unresolved_reason_counts": {
+        "missing_reason": 10
+      },
+      "recovery_attempted_turns": 1,
+      "recovery_committed_turns": 0,
+      "recovery_effective_repair_turns": 0,
+      "safe_block_turns": 1,
+      "no_effect_commit_turns": 0,
+      "harmful_commit_risk_turns": 0,
+      "recovery_unknown_target_turns": 0,
+      "recovery_invalid_status_transition_turns": 0,
+      "recovery_evidence_target_mismatch_turns": 0,
+      "recovery_turns": [
+        {
+          "turn_id": 3,
+          "operation": "reject_patch",
+          "target_type": "flaw",
+          "target_id": "flaw-reviewer-absence-claim-2-missing-ablation",
+          "gate": "negative_verified_target",
+          "failure_code": "BLOCKED_BY_POLICY",
+          "committed": false,
+          "effective_repair": false,
+          "no_effect_commit": false,
+          "harmful_commit_risk": false,
+          "state_delta": {}
+        }
+      ]
+    },
+    {
+      "paper_id": "WpXq5n8yLb",
+      "final_decision": "reject",
+      "reward": 0.42920113981030494,
+      "counted_for_hygiene_delta_or_safe_block_or_clean_state": true,
+      "hygiene_case_reasons": [
+        "safe_block_counted"
+      ],
+      "state_contamination_count": 4,
+      "harmful_state_contamination_count": 0,
+      "contamination_type_counts": {
+        "zero_real_support": 1,
+        "stale_gap_persistence": 2,
+        "evidence_misbinding": 1
+      },
+      "gap_status_counts": {
+        "open": 3,
+        "resolved": 1
+      },
+      "unresolved_reason_counts": {
+        "missing_reason": 9
+      },
+      "recovery_attempted_turns": 3,
+      "recovery_committed_turns": 0,
+      "recovery_effective_repair_turns": 0,
+      "safe_block_turns": 1,
+      "no_effect_commit_turns": 0,
+      "harmful_commit_risk_turns": 0,
+      "recovery_unknown_target_turns": 0,
+      "recovery_invalid_status_transition_turns": 0,
+      "recovery_evidence_target_mismatch_turns": 0,
+      "recovery_turns": [
+        {
+          "turn_id": 4,
+          "operation": "reject_patch",
+          "target_type": "claim",
+          "target_id": "claim-3",
+          "gate": "weak_target",
+          "failure_code": "NO_EFFECT_PATCH",
+          "committed": false,
+          "effective_repair": false,
+          "no_effect_commit": false,
+          "harmful_commit_risk": false,
+          "state_delta": {}
+        },
+        {
+          "turn_id": 5,
+          "operation": "reject_patch",
+          "target_type": "claim",
+          "target_id": "claim-3",
+          "gate": "weak_target",
+          "failure_code": "NO_EFFECT_PATCH",
+          "committed": false,
+          "effective_repair": false,
+          "no_effect_commit": false,
+          "harmful_commit_risk": false,
+          "state_delta": {}
+        },
+        {
+          "turn_id": 6,
+          "operation": "reject_patch",
+          "target_type": "flaw",
+          "target_id": "flaw-reviewer-absence-claim-1-missing-ablation",
+          "gate": "negative_verified_target",
+          "failure_code": "BLOCKED_BY_POLICY",
+          "committed": false,
+          "effective_repair": false,
+          "no_effect_commit": false,
+          "harmful_commit_risk": false,
+          "state_delta": {}
+        }
+      ]
+    },
+    {
+      "paper_id": "NnExMNiTHw",
+      "final_decision": "reject",
+      "reward": 0.40019648639233835,
+      "counted_for_hygiene_delta_or_safe_block_or_clean_state": true,
+      "hygiene_case_reasons": [
+        "hygiene_delta_improved",
+        "safe_block_counted"
+      ],
+      "state_contamination_count": 3,
+      "harmful_state_contamination_count": 0,
+      "contamination_type_counts": {
+        "zero_real_support": 1,
+        "evidence_misbinding": 2
+      },
+      "gap_status_counts": {
+        "resolved": 5,
+        "open": 1
+      },
+      "unresolved_reason_counts": {
+        "missing_reason": 9
+      },
+      "recovery_attempted_turns": 2,
+      "recovery_committed_turns": 1,
+      "recovery_effective_repair_turns": 1,
+      "safe_block_turns": 1,
+      "no_effect_commit_turns": 0,
+      "harmful_commit_risk_turns": 0,
+      "recovery_unknown_target_turns": 0,
+      "recovery_invalid_status_transition_turns": 0,
+      "recovery_evidence_target_mismatch_turns": 0,
+      "recovery_turns": [
+        {
+          "turn_id": 6,
+          "operation": "mark_contested",
+          "target_type": "claim",
+          "target_id": "claim-1",
+          "gate": "real_target",
+          "failure_code": "SUCCESS",
+          "committed": true,
+          "effective_repair": true,
+          "no_effect_commit": false,
+          "harmful_commit_risk": false,
+          "state_delta": {
+            "before": {
+              "open_conflict_count": 0,
+              "open_evidence_gap_count": 1,
+              "stale_evidence_gap_count": 1,
+              "claims_reconciled_with_strong_support_count": 0,
+              "grounded_weakness_count": 0,
+              "verified_potential_concern_count": 2,
+              "potential_concern_count": 2,
+              "verified_review_issue_count": 2,
+              "obligation_grounded_review_issue_count": 2,
+              "assessment_limitation_flaw_count": 2,
+              "negative_grounding_conflict_count": 0,
+              "confirmed_flaw_without_verified_negative_count": 0,
+              "meta_or_fallback_flaw_count": 2
+            },
+            "after": {
+              "open_conflict_count": 0,
+              "open_evidence_gap_count": 1,
+              "stale_evidence_gap_count": 1,
+              "claims_reconciled_with_strong_support_count": 0,
+              "grounded_weakness_count": 0,
+              "verified_potential_concern_count": 2,
+              "potential_concern_count": 2,
+              "verified_review_issue_count": 2,
+              "obligation_grounded_review_issue_count": 2,
+              "assessment_limitation_flaw_count": 2,
+              "negative_grounding_conflict_count": 0,
+              "confirmed_flaw_without_verified_negative_count": 0,
+              "meta_or_fallback_flaw_count": 2
+            },
+            "delta": {
+              "open_conflict_count": 0,
+              "open_evidence_gap_count": 0,
+              "stale_evidence_gap_count": 0,
+              "claims_reconciled_with_strong_support_count": 0,
+              "grounded_weakness_count": 0,
+              "verified_potential_concern_count": 0,
+              "potential_concern_count": 0,
+              "verified_review_issue_count": 0,
+              "obligation_grounded_review_issue_count": 0,
+              "assessment_limitation_flaw_count": 0,
+              "negative_grounding_conflict_count": 0,
+              "confirmed_flaw_without_verified_negative_count": 0,
+              "meta_or_fallback_flaw_count": 0
+            },
+            "improved_keys": [],
+            "worsened_keys": [],
+            "tolerated_worsened_keys": [],
+            "consistency_improved": false,
+            "negative_recovery_commit": false,
+            "contested_relation_delta": 1,
+            "contested_relation_added": true,
+            "diagnosis_pending_concern_delta": 0,
+            "diagnosis_pending_concern_added": false
+          }
+        },
+        {
+          "turn_id": 7,
+          "operation": "reject_patch",
+          "target_type": "claim",
+          "target_id": "claim-2",
+          "gate": "weak_target",
+          "failure_code": "BLOCKED_BY_POLICY",
+          "committed": false,
+          "effective_repair": false,
+          "no_effect_commit": false,
+          "harmful_commit_risk": false,
+          "state_delta": {}
+        }
+      ]
+    },
+    {
+      "paper_id": "a6SntIisgg",
+      "final_decision": "reject",
+      "reward": 0.6729879002574383,
+      "counted_for_hygiene_delta_or_safe_block_or_clean_state": false,
+      "hygiene_case_reasons": [
+        "evidence_misbinding_present"
+      ],
+      "state_contamination_count": 1,
+      "harmful_state_contamination_count": 0,
+      "contamination_type_counts": {
+        "evidence_misbinding": 1
+      },
+      "gap_status_counts": {
+        "resolved": 5
+      },
+      "unresolved_reason_counts": {
+        "missing_reason": 9
+      },
+      "recovery_attempted_turns": 0,
+      "recovery_committed_turns": 0,
+      "recovery_effective_repair_turns": 0,
+      "safe_block_turns": 0,
+      "no_effect_commit_turns": 0,
+      "harmful_commit_risk_turns": 0,
+      "recovery_unknown_target_turns": 0,
+      "recovery_invalid_status_transition_turns": 0,
+      "recovery_evidence_target_mismatch_turns": 0,
+      "recovery_turns": []
+    },
+    {
+      "paper_id": "cklg91aPGk",
+      "final_decision": "reject",
+      "reward": 0.5701215923161762,
+      "counted_for_hygiene_delta_or_safe_block_or_clean_state": true,
+      "hygiene_case_reasons": [
+        "hygiene_delta_improved",
+        "negative_semantic_rejected"
+      ],
+      "state_contamination_count": 1,
+      "harmful_state_contamination_count": 0,
+      "contamination_type_counts": {
+        "evidence_misbinding": 1
+      },
+      "gap_status_counts": {
+        "resolved": 3,
+        "open": 1
+      },
+      "unresolved_reason_counts": {
+        "missing_reason": 9
+      },
+      "recovery_attempted_turns": 1,
+      "recovery_committed_turns": 1,
+      "recovery_effective_repair_turns": 1,
+      "safe_block_turns": 0,
+      "no_effect_commit_turns": 0,
+      "harmful_commit_risk_turns": 0,
+      "recovery_unknown_target_turns": 0,
+      "recovery_invalid_status_transition_turns": 0,
+      "recovery_evidence_target_mismatch_turns": 0,
+      "recovery_turns": [
+        {
+          "turn_id": 4,
+          "operation": "mark_contested",
+          "target_type": "claim",
+          "target_id": "claim-1",
+          "gate": "real_target",
+          "failure_code": "SUCCESS",
+          "committed": true,
+          "effective_repair": true,
+          "no_effect_commit": false,
+          "harmful_commit_risk": false,
+          "state_delta": {
+            "before": {
+              "open_conflict_count": 1,
+              "open_evidence_gap_count": 1,
+              "stale_evidence_gap_count": 0,
+              "claims_reconciled_with_strong_support_count": 1,
+              "grounded_weakness_count": 0,
+              "verified_potential_concern_count": 1,
+              "potential_concern_count": 1,
+              "verified_review_issue_count": 1,
+              "obligation_grounded_review_issue_count": 1,
+              "assessment_limitation_flaw_count": 0,
+              "negative_grounding_conflict_count": 0,
+              "confirmed_flaw_without_verified_negative_count": 0,
+              "meta_or_fallback_flaw_count": 0
+            },
+            "after": {
+              "open_conflict_count": 1,
+              "open_evidence_gap_count": 1,
+              "stale_evidence_gap_count": 0,
+              "claims_reconciled_with_strong_support_count": 1,
+              "grounded_weakness_count": 0,
+              "verified_potential_concern_count": 1,
+              "potential_concern_count": 1,
+              "verified_review_issue_count": 1,
+              "obligation_grounded_review_issue_count": 1,
+              "assessment_limitation_flaw_count": 0,
+              "negative_grounding_conflict_count": 0,
+              "confirmed_flaw_without_verified_negative_count": 0,
+              "meta_or_fallback_flaw_count": 0
+            },
+            "delta": {
+              "open_conflict_count": 0,
+              "open_evidence_gap_count": 0,
+              "stale_evidence_gap_count": 0,
+              "claims_reconciled_with_strong_support_count": 0,
+              "grounded_weakness_count": 0,
+              "verified_potential_concern_count": 0,
+              "potential_concern_count": 0,
+              "verified_review_issue_count": 0,
+              "obligation_grounded_review_issue_count": 0,
+              "assessment_limitation_flaw_count": 0,
+              "negative_grounding_conflict_count": 0,
+              "confirmed_flaw_without_verified_negative_count": 0,
+              "meta_or_fallback_flaw_count": 0
+            },
+            "improved_keys": [],
+            "worsened_keys": [],
+            "tolerated_worsened_keys": [],
+            "consistency_improved": false,
+            "negative_recovery_commit": false,
+            "contested_relation_delta": 1,
+            "contested_relation_added": true,
+            "diagnosis_pending_concern_delta": 0,
+            "diagnosis_pending_concern_added": false
+          }
+        }
+      ]
+    },
+    {
+      "paper_id": "HPuLU6q7xq",
+      "final_decision": "reject",
+      "reward": 0.46886593866350285,
+      "counted_for_hygiene_delta_or_safe_block_or_clean_state": true,
+      "hygiene_case_reasons": [
+        "clean_state_recognized"
+      ],
+      "state_contamination_count": 0,
+      "harmful_state_contamination_count": 0,
+      "contamination_type_counts": {},
+      "gap_status_counts": {
+        "open": 3,
+        "resolved": 1
+      },
+      "unresolved_reason_counts": {
+        "missing_reason": 10
+      },
+      "recovery_attempted_turns": 0,
+      "recovery_committed_turns": 0,
+      "recovery_effective_repair_turns": 0,
+      "safe_block_turns": 0,
+      "no_effect_commit_turns": 0,
+      "harmful_commit_risk_turns": 0,
+      "recovery_unknown_target_turns": 0,
+      "recovery_invalid_status_transition_turns": 0,
+      "recovery_evidence_target_mismatch_turns": 0,
+      "recovery_turns": []
+    },
+    {
+      "paper_id": "fGXyvmWpw6",
+      "final_decision": "reject",
+      "reward": 0.532735361055855,
+      "counted_for_hygiene_delta_or_safe_block_or_clean_state": true,
+      "hygiene_case_reasons": [
+        "hygiene_delta_improved",
+        "safe_block_counted"
+      ],
+      "state_contamination_count": 2,
+      "harmful_state_contamination_count": 0,
+      "contamination_type_counts": {
+        "stale_gap_persistence": 1,
+        "evidence_misbinding": 1
+      },
+      "gap_status_counts": {
+        "resolved": 4,
+        "open": 3
+      },
+      "unresolved_reason_counts": {
+        "missing_reason": 10
+      },
+      "recovery_attempted_turns": 3,
+      "recovery_committed_turns": 2,
+      "recovery_effective_repair_turns": 2,
+      "safe_block_turns": 1,
+      "no_effect_commit_turns": 0,
+      "harmful_commit_risk_turns": 0,
+      "recovery_unknown_target_turns": 0,
+      "recovery_invalid_status_transition_turns": 0,
+      "recovery_evidence_target_mismatch_turns": 0,
+      "recovery_turns": [
+        {
+          "turn_id": 4,
+          "operation": "reject_patch",
+          "target_type": "claim",
+          "target_id": "claim-4",
+          "gate": "weak_target",
+          "failure_code": "EVIDENCE_SEMANTIC_MISMATCH",
+          "committed": false,
+          "effective_repair": false,
+          "no_effect_commit": false,
+          "harmful_commit_risk": false,
+          "state_delta": {}
+        },
+        {
+          "turn_id": 5,
+          "operation": "mark_contested",
+          "target_type": "claim",
+          "target_id": "claim-1",
+          "gate": "real_target",
+          "failure_code": "SUCCESS",
+          "committed": true,
+          "effective_repair": true,
+          "no_effect_commit": false,
+          "harmful_commit_risk": false,
+          "state_delta": {
+            "before": {
+              "open_conflict_count": 0,
+              "open_evidence_gap_count": 1,
+              "stale_evidence_gap_count": 1,
+              "claims_reconciled_with_strong_support_count": 0,
+              "grounded_weakness_count": 0,
+              "verified_potential_concern_count": 3,
+              "potential_concern_count": 3,
+              "verified_review_issue_count": 3,
+              "obligation_grounded_review_issue_count": 3,
+              "assessment_limitation_flaw_count": 0,
+              "negative_grounding_conflict_count": 0,
+              "confirmed_flaw_without_verified_negative_count": 0,
+              "meta_or_fallback_flaw_count": 0
+            },
+            "after": {
+              "open_conflict_count": 0,
+              "open_evidence_gap_count": 1,
+              "stale_evidence_gap_count": 1,
+              "claims_reconciled_with_strong_support_count": 0,
+              "grounded_weakness_count": 0,
+              "verified_potential_concern_count": 3,
+              "potential_concern_count": 3,
+              "verified_review_issue_count": 3,
+              "obligation_grounded_review_issue_count": 3,
+              "assessment_limitation_flaw_count": 0,
+              "negative_grounding_conflict_count": 0,
+              "confirmed_flaw_without_verified_negative_count": 0,
+              "meta_or_fallback_flaw_count": 0
+            },
+            "delta": {
+              "open_conflict_count": 0,
+              "open_evidence_gap_count": 0,
+              "stale_evidence_gap_count": 0,
+              "claims_reconciled_with_strong_support_count": 0,
+              "grounded_weakness_count": 0,
+              "verified_potential_concern_count": 0,
+              "potential_concern_count": 0,
+              "verified_review_issue_count": 0,
+              "obligation_grounded_review_issue_count": 0,
+              "assessment_limitation_flaw_count": 0,
+              "negative_grounding_conflict_count": 0,
+              "confirmed_flaw_without_verified_negative_count": 0,
+              "meta_or_fallback_flaw_count": 0
+            },
+            "improved_keys": [],
+            "worsened_keys": [],
+            "tolerated_worsened_keys": [],
+            "consistency_improved": false,
+            "negative_recovery_commit": false,
+            "contested_relation_delta": 1,
+            "contested_relation_added": true,
+            "diagnosis_pending_concern_delta": 0,
+            "diagnosis_pending_concern_added": false
+          }
+        },
+        {
+          "turn_id": 6,
+          "operation": "mark_contested",
+          "target_type": "claim",
+          "target_id": "claim-2",
+          "gate": "real_target",
+          "failure_code": "SUCCESS",
+          "committed": true,
+          "effective_repair": true,
+          "no_effect_commit": false,
+          "harmful_commit_risk": false,
+          "state_delta": {
+            "before": {
+              "open_conflict_count": 0,
+              "open_evidence_gap_count": 1,
+              "stale_evidence_gap_count": 3,
+              "claims_reconciled_with_strong_support_count": 0,
+              "grounded_weakness_count": 0,
+              "verified_potential_concern_count": 4,
+              "potential_concern_count": 4,
+              "verified_review_issue_count": 3,
+              "obligation_grounded_review_issue_count": 3,
+              "assessment_limitation_flaw_count": 1,
+              "negative_grounding_conflict_count": 0,
+              "confirmed_flaw_without_verified_negative_count": 0,
+              "meta_or_fallback_flaw_count": 1
+            },
+            "after": {
+              "open_conflict_count": 0,
+              "open_evidence_gap_count": 1,
+              "stale_evidence_gap_count": 3,
+              "claims_reconciled_with_strong_support_count": 0,
+              "grounded_weakness_count": 0,
+              "verified_potential_concern_count": 4,
+              "potential_concern_count": 4,
+              "verified_review_issue_count": 3,
+              "obligation_grounded_review_issue_count": 3,
+              "assessment_limitation_flaw_count": 1,
+              "negative_grounding_conflict_count": 0,
+              "confirmed_flaw_without_verified_negative_count": 0,
+              "meta_or_fallback_flaw_count": 1
+            },
+            "delta": {
+              "open_conflict_count": 0,
+              "open_evidence_gap_count": 0,
+              "stale_evidence_gap_count": 0,
+              "claims_reconciled_with_strong_support_count": 0,
+              "grounded_weakness_count": 0,
+              "verified_potential_concern_count": 0,
+              "potential_concern_count": 0,
+              "verified_review_issue_count": 0,
+              "obligation_grounded_review_issue_count": 0,
+              "assessment_limitation_flaw_count": 0,
+              "negative_grounding_conflict_count": 0,
+              "confirmed_flaw_without_verified_negative_count": 0,
+              "meta_or_fallback_flaw_count": 0
+            },
+            "improved_keys": [],
+            "worsened_keys": [],
+            "tolerated_worsened_keys": [],
+            "consistency_improved": false,
+            "negative_recovery_commit": false,
+            "contested_relation_delta": 1,
+            "contested_relation_added": true,
+            "diagnosis_pending_concern_delta": 0,
+            "diagnosis_pending_concern_added": false
+          }
+        }
+      ]
+    },
+    {
+      "paper_id": "QAgwFiIY4p",
+      "final_decision": "reject",
+      "reward": 0.4609807113061051,
+      "counted_for_hygiene_delta_or_safe_block_or_clean_state": true,
+      "hygiene_case_reasons": [
+        "clean_state_recognized"
+      ],
+      "state_contamination_count": 0,
+      "harmful_state_contamination_count": 0,
+      "contamination_type_counts": {},
+      "gap_status_counts": {
+        "resolved": 4
+      },
+      "unresolved_reason_counts": {
+        "missing_reason": 7
+      },
+      "recovery_attempted_turns": 0,
+      "recovery_committed_turns": 0,
+      "recovery_effective_repair_turns": 0,
+      "safe_block_turns": 0,
+      "no_effect_commit_turns": 0,
+      "harmful_commit_risk_turns": 0,
+      "recovery_unknown_target_turns": 0,
+      "recovery_invalid_status_transition_turns": 0,
+      "recovery_evidence_target_mismatch_turns": 0,
+      "recovery_turns": []
+    },
+    {
+      "paper_id": "TPAj63ax4Y",
+      "final_decision": "reject",
+      "reward": 0.4808709641902854,
+      "counted_for_hygiene_delta_or_safe_block_or_clean_state": true,
+      "hygiene_case_reasons": [
+        "clean_state_recognized"
+      ],
+      "state_contamination_count": 0,
+      "harmful_state_contamination_count": 0,
+      "contamination_type_counts": {},
+      "gap_status_counts": {
+        "resolved": 5,
+        "open": 1
+      },
+      "unresolved_reason_counts": {
+        "missing_reason": 10
+      },
+      "recovery_attempted_turns": 0,
+      "recovery_committed_turns": 0,
+      "recovery_effective_repair_turns": 0,
+      "safe_block_turns": 0,
+      "no_effect_commit_turns": 0,
+      "harmful_commit_risk_turns": 0,
+      "recovery_unknown_target_turns": 0,
+      "recovery_invalid_status_transition_turns": 0,
+      "recovery_evidence_target_mismatch_turns": 0,
+      "recovery_turns": []
+    },
+    {
+      "paper_id": "mHv6wcBb0z",
+      "final_decision": "reject",
+      "reward": 0.49696394080941586,
+      "counted_for_hygiene_delta_or_safe_block_or_clean_state": false,
+      "hygiene_case_reasons": [
+        "validator_blocked_without_final_safe_state"
+      ],
+      "state_contamination_count": 2,
+      "harmful_state_contamination_count": 0,
+      "contamination_type_counts": {
+        "stale_gap_persistence": 2
+      },
+      "gap_status_counts": {
+        "resolved": 3,
+        "open": 2
+      },
+      "unresolved_reason_counts": {
+        "missing_reason": 10
+      },
+      "recovery_attempted_turns": 2,
+      "recovery_committed_turns": 0,
+      "recovery_effective_repair_turns": 0,
+      "safe_block_turns": 0,
+      "no_effect_commit_turns": 0,
+      "harmful_commit_risk_turns": 0,
+      "recovery_unknown_target_turns": 0,
+      "recovery_invalid_status_transition_turns": 2,
+      "recovery_evidence_target_mismatch_turns": 0,
+      "recovery_turns": [
+        {
+          "turn_id": 5,
+          "operation": "reject_patch",
+          "target_type": "claim",
+          "target_id": "claim-1",
+          "gate": "weak_target",
+          "failure_code": "INVALID_STATUS_TRANSITION",
+          "committed": false,
+          "effective_repair": false,
+          "no_effect_commit": false,
+          "harmful_commit_risk": false,
+          "state_delta": {}
+        },
+        {
+          "turn_id": 6,
+          "operation": "reject_patch",
+          "target_type": "claim",
+          "target_id": "claim-1",
+          "gate": "weak_target",
+          "failure_code": "INVALID_STATUS_TRANSITION",
+          "committed": false,
+          "effective_repair": false,
+          "no_effect_commit": false,
+          "harmful_commit_risk": false,
+          "state_delta": {}
+        }
+      ]
+    },
+    {
+      "paper_id": "xUe1YqEgd6",
+      "final_decision": "reject",
+      "reward": 0.5134109713727215,
+      "counted_for_hygiene_delta_or_safe_block_or_clean_state": false,
+      "hygiene_case_reasons": [
+        "evidence_misbinding_present"
+      ],
+      "state_contamination_count": 1,
+      "harmful_state_contamination_count": 0,
+      "contamination_type_counts": {
+        "evidence_misbinding": 1
+      },
+      "gap_status_counts": {
+        "resolved": 2,
+        "open": 2
+      },
+      "unresolved_reason_counts": {
+        "missing_reason": 10
+      },
+      "recovery_attempted_turns": 0,
+      "recovery_committed_turns": 0,
+      "recovery_effective_repair_turns": 0,
+      "safe_block_turns": 0,
+      "no_effect_commit_turns": 0,
+      "harmful_commit_risk_turns": 0,
+      "recovery_unknown_target_turns": 0,
+      "recovery_invalid_status_transition_turns": 0,
+      "recovery_evidence_target_mismatch_turns": 0,
+      "recovery_turns": []
+    },
+    {
+      "paper_id": "YXn76HMetm",
+      "final_decision": "reject",
+      "reward": 0.5149067374891623,
+      "counted_for_hygiene_delta_or_safe_block_or_clean_state": false,
+      "hygiene_case_reasons": [
+        "unattributed_hygiene_line_miss"
+      ],
+      "state_contamination_count": 1,
+      "harmful_state_contamination_count": 0,
+      "contamination_type_counts": {
+        "stale_gap_persistence": 1
+      },
+      "gap_status_counts": {
+        "resolved": 1,
+        "open": 2
+      },
+      "unresolved_reason_counts": {
+        "missing_reason": 10
+      },
+      "recovery_attempted_turns": 0,
+      "recovery_committed_turns": 0,
+      "recovery_effective_repair_turns": 0,
+      "safe_block_turns": 0,
+      "no_effect_commit_turns": 0,
+      "harmful_commit_risk_turns": 0,
+      "recovery_unknown_target_turns": 0,
+      "recovery_invalid_status_transition_turns": 0,
+      "recovery_evidence_target_mismatch_turns": 0,
+      "recovery_turns": []
+    },
+    {
+      "paper_id": "KOUAayk5Kx",
+      "final_decision": "reject",
+      "reward": 0.5117457169031208,
+      "counted_for_hygiene_delta_or_safe_block_or_clean_state": true,
+      "hygiene_case_reasons": [
+        "hygiene_delta_improved"
+      ],
+      "state_contamination_count": 3,
+      "harmful_state_contamination_count": 0,
+      "contamination_type_counts": {
+        "stale_gap_persistence": 1,
+        "evidence_misbinding": 2
+      },
+      "gap_status_counts": {
+        "resolved": 2,
+        "open": 1
+      },
+      "unresolved_reason_counts": {
+        "missing_reason": 10
+      },
+      "recovery_attempted_turns": 2,
+      "recovery_committed_turns": 2,
+      "recovery_effective_repair_turns": 2,
+      "safe_block_turns": 0,
+      "no_effect_commit_turns": 0,
+      "harmful_commit_risk_turns": 0,
+      "recovery_unknown_target_turns": 0,
+      "recovery_invalid_status_transition_turns": 0,
+      "recovery_evidence_target_mismatch_turns": 0,
+      "recovery_turns": [
+        {
+          "turn_id": 6,
+          "operation": "mark_contested",
+          "target_type": "claim",
+          "target_id": "claim-3",
+          "gate": "real_target",
+          "failure_code": "SUCCESS",
+          "committed": true,
+          "effective_repair": true,
+          "no_effect_commit": false,
+          "harmful_commit_risk": false,
+          "state_delta": {
+            "before": {
+              "open_conflict_count": 1,
+              "open_evidence_gap_count": 0,
+              "stale_evidence_gap_count": 1,
+              "claims_reconciled_with_strong_support_count": 1,
+              "grounded_weakness_count": 0,
+              "verified_potential_concern_count": 4,
+              "potential_concern_count": 4,
+              "verified_review_issue_count": 2,
+              "obligation_grounded_review_issue_count": 2,
+              "assessment_limitation_flaw_count": 0,
+              "negative_grounding_conflict_count": 2,
+              "confirmed_flaw_without_verified_negative_count": 0,
+              "meta_or_fallback_flaw_count": 0
+            },
+            "after": {
+              "open_conflict_count": 1,
+              "open_evidence_gap_count": 0,
+              "stale_evidence_gap_count": 1,
+              "claims_reconciled_with_strong_support_count": 1,
+              "grounded_weakness_count": 0,
+              "verified_potential_concern_count": 4,
+              "potential_concern_count": 4,
+              "verified_review_issue_count": 2,
+              "obligation_grounded_review_issue_count": 2,
+              "assessment_limitation_flaw_count": 0,
+              "negative_grounding_conflict_count": 2,
+              "confirmed_flaw_without_verified_negative_count": 0,
+              "meta_or_fallback_flaw_count": 0
+            },
+            "delta": {
+              "open_conflict_count": 0,
+              "open_evidence_gap_count": 0,
+              "stale_evidence_gap_count": 0,
+              "claims_reconciled_with_strong_support_count": 0,
+              "grounded_weakness_count": 0,
+              "verified_potential_concern_count": 0,
+              "potential_concern_count": 0,
+              "verified_review_issue_count": 0,
+              "obligation_grounded_review_issue_count": 0,
+              "assessment_limitation_flaw_count": 0,
+              "negative_grounding_conflict_count": 0,
+              "confirmed_flaw_without_verified_negative_count": 0,
+              "meta_or_fallback_flaw_count": 0
+            },
+            "improved_keys": [],
+            "worsened_keys": [],
+            "tolerated_worsened_keys": [],
+            "consistency_improved": false,
+            "negative_recovery_commit": false,
+            "contested_relation_delta": 1,
+            "contested_relation_added": true,
+            "diagnosis_pending_concern_delta": 0,
+            "diagnosis_pending_concern_added": false
+          }
+        },
+        {
+          "turn_id": 7,
+          "operation": "mark_contested",
+          "target_type": "claim",
+          "target_id": "claim-1",
+          "gate": "real_target",
+          "failure_code": "SUCCESS",
+          "committed": true,
+          "effective_repair": true,
+          "no_effect_commit": false,
+          "harmful_commit_risk": false,
+          "state_delta": {
+            "before": {
+              "open_conflict_count": 1,
+              "open_evidence_gap_count": 0,
+              "stale_evidence_gap_count": 1,
+              "claims_reconciled_with_strong_support_count": 1,
+              "grounded_weakness_count": 0,
+              "verified_potential_concern_count": 4,
+              "potential_concern_count": 4,
+              "verified_review_issue_count": 2,
+              "obligation_grounded_review_issue_count": 2,
+              "assessment_limitation_flaw_count": 0,
+              "negative_grounding_conflict_count": 2,
+              "confirmed_flaw_without_verified_negative_count": 0,
+              "meta_or_fallback_flaw_count": 0
+            },
+            "after": {
+              "open_conflict_count": 1,
+              "open_evidence_gap_count": 0,
+              "stale_evidence_gap_count": 1,
+              "claims_reconciled_with_strong_support_count": 1,
+              "grounded_weakness_count": 0,
+              "verified_potential_concern_count": 4,
+              "potential_concern_count": 4,
+              "verified_review_issue_count": 2,
+              "obligation_grounded_review_issue_count": 2,
+              "assessment_limitation_flaw_count": 0,
+              "negative_grounding_conflict_count": 2,
+              "confirmed_flaw_without_verified_negative_count": 0,
+              "meta_or_fallback_flaw_count": 0
+            },
+            "delta": {
+              "open_conflict_count": 0,
+              "open_evidence_gap_count": 0,
+              "stale_evidence_gap_count": 0,
+              "claims_reconciled_with_strong_support_count": 0,
+              "grounded_weakness_count": 0,
+              "verified_potential_concern_count": 0,
+              "potential_concern_count": 0,
+              "verified_review_issue_count": 0,
+              "obligation_grounded_review_issue_count": 0,
+              "assessment_limitation_flaw_count": 0,
+              "negative_grounding_conflict_count": 0,
+              "confirmed_flaw_without_verified_negative_count": 0,
+              "meta_or_fallback_flaw_count": 0
+            },
+            "improved_keys": [],
+            "worsened_keys": [],
+            "tolerated_worsened_keys": [],
+            "consistency_improved": false,
+            "negative_recovery_commit": false,
+            "contested_relation_delta": 1,
+            "contested_relation_added": true,
+            "diagnosis_pending_concern_delta": 0,
+            "diagnosis_pending_concern_added": false
+          }
+        }
+      ]
+    },
+    {
+      "paper_id": "XH3OiIhtvf",
+      "final_decision": "reject",
+      "reward": 0.4542275512663245,
+      "counted_for_hygiene_delta_or_safe_block_or_clean_state": false,
+      "hygiene_case_reasons": [
+        "patch_committed_but_no_hygiene_delta",
+        "evidence_misbinding_present"
+      ],
+      "state_contamination_count": 3,
+      "harmful_state_contamination_count": 0,
+      "contamination_type_counts": {
+        "evidence_misbinding": 3
+      },
+      "gap_status_counts": {
+        "resolved": 3,
+        "converted": 3
+      },
+      "unresolved_reason_counts": {
+        "missing_reason": 10
+      },
+      "recovery_attempted_turns": 1,
+      "recovery_committed_turns": 1,
+      "recovery_effective_repair_turns": 0,
+      "safe_block_turns": 0,
+      "no_effect_commit_turns": 0,
+      "harmful_commit_risk_turns": 0,
+      "recovery_unknown_target_turns": 0,
+      "recovery_invalid_status_transition_turns": 0,
+      "recovery_evidence_target_mismatch_turns": 0,
+      "recovery_turns": [
+        {
+          "turn_id": 4,
+          "operation": "record_diagnosis_pending_concern",
+          "target_type": "claim_requirement_gap",
+          "target_id": "claim-2",
+          "gate": "diagnosis_pending_target",
+          "failure_code": "SUCCESS",
+          "committed": true,
+          "effective_repair": false,
+          "no_effect_commit": false,
+          "harmful_commit_risk": false,
+          "state_delta": {
+            "before": {
+              "open_conflict_count": 3,
+              "open_evidence_gap_count": 1,
+              "stale_evidence_gap_count": 0,
+              "claims_reconciled_with_strong_support_count": 0,
+              "grounded_weakness_count": 0,
+              "verified_potential_concern_count": 1,
+              "potential_concern_count": 1,
+              "verified_review_issue_count": 1,
+              "obligation_grounded_review_issue_count": 1,
+              "assessment_limitation_flaw_count": 2,
+              "negative_grounding_conflict_count": 2,
+              "confirmed_flaw_without_verified_negative_count": 0,
+              "meta_or_fallback_flaw_count": 0
+            },
+            "after": {
+              "open_conflict_count": 3,
+              "open_evidence_gap_count": 1,
+              "stale_evidence_gap_count": 0,
+              "claims_reconciled_with_strong_support_count": 0,
+              "grounded_weakness_count": 0,
+              "verified_potential_concern_count": 1,
+              "potential_concern_count": 1,
+              "verified_review_issue_count": 1,
+              "obligation_grounded_review_issue_count": 1,
+              "assessment_limitation_flaw_count": 2,
+              "negative_grounding_conflict_count": 2,
+              "confirmed_flaw_without_verified_negative_count": 0,
+              "meta_or_fallback_flaw_count": 0
+            },
+            "delta": {
+              "open_conflict_count": 0,
+              "open_evidence_gap_count": 0,
+              "stale_evidence_gap_count": 0,
+              "claims_reconciled_with_strong_support_count": 0,
+              "grounded_weakness_count": 0,
+              "verified_potential_concern_count": 0,
+              "potential_concern_count": 0,
+              "verified_review_issue_count": 0,
+              "obligation_grounded_review_issue_count": 0,
+              "assessment_limitation_flaw_count": 0,
+              "negative_grounding_conflict_count": 0,
+              "confirmed_flaw_without_verified_negative_count": 0,
+              "meta_or_fallback_flaw_count": 0
+            },
+            "improved_keys": [],
+            "worsened_keys": [],
+            "tolerated_worsened_keys": [],
+            "consistency_improved": false,
+            "negative_recovery_commit": false,
+            "contested_relation_delta": 0,
+            "contested_relation_added": false,
+            "diagnosis_pending_concern_delta": 1,
+            "diagnosis_pending_concern_added": true
+          }
+        }
+      ]
+    }
+  ]
+}

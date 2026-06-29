@@ -26,6 +26,7 @@ from agent_system.environments.env_package.review.state import (
     _missing_ablation_target_quality,
     _negative_evidence_type_for_record,
     _review_negative_dedup_signature,
+    _review_issue_cluster_signature_for_record,
     build_decision_hygiene_view,
 )
 
@@ -87,8 +88,30 @@ def _bundle_claim_anchor(bundle: Dict[str, Any], state: Dict[str, Any], claim_id
     return _claim_text(state, claim_id)
 
 
+def _slug(value: str) -> str:
+    text = str(value or "").strip().lower()
+    text = "".join(ch if ch.isalnum() else "-" for ch in text)
+    text = "-".join(part for part in text.split("-") if part)
+    return text[:120] or "unspecified"
+
+
+def _case_cluster_fields(paper_id: str, bucket: str, evidence: Dict[str, Any], state: Dict[str, Any]) -> Dict[str, str]:
+    if bucket == "obligation_grounded_review_issue":
+        issue_type, target = _review_issue_cluster_signature_for_record(evidence)
+    else:
+        label, claim_id, issue_type, anchor = _review_negative_dedup_signature(evidence, state)
+        target = anchor.replace("quote:", "", 1)[:80] or claim_id or label or "direct_quote"
+    key = f"{paper_id}|{bucket}|{issue_type}|{target}"
+    return {
+        "issue_cluster_key": key,
+        "issue_cluster_id": f"review-issue-cluster-{_slug(key)}",
+        "issue_cluster_target": target,
+    }
+
+
 def _evidence_case(row: Dict[str, Any], state: Dict[str, Any], evidence: Dict[str, Any]) -> Dict[str, Any]:
     claim_id = str(evidence.get("claim_id") or "")
+    paper_id = _paper_id(row, state)
     neg_type = _negative_evidence_type_for_record(evidence)
     bucket = "quote_grounded_review_issue"
     missing = ""
@@ -127,8 +150,9 @@ def _evidence_case(row: Dict[str, Any], state: Dict[str, Any], evidence: Dict[st
         ablation_target_quality_reason = ""
         reviewer_candidate_id = ""
 
+    cluster_fields = _case_cluster_fields(paper_id, bucket, evidence, state)
     return {
-        "paper_id": _paper_id(row, state),
+        "paper_id": paper_id,
         "bucket": bucket,
         "issue_type": neg_type,
         "claim_id": claim_id,
@@ -144,6 +168,7 @@ def _evidence_case(row: Dict[str, Any], state: Dict[str, Any], evidence: Dict[st
         "verification_basis": verification_basis,
         "claim_anchor": claim_anchor,
         "evidence_id": str(evidence.get("evidence_id") or ""),
+        **cluster_fields,
     }
 
 
@@ -188,6 +213,28 @@ def build_review_issue_case_table(rows: Iterable[Dict[str, Any]]) -> tuple[List[
             summary[f"type::{neg_type}"] += 1
             if case.get("source_of_expectation"):
                 summary[f"source::{case.get('source_of_expectation')}"] += 1
+    clusters: Dict[str, List[Dict[str, Any]]] = {}
+    for case in cases:
+        clusters.setdefault(str(case.get("issue_cluster_key") or ""), []).append(case)
+    for cluster_cases in clusters.values():
+        claim_ids = sorted({str(case.get("claim_id") or "") for case in cluster_cases if str(case.get("claim_id") or "")})
+        for index, case in enumerate(cluster_cases):
+            case["issue_cluster_size"] = len(cluster_cases)
+            case["issue_cluster_representative"] = index == 0
+            case["issue_cluster_claim_ids"] = ", ".join(claim_ids)
+    summary["verified_review_issue_cluster_count"] = len([key for key in clusters if key])
+    summary["duplicate_review_issue_row_count"] = max(0, len(cases) - summary["verified_review_issue_cluster_count"])
+    summary["reviewer_candidate_review_issue_cluster_count"] = len(
+        {
+            str(case.get("issue_cluster_key") or "")
+            for case in cases
+            if str(case.get("source_of_expectation") or "") == "reviewer_candidate"
+        }
+    )
+    for key, cluster_cases in clusters.items():
+        if not key or not cluster_cases:
+            continue
+        summary[f"cluster_type::{cluster_cases[0].get('issue_type')}"] += 1
     return cases, dict(summary)
 
 
@@ -201,13 +248,16 @@ def render_markdown(input_path: Path, cases: List[Dict[str, Any]], summary: Dict
         "",
         f"- run: `{input_path}`",
         f"- verified review issue cases: `{summary.get('verified_review_issue_cases', 0)}`",
+        f"- verified review issue clusters: `{summary.get('verified_review_issue_cluster_count', 0)}`",
+        f"- duplicate issue rows: `{summary.get('duplicate_review_issue_row_count', 0)}`",
         f"- quote-grounded cases: `{summary.get('bucket::quote_grounded_review_issue', 0)}`",
         f"- obligation-grounded cases: `{summary.get('bucket::obligation_grounded_review_issue', 0)}`",
         f"- reviewer-candidate cases: `{summary.get('source::reviewer_candidate', 0)}`",
+        f"- reviewer-candidate clusters: `{summary.get('reviewer_candidate_review_issue_cluster_count', 0)}`",
         f"- claim-obligation fallback cases: `{summary.get('source::claim_obligation', 0)}`",
         "",
-        "| paper_id | bucket | issue_type | claim_id | source | candidate id | missing/mismatch | inventory count | inventory sources | ablation target quality | ablation target reason | verification basis | inventory/quote locator | inventory/quote | claim anchor |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+        "| paper_id | cluster id | cluster target | cluster size | representative | cluster claim ids | bucket | issue_type | claim_id | source | candidate id | missing/mismatch | inventory count | inventory sources | ablation target quality | ablation target reason | verification basis | inventory/quote locator | inventory/quote | claim anchor |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for case in cases:
         lines.append(
@@ -216,6 +266,11 @@ def render_markdown(input_path: Path, cases: List[Dict[str, Any]], summary: Dict
                 _md_escape(case.get(key))
                 for key in (
                     "paper_id",
+                    "issue_cluster_id",
+                    "issue_cluster_target",
+                    "issue_cluster_size",
+                    "issue_cluster_representative",
+                    "issue_cluster_claim_ids",
                     "bucket",
                     "issue_type",
                     "claim_id",

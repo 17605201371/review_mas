@@ -12598,6 +12598,279 @@ def test_reviewer_negative_candidate_normalizer_filters_retrieval_gap_framing():
     assert [item["candidate_id"] for item in candidates] == ["good-paper-gap"]
 
 
+def test_review_issue_worthiness_rejects_distributed_gradient_ablation_target():
+    claim = "The federated optimizer uses distributed gradient updates to train the model."
+    inventory_quote = "Section 4 reports accuracy for the full federated optimizer on CIFAR-10."
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "method",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["ablation_or_component"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-candidate-distributed-gradient",
+                "claim_id": "claim-1",
+                "weakness": "The paper does not isolate distributed gradient updates in an ablation.",
+                "negative_type": "missing_ablation",
+                "required_evidence_type": "ablation_or_component",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["distributed gradient component ablation"],
+                "observed_inventory": [{"quote": inventory_quote, "locator": "Section 4"}],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["verified_review_issue_count"] == 0
+    assert hygiene["review_issue_candidate_review_worthiness_rejected"] == 1
+    assert hygiene["review_issue_candidate_missing_ablation_target_rejected"] == 1
+
+
+def test_review_issue_worthiness_rejects_efficiency_gap_when_resource_measurements_exist():
+    claim = "ReDrafter accelerates decoding while preserving model quality."
+    inventory_quote = "Table 2 reports ReDrafter speedup, latency, and throughput on the H100 GPU."
+    paper_text = (
+        f"{claim}\n\n{inventory_quote}\n\n"
+        "The TensorRT implementation reaches 2.4x speedup, 18 ms latency, and 320 tokens/s on H100."
+    )
+    state = {
+        "paper_text": paper_text,
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "efficiency",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["resource_measurement"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-candidate-efficiency-cost",
+                "claim_id": "claim-1",
+                "weakness": "The acceleration claim lacks resource and hardware cost measurements.",
+                "negative_type": "efficiency_cost_gap",
+                "required_evidence_type": "resource_measurement",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["runtime, hardware, and throughput measurements"],
+                "observed_inventory": [{"quote": inventory_quote, "locator": "Table 2"}],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["verified_review_issue_count"] == 0
+    assert (
+        hygiene["review_issue_candidate_review_worthiness_rejected"]
+        + hygiene["review_issue_candidate_counterevidence_rejected"]
+    ) >= 1
+
+
+def test_review_issue_worthiness_rejects_graph_classification_gap_for_node_claim():
+    claim = "The propagation method improves node classification accuracy on graph benchmarks."
+    observed_quote = "Table 5 reports node classification accuracy on Cora, Citeseer, and Pubmed."
+    state = {
+        "paper_text": f"{claim}\n\n{observed_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "empirical",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["empirical_result"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-candidate-off-claim-graph-classification",
+                "claim_id": "claim-1",
+                "weakness": "The node-classification claim is not tested on graph classification.",
+                "negative_type": "insufficient_evaluation",
+                "required_evidence_type": "empirical_result",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["graph classification benchmark results"],
+                "observed_inventory": [
+                    {
+                        "quote": observed_quote,
+                        "locator": "Table 5",
+                        "observed_items": ["node classification", "Cora", "Citeseer", "Pubmed"],
+                    }
+                ],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["verified_review_issue_count"] == 0
+    assert (
+        hygiene.get("review_issue_candidate_off_claim_rejected", 0)
+        + hygiene.get("review_issue_candidate_missing_inventory_rejected", 0)
+        + hygiene.get("review_issue_candidate_review_worthiness_rejected", 0)
+    ) >= 1
+
+
+def test_review_issue_worthiness_rejects_long_term_modeling_when_component_ablation_exists():
+    claim = "The long-term modeling module is a core component of the proposed forecasting model."
+    inventory_quote = (
+        "Table 1 ablation study removes one component at a time from the three main components "
+        "of our method and reports the forecasting accuracy."
+    )
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "method",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["ablation_or_component"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-candidate-long-term-module",
+                "claim_id": "claim-1",
+                "weakness": "The paper does not isolate the long-term modeling module.",
+                "negative_type": "missing_ablation",
+                "required_evidence_type": "ablation_or_component",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["long-term modeling module ablation"],
+                "observed_inventory": [{"quote": inventory_quote, "locator": "Table 1"}],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["verified_review_issue_count"] == 0
+    assert hygiene["review_issue_candidate_review_worthiness_rejected"] == 1
+
+
+def test_review_issue_cluster_metrics_deduplicate_same_target_across_claims():
+    claim_1 = "The segmentation model outperforms baselines on RefCOCO."
+    claim_2 = "The same segmentation model also improves accuracy on RefCOCO+."
+    related_quote = "Related work discusses LAVT as a language-aware vision transformer for referring segmentation."
+    inventory_quote = "Table 2 compares the proposed model with MCN and VLT baselines on RefCOCO and RefCOCO+."
+    state = {
+        "paper_text": f"{claim_1}\n\n{claim_2}\n\n{related_quote}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim_1,
+                "claim_kind": "paper_extracted",
+                "claim_type": "comparison",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["baseline_or_comparison"],
+            },
+            {
+                "claim_id": "claim-2",
+                "claim": claim_2,
+                "claim_kind": "paper_extracted",
+                "claim_type": "comparison",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["baseline_or_comparison"],
+            },
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-candidate-lavt-1",
+                "claim_id": "claim-1",
+                "weakness": "The comparison omits a same-setting LAVT baseline.",
+                "negative_type": "missing_baseline",
+                "required_evidence_type": "baseline_or_comparison",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["LAVT same-setting baseline"],
+                "observed_inventory": [
+                    {
+                        "quote": inventory_quote,
+                        "locator": "Table 2",
+                        "observed_items": ["MCN", "VLT", "RefCOCO", "RefCOCO+"],
+                    }
+                ],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            },
+            {
+                "candidate_id": "reviewer-candidate-lavt-2",
+                "claim_id": "claim-2",
+                "weakness": "The second comparison also omits a same-setting LAVT baseline.",
+                "negative_type": "missing_baseline",
+                "required_evidence_type": "baseline_or_comparison",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["LAVT same-setting baseline"],
+                "observed_inventory": [
+                    {
+                        "quote": inventory_quote,
+                        "locator": "Table 2",
+                        "observed_items": ["MCN", "VLT", "RefCOCO", "RefCOCO+"],
+                    }
+                ],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            },
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["verified_review_issue_row_count"] == 2
+    assert hygiene["verified_review_issue_cluster_count"] == 1
+    assert hygiene["duplicate_review_issue_row_count"] == 1
+    assert hygiene["review_issue_cluster_type_counts"]["missing_baseline"] == 1
+
+
 def test_review_issue_discovery_targets_include_contrast_hints_without_verifying():
     claim = "The evaluation framework uses normalized edit distance as a proxy for intervention success."
     state = {

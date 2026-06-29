@@ -750,9 +750,17 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     out["claim_obligation_review_issue_count"] = _sum(rows, "claim_obligation_review_issue_count")
     out["claim_obligation_review_issue_claim_count"] = _sum(rows, "claim_obligation_review_issue_claim_count")
     out["verified_review_issue_count"] = _sum(rows, "verified_review_issue_count")
+    out["verified_review_issue_row_count"] = _sum(rows, "verified_review_issue_row_count") or out["verified_review_issue_count"]
     out["verified_review_issue_claim_count"] = _sum(rows, "verified_review_issue_claim_count")
     out["review_issue_bundle_count"] = _sum(rows, "review_issue_bundle_count")
+    out["obligation_grounded_review_issue_cluster_count"] = _sum(rows, "obligation_grounded_review_issue_cluster_count")
+    out["reviewer_candidate_review_issue_cluster_count"] = _sum(rows, "reviewer_candidate_review_issue_cluster_count")
+    out["claim_obligation_review_issue_cluster_count"] = _sum(rows, "claim_obligation_review_issue_cluster_count")
+    out["verified_review_issue_cluster_count"] = _sum(rows, "verified_review_issue_cluster_count")
+    out["duplicate_review_issue_row_count"] = _sum(rows, "duplicate_review_issue_row_count")
+    out["verified_missing_ablation_cluster_count"] = _sum(rows, "verified_missing_ablation_cluster_count")
     out["verified_issue_without_recovery_count"] = _sum(rows, "verified_issue_without_recovery_count")
+    out["verified_issue_cluster_without_recovery_count"] = _sum(rows, "verified_issue_cluster_without_recovery_count")
     out["review_issue_candidate_total"] = _sum(rows, "review_issue_candidate_total")
     out["review_issue_candidate_verified"] = _sum(rows, "review_issue_candidate_verified")
     out["review_issue_candidate_retrieval_gap_rejected"] = _sum(rows, "review_issue_candidate_retrieval_gap_rejected")
@@ -760,6 +768,7 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     out["review_issue_candidate_counterevidence_rejected"] = _sum(rows, "review_issue_candidate_counterevidence_rejected")
     out["review_issue_candidate_missing_inventory_rejected"] = _sum(rows, "review_issue_candidate_missing_inventory_rejected")
     out["review_issue_candidate_off_claim_rejected"] = _sum(rows, "review_issue_candidate_off_claim_rejected")
+    out["review_issue_candidate_review_worthiness_rejected"] = _sum(rows, "review_issue_candidate_review_worthiness_rejected")
     out["review_issue_candidate_missing_ablation_target_rejected"] = _sum(rows, "review_issue_candidate_missing_ablation_target_rejected")
     out["review_issue_candidate_missing_ablation_weak_action_rejected"] = _sum(rows, "review_issue_candidate_missing_ablation_weak_action_rejected")
     out["review_issue_candidate_missing_ablation_generic_component_rejected"] = _sum(rows, "review_issue_candidate_missing_ablation_generic_component_rejected")
@@ -782,6 +791,23 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
         "reproducibility_gap",
     ):
         out[f"review_issue_type_{issue_type}"] = int(review_issue_type_counts.get(issue_type, 0))
+    review_issue_cluster_type_counts: Counter[str] = Counter()
+    for row in rows:
+        review_issue_cluster_type_counts.update(_hygiene(row).get("review_issue_cluster_type_counts") or {})
+    for issue_type in (
+        "missing_ablation",
+        "missing_baseline",
+        "unfair_or_weak_baseline",
+        "insufficient_evaluation",
+        "missing_robustness_or_generalization",
+        "evaluation_protocol_risk",
+        "efficiency_cost_gap",
+        "scope_overclaim",
+        "result_claim_mismatch",
+        "method_support_gap",
+        "reproducibility_gap",
+    ):
+        out[f"review_issue_cluster_type_{issue_type}"] = int(review_issue_cluster_type_counts.get(issue_type, 0))
     out["paper_text_negative_candidate_count"] = _sum(rows, "paper_text_negative_candidate_count")
     out["author_limitation_only_count"] = _sum(rows, "author_limitation_only_count")
     out["prior_work_limitation_count"] = _sum(rows, "prior_work_limitation_count")
@@ -1671,9 +1697,17 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "claim_obligation_review_issue_count",
         "claim_obligation_review_issue_claim_count",
         "verified_review_issue_count",
+        "verified_review_issue_row_count",
         "verified_review_issue_claim_count",
         "review_issue_bundle_count",
+        "obligation_grounded_review_issue_cluster_count",
+        "reviewer_candidate_review_issue_cluster_count",
+        "claim_obligation_review_issue_cluster_count",
+        "verified_review_issue_cluster_count",
+        "duplicate_review_issue_row_count",
+        "verified_missing_ablation_cluster_count",
         "verified_issue_without_recovery_count",
+        "verified_issue_cluster_without_recovery_count",
         "review_issue_candidate_total",
         "review_issue_candidate_verified",
         "review_issue_candidate_retrieval_gap_rejected",
@@ -1681,6 +1715,7 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "review_issue_candidate_counterevidence_rejected",
         "review_issue_candidate_missing_inventory_rejected",
         "review_issue_candidate_off_claim_rejected",
+        "review_issue_candidate_review_worthiness_rejected",
         "review_issue_candidate_missing_ablation_target_rejected",
         "review_issue_candidate_missing_ablation_weak_action_rejected",
         "review_issue_candidate_missing_ablation_generic_component_rejected",
@@ -1697,6 +1732,17 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "review_issue_type_result_claim_mismatch",
         "review_issue_type_method_support_gap",
         "review_issue_type_reproducibility_gap",
+        "review_issue_cluster_type_missing_ablation",
+        "review_issue_cluster_type_missing_baseline",
+        "review_issue_cluster_type_unfair_or_weak_baseline",
+        "review_issue_cluster_type_insufficient_evaluation",
+        "review_issue_cluster_type_missing_robustness_or_generalization",
+        "review_issue_cluster_type_evaluation_protocol_risk",
+        "review_issue_cluster_type_efficiency_cost_gap",
+        "review_issue_cluster_type_scope_overclaim",
+        "review_issue_cluster_type_result_claim_mismatch",
+        "review_issue_cluster_type_method_support_gap",
+        "review_issue_cluster_type_reproducibility_gap",
         "paper_text_negative_candidate_count",
         "author_limitation_only_count",
         "prior_work_limitation_count",
