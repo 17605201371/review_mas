@@ -1,5 +1,0 @@
-run_base=mimo_v25_tablescopefix_hardneg20_mt7_b4w2_api2_r5t600_20260622_214828
-start_time=2026-06-22 21:48:28 CST
-params=max_turns=7 max_workers_per_turn=2 manager_batch_size=4 api_max_workers=2 api_max_retries=5 api_timeout=600 dataset=hard_negative_20_20260611.parquet mode=s4 model=mimo-v2.5 max_tokens=2048 temperature=1.0 top_p=0.95 model_adapter_mode=small_model code_commit=1d49c28 code_dirty=dirty patch=table_scope_absence_negative_contract
-launch_mode=background
-pid=27702

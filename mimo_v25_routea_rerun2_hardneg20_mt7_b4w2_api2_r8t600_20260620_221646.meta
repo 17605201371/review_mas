@@ -1,5 +1,0 @@
-run_base=mimo_v25_routea_rerun2_hardneg20_mt7_b4w2_api2_r8t600_20260620_221646
-start_time=2026-06-20 22:16:46 CST
-params=max_turns=7 max_workers_per_turn=2 manager_batch_size=4 api_max_workers=2 api_max_retries=8 api_timeout=600 dataset=hard_negative_20_20260611.parquet mode=s4 model=mimo-v2.5 max_tokens=2048 temperature=1.0 top_p=0.95 model_adapter_mode=small_model code_commit=f53fed1 code_dirty=dirty route=routea_rerun2
-launch_mode=background
-pid=45785
