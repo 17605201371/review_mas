@@ -1816,6 +1816,13 @@ def _coverage_item_is_specific_for_type(text: str, neg_type: str) -> bool:
             or re.search(r"\b[A-Z]{2,}[A-Za-z0-9_-]*\b|\d", value)
         )
     if neg_type in {"insufficient_evaluation", "missing_robustness_or_generalization", "scope_overclaim"}:
+        if re.fullmatch(
+            r"(?:additional|held[- ]out|external|broader|more|diverse)\s+"
+            r"(?:benchmark\s+)?(?:dataset|datasets|benchmark|benchmarks|evaluation)\s+"
+            r"(?:matching|covering|for)\s+(?:the\s+)?(?:claim|claimed)\s+scope",
+            lower,
+        ):
+            return False
         if re.search(
             r"\bfor\s+(?:fl|rl|gnns?|graphs?|nas|uda|ris)\b",
             lower,
@@ -2102,6 +2109,10 @@ def _review_issue_bundle_review_worthiness_failure(
 
     if neg_type == "missing_ablation":
         cluster_target = _review_issue_normalized_cluster_target(bundle, neg_type)
+        target_tokens = _ablation_missing_item_target_tokens(missing_text)
+        own_target_context = f"{anchor_l} {inventory_l}"
+        if target_tokens and not _window_contains_any_target_marker(own_target_context, target_tokens):
+            return "missing_ablation_target_not_claim_or_inventory_bound"
         if cluster_target == "distributed_gradient":
             return "missing_ablation_target_not_review_worthy_generic_training_mechanism"
         if cluster_target == "long_term_modeling" and re.search(
@@ -2150,6 +2161,43 @@ def _review_issue_missing_items_are_resource_cost_dimension(missing_items: Seque
     )
 
 
+def _paper_has_with_without_target_counterevidence(paper_text: str, missing_items: Sequence[str]) -> bool:
+    """Catch explicit with/without target comparisons that omit "ablation" wording."""
+
+    text = str(paper_text or "")
+    if not text:
+        return False
+    for item in missing_items or []:
+        tokens = {
+            token.lower()
+            for token in _ablation_missing_item_target_tokens(str(item or ""))
+            if token and len(token) >= 3
+        }
+        tokens -= {
+            "component",
+            "isolation",
+            "direction",
+            "gradient",
+            "learning",
+            "regularization",
+            "regularisation",
+            "model",
+            "module",
+            "method",
+        }
+        for token in tokens:
+            if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{2,30}", token):
+                continue
+            pattern = re.compile(
+                rf"\b(?:with\s+or\s+without|with/without|w/?o|without)\s+{re.escape(token)}\b|"
+                rf"\b{re.escape(token)}\b.{0,80}\b(?:with\s+or\s+without|without|w/?o)\b",
+                re.IGNORECASE,
+            )
+            if pattern.search(text):
+                return True
+    return False
+
+
 def _paper_has_ablation_counterevidence_for_missing_claim(
     state: Dict[str, Any],
     evidence: Dict[str, Any],
@@ -2164,8 +2212,6 @@ def _paper_has_ablation_counterevidence_for_missing_claim(
 
     paper_text = str((state or {}).get("paper_text") or "")
     if not paper_text:
-        return False
-    if not _ABLATION_COUNTEREVIDENCE_RE.search(paper_text):
         return False
 
     missing_items = evidence.get("coverage_missing_items") or evidence.get("missing_or_weak_items") or []
@@ -2182,6 +2228,10 @@ def _paper_has_ablation_counterevidence_for_missing_claim(
     if not normalized_missing_items:
         normalized_missing_items = [str(claim_text or "")]
     if not any(_ablation_missing_item_target_tokens(item) for item in normalized_missing_items):
+        return False
+    if _paper_has_with_without_target_counterevidence(paper_text, normalized_missing_items):
+        return True
+    if not _ABLATION_COUNTEREVIDENCE_RE.search(paper_text):
         return False
 
     for match in _ABLATION_COUNTEREVIDENCE_RE.finditer(paper_text):
@@ -9703,7 +9753,7 @@ def _ablation_missing_item_target_tokens(missing_item: str) -> set[str]:
         "variant",
         "variants",
     }
-    return {
+    tokens = {
         token
         for token in (
             _review_issue_missing_target_tokens([missing_item])
@@ -9711,6 +9761,10 @@ def _ablation_missing_item_target_tokens(missing_item: str) -> set[str]:
         )
         if token and token.lower() not in generic and len(token) >= 3
     }
+    lowered = str(missing_item or "").lower()
+    if re.search(r"\borthogonal\b", lowered) and re.search(r"\bgradient\b", lowered):
+        tokens.add("ogl")
+    return tokens
 
 
 def _ablation_missing_items_resolved_by_text(text: str, missing_items: Sequence[str]) -> bool:
@@ -9727,6 +9781,14 @@ def _ablation_missing_items_resolved_by_text(text: str, missing_items: Sequence[
     if not meaningful_items:
         return False
     for item in meaningful_items:
+        lowered_item = str(item or "").lower()
+        lowered_text = str(text or "").lower()
+        if (
+            re.search(r"\bregulari[sz]ation\b", lowered_item)
+            and re.search(r"\bablation|without|w/o|with\s+and\s+without|choice\s+of\s+regulari[sz]ation\s+loss\b", lowered_text)
+            and re.search(r"\bwithout\s+regulari[sz]ation|regulari[sz]ation\s+loss|regulari[sz]ation\s+weight|lambda\b", lowered_text)
+        ):
+            continue
         if not _ablation_counterevidence_window_resolves_item(text, item):
             return False
     return True

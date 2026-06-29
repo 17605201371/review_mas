@@ -47,6 +47,7 @@ from agent_system.environments.env_package.review.state import (
     _flaw_only_cites_supports,
     _fmt_audit_number,
     _hard_negative_diagnosis_targets,
+    _ablation_missing_items_resolved_by_text,
     _is_real_paper_claim_id,
     _is_synthetic_recovery_marker_evidence_id,
     _is_system_assessment_limitation_flaw,
@@ -59,6 +60,7 @@ from agent_system.environments.env_package.review.state import (
     _render_claim_requirement_gap_concerns,
     _render_potential_concerns,
     _review_issue_claim_surface_profile,
+    _review_issue_bundle_review_worthiness_failure,
     _review_issue_normalized_cluster_target,
     _review_negative_quote_is_positive_metric_improvement,
     _report_visible_text,
@@ -13093,4 +13095,64 @@ def test_ogl_direction_cluster_target_normalizes_to_orthogonal_gradient_learning
     assert (
         _review_issue_normalized_cluster_target(bundle, "missing_ablation")
         == "orthogonal_gradient_learning"
+    )
+
+
+def test_missing_ablation_target_must_be_bound_to_claim_or_inventory():
+    bundle = {
+        "issue_type": "missing_ablation",
+        "claim_anchor": {
+            "claim_id": "claim-1",
+            "quote": "The LT-MS method uses a polynomial space-time quadratic motion model across datasets.",
+        },
+        "missing_or_mismatch": {
+            "entity": "component-isolation ablation for Divided attention",
+            "items": ["component-isolation ablation for Divided attention"],
+        },
+        "observed_inventory": [
+            {
+                "quote": (
+                    "We have conducted an ablation study to assess three main components of "
+                    "our method LT-MS with four masks."
+                ),
+                "locator": "Section 5.1",
+                "observed_items": ["spline motion model", "consistency loss", "transformer decoder"],
+            }
+        ],
+    }
+
+    assert (
+        _review_issue_bundle_review_worthiness_failure(bundle, {}, neg_type="missing_ablation")
+        == "missing_ablation_target_not_claim_or_inventory_bound"
+    )
+
+
+def test_ogl_with_without_results_resolve_orthogonal_gradient_ablation_gap():
+    window = (
+        "Figure 5: The final Kendall Tau values and architecture ranking of different "
+        "methods with or without OGL. RandomNAS-OGL is better than methods without OGL."
+    )
+
+    assert _ablation_missing_items_resolved_by_text(
+        window,
+        ["component-isolation ablation for orthogonal direction to the gradient"],
+    )
+
+
+def test_regularization_ablation_resolves_regularization_missing_gap():
+    window = (
+        "Ablation studies for our method. We study the choice of regularization loss "
+        "and show FedAvg, ours without regularization, and ours."
+    )
+
+    assert _ablation_missing_items_resolved_by_text(
+        window,
+        ["component-isolation ablation for local virtual data with regularization"],
+    )
+
+
+def test_generic_additional_benchmark_scope_target_is_not_specific():
+    assert not _coverage_item_is_specific_for_type(
+        "additional benchmark dataset matching the claim scope",
+        "missing_robustness_or_generalization",
     )

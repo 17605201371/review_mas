@@ -49,7 +49,7 @@ Missing-baseline, missing-ablation, insufficient-evaluation, and reproducibility
 
 There are deliberately separate lanes. Keep them separate in code, metrics, dashboards, and paper narrative.
 
-### 2026-06-30 P28.1 ClusterGuard Fix recompute on 223747 (latest)
+### 2026-06-30 P28.1 ClusterGuard Fix recompute on 223747
 
 Latest authoritative P28.1 artifacts are offline recomputes of the `bc56c3a` API run:
 
@@ -103,6 +103,53 @@ Interpretation:
 - Quantity is now lower but cleaner: 19 rows / 15 clusters became 15 rows / 10 clusters; all claim-obligation fallback issue clusters were removed, leaving 9 reviewer-candidate clusters plus 1 quote-grounded issue.
 - The defensible narrative is: strict quote-negative lane remains rare (`review_negative_verified_count=1`), while obligation-grounded issue bundles provide 10 system-clustered review issue clusters after protection and target-quality guards.
 - Remaining risk: the 10 clusters still need manual A/B/C/D audit before paper-ready reporting, especially missing-ablation rows where an ablation section exists but may or may not isolate the exact mechanism.
+
+### 2026-06-30 P28.2 Manual-audit precision checkpoint on 223747 (latest)
+
+Latest P28.2 artifacts:
+
+- dashboard: `P28_2_MANUALAUDIT_RECOMPUTE_223747_HARDNEG20_DASHBOARD.md/json`
+- audit: `P28_2_MANUALAUDIT_RECOMPUTE_223747_HARDNEG20_AUDIT.json`
+- review issue cases: `P28_2_MANUALAUDIT_RECOMPUTE_223747_REVIEW_ISSUE_CASE_TABLE.md/json`
+- recovery cases: `P28_2_MANUALAUDIT_RECOMPUTE_223747_RECOVERY_CASE_TABLE.md/json`
+- manual cluster audit: `P28_2_MANUAL_CLUSTER_AUDIT_223747.md`
+
+Manual audit of P28.1's 10 clusters found four D-class clusters:
+
+- `xUe1YqEgd6 / divided_attention`: target came from prior-work DivA, not LT-MS's own claim/inventory.
+- `KOUAayk5Kx / orthogonal_gradient_learning`: paper has RandomNAS/GDAS vs RandomNAS-OGL/GDAS-OGL and with/without OGL comparisons, so missing-OGL-ablation is counterevidenced.
+- `fGXyvmWpw6 / local_virtual_data_regularization`: paper has regularization ablation / `without regularization` evidence.
+- `QAgwFiIY4p / additional benchmark dataset matching claim scope`: generic robustness target without concrete dataset/domain/protocol.
+
+P28.2 code changes:
+
+- missing-ablation target must be bound to current-paper claim/inventory context;
+- explicit `with/without <target>` comparisons count as ablation counterevidence even without the word `ablation`;
+- regularization ablation text resolves missing-regularization ablation claims;
+- generic additional-benchmark claim-scope targets are not concrete enough for verified robustness/generalization issues.
+
+P28.2 recompute metrics:
+
+- Overall protection: PASS.
+- `verified_review_issue_count=8`
+- `verified_review_issue_cluster_count=6`
+- `reviewer_candidate_review_issue_cluster_count=5`
+- `claim_obligation_review_issue_cluster_count=0`
+- `review_negative_verified_count=1`
+- `review_issue_cluster_type_missing_ablation=3`
+- `review_issue_cluster_type_missing_baseline=1`
+- `review_issue_cluster_type_reproducibility_gap=1`
+- `negative_evidence_unlinked_to_flaw=0`
+- `positive_or_neutral_negative_candidate_count=0`
+- `semantic_negative_without_review_relation_count=0`
+- `mark_contested_commit_count=8`
+- `recovery_case_verified_review_issue_repair=2`
+
+Interpretation:
+
+- P28.2 is a precision checkpoint, not a quantity win. It provides a cleaner lower-bound set of 6 system-clustered review-worthy issues after manual-audit-driven guard fixes.
+- Do not loosen these guards to recover count. The next quantity work should improve reviewer-candidate recall for concrete paper-bound issues and stronger recovery bridge coverage.
+- Paper-facing wording should not claim "10 verified true defects" for P28.1. Safer wording: P28.2 retains 6 high-confidence clusters after strict protection and manual-audit-driven precision filtering, with additional candidate recall work still needed.
 
 ### 2026-06-29 P28 canonical checkpoint: missing-ablation target-quality guard
 
