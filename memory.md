@@ -49,7 +49,62 @@ Missing-baseline, missing-ablation, insufficient-evaluation, and reproducibility
 
 There are deliberately separate lanes. Keep them separate in code, metrics, dashboards, and paper narrative.
 
-### 2026-06-29 P28 canonical checkpoint: missing-ablation target-quality guard (latest)
+### 2026-06-30 P28.1 ClusterGuard Fix recompute on 223747 (latest)
+
+Latest authoritative P28.1 artifacts are offline recomputes of the `bc56c3a` API run:
+
+- source run: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260629_223747.jsonl`
+- dashboard: `P28_1_FIX_RECOMPUTE_223747_HARDNEG20_DASHBOARD.md/json`
+- audit: `P28_1_FIX_RECOMPUTE_223747_HARDNEG20_AUDIT.json`
+- review issue cases: `P28_1_FIX_RECOMPUTE_223747_REVIEW_ISSUE_CASE_TABLE.md/json`
+- recovery cases: `P28_1_FIX_RECOMPUTE_223747_RECOVERY_CASE_TABLE.md/json`
+
+Why this fix exists:
+
+- `P28_CLUSTERGUARD_API_223747` had good quantity (`verified_review_issue_count=19`, `verified_review_issue_cluster_count=15`) but protection failed because `positive_or_neutral_negative_candidate_count=1`.
+- The failing case was `XH3OiIhtvf`: an EER quote explicitly said the system improved from the baseline (`2.36`, `8.57% relative improvement`) but was still present as a `result_claim_mismatch` negative candidate.
+- The same run also showed baseline target precision risk: generic/truncated targets such as `high-retur`, `pre-training`, `distillation-based`, and `baseline_for_something-something` were counted as missing-baseline issue clusters.
+- OGL target normalization was too wide: `orthogonal_direction_the_gradient` and `orthogonal_gradient_learning` were separate clusters for the same paper mechanism.
+
+Implemented P28.1 code changes:
+
+- Added a lower-is-better metric improvement guard for direct result negatives. For `result_claim_mismatch` / direct result lanes, quotes about lower-is-better metrics (`EER`, error rate, WER/CER, loss, MAE/RMSE/MSE, FPR/FNR, etc.) with improvement/reduction/lower/better cues are treated as `not_negative_evidence`, not as positive/neutral negative candidates.
+- Added a missing-baseline target specificity gate. It rejects generic or truncated baseline targets such as `high-retur`, `pre-training`, `distillation-based`, `baseline_for_*`, and `Something-Something` dataset/task fragments while preserving named methods such as `EqualAL` / `LAVT`.
+- Added funnel accounting for baseline target rejects: `review_issue_candidate_missing_baseline_target_rejected` and `review_issue_candidate_missing_baseline_generic_target_rejected`.
+- Extended review-issue cluster normalization so `orthogonal direction to the gradient` / `orthogonality constraint` map to `orthogonal_gradient_learning`.
+
+P28.1 recompute metrics:
+
+- Overall protection: PASS.
+- `positive_or_neutral_negative_candidate_count=0`
+- `negative_evidence_unlinked_to_flaw=0`
+- `semantic_negative_without_review_relation_count=0`
+- `evidence_json_fallback_rate_pct=0`
+- `review_negative_verified_count=1`
+- `verified_review_issue_count=15`
+- `verified_review_issue_cluster_count=10`
+- `duplicate_review_issue_row_count=5`
+- `reviewer_candidate_review_issue_count=14`
+- `reviewer_candidate_review_issue_cluster_count=9`
+- `claim_obligation_review_issue_count=0`
+- `claim_obligation_review_issue_cluster_count=0`
+- `review_issue_cluster_type_missing_ablation=6`
+- `review_issue_cluster_type_missing_baseline=1`
+- `review_issue_cluster_type_missing_robustness_or_generalization=1`
+- `review_issue_cluster_type_reproducibility_gap=1`
+- `review_issue_candidate_missing_baseline_target_rejected=1`
+- `review_issue_candidate_missing_baseline_generic_target_rejected=1`
+- `mark_contested_commit_count=8`
+- `recovery_case_verified_review_issue_repair=6`
+
+Interpretation:
+
+- P28.1 fixes the hard protection failure and makes the latest 223747 run paper-facing again, but it is a precision-control recompute, not a new API rerun.
+- Quantity is now lower but cleaner: 19 rows / 15 clusters became 15 rows / 10 clusters; all claim-obligation fallback issue clusters were removed, leaving 9 reviewer-candidate clusters plus 1 quote-grounded issue.
+- The defensible narrative is: strict quote-negative lane remains rare (`review_negative_verified_count=1`), while obligation-grounded issue bundles provide 10 system-clustered review issue clusters after protection and target-quality guards.
+- Remaining risk: the 10 clusters still need manual A/B/C/D audit before paper-ready reporting, especially missing-ablation rows where an ablation section exists but may or may not isolate the exact mechanism.
+
+### 2026-06-29 P28 canonical checkpoint: missing-ablation target-quality guard
 
 Current P28 code path:
 

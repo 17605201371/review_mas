@@ -54,10 +54,13 @@ from agent_system.environments.env_package.review.state import (
     _is_paper_negative_evidence_record,
     _is_grounded_paper_negative_evidence_record,
     _missing_ablation_target_quality,
+    _missing_baseline_target_specificity_failure,
     _render_assessment_limitation_flaws,
     _render_claim_requirement_gap_concerns,
     _render_potential_concerns,
     _review_issue_claim_surface_profile,
+    _review_issue_normalized_cluster_target,
+    _review_negative_quote_is_positive_metric_improvement,
     _report_visible_text,
     _render_strengths,
     _render_weaknesses,
@@ -12960,4 +12963,134 @@ def test_review_issue_protocol_counterevidence_requires_confounding_analysis():
         analysis_window,
         missing,
         "evaluation_protocol_risk",
+    )
+
+
+def test_lower_is_better_metric_improvement_is_not_negative_result_claim_mismatch():
+    quote = (
+        "the average EER of the federated model, without a secure aggregator, is 2.36. "
+        "This reflects an 8.57% relative improvement in EER compared to the baseline "
+        "unsupervised system."
+    )
+    evidence = {
+        "evidence_id": "evidence-critique-negative-1",
+        "claim_id": "claim-1",
+        "raw_quote": quote,
+        "evidence": quote,
+        "negative_evidence_type": "result_claim_mismatch",
+        "verified_grounding_label": "paper_grounded_exact",
+        "semantic_grounding_label": "semantic_negative_verified",
+    }
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The federated model improves speaker verification error rates.",
+                "claim_kind": "paper_extracted",
+            }
+        ],
+        "paper_text": quote,
+        "evidence_map": [evidence],
+        "flaw_candidates": [],
+    }
+
+    assert _review_negative_quote_is_positive_metric_improvement(quote, "result_claim_mismatch")
+    assessment = _assess_review_negative_relation(state, evidence)
+    assert assessment["review_negative_label"] == "not_negative_evidence"
+    assert assessment["review_negative_reason"] == "lower_is_better_metric_improvement_support"
+
+
+def test_missing_baseline_target_gate_rejects_generic_or_truncated_targets():
+    claim = "The proposed method outperforms strong baselines in offline reinforcement learning."
+    inventory_quote = (
+        "Next, we construct high variance datasets and evaluate the performance of CDiffuser "
+        "and baselines on them."
+    )
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "empirical",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["baseline_or_comparison"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-candidate-high-retur",
+                "claim_id": "claim-1",
+                "weakness": "The comparison omits high-retur baselines.",
+                "negative_type": "missing_baseline",
+                "required_evidence_type": "baseline_or_comparison",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["same-setting comparison against high-retur"],
+                "observed_inventory": [
+                    {
+                        "quote": inventory_quote,
+                        "locator": "Table 2",
+                        "observed_items": ["CDiffuser", "baselines"],
+                    }
+                ],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            },
+            {
+                "candidate_id": "reviewer-candidate-pretraining",
+                "claim_id": "claim-1",
+                "weakness": "The comparison omits pre-training baselines.",
+                "negative_type": "missing_baseline",
+                "required_evidence_type": "baseline_or_comparison",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["same-setting comparison against pre-training"],
+                "observed_inventory": [
+                    {
+                        "quote": inventory_quote,
+                        "locator": "Table 2",
+                        "observed_items": ["CDiffuser", "baselines"],
+                    }
+                ],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            },
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene.get("verified_review_issue_count", 0) == 0
+    assert hygiene.get("review_issue_candidate_missing_baseline_target_rejected", 0) >= 1
+
+
+def test_missing_baseline_target_gate_keeps_named_method_baselines():
+    bundle = {
+        "missing_or_mismatch": {
+            "entity": "same-setting comparison against paper-named EqualAL baseline",
+            "items": ["same-setting comparison against paper-named EqualAL baseline"],
+        }
+    }
+
+    assert _missing_baseline_target_specificity_failure(bundle) == ""
+
+
+def test_ogl_direction_cluster_target_normalizes_to_orthogonal_gradient_learning():
+    bundle = {
+        "issue_type": "missing_ablation",
+        "missing_or_mismatch": {
+            "entity": "component-isolation ablation for orthogonal direction to the gradient",
+            "items": ["component-isolation ablation for orthogonal direction to the gradient"],
+        },
+    }
+
+    assert (
+        _review_issue_normalized_cluster_target(bundle, "missing_ablation")
+        == "orthogonal_gradient_learning"
     )

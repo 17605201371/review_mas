@@ -772,6 +772,8 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     out["review_issue_candidate_missing_ablation_target_rejected"] = _sum(rows, "review_issue_candidate_missing_ablation_target_rejected")
     out["review_issue_candidate_missing_ablation_weak_action_rejected"] = _sum(rows, "review_issue_candidate_missing_ablation_weak_action_rejected")
     out["review_issue_candidate_missing_ablation_generic_component_rejected"] = _sum(rows, "review_issue_candidate_missing_ablation_generic_component_rejected")
+    out["review_issue_candidate_missing_baseline_target_rejected"] = _sum(rows, "review_issue_candidate_missing_baseline_target_rejected")
+    out["review_issue_candidate_missing_baseline_generic_target_rejected"] = _sum(rows, "review_issue_candidate_missing_baseline_generic_target_rejected")
     out["verified_missing_ablation_high_confidence"] = _sum(rows, "verified_missing_ablation_high_confidence")
     out["verified_missing_ablation_medium_confidence"] = _sum(rows, "verified_missing_ablation_medium_confidence")
     review_issue_type_counts: Counter[str] = Counter()
@@ -1719,6 +1721,8 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "review_issue_candidate_missing_ablation_target_rejected",
         "review_issue_candidate_missing_ablation_weak_action_rejected",
         "review_issue_candidate_missing_ablation_generic_component_rejected",
+        "review_issue_candidate_missing_baseline_target_rejected",
+        "review_issue_candidate_missing_baseline_generic_target_rejected",
         "verified_missing_ablation_high_confidence",
         "verified_missing_ablation_medium_confidence",
         "review_issue_type_missing_ablation",

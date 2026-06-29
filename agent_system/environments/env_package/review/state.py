@@ -2000,7 +2000,12 @@ def _review_issue_normalized_cluster_target(bundle: Dict[str, Any], neg_type: st
     if neg_type == "missing_ablation":
         if re.search(r"\bacceptance\s+prediction\s+head\b", lowered):
             return "acceptance_prediction_head"
-        if re.search(r"\borthogonal\s+gradient(?:\s+learning)?\b|\bogl\b", lowered):
+        if re.search(
+            r"\borthogonal\s+gradient(?:\s+learning)?\b|\bogl\b|"
+            r"\borthogonal\s+direction(?:\s+to)?\s+the\s+gradient\b|"
+            r"\borthogonality\s+constraint\b",
+            lowered,
+        ):
             return "orthogonal_gradient_learning"
         if re.search(r"\bgeneralized\s+noise\s+regulari[sz]ation\b|\bnoise\s+regulari[sz]ation\b|\bnr-dcca\b", lowered):
             return "generalized_noise_regularization"
@@ -2205,6 +2210,64 @@ def _paper_has_ablation_counterevidence_for_missing_claim(
             if expanded != window and _ablation_missing_items_resolved_by_text(expanded, normalized_missing_items):
                 return True
     return False
+
+
+_MISSING_BASELINE_TARGET_BROAD_OR_TRUNCATED_RE = re.compile(
+    r"^(?:"
+    r"baseline_for_[a-z0-9_-]+|"
+    r"high[- ]?retur(?:n)?|"
+    r"pre[- ]?training|pretrained|pre[- ]?trained|"
+    r"distillation[- ]?based|distillation|"
+    r"same[- ]setting|same[- ]budget|"
+    r"strong(?:er|est)?|standard|recent|relevant|competitive|"
+    r"prior|existing|state[- ]of[- ]the[- ]art|sota|"
+    r"method|methods|approach|approaches|model|models|baseline|baselines|comparison|comparisons|"
+    r"paper[- ]named|closed[- ]source|open[- ]source|reference|"
+    r"something[- ]something"
+    r")$",
+    re.IGNORECASE,
+)
+
+
+def _missing_baseline_target_text(text: str) -> str:
+    value = re.sub(r"\s+", " ", str(text or "")).strip(" ,.;:")
+    value = re.sub(r"^baseline_for_", "", value, flags=re.IGNORECASE).replace("_", " ")
+    value = re.sub(
+        r"^\s*(?:same[- ]setting|same[- ]budget|fair|strong|stronger|paper[- ]named)?\s*"
+        r"(?:(?:baseline|method|model)\s+)?(?:comparison\s+)?(?:against|for|to|with)\s+",
+        "",
+        value,
+        flags=re.IGNORECASE,
+    ).strip(" ,.;:")
+    value = re.sub(r"\s+(?:baseline|method|model|comparison)$", "", value, flags=re.IGNORECASE).strip(" ,.;:")
+    return re.sub(r"\s+", " ", value)
+
+
+def _missing_baseline_target_specificity_failure(bundle: Dict[str, Any]) -> str:
+    missing = bundle.get("missing_or_mismatch") if isinstance(bundle, dict) else {}
+    raw_items: List[str] = []
+    if isinstance(missing, dict):
+        raw_items = [
+            str(item or "").strip()
+            for item in (missing.get("items") or [missing.get("entity")])
+            if str(item or "").strip()
+        ]
+    for raw in raw_items:
+        target = _missing_baseline_target_text(raw)
+        lowered = target.lower()
+        if not target:
+            return "missing_baseline_target_empty"
+        if _MISSING_BASELINE_TARGET_BROAD_OR_TRUNCATED_RE.fullmatch(lowered):
+            return "missing_baseline_target_generic_or_truncated"
+        if lowered.endswith("-") or re.search(r"\b(?:retur|distillatio|pre-trainin|compariso)\b", lowered):
+            return "missing_baseline_target_generic_or_truncated"
+        if re.fullmatch(r"[a-z]+(?:[- ][a-z]+){0,2}", lowered) and not re.search(
+            r"\b(?:lavt|equalal|gpt-\d|bert|clip|dino|sam|yolo|resnet|vit|llama|mistral|"
+            r"t5|gdas|randomnas|ripu|tcmt-ft)\b",
+            lowered,
+        ):
+            return "missing_baseline_target_generic_or_truncated"
+    return ""
 
 
 def _freeform_candidate_for_targeted_negative_evidence(
@@ -3073,6 +3136,43 @@ def _review_negative_assessment(
     }
 
 
+_LOWER_IS_BETTER_METRIC_RE = re.compile(
+    r"\b(?:eer|error\s+rate|word\s+error\s+rate|wer|character\s+error\s+rate|cer|"
+    r"loss|mae|rmse|mse|fpr|fnr|false\s+positive\s+rate|false\s+negative\s+rate|"
+    r"perplexity|latency|runtime|time|cost)\b",
+    re.IGNORECASE,
+)
+_METRIC_IMPROVEMENT_CUE_RE = re.compile(
+    r"\b(?:improv(?:e|es|ed|ement)|relative\s+improvement|reduc(?:e|es|ed|tion)|"
+    r"decreas(?:e|es|ed)|lower|smaller|better|outperform(?:s|ed)?)\b",
+    re.IGNORECASE,
+)
+
+
+def _review_negative_quote_is_positive_metric_improvement(quote: str, neg_type: str) -> bool:
+    """Reject lower-is-better improvements mislabeled as result mismatches."""
+
+    if _canonical_negative_evidence_type(neg_type) not in {
+        "result_claim_mismatch",
+        "negative_result",
+        "direct_contradiction",
+    }:
+        return False
+    text = str(quote or "")
+    if not text or not _LOWER_IS_BETTER_METRIC_RE.search(text):
+        return False
+    if _METRIC_IMPROVEMENT_CUE_RE.search(text):
+        return True
+    return bool(
+        re.search(
+            r"\b(?:from|baseline)\s+\d+(?:\.\d+)?\s*%?\s+(?:to|->|→)\s+\d+(?:\.\d+)?\s*%?",
+            text,
+            re.IGNORECASE,
+        )
+        and re.search(r"\b(?:lower|reduc|improv|better)\b", text, re.IGNORECASE)
+    )
+
+
 def _has_review_negative_semantic_intent(evidence: Dict[str, Any]) -> bool:
     """Recognize concrete current-paper gaps even when model stance is wrong."""
     if not isinstance(evidence, dict):
@@ -3179,6 +3279,12 @@ def _assess_review_negative_relation(state: Dict[str, Any], evidence: Dict[str, 
     relation_text = " ".join([claim_text, evidence_text])
     relation_score = _semantic_alignment_score(relation_text, quote)
     neg_type = _negative_evidence_type_for_record(evidence)
+    if _review_negative_quote_is_positive_metric_improvement(quote, neg_type):
+        return _review_negative_assessment(
+            "not_negative_evidence",
+            "lower_is_better_metric_improvement_support",
+            relation_score,
+        )
     if _SEMANTIC_ABSENCE_EXCERPT_LIMIT_RE.search(
         " ".join([evidence_text, str(evidence.get("agent_raw_quote") or "")])
     ):
@@ -3310,6 +3416,11 @@ def _review_negative_label_for_record(item: Dict[str, Any], state: Dict[str, Any
         return ""
     existing_label = str(item.get("review_negative_label") or "").strip()
     if existing_label:
+        if _review_negative_quote_is_positive_metric_improvement(
+            str(item.get("raw_quote") or item.get("evidence") or ""),
+            _negative_evidence_type_for_record(item),
+        ):
+            return str(_assess_review_negative_relation(state or {}, item).get("review_negative_label") or "")
         if existing_label == REVIEW_NEGATIVE_ABSENCE_AUDIT_LABEL:
             return existing_label if _is_reviewer_absence_audit_evidence_record(item, state or {}) else ""
         if existing_label == REVIEW_NEGATIVE_VERIFIED_LABEL:
@@ -10196,6 +10307,10 @@ def _review_issue_bundle_verification_failure(
         return "primary_missing_entity_not_type_specific"
     if not _review_issue_missing_items_are_concrete(neg_type, missing_items):
         return "missing_entity_not_concrete_or_type_specific"
+    if neg_type in _COVERAGE_BASELINE_NEGATIVE_TYPES:
+        baseline_specificity_failure = _missing_baseline_target_specificity_failure(bundle)
+        if baseline_specificity_failure:
+            return baseline_specificity_failure
     if neg_type == "missing_ablation":
         ablation_quality = _missing_ablation_target_quality(bundle)
         quality = str(ablation_quality.get("quality") or "")
@@ -11296,6 +11411,15 @@ def _review_issue_candidate_funnel_metrics(
             "observed_inventory": observed_inventory,
             "reviewer_negative_candidate": candidate.get("weakness") or "",
         }
+        if neg_type in _COVERAGE_BASELINE_NEGATIVE_TYPES:
+            baseline_specificity_failure = _missing_baseline_target_specificity_failure(bundle)
+            if baseline_specificity_failure:
+                metrics["review_issue_candidate_missing_baseline_target_rejected"] += 1
+                if baseline_specificity_failure == "missing_baseline_target_generic_or_truncated":
+                    metrics["review_issue_candidate_missing_baseline_generic_target_rejected"] += 1
+                else:
+                    metrics["review_issue_candidate_generic_item_rejected"] += 1
+                continue
         if neg_type == "missing_ablation":
             ablation_quality = _missing_ablation_target_quality(bundle)
             quality = str(ablation_quality.get("quality") or "")
