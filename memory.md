@@ -982,6 +982,44 @@ Actionable coverage/potential concern types should be kept separate unless quote
 
 Avoid adding weak/noisy types such as novelty/writing/ethics/dataset-bias unless there is a strong paper-grounded verifier. These tend to become generic gaps.
 
+## 2026-06-28 P28 CLEAN5: entity-level review issue bundle quantity pass
+
+Current target is `verified_review_issue_count`, not direct `review_negative_verified_count`. Direct quote-grounded negative evidence remains strict and low/zero by design; reviewer defects are counted through obligation-grounded issue bundles only when the system has a real claim anchor, a locatable observed inventory/table/component anchor, a concrete missing/mismatch item, and full-text counterevidence does not resolve it.
+
+This turn added a conservative quantity path without loosening the verifier:
+
+- Reviewer candidate claim rebinding: if a candidate is attached to the wrong claim but its own claim/weakness/question text clearly matches another real claim with the requested obligation, rebind before absence-audit gap generation.
+- Paper-named baseline seed: only enabled when the paper itself admits a limited comparison opportunity (`absence/lack/no other ... studies/methods/baselines/comparisons`, or single/only baseline wording). It then extracts only citation-adjacent displayed method names from paper text, rejects title words/dataset names/current-paper names, and still requires observed comparison inventory plus full-text counterevidence checks.
+- Baseline counterevidence tightened: related-work mentions no longer count as resolving a missing baseline unless the concrete baseline marker appears in a local experimental comparison/table/baseline-list context. Baseline lists (`Baseline methods include ...`) and table rows now block false positives.
+
+Fresh hardneg20 artifact used for offline recompute:
+`mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260628_071024.jsonl`
+
+CLEAN5 recompute artifacts:
+
+- `P28_CLEAN5_FRESH_HARDNEG20_DASHBOARD.md/json`
+- `P28_CLEAN5_FRESH_HARDNEG20_AUDIT.json`
+- `P28_CLEAN5_FRESH_HARDNEG20_REVIEW_ISSUE_CASE_TABLE.md/json`
+- `P28_CLEAN5_FRESH_HARDNEG20_RECOVERY_CASE_TABLE.md/json`
+
+CLEAN5 headline metrics:
+
+- `verified_review_issue_count=10`
+- `reviewer_candidate_review_issue_count=9`
+- `claim_obligation_review_issue_count=1`
+- `review_negative_verified_count=0`
+- `mark_contested_commit_count=14`
+- `negative_evidence_unlinked_to_flaw=0`
+- `positive_or_neutral_negative_candidate_count=0`
+- `real_strong_support_total=47`
+- protection lines: PASS
+
+Manual audit notes:
+
+- CLEAN2/CLEAN3 overcounted because general paper-named baseline extraction admitted false positives such as `Moreover baseline`, `RefCOCO baseline`, `GraphSAGE baseline`, `Transformer baseline`, and `MVTCAE baseline`. Those were not accepted as final; CLEAN5 adds the limited-comparison opportunity gate and stricter counterevidence.
+- CLEAN5 adds the HALO case as a defensible paper-named missing-baseline issue: the paper states an absence of other ADA studies and compares the CS->ACDC result to RIPU while its own related-work inventory names EqualAL/Labor/PixelPick-style AL methods. The counted case is `YXn76HMetm`, missing same-setting comparison against paper-named `EqualAL`.
+- Remaining risk: some component-ablation issues inherited from CLEAN1 are still terse and should be manually case-audited before paper-ready claims, especially duplicate-looking prediction-head cases. Do not inflate the count by relaxing these gates.
+
 ## Validation Commands
 
 Focused review tests:

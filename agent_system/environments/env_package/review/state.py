@@ -545,6 +545,7 @@ _NEGATIVE_EVIDENCE_TYPE_ALIASES = {
     "insufficient_robustness_or_generalisation": "missing_robustness_or_generalization",
     "missing_robustness_or_generalisation": "missing_robustness_or_generalization",
     "robustness_gap": "missing_robustness_or_generalization",
+    "scope_or_robustness": "missing_robustness_or_generalization",
     "generalization_gap": "missing_robustness_or_generalization",
     "generalisation_gap": "missing_robustness_or_generalization",
     "missing_robustness": "missing_robustness_or_generalization",
@@ -565,6 +566,9 @@ _NEGATIVE_EVIDENCE_TYPE_ALIASES = {
     "runtime_gap": "efficiency_cost_gap",
     "compute_cost_gap": "efficiency_cost_gap",
     "cost_gap": "efficiency_cost_gap",
+    "protocol_or_reproducibility": "reproducibility_gap",
+    "protocol_reproducibility": "reproducibility_gap",
+    "protocol_reproducibility_gap": "reproducibility_gap",
 }
 
 
@@ -672,6 +676,9 @@ def _normalize_reviewer_negative_candidate_item(item: Any, fallback_index: int) 
         item.get("negative_type") or item.get("negative_evidence_type") or item.get("issue_type")
     )
     required_type = _canonical_required_evidence_type(item.get("required_evidence_type"))
+    inferred_required_type = _negative_type_to_required_evidence_type(negative_type)
+    if negative_type and inferred_required_type and not _review_issue_type_compatible_with_requirement(required_type, negative_type):
+        required_type = inferred_required_type
     raw_quote_grounding_mode = (
         item.get("quote_grounding_mode")
         or item.get("grounding_mode")
@@ -1520,12 +1527,17 @@ _SEMANTIC_ABSENCE_NEGATIVE_TYPES = frozenset(
     }
 )
 _COVERAGE_GENERIC_MISSING_ITEM_RE = re.compile(
-    r"^\s*(?:all\s+)?(?:(?:relevant|recent|key|strong|standard|competitive|comprehensive|"
-    r"additional|more|multiple|diverse|state[- ]of[- ]the[- ]art|sota)\s+)*"
+    r"^\s*(?:all\s+)?(?:(?:relevant|recent|key|strong|strongest|named|standard|competitive|comprehensive|"
+    r"additional|more|multiple|diverse|closed[- ]source|open[- ]source|reference|"
+    r"state[- ]of[- ]the[- ]art|sota)\s+)*"
     r"(?:baseline|baselines|method|methods|approach|approaches|competitor|competitors|"
+    r"baseline\s+family|baseline\s+families|method\s+family|method\s+families|"
+    r"prior[- ]method\s+family|prior[- ]method\s+families|"
     r"dataset|datasets|task|tasks|metric|metrics|benchmark|benchmarks|comparison|"
     r"comparisons|experiment|experiments|evaluation|evaluations|component|components|"
-    r"ablation|ablations)\s*$",
+    r"ablation|ablations)"
+    r"(?:\s+(?:named\s+by|absent\s+from|specific\s+to|used\s+by|matching)\s+"
+    r"(?:the\s+)?(?:paper|claim|task|domain|observed\s+comparison\s+table))*\s*$",
     re.IGNORECASE,
 )
 _COVERAGE_BASELINE_NEGATIVE_TYPES = frozenset({"missing_baseline", "unfair_or_weak_baseline"})
@@ -1640,6 +1652,83 @@ def _coverage_item_surface_is_specific(text: str) -> bool:
     return len(tokens) >= 2
 
 
+def _missing_ablation_target_is_task_scope(text: str) -> bool:
+    value = str(text or "").strip().lower()
+    if not value:
+        return False
+    target = re.sub(
+        r"^\s*(?:component[- ]isolation\s+)?ablation\s+(?:isolating\s+|of\s+|for\s+)?",
+        "",
+        value,
+    ).strip()
+    target = re.sub(r"\s+(?:module|component|mechanism)\s*$", "", target).strip()
+    if not target:
+        return False
+    if re.fullmatch(
+        r"(?:few[- ]shot|zero[- ]shot|one[- ]shot|n[- ]way|k[- ]shot|"
+        r"\d+[- ]way|\d+[- ]shot|benchmark|dataset|task|tasks|domain|domains|"
+        r"action\s+recognition|classification|segmentation|detection|setting|settings|"
+        r"classes?|novel\s+classes?|base\s+classes?)",
+        target,
+    ):
+        return True
+    return bool(
+        re.search(r"\b(?:few[- ]shot|n[- ]way|k[- ]shot|novel\s+classes?|task|dataset|benchmark|setting)\b", target)
+        and not re.search(
+            r"\b(?:module|component|loss|objective|head|encoder|decoder|attention|routing|fusion|branch|"
+            r"predictor|classifier|network|layer|mechanism)\b",
+            target,
+        )
+    )
+
+
+def _missing_ablation_target_text(text: str) -> str:
+    value = str(text or "").strip()
+    target = re.sub(
+        r"^\s*(?:component[- ]isolation\s+)?ablation\s+(?:isolating\s+|of\s+|for\s+)?",
+        "",
+        value,
+        flags=re.IGNORECASE,
+    ).strip()
+    target = re.sub(r"^(?:train(?:ing)?|trained)\s+(?:the\s+)?", "", target, flags=re.IGNORECASE).strip()
+    return re.sub(r"\s+", " ", target).strip(" ,.;:")
+
+
+def _missing_ablation_target_is_non_component(text: str) -> bool:
+    target = _missing_ablation_target_text(text)
+    lowered = target.lower()
+    if not lowered:
+        return True
+    if lowered in {
+        "abstract encoder",
+        "attention",
+        "objective",
+        "loss",
+        "method",
+        "model",
+        "network",
+        "module",
+        "component",
+        "framework",
+        "representation",
+        "pre-trained",
+        "pretrained",
+        "training",
+    }:
+        return True
+    if re.match(r"^(?:or|and|as|into|refer|refers?|considering|utilizing)\b", lowered):
+        return True
+    if re.match(r"^(?:when\s+using|using)\b", lowered):
+        return True
+    if re.search(r"\b(?:dataset|datasets|data)\b", lowered) and re.search(r"\b(?:loss|objective)\b", lowered):
+        return True
+    if re.fullmatch(r"(?:square|linear|logistic|non[- ]?linear)(?:\s*/\s*(?:square|linear|logistic|non[- ]?linear))*\s+(?:module|function|target)", lowered):
+        return True
+    if re.fullmatch(r"(?:square|linear|logistic|non[- ]?linear)\s+(?:loss|objective)", lowered):
+        return True
+    return False
+
+
 def _coverage_item_is_specific_for_type(text: str, neg_type: str) -> bool:
     value = str(text or "").strip()
     if not _coverage_item_surface_is_specific(value):
@@ -1648,6 +1737,34 @@ def _coverage_item_is_specific_for_type(text: str, neg_type: str) -> bool:
     if neg_type in _COVERAGE_BASELINE_NEGATIVE_TYPES:
         # Without an external baseline registry, generic classes such as
         # "relevant recent methods" are not verifiable from the paper alone.
+        baseline_target_text = re.sub(
+            r"^\s*(?:same[- ]setting|same[- ]budget)?\s*(?:baseline\s+)?(?:comparison\s+)?(?:against|for)\s+",
+            "",
+            value,
+            flags=re.IGNORECASE,
+        ).strip()
+        if baseline_target_text.lower() in {"fine-tuned", "finetuned", "pre-trained", "pretrained"}:
+            return False
+        if re.fullmatch(r"[A-Za-z]?-?instruct", baseline_target_text, re.IGNORECASE):
+            return False
+        against_match = re.search(r"\bagainst\s+([A-Za-z0-9][A-Za-z0-9_+\-]{1,30})\b", value, re.IGNORECASE)
+        if against_match:
+            target = against_match.group(1).strip().lower()
+            if target in {"fl", "gnn", "gnns", "nas", "ris", "rl", "uda"}:
+                return False
+        if re.search(
+            r"\b(?:strongest|named|strong|standard|relevant|recent)\s+baseline\s+famil(?:y|ies)\b|"
+            r"\bnamed\s+strong\s+baseline\b|"
+            r"\b(?:strong|standard|closed[- ]source|open[- ]source|reference)\s+"
+            r"(?:closed[- ]source\s+|open[- ]source\s+|reference\s+)*baseline\b|"
+            r"\bprior[- ]method\s+famil(?:y|ies)\b|"
+            r"\babsent\s+from\s+the\s+observed\s+comparison\s+table\b|"
+            r"\bnamed\s+by\s+the\s+paper\s+task\b",
+            lower,
+        ):
+            return False
+        if re.search(r"\bagainst\s+non[- ]?[A-Z0-9]{2,}\b", value):
+            return False
         if not re.search(
             r"\b(?:baseline|baselines|comparison|comparisons|competitor|competitors|"
             r"prior\s+method|prior\s+methods|existing\s+method|existing\s+methods|"
@@ -1657,6 +1774,36 @@ def _coverage_item_is_specific_for_type(text: str, neg_type: str) -> bool:
             return False
         return bool(_baseline_missing_counterevidence_terms([value]))
     if neg_type == "missing_ablation":
+        ablation_dataset_coverage = bool(
+            re.search(r"\bablation\b", lower)
+            and re.search(r"\b(?:dataset|benchmark|ssv2|hmdb|ucf|imagenet|cifar|davis|coco|nuscenes)\b", lower)
+            and re.search(
+                r"\b(?:latent\s+variable|variable\s+n|hyperparameter|parameter|loss|objective|"
+                r"module|component|mechanism|head|predictor|regulari[sz]ation|gradient)\b",
+                lower,
+            )
+        )
+        if _missing_ablation_target_is_task_scope(value) and not ablation_dataset_coverage:
+            return False
+        target_value = _missing_ablation_target_text(value)
+        if _missing_ablation_target_is_non_component(value):
+            return False
+        if re.match(r"^(?:method\s+of|the\s+method\s+of)\b", target_value, re.IGNORECASE):
+            return False
+        if re.fullmatch(r"[A-Z]{2,}[A-Za-z0-9_-]*", target_value) and not re.search(
+            r"\b(?:head|loss|objective|module|component|stage|branch|layer|encoder|decoder|"
+            r"attention|routing|fusion|selector|predictor|classifier|criterion|regulari[sz]er|"
+            r"gradient|mechanism|feature|representation)\b",
+            target_value,
+            re.IGNORECASE,
+        ):
+            return False
+        if re.search(
+            r"\b(?:quantitative\s+)?(?:result|results|table|metric|metrics|score|scores|evaluation)\b"
+            r".{0,40}\bfor\b",
+            lower,
+        ):
+            return False
         return bool(
             re.search(
                 r"\b(?:module|component|encoder|decoder|loss|objective|routing|attention|"
@@ -1668,6 +1815,25 @@ def _coverage_item_is_specific_for_type(text: str, neg_type: str) -> bool:
             )
             or re.search(r"\b[A-Z]{2,}[A-Za-z0-9_-]*\b|\d", value)
         )
+    if neg_type in {"insufficient_evaluation", "missing_robustness_or_generalization", "scope_overclaim"}:
+        if re.search(
+            r"\bfor\s+(?:fl|rl|gnns?|graphs?|nas|uda|ris)\b",
+            lower,
+        ):
+            return False
+        if re.fullmatch(
+            r"(?:evaluation\s+on\s+)?(?:standard|real[- ]world|held[- ]out|additional|diverse|"
+            r"out[- ]of[- ]domain|cross[- ]domain|stress|broader|more|multiple|\s|/|,|and|or)*"
+            r"(?:graph\s+classification\s+)?(?:benchmark|benchmarks|dataset|datasets|domain|domains|"
+            r"setting|settings|task|tasks)(?:\s+for\s+(?:gnns?|graphs?|the\s+claim|the\s+task))*",
+            lower,
+        ):
+            return False
+        if re.search(
+            r"\b(?:standard\s+real[- ]world|held[- ]out\s+dataset,\s*domain,\s*or\s*stress\s*setting)\b",
+            lower,
+        ) and not re.search(r"\b(?:imagenet|cifar|coco|davis|nuscenes|lrgb|ogb|benchmark-[a-z0-9_-]+)\b", lower):
+            return False
     if neg_type in {"insufficient_evaluation", "missing_robustness_or_generalization", "evaluation_protocol_risk"}:
         return bool(
             re.search(
@@ -1688,6 +1854,21 @@ def _coverage_item_is_specific_for_type(text: str, neg_type: str) -> bool:
             or re.search(r"\b[A-Z]{2,}[A-Za-z0-9_-]*\b|\b[A-Za-z]+[-/][A-Za-z0-9_-]+\b|\d", value)
         )
     return True
+
+
+def _review_issue_missing_items_are_resource_cost_dimension(missing_items: Sequence[str]) -> bool:
+    text = _missing_joined_text(missing_items)
+    if not text:
+        return False
+    return bool(
+        re.search(
+            r"\b(?:runtime|latency|throughput|wall[- ]clock|time[- ]to[- ]first[- ]token|ttft|"
+            r"inference\s+time|training\s+time|memory|gpu|cpu|hardware|parameters?|flops?|"
+            r"compute|computational\s+(?:cost|time|budget)|resource|footprint|speedup)\b",
+            text,
+            re.IGNORECASE,
+        )
+    )
 
 
 def _paper_has_ablation_counterevidence_for_missing_claim(
@@ -1714,22 +1895,41 @@ def _paper_has_ablation_counterevidence_for_missing_claim(
     # Only target the alleged missing component, not the observed variants in the
     # quote/table. Pulling tokens from the quote itself would turn "w/o beam" into
     # false counterevidence for "missing routing-module ablation".
-    missing_text = " ".join(str(item or "") for item in missing_items if isinstance(item, (str, int, float))).strip()
-    target_text = missing_text or str(claim_text or "")
-    target_tokens = {
-        token
-        for token in _absence_target_tokens(target_text)
-        if token not in {"ablation", "variant", "variants", "component", "module", "loss", "objective", "mechanism"}
-    }
-    if not target_tokens:
+    normalized_missing_items = [
+        str(item or "")
+        for item in missing_items
+        if isinstance(item, (str, int, float)) and str(item or "").strip()
+    ]
+    if not normalized_missing_items:
+        normalized_missing_items = [str(claim_text or "")]
+    if not any(_ablation_missing_item_target_tokens(item) for item in normalized_missing_items):
         return False
 
     for match in _ABLATION_COUNTEREVIDENCE_RE.finditer(paper_text):
-        start = max(0, match.start() - 900)
-        end = min(len(paper_text), match.end() + 1200)
+        prefix = paper_text[:match.start()]
+        suffix = paper_text[match.end():]
+        prev_breaks = [prefix.rfind(marker) for marker in ("\n\n", "\nTable", "\nFigure", "\nFig.", "\nSection", "\n\\section")]
+        next_breaks = [
+            idx for idx in (
+                suffix.find("\n\n"),
+                suffix.find("\nTable"),
+                suffix.find("\nFigure"),
+                suffix.find("\nFig."),
+                suffix.find("\nSection"),
+                suffix.find("\n\\section"),
+            )
+            if idx >= 0
+        ]
+        start = max(prev_breaks) + 1 if max(prev_breaks) >= 0 else max(0, match.start() - 320)
+        end = match.end() + (min(next_breaks) if next_breaks else 420)
+        end = min(len(paper_text), end)
         window = paper_text[start:end]
-        if _ablation_counterevidence_window_resolves_target(window, target_tokens):
+        if _ablation_missing_items_resolved_by_text(window, normalized_missing_items):
             return True
+        if not _ablation_missing_items_have_scope(normalized_missing_items):
+            expanded = paper_text[max(0, match.start() - 900) : min(len(paper_text), match.end() + 1400)]
+            if expanded != window and _ablation_missing_items_resolved_by_text(expanded, normalized_missing_items):
+                return True
     return False
 
 
@@ -2452,7 +2652,8 @@ _REVIEW_NEGATIVE_POSITIVE_CONTEXT_RE = re.compile(
     r"tackl(?:e|es|ed|ing)|alleviat(?:e|es|ed|ing))\b[^.!?]{0,100}\b(?:limitation|limitations|challenge|challenges|issue|issues|problem|problems)\b|"
     r"\b(?:present|propose|introduce|develop)\b[^.!?]{0,80}\b(?:novel|new|effective|efficient|robust|viewpoint|approach|method)\b|"
     r"\b(?:outperform(?:s|ed|ing)?|improv(?:e|es|ed|ement)|enhanc(?:e|es|ed|ing)|boost(?:s|ed|ing)?|"
-    r"achiev(?:e|es|ed|ing)|guarantee(?:s|d)?|superior)\b",
+    r"achiev(?:e|es|ed|ing)|guarantee(?:s|d)?|superior)\b|"
+    r"\b(?:strongest|strong|competitive|best(?:-performing)?)\s+baseline\b",
     re.IGNORECASE,
 )
 _REVIEW_NEGATIVE_PRIOR_WORK_RE = re.compile(
@@ -5276,7 +5477,8 @@ _CLAIM_REQ_ROBUSTNESS_RE = re.compile(
     re.IGNORECASE,
 )
 _CLAIM_REQ_EFFICIENCY_RE = re.compile(
-    r"\b(efficient|efficiency|scal(?:able|ability)|large[- ]scale|speedup|faster|fast|"
+    r"\b((?<!label-)efficient|(?<!label )efficient|(?<!label-)efficiency|(?<!label )efficiency|"
+    r"scal(?:able|ability)|large[- ]scale|speedup|faster|fast|"
     r"one[- ]pass|runtime|latency|memory|parameters?|flops|compute|"
     r"computational cost|cost-effective|practical)\b",
     re.IGNORECASE,
@@ -5335,7 +5537,8 @@ _SUPPORT_REPRO_RE = re.compile(
 )
 _SUPPORT_EFFICIENCY_RE = re.compile(
     r"\b(runtime|latency|memory|parameters?|flops|compute|computational cost|"
-    r"wall-clock|throughput|speedup|efficiency|efficient|scalability|scalable)\b",
+    r"wall-clock|throughput|speedup|(?<!label-)efficiency|(?<!label )efficiency|"
+    r"(?<!label-)efficient|(?<!label )efficient|scalability|scalable)\b",
     re.IGNORECASE,
 )
 _SUPPORT_EVALUATION_PROTOCOL_RE = re.compile(
@@ -5399,7 +5602,6 @@ _REQUIREMENT_TO_COMPATIBLE_REVIEW_ISSUE_TYPES = {
     }),
     "method_detail": frozenset({
         "method_support_gap",
-        "missing_ablation",
         "result_claim_mismatch",
     }),
     "reproducibility_detail": frozenset({
@@ -5598,6 +5800,67 @@ def _review_issue_candidate_can_override_requirement_satisfaction(negative_type:
     )
 
 
+def _review_issue_candidate_rebound_claim_id(
+    candidate: Dict[str, Any],
+    view: Dict[str, Any],
+    requirement: str,
+) -> str:
+    """Return a safer claim id when the candidate's own text points elsewhere."""
+
+    original_claim_id = str(candidate.get("claim_id") or "").strip()
+    candidate_text = _normalize_text(
+        " ".join(
+            str(candidate.get(field) or "")
+            for field in ("claim", "weakness", "verification_question", "rationale")
+        ),
+        max_length=900,
+    )
+    candidate_tokens = _semantic_tokens(candidate_text)
+    if not original_claim_id or len(candidate_tokens) < 4:
+        return original_claim_id
+
+    requirement = _canonical_required_evidence_type(requirement)
+    best_claim_id = original_claim_id
+    best_score = -1
+    original_score = -1
+    for claim in (view or {}).get("claims", []) or []:
+        if not isinstance(claim, dict):
+            continue
+        claim_id = str(claim.get("claim_id") or "").strip()
+        if not claim_id or not _is_real_paper_claim_id_for_negative(claim_id):
+            continue
+        claim_text = _normalize_text(claim.get("claim") or claim.get("text"), max_length=360)
+        claim_tokens = _semantic_tokens(claim_text)
+        if not claim_tokens:
+            continue
+        overlap = len(candidate_tokens & claim_tokens)
+        score = overlap * 2
+        claim_requirements = set(_claim_required_evidence_types(claim)) | set(
+            _normalize_required_evidence_types(
+                claim.get("claim_obligations") or claim.get("required_evidence_types"),
+                max_items=12,
+            )
+        )
+        if requirement and requirement in claim_requirements:
+            score += 8
+        claim_type = str(claim.get("claim_type") or "").strip().lower()
+        if requirement == "baseline_or_comparison" and claim_type in {"comparison", "empirical"}:
+            score += 3
+        if claim_id == original_claim_id:
+            original_score = score
+        if score > best_score:
+            best_score = score
+            best_claim_id = claim_id
+
+    if best_claim_id == original_claim_id:
+        return original_claim_id
+    # Rebind only when the original target is clearly weak and the new target is
+    # strongly tied to both candidate wording and the requested obligation.
+    if best_score >= max(10, original_score + 6):
+        return best_claim_id
+    return original_claim_id
+
+
 def _review_issue_candidate_requirement_relevance_basis(
     candidate: Dict[str, Any],
     audit: Dict[str, Any],
@@ -5688,6 +5951,17 @@ def _review_issue_candidate_requirement_relevance_basis(
             re.IGNORECASE,
         ):
             return "missing_reproducibility_item_overlaps_claim"
+        if (
+            claim_type in {"method", "contribution", "empirical", "comparison"}
+            and re.search(
+                r"\b(hardware|gpu|cpu|ram|memory|resource|resources|network|latency|"
+                r"communication\s+cost|runtime|wall[- ]clock|computation\s+time|"
+                r"implementation|configuration|reproducib)\b",
+                candidate_blob,
+                re.IGNORECASE,
+            )
+        ):
+            return "reviewer_candidate_resource_reproducibility_cue"
         return ""
 
     if requirement == "method_detail":
@@ -5729,6 +6003,34 @@ def _review_issue_candidate_requirement_relevance_basis(
             )
         ):
             return "claim_component_cue"
+        if claim_type in {"method", "contribution"}:
+            inventory_text = " ".join(
+                " ".join(
+                    [
+                        str(item.get("quote") or ""),
+                        str(item.get("locator") or ""),
+                        " ".join(str(part or "") for part in item.get("observed_items") or []),
+                    ]
+                )
+                for item in _normalize_review_issue_observed_inventory_items(candidate.get("observed_inventory"))
+                if isinstance(item, dict)
+            )
+            missing_tokens = set()
+            for item in _normalize_list_of_strings(
+                candidate.get("missing_or_weak_items")
+                or candidate.get("coverage_missing_items")
+                or candidate.get("missing_items"),
+                max_items=6,
+                max_length=160,
+            ):
+                missing_tokens.update(_ablation_missing_item_target_tokens(item))
+            if (
+                inventory_text
+                and _REVIEW_ISSUE_COMPONENT_DEFINITION_RE.search(inventory_text)
+                and missing_tokens
+                and any(_text_contains_surface_marker(inventory_text, token) for token in missing_tokens)
+            ):
+                return "candidate_component_inventory_anchor"
         return ""
 
     if requirement == "empirical_result":
@@ -6068,7 +6370,8 @@ _PAPER_INVENTORY_REQUIREMENT_PATTERNS: List[Tuple[str, re.Pattern[str]]] = [
         "ablation_or_component",
         re.compile(
             r"\b(ablation|ablations|ablat(?:e|ed|ing)|component analysis|module analysis|"
-            r"variant|variants|without (?:the )?[A-Za-z0-9_-]+|remove(?:d|s)? (?:the )?[A-Za-z0-9_-]+)\b",
+            r"variant|variants|w/o|remove(?:d|s)? (?:the )?[A-Za-z0-9_-]+|"
+            r"removing (?:the )?[A-Za-z0-9_-]+)\b",
             re.IGNORECASE,
         ),
     ),
@@ -6117,7 +6420,7 @@ _PAPER_INVENTORY_REQUIREMENT_PATTERNS: List[Tuple[str, re.Pattern[str]]] = [
         "efficiency_cost",
         re.compile(
             r"\b(runtime|latency|throughput|speedup|wall[- ]clock|memory|gpu|cpu|hardware|flops|"
-            r"parameters?|compute|computational cost|computational time|efficiency|efficient)\b",
+            r"parameters?|compute|computational cost|computational time)\b",
             re.IGNORECASE,
         ),
     ),
@@ -6206,7 +6509,7 @@ def _paper_inventory_requirement_types(quote: str) -> List[str]:
     if "baseline_or_comparison" in requirements and "empirical_result" not in requirements:
         requirements.append("empirical_result")
     if "efficiency_cost" in requirements and not re.search(
-        r"\b(runtime|latency|throughput|speedup|wall[- ]clock|memory|gpu|hardware|flops|parameters?|compute|computational cost|computational time|efficiency)\b",
+        r"\b(runtime|latency|throughput|speedup|wall[- ]clock|memory|gpu|hardware|flops|parameters?|compute|computational cost|computational time)\b",
         lower,
         re.IGNORECASE,
     ):
@@ -6279,11 +6582,11 @@ _NORMALIZED_INVENTORY_BUCKET_BY_REQUIREMENT = {
 def _inventory_type_for_requirements(requirements: Sequence[str], quote: str = "") -> str:
     reqs = [_canonical_required_evidence_type(req) for req in requirements or []]
     lower = str(quote or "").lower()
-    if "ablation_or_component" in reqs or re.search(r"\bablation|with(?:out)?\s+and\s+without|w/o\b|variant", lower):
+    if "ablation_or_component" in reqs or re.search(r"\bablation|with\s+and\s+without|w/o\b|variant", lower):
         return "ablation"
     if "baseline_or_comparison" in reqs or re.search(r"\bbaseline|sota|state[- ]of[- ]the[- ]art|comparison", lower):
         return "baseline"
-    if "efficiency_cost" in reqs or re.search(r"\bruntime|latency|memory|flops?|throughput|gpu|hardware", lower):
+    if "efficiency_cost" in reqs or re.search(r"\bruntime|latency|memory|flops?|throughput|gpu|hardware|parameters?|speedup", lower):
         return "runtime"
     if "evaluation_protocol" in reqs or re.search(r"\bsplit|seed|threshold|protocol|setting", lower):
         return "protocol"
@@ -6606,7 +6909,25 @@ def _evaluation_inventory_raw_items(
     ):
         inventory = _evaluation_inventory_from_evidence(state, max_items=max_items)
     raw_items = inventory.get("items") if isinstance(inventory.get("items"), list) else inventory.get("inventory_items", [])
-    return [item for item in raw_items or [] if isinstance(item, dict)][:max_items]
+    items = [item for item in raw_items or [] if isinstance(item, dict)]
+    if len(items) < max_items and str((state or {}).get("paper_text") or "").strip():
+        # Older run states may already carry a compact evaluation_inventory that
+        # was clipped before later ablation/protocol/resource sections.  Merge a
+        # deterministic full-text inventory pass at read time so issue-bundle
+        # verification can use locatable paper anchors without trusting model
+        # paraphrases.
+        seen_quote_keys = {_quote_bank_dedupe_key(str(item.get("quote") or "")) for item in items}
+        for item in _paper_inventory_from_text(state, max_items=max(max_items * 2, 96)).get("items", []) or []:
+            if not isinstance(item, dict):
+                continue
+            quote_key = _quote_bank_dedupe_key(str(item.get("quote") or ""))
+            if quote_key and quote_key in seen_quote_keys:
+                continue
+            seen_quote_keys.add(quote_key)
+            items.append(item)
+            if len(items) >= max_items:
+                break
+    return items[:max_items]
 
 
 def _evaluation_inventory_item_for_ref(
@@ -7086,6 +7407,12 @@ def _review_issue_inventory_anchor_score(
     expected_type = _inventory_type_for_requirements([requirement], str(item.get("quote") or ""))
     if inventory_type and expected_type and inventory_type == expected_type:
         score += 12
+    if _canonical_negative_evidence_type(neg_type) == "missing_ablation":
+        quote = str(item.get("quote") or "")
+        if _REVIEW_ISSUE_ABLATION_INVENTORY_RE.search(quote):
+            score += 80
+        elif "empirical_result" in reqs or inventory_type in {"metric", "baseline"}:
+            score -= 8
     if _review_issue_inventory_item_matches_requirement(item, requirement, neg_type):
         score += 10
     source = str(item.get("inventory_source") or item.get("support_bucket") or "")
@@ -7152,7 +7479,585 @@ def _review_issue_paper_inventory_for_bundle(
         results.append(normalized)
         if len(results) >= max_items:
             break
+    if _canonical_negative_evidence_type(neg_type) == "missing_ablation":
+        ablation_results = [
+            item for item in results
+            if _REVIEW_ISSUE_ABLATION_INVENTORY_RE.search(str(item.get("quote") or ""))
+        ]
+        if ablation_results:
+            return ablation_results[:max_items]
     return results
+
+
+_REVIEW_ISSUE_COMPONENT_ANCHOR_RE = re.compile(
+    r"\b(?:method|approach|framework|algorithm|module|component|architecture|"
+    r"objective|loss|constraint|regulari[sz]er|head|predictor|classifier|"
+    r"encoder|decoder|attention|routing|fusion|branch|stage|training)\b",
+    re.IGNORECASE,
+)
+_REVIEW_ISSUE_COMPONENT_DEFINITION_RE = re.compile(
+    r"\b(?:we|our|proposed|the\s+(?:method|model|approach|framework|algorithm))\b"
+    r"[^.!?]{0,120}\b(?:adopt|use|uses|using|introduce|introduces|define|defines|"
+    r"consist|consists|contain|contains|comprise|comprises|train|trained|optimi[sz]e|"
+    r"loss|objective|constraint|gradient|mechanism|module|component|head|predictor)\b|"
+    r"\b(?:loss|objective|constraint|mechanism|module|component|head|predictor|"
+    r"gradient|encoder|decoder|attention|routing|fusion|branch)\b[^.!?]{0,120}"
+    r"\b(?:is|are|be|defined|computed|trained|used|adopted|introduced|optimized|"
+    r"learned|parameteri[sz]ed)\b",
+    re.IGNORECASE,
+)
+
+_REVIEW_ISSUE_CURRENT_PAPER_COMPONENT_RE = re.compile(
+    r"\b(?:we|our|ours|this\s+paper|in\s+this\s+(?:paper|work)|proposed|"
+    r"we\s+(?:propose|introduce|develop|use|adopt|design|augment)|"
+    r"(?:propose|proposes|proposed|introduce|introduces|introduced|develop|develops|developed|"
+    r"design|designs|designed|adopt|adopts|adopted|use|uses|used|augment|augments|augmented|"
+    r"equip|equips|equipped)|"
+    r"(?:is|are|was|were)\s+(?:then\s+)?(?:introduced|proposed|developed|designed|adopted|used|equipped))\b",
+    re.IGNORECASE,
+)
+_REVIEW_ISSUE_PRIOR_COMPONENT_CONTEXT_RE = re.compile(
+    r"\b(?:prior|previous|existing|baseline)\s+(?:work|method|methods|approach|approaches|model|models)\b|"
+    r"\b(?:however|nevertheless|unlike|compared\s+with|compared\s+to)\b.{0,120}"
+    r"\b(?:does\s+not|do\s+not|cannot|limited|limitation|necessitates|requires)\b|"
+    r"\b(?:does\s+not|do\s+not|cannot|limited|limitation|necessitates|requires)\b.{0,120}"
+    r"\b(?:prior|previous|existing|baseline|medusa|eagle|clip4clip)\b",
+    re.IGNORECASE,
+)
+
+
+def _review_issue_component_anchor_is_current_paper_owned(text: str) -> bool:
+    """Return whether a component anchor describes this paper's own mechanism.
+
+    Component-ablation issues are reviewer inferences about the submitted
+    paper's components.  Related-work limitations and competitor mechanisms can
+    be useful context, but they must not become missing-ablation targets.
+    """
+
+    value = _normalize_text(text, max_length=520)
+    if not value:
+        return False
+    if _REVIEW_ISSUE_PRIOR_COMPONENT_CONTEXT_RE.search(value) and not _REVIEW_ISSUE_CURRENT_PAPER_COMPONENT_RE.search(value):
+        return False
+    return bool(_REVIEW_ISSUE_CURRENT_PAPER_COMPONENT_RE.search(value))
+
+
+def _review_issue_component_anchor_excerpt(window: str, target_tokens: Sequence[str]) -> str:
+    text = str(window or "")
+    if not text:
+        return ""
+    lowered = text.lower()
+    positions: List[int] = []
+    for token in sorted({str(item or "").strip().lower() for item in target_tokens if str(item or "").strip()}, key=len, reverse=True):
+        for pattern in _surface_marker_patterns(token):
+            try:
+                match = re.search(pattern, lowered, flags=re.IGNORECASE)
+            except re.error:
+                match = None
+            if match:
+                positions.append(match.start())
+                break
+    if not positions:
+        return _normalize_text(text, max_length=260)
+    pos = min(positions)
+    prev_candidates = [
+        text.rfind("\n\n", 0, pos),
+        text.rfind(".\n", 0, pos),
+        text.rfind(". ", 0, pos),
+        text.rfind("; ", 0, pos),
+    ]
+    start = max(prev_candidates)
+    start = 0 if start < 0 else start + (2 if text[start:start + 2] in {". ", ".\n", "; ", "\n\n"} else 1)
+    next_candidates = [
+        idx for idx in (
+            text.find(". ", pos),
+            text.find(".\n", pos),
+            text.find("\n\n", pos),
+        )
+        if idx >= 0
+    ]
+    end = min(next_candidates) + 1 if next_candidates else min(len(text), pos + 320)
+    excerpt = text[start:end].strip()
+    if len(excerpt) < 80 and end < len(text):
+        next_period = text.find(". ", end + 1)
+        if next_period >= 0:
+            excerpt = text[start:next_period + 1].strip()
+    first_sentence_break = excerpt.find(". ")
+    if first_sentence_break > 0 and first_sentence_break < 100:
+        remainder = excerpt[first_sentence_break + 2 :].strip()
+        if remainder and re.match(r"^[a-z]\b|^[a-z]{1,3}\s", excerpt):
+            if (
+                any(_text_contains_surface_marker(remainder, token) for token in target_tokens)
+                or _REVIEW_ISSUE_COMPONENT_DEFINITION_RE.search(remainder)
+            ):
+                excerpt = remainder
+    return _normalize_text(excerpt or text, max_length=260)
+
+
+def _review_issue_component_anchor_inventory_for_missing_ablation(
+    view: Dict[str, Any],
+    missing_items: Sequence[str],
+    *,
+    max_items: int = 2,
+) -> List[Dict[str, Any]]:
+    """Locate the component whose isolated ablation is allegedly missing.
+
+    This supports real reviewer issues where the paper clearly defines a loss,
+    constraint, predictor, or module, but never reports an ablation that isolates
+    it.  The returned anchor is positive/neutral inventory, not negative quote
+    evidence; full-text ablation counterevidence is still checked later.
+    """
+    paper_text = str((view or {}).get("paper_text") or "")
+    if not paper_text:
+        return []
+    body, _ = _clean_paper_body(paper_text)
+    if not body:
+        body = paper_text
+    target_tokens: set[str] = set()
+    for item in missing_items or []:
+        target_tokens.update(_ablation_missing_item_target_tokens(str(item or "")))
+    target_tokens = {
+        token for token in target_tokens
+        if token not in {"ablation", "variant", "variants", "component", "module"}
+    }
+    if not target_tokens:
+        return []
+    windows = _review_issue_full_text_target_windows(
+        body,
+        sorted(target_tokens, key=len, reverse=True),
+        window=520,
+        max_windows=12,
+    )
+    results: List[Dict[str, Any]] = []
+    seen: set[str] = set()
+    for window in windows:
+        if not window or _review_issue_related_work_only_window(window):
+            continue
+        if not _REVIEW_ISSUE_COMPONENT_ANCHOR_RE.search(window):
+            continue
+        if not _REVIEW_ISSUE_COMPONENT_DEFINITION_RE.search(window):
+            continue
+        if not any(_text_contains_surface_marker(window, token) for token in target_tokens):
+            continue
+        # Prefer method/component descriptions over ablation-result snippets.
+        if _ABLATION_COUNTEREVIDENCE_RE.search(window) and _ablation_missing_items_resolved_by_text(window, missing_items):
+            continue
+        quote = _review_issue_component_anchor_excerpt(window, sorted(target_tokens, key=len, reverse=True))
+        if not _review_issue_component_anchor_is_current_paper_owned(quote):
+            continue
+        if _review_issue_inventory_is_strict_result_table_anchor(quote, quote):
+            continue
+        key = _quote_bank_dedupe_key(quote)
+        if not quote or (key and key in seen):
+            continue
+        if key:
+            seen.add(key)
+        results.append(
+            {
+                "evidence_id": "",
+                "inventory_id": _slugify("component-anchor", quote, len(results) + 1),
+                "quote_id": "",
+                "quote": quote,
+                "locator": f"paper component inventory #{len(results) + 1}",
+                "observed_items": sorted(target_tokens)[:8],
+                "inventory_type": "component_anchor",
+                "requirement_types": ["ablation_or_component", "method_detail"],
+                "inventory_source": "component_anchor_for_missing_ablation",
+                "support_bucket": "component_anchor_for_missing_ablation",
+                "verified_grounding_label": "paper_grounded_exact",
+                "verified_quote_match_type": "full_paper_exact_substring",
+            }
+        )
+        if len(results) >= max_items:
+            break
+    return results
+
+
+_REVIEW_ISSUE_COMPONENT_PHRASE_RE = re.compile(
+    r"\b(?:[A-Za-z0-9$\\_-]+\s+){0,4}"
+    r"(?:constraint|loss|objective|module|head|predictor|regulari[sz]ation|"
+    r"regulari[sz]er|gradient|mechanism|task|network|encoder|decoder|branch|"
+    r"alignment|attention|fusion|conversion\s+method|representation)\b",
+    re.IGNORECASE,
+)
+
+
+def _review_issue_component_ablation_seed_targets(
+    view: Dict[str, Any],
+    claim: Dict[str, Any],
+    *,
+    max_items: int = 2,
+) -> List[Dict[str, Any]]:
+    """Find concrete method components worth checking for isolation ablations."""
+    claim_text = _normalize_text((claim or {}).get("claim") or (claim or {}).get("text"), max_length=260)
+    claim_type = str((claim or {}).get("claim_type") or "").strip().lower()
+    if not claim_text:
+        return []
+    claim_has_component_contract = bool(
+        claim_type in {"method", "contribution"}
+        or _CLAIM_REQ_ABLATION_RE.search(claim_text)
+        or re.search(
+            r"\b(?:module|component|mechanism|architecture|objective|loss|constraint|"
+            r"regulari[sz]er|head|predictor|attention|routing|fusion|branch|stage|"
+            r"gradient|encoder|decoder|draft\s+model)\b",
+            claim_text,
+            re.IGNORECASE,
+        )
+    )
+    if not claim_has_component_contract:
+        return []
+    profile = _review_issue_claim_surface_profile(claim_text)
+    entity_terms = [
+        term for term in (profile.get("surface_entities") or [])
+        if _normalize_text(term, max_length=80)
+    ][:3]
+    entity_terms.extend(
+        term for term in (profile.get("components_or_mechanisms") or [])
+        if _normalize_text(term, max_length=80)
+    )
+    entity_terms.extend(
+        token for token in _specific_surface_tokens(claim_text)
+        if len(token) >= 4 and re.search(r"[A-Z]", token)
+    )
+    if not entity_terms:
+        return []
+    paper_text = str((view or {}).get("paper_text") or "")
+    if not paper_text:
+        return []
+    body, _ = _clean_paper_body(paper_text)
+    if not body:
+        body = paper_text
+    windows = _review_issue_full_text_target_windows(
+        body,
+        entity_terms,
+        window=620,
+        max_windows=10,
+    )
+    results: List[Dict[str, Any]] = []
+    seen: set[str] = set()
+    for window in windows:
+        if not window or _review_issue_related_work_only_window(window):
+            continue
+        if not _REVIEW_ISSUE_COMPONENT_DEFINITION_RE.search(window):
+            continue
+        for match in _REVIEW_ISSUE_COMPONENT_PHRASE_RE.finditer(window):
+            phrase = _normalize_text(match.group(0), max_length=100)
+            while True:
+                stripped = re.sub(
+                    r"^(?:we|our|the|a|an|to|and|or|another|overcome|issue|propose|proposes|"
+                    r"introduce|introduces|use|uses|using|guided)\s+",
+                    "",
+                    phrase,
+                    flags=re.IGNORECASE,
+                ).strip()
+                if stripped == phrase:
+                    break
+                phrase = stripped
+            if not phrase:
+                continue
+            lowered = phrase.lower()
+            if lowered in seen:
+                continue
+            missing_item = f"component-isolation ablation for {phrase}"
+            if not _review_issue_missing_items_are_concrete("missing_ablation", [missing_item]):
+                continue
+            if _missing_ablation_target_is_task_scope(missing_item):
+                continue
+            if _paper_has_ablation_counterevidence_for_missing_claim(
+                view or {},
+                {
+                    "negative_evidence_type": "missing_ablation",
+                    "coverage_missing_items": [missing_item],
+                },
+                claim_text,
+            ):
+                continue
+            inventory = _review_issue_component_anchor_inventory_for_missing_ablation(
+                view,
+                [missing_item],
+                max_items=1,
+            )
+            if not inventory:
+                continue
+            seen.add(lowered)
+            results.append(
+                {
+                    "missing_item": missing_item,
+                    "component_phrase": phrase,
+                    "observed_inventory": inventory,
+                }
+            )
+            if len(results) >= max_items:
+                return results
+    return results
+
+
+_PAPER_NAMED_BASELINE_CONTEXT_RE = re.compile(
+    r"\b(?:related\s+work|prior\s+work|previous\s+work|existing\s+methods?|"
+    r"state[- ]of[- ]the[- ]art|sota|baseline|baselines|competitor|competitors|"
+    r"active\s+learning|domain\s+adaptation|comparison)\b",
+    re.IGNORECASE,
+)
+_PAPER_NAMED_BASELINE_METHOD_CUE_RE = re.compile(
+    r"\b(?:method|methods|approach|approaches|model|models|algorithm|algorithms|"
+    r"baseline|baselines|selects|prioriti[sz]es|incorporates|explores|relies|"
+    r"uses|proposes|introduced|compared)\b",
+    re.IGNORECASE,
+)
+_PAPER_NAMED_BASELINE_DATASET_CONTEXT_RE = re.compile(
+    r"\b(?:dataset|datasets|benchmark|benchmarks|corpus|corpora|classes?|samples?|"
+    r"images?|videos?|annotations?)\b",
+    re.IGNORECASE,
+)
+_PAPER_NAMED_BASELINE_NAME_STOPWORDS = {
+    "ada",
+    "al",
+    "api",
+    "auc",
+    "bert",
+    "cityscapes",
+    "coco",
+    "cs",
+    "d4rl",
+    "dataset",
+    "datasets",
+    "deep",
+    "figure",
+    "for",
+    "following",
+    "gtav",
+    "halo",
+    "imagenet",
+    "method",
+    "moreover",
+    "net",
+    "nets",
+    "ours",
+    "previous",
+    "prior",
+    "qm9",
+    "related",
+    "results",
+    "since",
+    "sota",
+    "synthia",
+    "table",
+}
+_PAPER_NAMED_BASELINE_DATASET_NAME_RE = re.compile(
+    r"\b(?:refcoco(?:g|\+)?|cityscapes?|synthia|gtav|acdc|d4rl|qm9|usps|"
+    r"synthdigits|mnist|cifar|imagenet|coco|davis|fbms|segtrack|dataset|benchmark)\b",
+    re.IGNORECASE,
+)
+_PAPER_NAMED_BASELINE_LIMITED_COMPARISON_RE = re.compile(
+    r"\b(?:absence|lack)\s+of\s+other\b.{0,100}\b(?:studies|methods|baselines|comparisons)\b|"
+    r"\b(?:no|without)\s+other\b.{0,100}\b(?:studies|methods|baselines|comparisons)\b|"
+    r"\bonly\s+(?:a\s+)?(?:single\s+)?(?:baseline|comparison)\b|"
+    r"\bsingle\s+(?:baseline|comparison)\b",
+    re.IGNORECASE,
+)
+
+
+def _paper_named_baseline_name_is_usable(name: str, context: str, claim_text: str, inventory_text: str) -> bool:
+    value = _normalize_text(name, max_length=60)
+    if not value:
+        return False
+    lowered = value.lower()
+    if lowered in _PAPER_NAMED_BASELINE_NAME_STOPWORDS:
+        return False
+    if _PAPER_NAMED_BASELINE_DATASET_NAME_RE.search(value):
+        return False
+    if len(value) < 4 and not re.search(r"\d", value):
+        return False
+    if _text_contains_surface_marker(claim_text, value):
+        return False
+    if inventory_text and _text_contains_surface_marker(inventory_text, value):
+        return False
+    local = str(context or "")
+    name_match = re.search(re.escape(value), local, re.IGNORECASE)
+    if name_match:
+        window = local[max(0, name_match.start() - 80) : min(len(local), name_match.end() + 120)]
+        if _PAPER_NAMED_BASELINE_DATASET_CONTEXT_RE.search(window) and not _PAPER_NAMED_BASELINE_METHOD_CUE_RE.search(window):
+            return False
+    if re.fullmatch(r"[A-Z]{2,}", value) and len(value) <= 4:
+        return bool(_PAPER_NAMED_BASELINE_METHOD_CUE_RE.search(local))
+    return bool(
+        re.search(r"[A-Z][a-z]+[A-Z][A-Za-z0-9_-]*|[A-Za-z]+[-+][A-Za-z0-9_-]+|\d", value)
+        or _PAPER_NAMED_BASELINE_METHOD_CUE_RE.search(local)
+    )
+
+
+def _claim_supports_paper_named_baseline_seed(claim: Dict[str, Any]) -> bool:
+    claim_text = _normalize_text((claim or {}).get("claim") or (claim or {}).get("text"), max_length=360)
+    if not claim_text:
+        return False
+    lower = claim_text.lower()
+    if re.search(r"\bbaseline\s+[A-Z][A-Za-z0-9_-]*\s+(?:suffers|fails|underperforms|drops|collapses)\b", claim_text):
+        return False
+    has_current_paper_subject = bool(
+        re.search(r"\b(?:proposed|our|ours|this\s+(?:paper|work)|method|model|approach|system|framework)\b", lower)
+        or _specific_surface_tokens(claim_text)
+    )
+    has_positive_comparison = bool(
+        re.search(
+            r"\b(?:outperform|outperforms|achiev(?:e|es|ed)|state[- ]of[- ]the[- ]art|sota|"
+            r"superior|improv(?:e|es|ed|ement)|favorable|favourable|competitive|narrows?\s+the\s+gap)\b",
+            lower,
+        )
+        and re.search(r"\b(?:baseline|baselines|compared|comparison|against|prior|existing|state[- ]of[- ]the[- ]art|sota)\b", lower)
+    )
+    return bool(has_current_paper_subject and has_positive_comparison)
+
+
+def _paper_named_prior_baseline_seed_targets(
+    view: Dict[str, Any],
+    claim: Dict[str, Any],
+    *,
+    max_items: int = 2,
+) -> List[Dict[str, Any]]:
+    claim_id = str((claim or {}).get("claim_id") or "").strip()
+    claim_text = _normalize_text((claim or {}).get("claim") or (claim or {}).get("text"), max_length=320)
+    if not claim_id or not claim_text:
+        return []
+    claim_type = str((claim or {}).get("claim_type") or "").strip().lower()
+    if not _claim_supports_paper_named_baseline_seed(claim or {}):
+        return []
+    claim_requirements = set(_claim_required_evidence_types(claim or {})) | set(
+        _normalize_required_evidence_types(
+            (claim or {}).get("claim_obligations") or (claim or {}).get("required_evidence_types"),
+            max_items=12,
+        )
+    )
+    if (
+        "baseline_or_comparison" not in claim_requirements
+        and claim_type not in {"comparison", "empirical"}
+        and not _CLAIM_REQ_BASELINE_RE.search(claim_text)
+    ):
+        return []
+    observed_inventory = _review_issue_paper_inventory_for_bundle(
+        view,
+        claim_id,
+        "baseline_or_comparison",
+        "missing_baseline",
+        missing_items=[],
+        max_items=2,
+    )
+    if not observed_inventory:
+        return []
+    inventory_text = " ".join(
+        " ".join(
+            [
+                str(item.get("quote") or ""),
+                str(item.get("locator") or ""),
+                " ".join(str(part or "") for part in item.get("observed_items") or []),
+            ]
+        )
+        for item in observed_inventory
+        if isinstance(item, dict)
+    )
+    body, _ = _clean_paper_body(str((view or {}).get("paper_text") or ""))
+    if not body:
+        return []
+    if not _PAPER_NAMED_BASELINE_LIMITED_COMPARISON_RE.search(body):
+        return []
+
+    contexts: List[Tuple[int, str]] = []
+    for match in re.finditer(r"\\cite[tp]?\{[^}]+\}", body):
+        quote = _quote_fragment_around(body, match.start(), max_chars=420)
+        if quote and (_PAPER_NAMED_BASELINE_CONTEXT_RE.search(quote) or _PAPER_NAMED_BASELINE_METHOD_CUE_RE.search(quote)):
+            contexts.append((match.start(), quote))
+    results: List[Dict[str, Any]] = []
+    seen: set[str] = set()
+    for pos, context in contexts:
+        if _review_issue_related_work_only_window(context) and not _PAPER_NAMED_BASELINE_METHOD_CUE_RE.search(context):
+            continue
+        names: List[str] = []
+        for name in re.findall(
+            r"\b([A-Z][A-Za-z0-9]{2,}(?:[-+][A-Za-z0-9]+)?)\s*~?\\cite[tp]?\{",
+            context,
+        ):
+            normalized = _normalize_text(name, max_length=60)
+            if normalized and normalized not in names:
+                names.append(normalized)
+        for name in names:
+            key = name.lower()
+            if key in seen:
+                continue
+            if not _paper_named_baseline_name_is_usable(name, context, claim_text, inventory_text):
+                continue
+            seen.add(key)
+            missing_item = f"same-setting comparison against paper-named {name} baseline"
+            if not _coverage_item_is_specific_for_type(missing_item, "missing_baseline"):
+                continue
+            expectation_verification = _verify_quote_against_reference(context, body, 0)
+            if expectation_verification.get("verified_grounding_label") not in VERIFIED_PAPER_GROUNDED_LABELS:
+                continue
+            results.append(
+                {
+                    "missing_item": missing_item,
+                    "baseline_name": name,
+                    "observed_inventory": observed_inventory,
+                    "expectation_quote": _normalize_text(context, max_length=260),
+                    "expectation_locator": _paper_inventory_locator_for_quote(context, pos + 1),
+                }
+            )
+            if len(results) >= max_items:
+                return results
+    return results
+
+
+def _review_issue_efficiency_cost_seed_targets(
+    view: Dict[str, Any],
+    claim: Dict[str, Any],
+    *,
+    max_items: int = 1,
+) -> List[Dict[str, Any]]:
+    """Seed resource/cost review issues for explicit efficiency claims.
+
+    This is deliberately narrow: the claim must assert efficiency/speed/scale,
+    the observed paper inventory must contain a locatable result/evaluation
+    anchor for that claim context, and the full-text counterevidence pass still
+    rejects the issue if runtime/memory/compute measurements exist.
+    """
+
+    claim_text = _normalize_text((claim or {}).get("claim") or (claim or {}).get("text"), max_length=260)
+    if not claim_text or not _CLAIM_REQ_EFFICIENCY_RE.search(claim_text):
+        return []
+    claim_id = str((claim or {}).get("claim_id") or "").strip()
+    missing_item = "runtime, memory, parameter, FLOP, hardware, or compute-cost measurement for the efficiency claim"
+    if not _review_issue_missing_items_are_concrete("efficiency_cost_gap", [missing_item]):
+        return []
+    inventory = _review_issue_paper_inventory_for_bundle(
+        view,
+        claim_id,
+        "empirical_result",
+        "insufficient_evaluation",
+        missing_items=[missing_item],
+        max_items=2,
+    )
+    if not inventory:
+        inventory = _review_issue_paper_inventory_for_bundle(
+            view,
+            claim_id,
+            "baseline_or_comparison",
+            "missing_baseline",
+            missing_items=[missing_item],
+            max_items=2,
+        )
+    if not inventory:
+        return []
+    probe_bundle = {
+        "claim_anchor": {"claim_id": claim_id, "quote": claim_text},
+        "missing_or_mismatch": {"entity": missing_item, "items": [missing_item]},
+        "observed_inventory": inventory,
+    }
+    if _review_issue_full_text_counterevidence_reason(probe_bundle, view or {}, neg_type="efficiency_cost_gap"):
+        return []
+    return [
+        {
+            "missing_item": missing_item,
+            "observed_inventory": inventory,
+        }
+    ][:max_items]
 
 
 def _review_issue_missing_entity_for_requirement(
@@ -7321,7 +8226,13 @@ def _review_issue_missing_items_look_truncated(missing_items: Sequence[str]) -> 
         if len(text) >= 60 and re.search(r"[-/,]\s*$", text):
             return True
         tokens = [token for token in re.split(r"\s+", text) if token]
-        if len(text) >= 60 and tokens and len(re.sub(r"[^A-Za-z0-9]+", "", tokens[-1])) <= 3:
+        last_token = re.sub(r"[^A-Za-z0-9]+", "", tokens[-1]) if tokens else ""
+        if (
+            len(text) >= 60
+            and last_token
+            and len(last_token) <= 3
+            and not re.fullmatch(r"[A-Z0-9]{2,4}", last_token)
+        ):
             return True
     return False
 
@@ -7389,8 +8300,10 @@ def _review_issue_bundle_has_ablation_counterevidence(bundle: Dict[str, Any]) ->
         return False
     anchor = bundle.get("claim_anchor") if isinstance(bundle.get("claim_anchor"), dict) else {}
     claim_text = str(anchor.get("quote") or "")
-    claim_tokens = _semantic_tokens(claim_text)
-    if _CLAIM_SELF_REPORTS_ABLATION_RESULT_RE.search(claim_text) and target_tokens & claim_tokens:
+    if (
+        _CLAIM_SELF_REPORTS_ABLATION_RESULT_RE.search(claim_text)
+        and _ablation_missing_items_resolved_by_text(claim_text, missing_items)
+    ):
         return True
     inventory_text = " ".join(
         " ".join(
@@ -7405,8 +8318,7 @@ def _review_issue_bundle_has_ablation_counterevidence(bundle: Dict[str, Any]) ->
     )
     if not _REVIEW_ISSUE_ABLATION_RESOLUTION_RE.search(inventory_text):
         return False
-    inventory_tokens = _semantic_tokens(inventory_text)
-    return bool(target_tokens & inventory_tokens)
+    return _ablation_missing_items_resolved_by_text(inventory_text, missing_items)
 
 
 def _review_issue_observed_inventory_is_verifiable(bundle: Dict[str, Any]) -> bool:
@@ -7433,6 +8345,30 @@ def _review_issue_observed_inventory_is_verifiable(bundle: Dict[str, Any]) -> bo
         if quote and (locator or evidence_id or str(item.get("quote_id") or "").strip()):
             return True
     return False
+
+
+_REVIEW_ISSUE_ABLATION_INVENTORY_RE = re.compile(
+    r"\b(?:ablation|ablations|ablation\s+study|ablation\s+studies|"
+    r"ablat(?:e|ed|ing|ion|ions)|w/o|"
+    r"component\s+(?:study|analysis)|module\s+(?:study|analysis)|"
+    r"sensitivity\s+(?:study|analysis)|with\s+and\s+without)\b",
+    re.IGNORECASE,
+)
+
+_REVIEW_ISSUE_EFFICIENCY_INVENTORY_RE = re.compile(
+    r"\b(?:runtime|latency|throughput|wall[- ]clock|running\s+time|"
+    r"training\s+time|inference\s+time|search\s+time|memory|gpu|cpu|"
+    r"hardware|flops?|params?|parameters?|compute|computational\s+(?:cost|time|budget)|"
+    r"speedup|fps|tokens?/s|milliseconds?|seconds?|ms\b|gb\b|mb\b)\b",
+    re.IGNORECASE,
+)
+
+_REVIEW_ISSUE_GENERIC_EFFECTIVENESS_RE = re.compile(
+    r"\b(?:demonstrate(?:s|d)?\s+(?:its\s+)?effectiveness|effective\s+on|"
+    r"various\s+public\s+datasets|different\s+downstream\s+tasks|"
+    r"achieves?\s+(?:competitive|superior|strong)\s+performance)\b",
+    re.IGNORECASE,
+)
 
 
 def _review_issue_inventory_has_empirical_result_observation(
@@ -7467,6 +8403,26 @@ def _review_issue_inventory_has_empirical_result_observation(
     if problem_intro_only and not (strong_quote_result_signal or has_quantity):
         return False
     return bool(strong_quote_result_signal or has_quantity)
+
+
+def _review_issue_inventory_is_strict_result_table_anchor(
+    inventory_text: str,
+    inventory_quote_text: str,
+) -> bool:
+    text = str(inventory_text or "")
+    quote_text = str(inventory_quote_text or "")
+    if not re.search(r"\b(?:table|tab\.?|figure|fig\.?|results?|experiments?|evaluation|benchmark)\b", text, re.I):
+        return False
+    if _REVIEW_ISSUE_GENERIC_EFFECTIVENESS_RE.search(quote_text):
+        return False
+    return bool(
+        re.search(
+            r"\b(?:accuracy|f1|auc|mae|eer|miou|jaccard|score|scores|metric|metrics|"
+            r"precision|recall|success\s+rate|error\s+rate|performance\s+scores?)\b",
+            quote_text,
+            re.I,
+        )
+    )
 
 
 def _review_issue_observed_inventory_relevant_for_type(bundle: Dict[str, Any], neg_type: str) -> bool:
@@ -7506,14 +8462,28 @@ def _review_issue_observed_inventory_relevant_for_type(bundle: Dict[str, Any], n
             )
         )
     if neg_type == "missing_ablation":
-        return bool(
-            re.search(
-                r"\b(ablation|ablat(?:e|ed|ion|ions)|variant|variants|w/o|without|"
-                r"remove[sd]?|removing|isolate[sd]?|component\s+(?:study|analysis)|"
-                r"module\s+(?:study|analysis))\b",
-                inventory_text,
+        if _REVIEW_ISSUE_ABLATION_INVENTORY_RE.search(inventory_quote_text):
+            return True
+        for item in (bundle.get("observed_inventory") or []):
+            if not isinstance(item, dict):
+                continue
+            if str(item.get("inventory_type") or "") != "component_anchor":
+                continue
+            quote = " ".join(
+                [
+                    str(item.get("quote") or ""),
+                    " ".join(str(part or "") for part in item.get("observed_items") or []),
+                ]
             )
-        )
+            if not _review_issue_component_anchor_is_current_paper_owned(quote):
+                continue
+            missing_items = _review_issue_missing_item_texts(bundle)
+            target_tokens: set[str] = set()
+            for missing_item in missing_items:
+                target_tokens.update(_ablation_missing_item_target_tokens(missing_item))
+            if target_tokens and any(_text_contains_surface_marker(quote, token) for token in target_tokens):
+                return True
+        return False
     if neg_type == "insufficient_evaluation":
         if _review_issue_inventory_has_empirical_result_observation(inventory_text, inventory_quote_text):
             return True
@@ -7537,23 +8507,40 @@ def _review_issue_observed_inventory_relevant_for_type(bundle: Dict[str, Any], n
             )
         )
     if neg_type == "evaluation_protocol_risk":
+        missing_text = _missing_joined_text(_review_issue_missing_item_texts(bundle))
+        if (
+            re.search(r"\b(proxy|validation|validate|human\s+judg(?:e|ment)|gold[- ]standard)\b", missing_text)
+            and re.search(r"\b(proxy|metric|normalized\s+edit\s+distance|human\s+judg(?:e|ment)|success\s+rate)\b", inventory_text)
+        ):
+            return True
         return bool(
             re.search(
-                r"\b(protocol|setup|setting|settings|split|validation|test|train|threshold|"
-                r"seed|metric|hardware|budget|evaluation|experiment)\b",
+                r"\b(protocol|setup|split|splits|train(?:ing)?/?test|validation|test\s+set|"
+                r"threshold|seed|seeds|metric\s+definition|metric\s+definitions|"
+                r"hardware|budget|same[- ]budget|evaluation\s+budget|experimental\s+setting|"
+                r"evaluation\s+setting)\b",
                 inventory_text,
             )
         )
     if neg_type == "efficiency_cost_gap":
+        if _REVIEW_ISSUE_GENERIC_EFFECTIVENESS_RE.search(inventory_quote_text):
+            return False
+        if _REVIEW_ISSUE_EFFICIENCY_INVENTORY_RE.search(inventory_quote_text):
+            return True
+        missing_items = _review_issue_missing_item_texts(bundle)
+        claim_anchor = bundle.get("claim_anchor") if isinstance(bundle.get("claim_anchor"), dict) else {}
+        claim_text = str(claim_anchor.get("quote") or "")
         return bool(
-            re.search(
-                r"\b(runtime|latency|memory|flops|compute|computational\s+cost|computational\s+time|"
-                r"running\s+time|wall[- ]clock|throughput|"
-                r"efficiency|efficient|cost|hardware|gpu|parameter|parameters|table)\b",
-                inventory_text,
-            )
+            _review_issue_missing_items_are_resource_cost_dimension(missing_items)
+            and _CLAIM_REQ_EFFICIENCY_RE.search(claim_text)
+            and _review_issue_inventory_has_empirical_result_observation(inventory_text, inventory_quote_text)
         )
     if neg_type in {"method_support_gap", "reproducibility_gap"}:
+        if neg_type == "method_support_gap":
+            # Method-support gaps usually require reviewer/domain judgment beyond a
+            # claim+inventory absence package. Keep them as candidates unless a
+            # future verifier can prove a narrower contract.
+            return False
         return bool(
             re.search(
                 r"\b(method|framework|pipeline|algorithm|architecture|implementation|training|"
@@ -7598,6 +8585,8 @@ def _review_issue_missing_items_already_observed(bundle: Dict[str, Any]) -> bool
     if not inventory_text:
         return False
     issue_type = _canonical_negative_evidence_type(bundle.get("issue_type"))
+    if issue_type == "missing_ablation":
+        return _ablation_missing_items_resolved_by_text(inventory_text, missing_items)
     if str(bundle.get("source_of_expectation") or "") == "claim_obligation":
         distinctive_tokens = {
             token
@@ -7946,7 +8935,70 @@ def _review_issue_related_work_only_window(window: str) -> bool:
     text = str(window or "")
     if not _REVIEW_ISSUE_FULL_TEXT_RELATED_WORK_RE.search(text[:260]):
         return False
-    return not _REVIEW_ISSUE_FULL_TEXT_EVAL_RE.search(text)
+    return not re.search(
+        r"\b(?:table|tab\.?|results?|evaluation|experiment|experiments|compared|"
+        r"comparison|outperform|outperforms|accuracy|miou|f1|auc|mae|score|scores|"
+        r"metric|metrics|performance\s+on)\b",
+        text,
+        re.IGNORECASE,
+    )
+
+
+def _baseline_counterevidence_window_resolves_missing(window: str, missing_terms: Sequence[str]) -> bool:
+    text = str(window or "")
+    if not text:
+        return False
+    concrete_terms = [
+        str(term or "").strip()
+        for term in missing_terms or []
+        if len(str(term or "").strip()) >= 3 and str(term or "").strip().lower() not in {"against", "versus"}
+    ]
+    if not concrete_terms:
+        return False
+    lowered = text.lower()
+    for term in concrete_terms:
+        for pattern in _surface_marker_patterns(term):
+            for match in re.finditer(pattern, lowered, re.IGNORECASE):
+                sentence_start_candidates = [
+                    text.rfind(marker, 0, match.start())
+                    for marker in (".", "!", "?", "\n\n", "\\section", "\\subsection")
+                ]
+                sentence_end_candidates = [
+                    idx for idx in (
+                        text.find(".", match.end()),
+                        text.find("!", match.end()),
+                        text.find("?", match.end()),
+                        text.find("\n\n", match.end()),
+                        text.find("\\section", match.end()),
+                        text.find("\\subsection", match.end()),
+                    )
+                    if idx >= 0
+                ]
+                sentence_start = max(sentence_start_candidates) + 1 if max(sentence_start_candidates) >= 0 else max(0, match.start() - 80)
+                sentence_end = min(sentence_end_candidates) + 1 if sentence_end_candidates else min(len(text), match.end() + 160)
+                local = text[sentence_start:sentence_end]
+                if _review_issue_related_work_only_window(local):
+                    continue
+                baseline_list_context = bool(
+                    re.search(r"\bbaseline\s+methods?\s+include\b|\bbaselines?\s+include\b", local, re.IGNORECASE)
+                )
+                table_row_context = bool(
+                    re.search(r"(?:^|[&\s])(?:\d{1,3}(?:\.\d+)?|\\textbf\{?\d)", local)
+                    and re.search(r"&|\\\\|\\midrule|\\multirow|\\textbf", local)
+                )
+                if not (_REVIEW_ISSUE_FULL_TEXT_EVAL_RE.search(local) or baseline_list_context or table_row_context):
+                    continue
+                if baseline_list_context or table_row_context:
+                    return True
+                if not re.search(
+                    r"\b(?:baseline|baselines|comparison|compared|compare|table|result|results|"
+                    r"evaluation|experiment|outperform|outperforms|against)\b",
+                    local,
+                    re.IGNORECASE,
+                ):
+                    continue
+                return True
+    return False
 
 
 _BASELINE_COUNTEREVIDENCE_GENERIC_TERMS = frozenset(
@@ -7979,6 +9031,20 @@ _BASELINE_COUNTEREVIDENCE_GENERIC_TERMS = frozenset(
         "named",
         "fair",
         "fairness",
+        "fl",
+        "heterogeneous",
+        "other",
+        "learning",
+        "pre-training",
+        "pretraining",
+        "self-supervised",
+        "contrastive",
+        "masked",
+        "autoencoder",
+        "geometry-aware",
+        "point-set",
+        "geometric",
+        "deep",
         "budget",
         "same",
         "same-setting",
@@ -8011,16 +9077,53 @@ def _baseline_missing_counterevidence_terms(missing_items: Sequence[str]) -> set
             re.IGNORECASE,
         )
         search_text = baseline_match.group("prefix") if baseline_match else item
+        against_match = re.search(r"\bagainst\s+(?P<target>[A-Za-z0-9][A-Za-z0-9_+\-]{1,60})\b", item, re.IGNORECASE)
+        if against_match:
+            search_text = f"{search_text} {against_match.group('target')}"
         candidate_terms = _specific_surface_tokens(search_text) | _absence_target_tokens(search_text)
+        for list_match in re.finditer(
+            r"\b(?:like|such\s+as|including|e\.g\.,?)\s+(.{2,120})",
+            str(raw_item or ""),
+            re.IGNORECASE,
+        ):
+            candidate_terms.update(_specific_surface_tokens(list_match.group(1)))
+        hyphenated_terms = {
+            match.group(0).strip().lower()
+            for match in re.finditer(r"\b[A-Za-z0-9]+-[A-Za-z0-9][A-Za-z0-9_-]*\b", str(raw_item or ""))
+        }
+        if hyphenated_terms:
+            candidate_terms = {
+                term for term in candidate_terms
+                if not any(hterm != term and hterm.endswith(f"-{term}") for hterm in hyphenated_terms)
+            } | hyphenated_terms
+        short_acronym_terms = {
+            match.group(1).strip().lower()
+            for match in re.finditer(
+                r"\b(?:against|versus|vs\.?|with|to)\s+([A-Z]{2,4})(?![A-Za-z0-9_-])",
+                str(raw_item or ""),
+            )
+        }
+        short_acronym_terms.update(
+            match.group(1).strip().lower()
+            for match in re.finditer(
+                r"\b([A-Z]{2,4})\s+(?:baseline|baselines|method|methods|model|models)\b",
+                str(raw_item or ""),
+            )
+        )
+        candidate_terms.update(short_acronym_terms)
         if not candidate_terms and not baseline_match:
             candidate_terms = _specific_surface_tokens(item) | _absence_target_tokens(item)
         for term in candidate_terms:
             clean = str(term or "").strip().lower()
             if not clean or clean in _BASELINE_COUNTEREVIDENCE_GENERIC_TERMS:
                 continue
-            if len(clean) < 4 and not any(ch.isdigit() for ch in clean):
+            if len(clean) < 4 and not any(ch.isdigit() for ch in clean) and clean not in short_acronym_terms:
                 continue
             terms.add(clean)
+            if clean == "fixed-length":
+                terms.update({"fixed candidate length", "fixed candidate lengths", "fixed length", "fixed lengths"})
+            if clean == "shape-similar":
+                terms.update({"shape-conditioned", "shape conditioned", "shape similarity", "shape-similar"})
     return terms
 
 
@@ -8105,13 +9208,31 @@ def _window_matches_missing_target_or_structural_dimension(
 def _ablation_counterevidence_window_resolves_target(window: str, target_tokens: Sequence[str]) -> bool:
     if not window or not target_tokens:
         return False
+    value = str(window or "")
     ablation_signal_re = re.compile(
         rf"(?:{_ABLATION_REMOVAL_RE.pattern}|\\b(?:variant|variants|component\\s+analysis|module\\s+analysis|with\\s+and\\s+without)\\b)",
         re.IGNORECASE,
     )
-    for match in ablation_signal_re.finditer(str(window or "")):
-        prefix = str(window or "")[:match.start()]
-        suffix = str(window or "")[match.end():]
+    strong_ablation_context = re.search(
+        r"\b(?:ablation|ablations|ablat(?:e|ed|ing|ion|ions)|remove[sd]?|removing|"
+        r"without|w/o|with\s+and\s+without|component\s+analysis|module\s+analysis)\b",
+        value,
+        re.IGNORECASE,
+    )
+    if (
+        strong_ablation_context
+        and _window_contains_any_target_marker(value, target_tokens)
+        and re.search(
+            r"\b(?:variant|variants|denote|denoted|when\s+we\s+use|we\s+use|using|with|w/|"
+            r"without|remove[sd]?|ablat(?:e|ed|ion|ions))\b",
+            value,
+            re.IGNORECASE,
+        )
+    ):
+        return True
+    for match in ablation_signal_re.finditer(value):
+        prefix = value[:match.start()]
+        suffix = value[match.end():]
         prev_boundaries = [prefix.rfind(ch) for ch in ("\n", ".", ";")]
         next_boundaries = [
             idx for idx in (suffix.find(ch) for ch in ("\n", ".", ";"))
@@ -8119,11 +9240,111 @@ def _ablation_counterevidence_window_resolves_target(window: str, target_tokens:
         ]
         start = max(prev_boundaries) + 1 if max(prev_boundaries) >= 0 else max(0, match.start() - 80)
         end = match.end() + (min(next_boundaries) if next_boundaries else 220)
-        end = min(len(window), max(end, match.end() + 80))
-        local = window[start:end]
+        end = min(len(value), max(end, match.end() + 80))
+        local = value[start:end]
         if _window_contains_any_target_marker(local, target_tokens):
             return True
     return False
+
+
+def _ablation_missing_item_scope_tokens(missing_item: str) -> set[str]:
+    """Dataset/benchmark scope named by a missing-ablation item.
+
+    "Ablation on N for SSv2 dataset" is not resolved by an ablation on N for a
+    different dataset.  These scope tokens are only used when the missing item
+    explicitly names the dataset/benchmark/data scope.
+    """
+    value = str(missing_item or "")
+    scopes: set[str] = set()
+    for match in re.finditer(
+        r"\b(?:for|on|across|in)\s+(?:the\s+)?"
+        r"([A-Za-z0-9][A-Za-z0-9_+\-/]*(?:\s+[A-Za-z0-9][A-Za-z0-9_+\-/]*){0,3})"
+        r"\s+(?:dataset|datasets|benchmark|benchmarks|data)\b",
+        value,
+        re.IGNORECASE,
+    ):
+        raw = match.group(1)
+        for token in _specific_surface_tokens(raw):
+            scopes.add(token.lower())
+        normalized = _normalize_text(raw, max_length=80).lower()
+        if normalized and normalized not in {"the", "a", "an"}:
+            scopes.add(normalized)
+    return {token for token in scopes if len(token) >= 3}
+
+
+def _ablation_missing_items_have_scope(missing_items: Sequence[str]) -> bool:
+    return any(_ablation_missing_item_scope_tokens(str(item or "")) for item in missing_items or [])
+
+
+def _ablation_counterevidence_window_resolves_item(window: str, missing_item: str) -> bool:
+    target_tokens = _ablation_missing_item_target_tokens(missing_item)
+    if not target_tokens:
+        return False
+    scope_tokens = _ablation_missing_item_scope_tokens(missing_item)
+    if scope_tokens:
+        target_without_scope = {token for token in target_tokens if token.lower() not in scope_tokens}
+        if not target_without_scope:
+            return False
+        return bool(
+            _ablation_counterevidence_window_resolves_target(window, target_without_scope)
+            and _window_contains_any_target_marker(window, scope_tokens)
+        )
+    return _ablation_counterevidence_window_resolves_target(window, target_tokens)
+
+
+def _ablation_missing_item_target_tokens(missing_item: str) -> set[str]:
+    """Concrete component tokens for an alleged missing ablation target."""
+    generic = {
+        "ablation",
+        "ablations",
+        "ablate",
+        "ablationstudy",
+        "analysis",
+        "component",
+        "component-isolation",
+        "components",
+        "effect",
+        "impact",
+        "isolate",
+        "isolating",
+        "isolation",
+        "missing",
+        "module",
+        "modules",
+        "within",
+        "remove",
+        "removing",
+        "study",
+        "variant",
+        "variants",
+    }
+    return {
+        token
+        for token in (
+            _review_issue_missing_target_tokens([missing_item])
+            | _specific_surface_tokens(str(missing_item or ""))
+        )
+        if token and token.lower() not in generic and len(token) >= 3
+    }
+
+
+def _ablation_missing_items_resolved_by_text(text: str, missing_items: Sequence[str]) -> bool:
+    """Whether ablation/variant text actually covers every concrete target.
+
+    A broad method-name hit such as "CDiffuser-N" should not resolve a more
+    specific "remove the contrastive component" missing-ablation issue.
+    """
+    meaningful_items: List[str] = []
+    for item in missing_items or []:
+        tokens = _ablation_missing_item_target_tokens(str(item or ""))
+        if tokens:
+            meaningful_items.append(str(item or ""))
+    if not meaningful_items:
+        return False
+    for item in meaningful_items:
+        if not _ablation_counterevidence_window_resolves_item(text, item):
+            return False
+    return True
 
 
 _REVIEW_ISSUE_TASK_PHRASE_RE = re.compile(
@@ -8335,6 +9556,17 @@ def _window_resolves_reproducibility_missing(window: str, missing_items: Sequenc
     lower_missing = _missing_joined_text(missing_items)
     if not _window_has_any_missing_target(text, missing_items):
         return False
+    if re.search(r"\b(?:hardware|gpu|cpu|ram|memory|resource|resources|network|latency|communication\s+cost)\b", lower_missing):
+        return bool(
+            re.search(
+                r"\b(?:nvidia|tesla|a100|v100|rtx|geforce|quadro|tpu|cuda|cpu\s+model|"
+                r"gpu\s+model|\d+\s*(?:gpu|gpus|cpu|cpus|gb|mb|tb|ms|s|sec|seconds?|"
+                r"minutes?|hours?|mbps|gbps)|latency\s*[:=]?\s*\d|bandwidth\s*[:=]?\s*\d|"
+                r"communication\s+cost\s*[:=]?\s*\d)\b",
+                text,
+                re.IGNORECASE,
+            )
+        )
     if re.search(r"\b(?:distillation|teacher|student)\b", lower_missing):
         return bool(re.search(r"\b(?:teacher|student|distillation\s+loss|temperature|soft\s+labels?|training\s+data|objective)\b", text, re.I))
     if re.search(r"\b(?:split|fold|seed|random|validation|train|test)\b", lower_missing):
@@ -8404,8 +9636,10 @@ def _review_issue_full_text_counterevidence_reason(
             str(anchor.get("quote") or ""),
         ):
             return "full_text_ablation_counterevidence"
+        if _ablation_missing_items_have_scope(missing_items):
+            return ""
         for window in windows:
-            if _ABLATION_COUNTEREVIDENCE_RE.search(window) and _ablation_counterevidence_window_resolves_target(window, target_tokens):
+            if _ABLATION_COUNTEREVIDENCE_RE.search(window) and _ablation_missing_items_resolved_by_text(window, missing_items):
                 return "full_text_ablation_counterevidence"
         return ""
 
@@ -8429,7 +9663,7 @@ def _review_issue_full_text_counterevidence_reason(
                 r"\b(?:baseline|baselines|comparison|compared|compare|table|result|results|evaluation|experiment)\b",
                 window,
                 re.I,
-            ) and _window_contains_missing_baseline_marker(window, missing_baseline_terms):
+            ) and _baseline_counterevidence_window_resolves_missing(window, missing_baseline_terms):
                 return "full_text_baseline_or_comparison_counterevidence"
         return ""
 
@@ -8591,12 +9825,20 @@ def _claim_obligation_expected_entity_too_broad(obligation: Dict[str, Any], neg_
         "evaluation_protocol_risk",
         "scope_overclaim",
         "missing_robustness_or_generalization",
+        "missing_ablation",
     } and _CLAIM_OBLIGATION_BROAD_DOMAIN_RE.search(lowered):
         return True
+    if neg_type in _COVERAGE_BASELINE_NEGATIVE_TYPES and source == "comparison_target":
+        target_match = re.search(r"\bagainst\s+([A-Z]{2})(?![A-Za-z0-9_-])", expected)
+        if target_match:
+            return True
     if neg_type == "missing_ablation":
+        if _missing_ablation_target_is_task_scope(expected):
+            return True
         generic_component_tokens = {
             "ablation",
             "component",
+            "component-isolation",
             "designed",
             "framework",
             "isolating",
@@ -8614,6 +9856,23 @@ def _claim_obligation_expected_entity_too_broad(obligation: Dict[str, Any], neg_
             if token not in generic_component_tokens
         }
         if not core_tokens:
+            return True
+        if re.fullmatch(
+            r"(?:component[- ]isolation\s+)?ablation\s+(?:for|of|isolating)\s+[A-Za-z][A-Za-z0-9_-]{2,}",
+            expected,
+            re.IGNORECASE,
+        ) and not re.search(
+            r"\b(?:head|loss|objective|module|component|stage|branch|layer|encoder|decoder|"
+            r"attention|routing|fusion|selector|predictor|classifier|criterion|regulari[sz]er|"
+            r"hyperparameter|threshold|score|feature|representation)\b",
+            re.sub(
+                r"^\s*(?:component[- ]isolation\s+)?ablation\s+(?:for|of|isolating)\s+",
+                "",
+                expected,
+                flags=re.IGNORECASE,
+            ),
+            re.IGNORECASE,
+        ):
             return True
     return False
 
@@ -8656,6 +9915,11 @@ def _review_issue_bundle_verification_failure(
         return expectation_failure
     if _review_issue_missing_items_look_truncated(missing_items):
         return "missing_entity_truncated_or_incomplete"
+    primary_missing_entity = ""
+    if isinstance(missing, dict):
+        primary_missing_entity = _normalize_text(missing.get("entity"), max_length=160)
+    if primary_missing_entity and not _coverage_item_is_specific_for_type(primary_missing_entity, neg_type):
+        return "primary_missing_entity_not_type_specific"
     if not _review_issue_missing_items_are_concrete(neg_type, missing_items):
         return "missing_entity_not_concrete_or_type_specific"
     if not _review_issue_observed_inventory_is_verifiable(bundle):
@@ -8683,7 +9947,10 @@ def _review_issue_candidate_expectation_terms(
     neg_type = _canonical_negative_evidence_type(neg_type)
     terms: set[str] = set()
     for item in missing_items or []:
-        terms.update(_specific_surface_tokens(item))
+        if neg_type == "missing_ablation":
+            terms.update(_ablation_missing_item_target_tokens(str(item or "")))
+        else:
+            terms.update(_specific_surface_tokens(item))
     if neg_type in _COVERAGE_BASELINE_NEGATIVE_TYPES:
         terms.update(_baseline_missing_counterevidence_terms(missing_items))
     if not terms:
@@ -9026,6 +10293,11 @@ def _review_issue_bundle_auditable_expectation_basis(
     joined = "\n".join(part for part in haystacks if part)
     if terms and any(_text_contains_surface_marker(joined, term) for term in terms):
         return "paper_surface_or_inventory_marker"
+    if (
+        _canonical_negative_evidence_type(neg_type) in _COVERAGE_BASELINE_NEGATIVE_TYPES
+        and str(bundle.get("source_of_expectation") or "") == "reviewer_candidate"
+    ):
+        return ""
     return _review_issue_structural_expectation_basis(bundle, state or {}, neg_type)
 
 
@@ -9241,16 +10513,37 @@ def _build_review_issue_bundle_from_gap(
                 observed_inventory.append(item)
                 seen_inventory_quotes.add(quote_key)
     missing_or_mismatch = _review_issue_missing_entity_for_requirement(requirement, candidate_missing_items)
+    if neg_type == "missing_ablation":
+        component_observed_inventory = _review_issue_component_anchor_inventory_for_missing_ablation(
+            view,
+            (missing_or_mismatch or {}).get("items") or candidate_missing_items,
+            max_items=2,
+        )
+        if component_observed_inventory:
+            seen_inventory_quotes = {str(item.get("quote") or "").strip().lower() for item in observed_inventory}
+            for item in component_observed_inventory:
+                quote_key = str(item.get("quote") or "").strip().lower()
+                if quote_key and quote_key not in seen_inventory_quotes:
+                    observed_inventory.append(item)
+                    seen_inventory_quotes.add(quote_key)
     observed_inventory = [
         item for item in observed_inventory
         if _review_issue_observed_inventory_relevant_for_type(
             {
                 "observed_inventory": [item],
                 "missing_or_mismatch": missing_or_mismatch,
+                "claim_anchor": _claim_anchor_for_review_issue_bundle(claim, claim_text, claim_id, view),
             },
             neg_type,
         )
     ]
+    if neg_type == "missing_ablation":
+        ablation_inventory = [
+            item for item in observed_inventory
+            if _REVIEW_ISSUE_ABLATION_INVENTORY_RE.search(str(item.get("quote") or ""))
+        ]
+        if ablation_inventory:
+            observed_inventory = ablation_inventory
     source_of_expectation = "reviewer_candidate" if candidate_id else "claim_obligation"
     issue_id = _slugify(
         "review-issue",
@@ -9757,7 +11050,19 @@ def _reviewer_candidate_absence_gap_items(
         status = str(candidate.get("status") or "").strip().lower()
         if status and status not in {"pending_absence_audit", "pending_quote_verification", "open"}:
             continue
-        claim_id = str(candidate.get("claim_id") or "").strip()
+        preliminary_neg_type = _canonical_negative_evidence_type(
+            candidate.get("negative_type")
+            or candidate.get("review_issue_type")
+            or candidate.get("issue_type")
+        )
+        preliminary_requirement = _canonical_required_evidence_type(
+            candidate.get("required_evidence_type")
+        ) or _negative_type_to_required_evidence_type(preliminary_neg_type)
+        claim_id = _review_issue_candidate_rebound_claim_id(
+            candidate,
+            view,
+            preliminary_requirement,
+        )
         audit = audit_by_claim.get(claim_id)
         if not audit:
             continue
@@ -9783,7 +11088,27 @@ def _reviewer_candidate_absence_gap_items(
             max_items=6,
             max_length=160,
         )
-        if bound_obligation:
+        resource_cost_remap = False
+        if (
+            neg_type in {"reproducibility_gap", "evaluation_protocol_risk", "insufficient_evaluation"}
+            and _review_issue_missing_items_are_resource_cost_dimension(raw_missing_items)
+            and re.search(
+                r"\b(?:efficiency|efficient|speedup|latency|throughput|memory|gpu|hardware|"
+                r"deployment|resource|cost|footprint)\b",
+                " ".join([
+                    str(candidate.get("weakness") or ""),
+                    str(candidate.get("verification_question") or ""),
+                    str(candidate.get("rationale") or ""),
+                ]),
+                re.IGNORECASE,
+            )
+        ):
+            neg_type = "efficiency_cost_gap"
+            resource_cost_remap = True
+        bound_issue_type = _canonical_negative_evidence_type(
+            bound_obligation.get("issue_type") if bound_obligation else ""
+        )
+        if bound_obligation and bound_issue_type == neg_type:
             expected_entity = _normalize_text(bound_obligation.get("expected_entity"), max_length=140)
             if expected_entity and expected_entity.lower() not in {item.lower() for item in raw_missing_items}:
                 raw_missing_items = [expected_entity] + raw_missing_items
@@ -9799,11 +11124,16 @@ def _reviewer_candidate_absence_gap_items(
         declared_requirement = _canonical_required_evidence_type(candidate.get("required_evidence_type"))
         if declared_requirement:
             candidate_requirements.append(declared_requirement)
+        if resource_cost_remap:
+            candidate_requirements.insert(0, "efficiency_cost")
         bound_requirement = _canonical_required_evidence_type(
             bound_obligation.get("required_evidence_type") if bound_obligation else ""
         )
         if bound_requirement:
-            candidate_requirements.insert(0, bound_requirement)
+            if bound_issue_type and bound_issue_type == neg_type:
+                candidate_requirements.insert(0, bound_requirement)
+            else:
+                candidate_requirements.append(bound_requirement)
         inferred_requirement = _negative_type_to_required_evidence_type(neg_type)
         if inferred_requirement:
             candidate_requirements.append(inferred_requirement)
@@ -9939,11 +11269,259 @@ def _reviewer_candidate_absence_gap_items(
     return results
 
 
+def _deterministic_reviewer_seed_absence_gap_items(
+    view: Dict[str, Any],
+    requirement_audit: Dict[str, Any],
+    *,
+    max_items: int = 4,
+) -> List[Dict[str, Any]]:
+    """Seed reviewer-style issue candidates from entity obligations and inventory.
+
+    This is not a verifier bypass.  It only creates candidate-like audit gaps
+    when a real claim has an entity-level missing obligation and the paper has
+    a strict type-matched inventory anchor.  The normal review-issue bundle
+    verifier still decides whether the issue counts.
+    """
+
+    seedable_negative_types = {
+        "missing_baseline",
+        "unfair_or_weak_baseline",
+        "missing_ablation",
+        "missing_robustness_or_generalization",
+        "scope_overclaim",
+        "evaluation_protocol_risk",
+        "efficiency_cost_gap",
+        "result_claim_mismatch",
+    }
+    results: List[Dict[str, Any]] = []
+    seen: set[Tuple[str, str, str]] = set()
+    for audit in requirement_audit.get("claim_requirement_audit", []) or []:
+        if not isinstance(audit, dict):
+            continue
+        claim_id = str(audit.get("claim_id") or "").strip()
+        if not claim_id:
+            continue
+        missing_requirements = [
+            _canonical_required_evidence_type(req)
+            for req in (audit.get("missing_requirements") or [])
+            if _canonical_required_evidence_type(req)
+        ]
+        if missing_requirements:
+            obligations = (
+                audit.get("entity_claim_obligations_for_missing_requirements")
+                or audit.get("entity_claim_obligations")
+                or []
+            )
+            for obligation in obligations:
+                if not isinstance(obligation, dict) or not bool(obligation.get("entity_level")):
+                    continue
+                requirement = _canonical_required_evidence_type(obligation.get("required_evidence_type"))
+                if not requirement or requirement not in missing_requirements:
+                    continue
+                neg_type = _canonical_negative_evidence_type(
+                    obligation.get("issue_type") or _REQUIREMENT_TO_NEGATIVE_TYPE.get(requirement)
+                )
+                if neg_type not in ACTIONABLE_NEGATIVE_EVIDENCE_TYPES:
+                    continue
+                if neg_type not in seedable_negative_types:
+                    continue
+                if neg_type in NOISE_NEGATIVE_TYPES or neg_type in {"generic_gap", "neutral_control_context"}:
+                    continue
+                expected_entity = _normalize_text(obligation.get("expected_entity"), max_length=140)
+                if not expected_entity or not _review_issue_missing_items_are_concrete(neg_type, [expected_entity]):
+                    continue
+                if _claim_obligation_expected_entity_too_broad(obligation, neg_type):
+                    continue
+                inventory = _review_issue_paper_inventory_for_bundle(
+                    view,
+                    claim_id,
+                    requirement,
+                    neg_type,
+                    missing_items=[expected_entity],
+                    max_items=1,
+                )
+                if not inventory:
+                    continue
+                key = (claim_id, neg_type, expected_entity.lower())
+                if key in seen:
+                    continue
+                seen.add(key)
+                candidate_id = _slugify(
+                    "reviewer-seed",
+                    f"{claim_id}-{neg_type}-{expected_entity}",
+                    len(results) + 1,
+                )
+                gap = dict(audit)
+                gap["gap_id"] = _slugify(
+                    "reviewer-seed-requirement-gap",
+                    f"{claim_id}-{neg_type}-{expected_entity}",
+                    len(results) + 1,
+                )
+                gap["coverage_gap_missing_requirements"] = [requirement]
+                gap["missing_requirements"] = [requirement]
+                gap["missing_negative_types"] = [neg_type]
+                gap["claim_obligation_id"] = str(obligation.get("obligation_id") or "")
+                gap["claim_obligation"] = dict(obligation)
+                gap["deterministic_reviewer_seed_id"] = candidate_id
+                gap["deterministic_reviewer_seed"] = (
+                    f"Reviewer seed: verify whether the paper lacks {expected_entity}."
+                )
+                gap["reviewer_negative_candidate_missing_items"] = [expected_entity]
+                gap["reviewer_negative_candidate_observed_inventory"] = inventory
+                gap["audit_basis"] = "deterministic_reviewer_seed_vs_claim_requirement_support_absence"
+                gap["final_view_layer"] = "reviewer_candidate_absence_audit"
+                results.append(gap)
+                if len(results) >= max_items:
+                    return results
+        claim = next(
+            (
+                item for item in (view or {}).get("claims", []) or []
+                if isinstance(item, dict) and str(item.get("claim_id") or "").strip() == claim_id
+            ),
+            {},
+        )
+        if claim and len(results) < max_items:
+            for target in _review_issue_component_ablation_seed_targets(view, claim, max_items=2):
+                missing_item = _normalize_text(target.get("missing_item"), max_length=140)
+                if not missing_item:
+                    continue
+                if not _review_issue_missing_items_are_concrete("missing_ablation", [missing_item]):
+                    continue
+                key = (claim_id, "missing_ablation", missing_item.lower())
+                if key in seen:
+                    continue
+                seen.add(key)
+                seed_id = _slugify(
+                    "reviewer-seed",
+                    f"{claim_id}-missing-ablation-{missing_item}",
+                    len(results) + 1,
+                )
+                gap = dict(audit)
+                gap["gap_id"] = _slugify(
+                    "reviewer-seed-requirement-gap",
+                    f"{claim_id}-missing-ablation-{missing_item}",
+                    len(results) + 1,
+                )
+                gap["coverage_gap_missing_requirements"] = ["ablation_or_component"]
+                gap["missing_requirements"] = ["ablation_or_component"]
+                gap["missing_negative_types"] = ["missing_ablation"]
+                gap["candidate_introduced_review_obligation"] = True
+                gap["candidate_obligation_relevance_basis"] = {
+                    "ablation_or_component": "deterministic_component_definition_anchor"
+                }
+                gap["deterministic_reviewer_seed_id"] = seed_id
+                gap["deterministic_reviewer_seed"] = (
+                    f"Reviewer seed: verify whether the paper lacks {missing_item}."
+                )
+                gap["reviewer_negative_candidate_id"] = seed_id
+                gap["reviewer_negative_candidate"] = (
+                    f"The paper defines {target.get('component_phrase') or 'a component'} but does not isolate it in an ablation."
+                )
+                gap["reviewer_negative_candidate_missing_items"] = [missing_item]
+                gap["reviewer_negative_candidate_observed_inventory"] = target.get("observed_inventory") or []
+                gap["audit_basis"] = "deterministic_component_ablation_seed_vs_claim_requirement_support_absence"
+                gap["final_view_layer"] = "reviewer_candidate_absence_audit"
+                results.append(gap)
+                if len(results) >= max_items:
+                    return results
+        if claim and len(results) < max_items:
+            for target in _paper_named_prior_baseline_seed_targets(view, claim, max_items=2):
+                missing_item = _normalize_text(target.get("missing_item"), max_length=140)
+                if not missing_item:
+                    continue
+                if not _review_issue_missing_items_are_concrete("missing_baseline", [missing_item]):
+                    continue
+                key = (claim_id, "missing_baseline", missing_item.lower())
+                if key in seen:
+                    continue
+                seen.add(key)
+                seed_id = _slugify(
+                    "reviewer-seed",
+                    f"{claim_id}-missing-baseline-{missing_item}",
+                    len(results) + 1,
+                )
+                gap = dict(audit)
+                gap["gap_id"] = _slugify(
+                    "reviewer-seed-requirement-gap",
+                    f"{claim_id}-missing-baseline-{missing_item}",
+                    len(results) + 1,
+                )
+                gap["coverage_gap_missing_requirements"] = ["baseline_or_comparison"]
+                gap["missing_requirements"] = ["baseline_or_comparison"]
+                gap["missing_negative_types"] = ["missing_baseline"]
+                gap["candidate_introduced_review_obligation"] = True
+                gap["candidate_obligation_relevance_basis"] = {
+                    "baseline_or_comparison": "deterministic_paper_named_baseline_anchor"
+                }
+                gap["deterministic_reviewer_seed_id"] = seed_id
+                gap["deterministic_reviewer_seed"] = (
+                    f"Reviewer seed: verify whether the paper lacks {missing_item}."
+                )
+                gap["reviewer_negative_candidate_id"] = seed_id
+                gap["reviewer_negative_candidate"] = (
+                    "The paper names a related/prior method but the observed comparison inventory "
+                    "may not include a same-setting comparison against it."
+                )
+                gap["reviewer_negative_candidate_missing_items"] = [missing_item]
+                gap["reviewer_negative_candidate_observed_inventory"] = target.get("observed_inventory") or []
+                gap["paper_named_baseline_expectation_quote"] = target.get("expectation_quote") or ""
+                gap["paper_named_baseline_expectation_locator"] = target.get("expectation_locator") or ""
+                gap["audit_basis"] = "deterministic_paper_named_baseline_seed_vs_comparison_inventory_absence"
+                gap["final_view_layer"] = "reviewer_candidate_absence_audit"
+                results.append(gap)
+                if len(results) >= max_items:
+                    return results
+        if claim and len(results) < max_items:
+            for target in _review_issue_efficiency_cost_seed_targets(view, claim, max_items=1):
+                missing_item = _normalize_text(target.get("missing_item"), max_length=140)
+                if not missing_item:
+                    continue
+                key = (claim_id, "efficiency_cost_gap", missing_item.lower())
+                if key in seen:
+                    continue
+                seen.add(key)
+                seed_id = _slugify(
+                    "reviewer-seed",
+                    f"{claim_id}-efficiency-cost-{missing_item}",
+                    len(results) + 1,
+                )
+                gap = dict(audit)
+                gap["gap_id"] = _slugify(
+                    "reviewer-seed-requirement-gap",
+                    f"{claim_id}-efficiency-cost-{missing_item}",
+                    len(results) + 1,
+                )
+                gap["coverage_gap_missing_requirements"] = ["efficiency_cost"]
+                gap["missing_requirements"] = ["efficiency_cost"]
+                gap["missing_negative_types"] = ["efficiency_cost_gap"]
+                gap["candidate_introduced_review_obligation"] = True
+                gap["candidate_obligation_relevance_basis"] = {
+                    "efficiency_cost": "deterministic_efficiency_claim_resource_anchor"
+                }
+                gap["deterministic_reviewer_seed_id"] = seed_id
+                gap["deterministic_reviewer_seed"] = (
+                    f"Reviewer seed: verify whether the paper lacks {missing_item}."
+                )
+                gap["reviewer_negative_candidate_id"] = seed_id
+                gap["reviewer_negative_candidate"] = (
+                    "The claim asserts efficiency, speed, scale, or practical cost, but the observed "
+                    "paper inventory may not report resource-cost measurements."
+                )
+                gap["reviewer_negative_candidate_missing_items"] = [missing_item]
+                gap["reviewer_negative_candidate_observed_inventory"] = target.get("observed_inventory") or []
+                gap["audit_basis"] = "deterministic_efficiency_seed_vs_claim_resource_absence"
+                gap["final_view_layer"] = "reviewer_candidate_absence_audit"
+                results.append(gap)
+                if len(results) >= max_items:
+                    return results
+    return results
+
+
 def _add_reviewer_absence_audit_artifacts(
     view: Dict[str, Any],
     requirement_audit: Dict[str, Any],
     *,
-    max_gap_items: int = 8,
+    max_gap_items: int = 24,
 ) -> Dict[str, Any]:
     """Add view-only absence-audit evidence/flaws for verified coverage gaps.
 
@@ -9974,11 +11552,28 @@ def _add_reviewer_absence_audit_artifacts(
             if req
         ]
 
-    def _gap_dedupe_key(gap: Dict[str, Any]) -> Tuple[str, str, str]:
+    def _gap_missing_item_keys(gap: Dict[str, Any]) -> Tuple[str, ...]:
+        values = _normalize_list_of_strings(
+            gap.get("reviewer_negative_candidate_missing_items")
+            or gap.get("coverage_missing_items")
+            or gap.get("missing_or_weak_items"),
+            max_items=6,
+            max_length=160,
+        )
+        return tuple(
+            sorted({
+                _normalize_text(value, max_length=140).lower()
+                for value in values
+                if _normalize_text(value, max_length=140)
+            })
+        )
+
+    def _gap_dedupe_key(gap: Dict[str, Any]) -> Tuple[str, str, str, str]:
         return (
             str(gap.get("claim_id") or ""),
             "|".join(_gap_requirement_list(gap)),
             "|".join(_gap_negative_type_list(gap)),
+            "|".join(_gap_missing_item_keys(gap)),
         )
 
     def _merge_reviewer_candidate_gap_metadata(existing: Dict[str, Any], incoming: Dict[str, Any]) -> None:
@@ -10001,6 +11596,22 @@ def _add_reviewer_absence_audit_artifacts(
         if str(incoming.get("audit_basis") or "") == "reviewer_candidate_vs_claim_requirement_support_absence":
             existing["audit_basis"] = "reviewer_candidate_vs_claim_requirement_support_absence"
             existing["final_view_layer"] = "reviewer_candidate_absence_audit"
+        if (
+            str(incoming.get("audit_basis") or "") == "deterministic_reviewer_seed_vs_claim_requirement_support_absence"
+            and not existing.get("reviewer_negative_candidate_id")
+        ):
+            for field in (
+                "deterministic_reviewer_seed_id",
+                "deterministic_reviewer_seed",
+                "reviewer_negative_candidate_missing_items",
+                "reviewer_negative_candidate_observed_inventory",
+                "claim_obligation_id",
+                "claim_obligation",
+            ):
+                if incoming.get(field):
+                    existing[field] = incoming.get(field)
+            existing["audit_basis"] = "deterministic_reviewer_seed_vs_claim_requirement_support_absence"
+            existing["final_view_layer"] = "reviewer_candidate_absence_audit"
 
     gap_items: List[Dict[str, Any]] = []
     existing_by_key: Dict[Tuple[str, str], Dict[str, Any]] = {}
@@ -10011,6 +11622,7 @@ def _add_reviewer_absence_audit_artifacts(
         item_claim_id = str(item.get("claim_id") or "")
         item_requirements = set(_gap_requirement_list(item))
         item_negative_types = set(_gap_negative_type_list(item))
+        item_missing_keys = set(_gap_missing_item_keys(item))
         if not item_claim_id or not item_requirements:
             return
         overlapping_existing = next(
@@ -10023,6 +11635,11 @@ def _add_reviewer_absence_audit_artifacts(
                 and (
                     not item_negative_types
                     or item_negative_types.intersection(_gap_negative_type_list(existing))
+                )
+                and (
+                    not item_missing_keys
+                    or not _gap_missing_item_keys(existing)
+                    or item_missing_keys.intersection(_gap_missing_item_keys(existing))
                 )
             ),
             None,
@@ -10063,6 +11680,13 @@ def _add_reviewer_absence_audit_artifacts(
     ):
         _append_or_merge_gap(item, candidate_priority=True)
 
+    for item in _deterministic_reviewer_seed_absence_gap_items(
+        view,
+        requirement_audit,
+        max_items=max_gap_items,
+    ):
+        _append_or_merge_gap(item, candidate_priority=False)
+
     for item in requirement_audit.get("verified_coverage_gap_items", []) or []:
         if len(gap_items) >= max_gap_items:
             break
@@ -10085,6 +11709,11 @@ def _add_reviewer_absence_audit_artifacts(
     }
     existing_evidence_ids = {
         str(item.get("evidence_id") or "")
+        for item in view.get("evidence_map", []) or []
+        if isinstance(item, dict) and str(item.get("evidence_id") or "")
+    }
+    existing_evidence_by_id = {
+        str(item.get("evidence_id") or ""): item
         for item in view.get("evidence_map", []) or []
         if isinstance(item, dict) and str(item.get("evidence_id") or "")
     }
@@ -10199,50 +11828,57 @@ def _add_reviewer_absence_audit_artifacts(
                 f"{_readable_negative_evidence_type(neg_type)} concern; missing/mismatch item(s): "
                 f"{bundle_missing_phrase}. Target claim: '{claim_text}'."
             )
-            view["evidence_map"].append(
-                {
-                    "evidence_id": evidence_id,
-                    "claim_id": claim_id,
-                    "stance": "missing",
-                    "strength": "missing",
-                    "evidence": evidence_text,
-                    "raw_quote": "",
-                    "negative_quote": "",
-                    "source": ABSENCE_AUDIT_SOURCE,
-                    "source_locator": "claim-evidence coverage audit",
-                    "binding_status": "bound_real_claim",
-                    "negative_evidence_type": neg_type,
-                    "negative_evidence_actionability": "actionable_candidate",
-                    "semantic_grounding_label": "semantic_negative_verified",
-                    "verified_grounding_label": ABSENCE_AUDIT_GROUNDING_LABEL,
-                    "review_negative_label": REVIEW_NEGATIVE_ABSENCE_AUDIT_LABEL,
-                    "review_negative_reason": "claim_requirement_vs_verified_support_absence",
-                    "absence_audit_verified": True,
-                    "quote_grounding_required": False,
-                    "no_direct_quote_expected": True,
-                    "review_issue_source": REVIEW_ISSUE_BUNDLE_SOURCE,
-                    "review_issue_id": review_issue_bundle["issue_id"],
-                    "review_issue_type": neg_type,
-                    "review_issue_verification_status": REVIEW_ISSUE_BUNDLE_STATUS,
-                    "review_issue_grounding_label": REVIEW_ISSUE_BUNDLE_GROUNDING_LABEL,
-                    "review_issue_bundle": review_issue_bundle,
-                    "audit_basis": "claim_requirement_vs_verified_support",
-                    "missing_requirement": requirement,
-                    "coverage_gap_missing_requirements": requirements,
-                    "coverage_missing_items": candidate_missing_items,
-                    "candidate_introduced_review_obligation": bool(gap.get("candidate_introduced_review_obligation")),
-                    "coverage_observed_items": [
-                        str(item.get("locator") or item.get("evidence_id") or "")
-                        for item in review_issue_bundle.get("observed_inventory", []) or []
-                        if isinstance(item, dict)
-                    ][:6],
-                    "observed_inventory_evidence_ids": review_issue_bundle.get("observed_inventory_evidence_ids", [])[:6],
-                    "available_support_ids": list(gap.get("available_support_ids") or [])[:6],
-                    "final_view_layer": "obligation_grounded_review_issue",
-                    "reviewer_negative_candidate_id": candidate_id,
-                    "reviewer_negative_candidate": candidate_weakness,
-                }
-            )
+            evidence_record = {
+                "evidence_id": evidence_id,
+                "claim_id": claim_id,
+                "stance": "missing",
+                "strength": "missing",
+                "evidence": evidence_text,
+                "raw_quote": "",
+                "negative_quote": "",
+                "source": ABSENCE_AUDIT_SOURCE,
+                "source_locator": "claim-evidence coverage audit",
+                "binding_status": "bound_real_claim",
+                "negative_evidence_type": neg_type,
+                "negative_evidence_actionability": "actionable_candidate",
+                "semantic_grounding_label": "semantic_negative_verified",
+                "verified_grounding_label": ABSENCE_AUDIT_GROUNDING_LABEL,
+                "review_negative_label": REVIEW_NEGATIVE_ABSENCE_AUDIT_LABEL,
+                "review_negative_reason": "claim_requirement_vs_verified_support_absence",
+                "absence_audit_verified": True,
+                "quote_grounding_required": False,
+                "no_direct_quote_expected": True,
+                "review_issue_source": REVIEW_ISSUE_BUNDLE_SOURCE,
+                "review_issue_id": review_issue_bundle["issue_id"],
+                "review_issue_type": neg_type,
+                "review_issue_verification_status": REVIEW_ISSUE_BUNDLE_STATUS,
+                "review_issue_grounding_label": REVIEW_ISSUE_BUNDLE_GROUNDING_LABEL,
+                "review_issue_bundle": review_issue_bundle,
+                "audit_basis": "claim_requirement_vs_verified_support",
+                "missing_requirement": requirement,
+                "coverage_gap_missing_requirements": requirements,
+                "coverage_missing_items": candidate_missing_items,
+                "candidate_introduced_review_obligation": bool(gap.get("candidate_introduced_review_obligation")),
+                "coverage_observed_items": [
+                    str(item.get("locator") or item.get("evidence_id") or "")
+                    for item in review_issue_bundle.get("observed_inventory", []) or []
+                    if isinstance(item, dict)
+                ][:6],
+                "observed_inventory_evidence_ids": review_issue_bundle.get("observed_inventory_evidence_ids", [])[:6],
+                "available_support_ids": list(gap.get("available_support_ids") or [])[:6],
+                "final_view_layer": "obligation_grounded_review_issue",
+                "reviewer_negative_candidate_id": candidate_id,
+                "reviewer_negative_candidate": candidate_weakness,
+            }
+            if evidence_id in existing_evidence_ids:
+                existing_record = existing_evidence_by_id.get(evidence_id)
+                if isinstance(existing_record, dict) and str(existing_record.get("source") or "") == ABSENCE_AUDIT_SOURCE:
+                    existing_record.update(evidence_record)
+                else:
+                    continue
+            else:
+                view["evidence_map"].append(evidence_record)
+                existing_evidence_by_id[evidence_id] = evidence_record
             existing_evidence_ids.add(evidence_id)
             added_evidence_ids.append(evidence_id)
             type_counts[neg_type] += 1
@@ -10777,6 +12413,14 @@ def _review_issue_claim_surface_profile(claim_text: str) -> Dict[str, List[str]]
 
     def add(bucket: str, raw: str, *, max_length: int = 80) -> None:
         value = re.sub(r"\s+", " ", str(raw or "").strip(" ,.;:()[]{}")).strip()
+        value = re.sub(
+            r"^(?:by\s+)?(?:leveraging|using|with|via|includes?|comprises?|driven\s+by)\s+",
+            "",
+            value,
+            flags=re.IGNORECASE,
+        ).strip()
+        value = re.sub(r"^(?:and|or|a|an|the|n)\s+", "", value, flags=re.IGNORECASE).strip()
+        value = re.sub(r"\s+(?:that|which|to)\b.*$", "", value, flags=re.IGNORECASE).strip()
         if not value:
             return
         value = _normalize_text(value, max_length=max_length)
@@ -10811,6 +12455,7 @@ def _review_issue_claim_surface_profile(claim_text: str) -> Dict[str, List[str]]
             "low-quality",
             "high-quality",
             "large-scale",
+            "number",
             "small-scale",
             "real-world",
             "synthetic",
@@ -10857,12 +12502,38 @@ def _review_issue_claim_surface_profile(claim_text: str) -> Dict[str, List[str]]
             add_entity_list("datasets_or_benchmarks", match.group(1))
 
     for pattern in (
-        r"\b([A-Za-z0-9_/-]{3,60})\s+(?:module|component|encoder|decoder|objective|loss|mechanism|branch|stage)\b",
-        r"\b(?:module|component|encoder|decoder|objective|loss|mechanism|branch|stage)\s+(?:called|named)?\s*([A-Za-z0-9_/-]{3,60})\b",
+        r"\b([A-Za-z0-9_/-]{3,60})\s+(?:module|component|encoder|decoder|objective|loss|mechanism|branch|stage|network|head|predictor)\b",
+        r"\b(?:module|component|encoder|decoder|objective|loss|mechanism|branch|stage|network|head|predictor)\s+(?:called|named)?\s*([A-Za-z0-9_/-]{3,60})\b",
         r"\b(?:via|with|using|based on)\s+(?:a|an|the)?\s*([A-Z][A-Za-z0-9_/-]{2,60})\b",
+        r"\b([A-Za-z][A-Za-z0-9_/-]*(?:\s+[A-Za-z][A-Za-z0-9_/-]*){0,4}\s+conversion\s+method)\b",
+        r"\b([A-Za-z][A-Za-z0-9_/-]*(?:\s+[A-Za-z][A-Za-z0-9_/-]*){0,4}\s+representation(?:s)?)\b",
     ):
         for match in re.finditer(pattern, text, re.IGNORECASE):
             add("components_or_mechanisms", match.group(1))
+    for pattern in (
+        r"\b([A-Za-z][A-Za-z0-9_-]*(?:\s+[A-Za-z][A-Za-z0-9_-]*){0,3}\s+"
+        r"(?:regulari[sz]ation|head|predictor|classifier|loss|objective|mechanism|module|component|"
+        r"attention|distillation|draft\s+model|encoder|decoder|branch|stage|network|alignment))\b",
+        r"\b(?:number|effect|impact|value|values)\s+of\s+(?:the\s+)?"
+        r"([A-Za-z][A-Za-z0-9_-]*(?:\s+[A-Za-z][A-Za-z0-9_-]*){0,3}\s+"
+        r"(?:variables?|components?|modules?|heads?|layers?|parameters?))\b",
+    ):
+        for match in re.finditer(pattern, text, re.IGNORECASE):
+            add("components_or_mechanisms", match.group(1))
+    for match in re.finditer(
+        r"\b(?:leveraging|using|with|includes?|comprises?|driven\s+by)\s+"
+        r"(?:a|an|the)?\s*([^.;]{5,140})",
+        text,
+        re.IGNORECASE,
+    ):
+        for part in re.split(r"\s*(?:,|\band\b)\s*", match.group(1)):
+            if re.search(
+                r"\b(?:regulari[sz]ation|head|predictor|classifier|loss|objective|mechanism|module|component|"
+                r"attention|distillation|draft\s+model|encoder|decoder|branch|stage)\b",
+                part,
+                re.IGNORECASE,
+            ):
+                add("components_or_mechanisms", part)
 
     metric_terms = re.findall(
         r"\b(?:accuracy|acc\.?|f1|f-?score|auc|auroc|bleu|rouge|mrr|ndcg|"
@@ -14032,6 +15703,12 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
         ),
         "review_issue_bundle_count": obligation_grounded_review_issue_count,
         "review_issue_bundle_items": review_issue_bundle_items[:8],
+        "mark_contested_commit_count": len(
+            [
+                relation for relation in view.get("contested_relations", []) or []
+                if isinstance(relation, dict)
+            ]
+        ),
         "verified_issue_without_recovery_count": verified_issue_without_recovery_count,
         **review_issue_candidate_funnel,
         # Final-view accounting for reviewer-inferred concerns.  These are
@@ -18488,10 +20165,11 @@ def _render_critique_state_slice(
             "Quote-bank entries are grounding material, not flaw triggers. If a diagnosis lacks verified negative evidence, keep it candidate with grounding_status=diagnosis_pending_verification."
         )
     if review_issue_discovery_required and _REVIEW_ISSUE_BUNDLE_ENABLED:
-        critique_slice["review_issue_discovery_targets"] = _hard_negative_diagnosis_targets(state, claims=claims, max_items=6)
+        critique_slice["review_issue_discovery_targets"] = _hard_negative_diagnosis_targets(state, claims=claims, max_items=8)
         critique_slice["review_issue_discovery_rule"] = (
-            "Critique proposes review_issue_candidates only. A candidate becomes verified only after claim-obligation/support-inventory audit "
-            "or copied-quote verification; model judgment alone is never counted as verified negative evidence."
+            "Critique fills fixed review_issue_slots and mirrors every non-null slot into review_issue_candidates. "
+            "A candidate becomes verified only after claim-obligation/support-inventory audit or copied-quote verification; "
+            "model judgment alone is never counted as verified negative evidence."
         )
     return critique_slice
 
@@ -19206,9 +20884,12 @@ def render_critique_observation(task: Dict[str, Any], manager_payload: Optional[
             "Use issue_candidate_blueprints as concrete templates, but never copy a generic blueprint rule as the missing item. "
             "When entity_level_claim_obligations are present, prefer candidates that copy a matching obligation_id and expected_entity. "
             "Use review_issue_contrast_hints to compare missing requirements against observed inventory anchors; these hints are not evidence. "
-            "Cover slots when safe: baseline/comparison, ablation/component isolation, robustness/scope, protocol/reproducibility, efficiency/resource, result-claim mismatch; leave unsafe slots empty. "
+            "Treat this as reviewer hypothesis generation: propose specific absence/coverage candidates for later verification even when the paper does not contain a negative quote. "
+            "Cover slots when safe: baseline/comparison, ablation/component isolation, robustness/scope, protocol/reproducibility, efficiency/resource, result-claim mismatch; "
+            "try to fill at least three distinct slots when target obligations and inventory anchors are visible, and leave unsafe slots empty with no_candidate_reason. "
             "For baseline/protocol/reproducibility issues, name the exact baseline family, protocol dimension, hyperparameter/split/detail, or setting to check. "
             "When paper_evaluation_inventory or the paper context shows what was evaluated, include observed_inventory with a copied quote/list/table anchor and locator. "
+            "Mirror every non-null slot candidate in review_issue_candidates. "
             "Do not emit candidates framed as provided-excerpt/current-context/current-inventory gaps; those are retrieval failures, not paper-side review issues. "
             "A later verifier may turn it into an obligation-grounded review issue bundle only if the current claim-requirement audit and support inventory confirm the mismatch.\n\n"
         )
@@ -19434,6 +21115,25 @@ def _is_grounded_paper_negative_evidence_record(item: Dict[str, Any], state: Dic
     neg_type = _negative_evidence_type_for_record(item)
     if neg_type in {"neutral_control_context", "generic_gap", "bibliographic_or_title_noise", "neutral_instruction_noise"}:
         return False
+    quote_blob = " ".join(
+        str(item.get(key) or "")
+        for key in ("raw_quote", "negative_quote", "agent_raw_quote", "evidence")
+    ).strip()
+    if (
+        quote_blob
+        and _REVIEW_NEGATIVE_POSITIVE_CONTEXT_RE.search(quote_blob)
+        and not _REVIEW_NEGATIVE_CONCRETE_GAP_RE.search(quote_blob)
+        and not _SEMANTIC_NEGATIVE_TERMS_RE.search(quote_blob)
+        and not _comparison_invalidation_is_current_paper_issue(quote_blob)
+    ):
+        return False
+    if neg_type == "method_support_gap":
+        # Direct quote-grounded method gaps must be stated by the copied paper
+        # quote itself.  Model-authored explanations/reasons are allowed to
+        # motivate a reviewer-issue bundle, but must not turn a positive method
+        # description into quote-grounded negative evidence.
+        if not _REVIEW_NEGATIVE_CONCRETE_GAP_RE.search(quote_blob):
+            return False
     if not _is_review_negative_verified_evidence_record(item, state):
         return False
     return True

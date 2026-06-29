@@ -28,6 +28,7 @@ from agent_system.environments.env_package.review.state import (
     MANAGER_ACTION_TYPES,
     REVIEW_NEGATIVE_VERIFIED_LABEL,
     _classify_negative_evidence_type,
+    _hard_negative_diagnosis_targets,
     build_turn_action,
     build_decision_hygiene_view,
     infer_final_decision,
@@ -153,6 +154,16 @@ def _clean_generation_snippet(text: str, limit: int = 260) -> str:
     value = value.replace("<json>", " ").replace("</json>", " ")
     value = " ".join(value.split())
     return _clip_text(value, limit)
+
+
+def _candidate_text(value: Any, limit: int = 220) -> str:
+    return _clip_text(" ".join(str(value or "").split()), limit)
+
+
+def _candidate_slug(value: Any, fallback: str = "item") -> str:
+    text = str(value or fallback).strip().lower()
+    text = re.sub(r"[^a-z0-9]+", "-", text).strip("-")
+    return text[:80] or fallback
 
 
 def _normalize_turn_mode(value: Any) -> str:
@@ -2305,6 +2316,9 @@ def _json_payload_schema_score(payload: Dict[str, Any]) -> int:
     score = 0
     high_value_keys = {
         "evidence_map": 80,
+        "review_issue_slots": 90,
+        "review_issue_candidates": 85,
+        "reviewer_negative_candidates": 80,
         "claims": 70,
         "flaw_candidates": 70,
         "selected_agents": 70,
@@ -2469,6 +2483,98 @@ def extract_evidence_partial_payload(text: str, *, allow_empty_not_assessable: b
     }
 
 
+def _extract_balanced_json_object_at(raw: str, start: int) -> Optional[Dict[str, Any]]:
+    text = str(raw or "")
+    if start < 0 or start >= len(text) or text[start] != "{":
+        return None
+    in_string = False
+    escaped = False
+    depth = 0
+    for pos in range(start, len(text)):
+        ch = text[pos]
+        if in_string:
+            if escaped:
+                escaped = False
+            elif ch == "\\":
+                escaped = True
+            elif ch == '"':
+                in_string = False
+            continue
+        if ch == '"':
+            in_string = True
+            continue
+        if ch == "{":
+            depth += 1
+            continue
+        if ch == "}":
+            depth -= 1
+            if depth == 0:
+                candidate = text[start : pos + 1]
+                try:
+                    return _loads_json_object(candidate)
+                except Exception:
+                    return None
+    return None
+
+
+def _extract_review_issue_candidate_objects(raw_text: str) -> List[Dict[str, Any]]:
+    raw = str(raw_text or "")
+    objects: List[Dict[str, Any]] = []
+    seen: set[str] = set()
+    for array_key in ("review_issue_candidates", "reviewer_negative_candidates"):
+        for item in _extract_complete_json_objects_from_array(raw, array_key):
+            key = json.dumps(item, sort_keys=True, ensure_ascii=False)
+            if key not in seen:
+                seen.add(key)
+                objects.append(item)
+    for match in re.finditer(r'"candidate"\s*:\s*{', raw):
+        brace_start = raw.find("{", match.start())
+        item = _extract_balanced_json_object_at(raw, brace_start)
+        if not isinstance(item, dict):
+            continue
+        if item.get("candidate") is None and item.get("no_candidate_reason") is not None:
+            continue
+        key = json.dumps(item, sort_keys=True, ensure_ascii=False)
+        if key in seen:
+            continue
+        seen.add(key)
+        objects.append(item)
+    return objects[:12]
+
+
+def _maybe_recover_review_issue_discovery_candidates(
+    agent_id: str,
+    raw_text: str,
+    normalized_payload: Dict[str, Any],
+    manager_payload: Optional[Dict[str, Any]],
+) -> tuple[Dict[str, Any], bool]:
+    if agent_id != "Critique Agent":
+        return normalized_payload, False
+    if not isinstance(manager_payload, dict) or not manager_payload.get("review_issue_discovery_required"):
+        return normalized_payload, False
+    if not isinstance(normalized_payload, dict):
+        return normalized_payload, False
+    if normalized_payload.get("reviewer_negative_candidates"):
+        return normalized_payload, False
+    raw_candidates = _extract_review_issue_candidate_objects(raw_text)
+    if not raw_candidates:
+        return normalized_payload, False
+    recovered = normalize_review_update_payload({"reviewer_negative_candidates": raw_candidates})
+    candidates = recovered.get("reviewer_negative_candidates", [])
+    if not candidates:
+        return normalized_payload, False
+    updated = copy.deepcopy(normalized_payload)
+    updated["reviewer_negative_candidates"] = candidates[:12]
+    summary = _candidate_text(updated.get("dialogue_summary"), 800)
+    updated["dialogue_summary"] = (
+        (summary + " " if summary else "")
+        + f"Recovered {len(candidates[:12])} review issue candidates from truncated review_issue_slots."
+    )
+    updated["_partial_json_recovery"] = True
+    updated["review_issue_candidate_partial_recovery"] = True
+    return updated, True
+
+
 def extract_tagged_json(text: str) -> Dict[str, Any]:
     return _extract_best_json_object(text)
 
@@ -2482,6 +2588,379 @@ def normalize_agent_payload(
     if spec.is_manager:
         return normalize_manager_payload(payload, available_agents=available_workers)
     return normalize_review_update_payload(payload, required_fields=spec.required_fields)
+
+
+def _review_issue_inventory_type_matches_requirement(item: Dict[str, Any], requirement: str, issue_type: str) -> bool:
+    reqs = {str(req or "").strip() for req in item.get("requirement_types", []) if str(req or "").strip()}
+    inventory_type = str(item.get("inventory_type") or "").strip()
+    requirement = str(requirement or "").strip()
+    issue_type = str(issue_type or "").strip()
+    if requirement and requirement in reqs:
+        return True
+    if issue_type in {"missing_baseline", "unfair_or_weak_baseline"}:
+        return "baseline_or_comparison" in reqs or inventory_type == "baseline"
+    if issue_type == "missing_ablation":
+        return "ablation_or_component" in reqs or inventory_type == "ablation"
+    if issue_type in {"insufficient_evaluation", "result_claim_mismatch"}:
+        return bool(reqs & {"empirical_result", "baseline_or_comparison", "ablation_or_component"}) or inventory_type in {
+            "metric",
+            "baseline",
+            "ablation",
+        }
+    if issue_type in {"missing_robustness_or_generalization", "scope_overclaim"}:
+        return bool(reqs & {"robustness_or_generalization", "scope_coverage", "empirical_result"}) or inventory_type in {
+            "dataset",
+            "metric",
+        }
+    if issue_type == "evaluation_protocol_risk":
+        return "evaluation_protocol" in reqs or inventory_type == "protocol"
+    if issue_type == "efficiency_cost_gap":
+        return "efficiency_cost" in reqs or inventory_type == "runtime"
+    if issue_type in {"method_support_gap", "reproducibility_gap"}:
+        return bool(reqs & {"method_detail", "reproducibility_detail"}) or inventory_type == "training_detail"
+    return bool(reqs)
+
+
+def _select_review_issue_seed_inventory(
+    target: Dict[str, Any],
+    requirement: str,
+    issue_type: str,
+) -> List[Dict[str, Any]]:
+    raw_items: List[Dict[str, Any]] = []
+    for field in ("inventory_menu", "paper_evaluation_inventory", "verified_support_inventory"):
+        value = target.get(field)
+        if isinstance(value, list):
+            raw_items.extend([item for item in value if isinstance(item, dict)])
+    selected: List[Dict[str, Any]] = []
+    seen: set[str] = set()
+    for item in raw_items:
+        quote = _candidate_text(item.get("quote"), 260)
+        locator = _candidate_text(item.get("locator") or item.get("source_locator") or item.get("inventory_id"), 120)
+        inventory_id = str(item.get("inventory_id") or item.get("evidence_id") or item.get("menu_id") or "").strip()
+        if not quote or not locator:
+            continue
+        if not _review_issue_inventory_type_matches_requirement(item, requirement, issue_type):
+            continue
+        key = (inventory_id or quote).lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        selected.append(
+            {
+                "inventory_id": inventory_id,
+                "evidence_id": str(item.get("evidence_id") or ""),
+                "quote": quote,
+                "locator": locator,
+                "inventory_type": str(item.get("inventory_type") or ""),
+                "observed_items": [
+                    _candidate_text(observed, 80)
+                    for observed in (item.get("observed_items") or [])
+                    if _candidate_text(observed, 80)
+                ][:8],
+            }
+        )
+        if len(selected) >= 2:
+            break
+    return selected
+
+
+def _seed_items_from_review_issue_blueprint(target: Dict[str, Any], blueprint: Dict[str, Any]) -> List[str]:
+    issue_type = str(blueprint.get("issue_type") or "")
+    if issue_type in {"missing_baseline", "unfair_or_weak_baseline"}:
+        baseline_items: List[str] = []
+        claim_text = str(target.get("claim") or "")
+        claim_tokens = {token.lower() for token in re.findall(r"[A-Za-z][A-Za-z0-9_-]{2,}", claim_text)}
+        for field in ("inventory_menu", "paper_evaluation_inventory", "verified_support_inventory"):
+            for item in target.get(field) or []:
+                if not isinstance(item, dict):
+                    continue
+                quote = str(item.get("quote") or "")
+                reqs = {str(req or "") for req in item.get("requirement_types") or []}
+                if "baseline_or_comparison" not in reqs and not re.search(
+                    r"\b(?:baseline|baselines|prior\s+methods?|existing\s+methods?|state[- ]of[- ]the[- ]art|sota|compared)\b",
+                    quote,
+                    re.IGNORECASE,
+                ):
+                    continue
+                observed_items = list(item.get("observed_items") or [])
+                if not observed_items:
+                    observed_items = re.findall(
+                        r"\b(?:[A-Z]{2,}[A-Za-z0-9_-]*|[A-Z][A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)+)\b",
+                        quote,
+                    )
+                for raw_observed in observed_items:
+                    observed = _candidate_text(raw_observed, 80)
+                    if not observed:
+                        continue
+                    observed_l = observed.lower()
+                    if len(observed_l) <= 2:
+                        continue
+                    if observed_l in claim_tokens:
+                        continue
+                    if observed_l in {
+                        "table",
+                        "figure",
+                        "fine-tuning",
+                        "fine tuning",
+                        "state-of-the-art",
+                        "state of the art",
+                        "sota",
+                        "compared",
+                        "comparison",
+                        "baseline",
+                        "baselines",
+                        "ours",
+                        "method",
+                        "methods",
+                        "model",
+                        "models",
+                        "results",
+                    }:
+                        continue
+                    if not re.search(r"\b[A-Z]{2,}[A-Za-z0-9_-]*\b|[-_]|[A-Z][a-z]+[A-Z]", observed):
+                        continue
+                    candidate = f"same-setting comparison against {observed}"
+                    if candidate.lower() not in {item.lower() for item in baseline_items}:
+                        baseline_items.append(candidate)
+                    if len(baseline_items) >= 2:
+                        return baseline_items
+    examples = []
+    for item in blueprint.get("candidate_missing_item_examples") or []:
+        text = _candidate_text(item, 150)
+        if not text:
+            continue
+        lower = text.lower()
+        if issue_type in {"missing_baseline", "unfair_or_weak_baseline"} and re.search(
+            r"\b(?:strongest|named|strong|standard|relevant|recent)\s+baseline\s+famil(?:y|ies)\b|"
+            r"\bnamed\s+strong\s+baseline\b|"
+            r"\bprior[- ]method\s+famil(?:y|ies)\b|"
+            r"\bfairness\s+check\s+that\s+compares\b|"
+            r"\bstate[- ]of[- ]the[- ]art\b|"
+            r"\babsent\s+from\s+the\s+observed\s+comparison\s+table\b|"
+            r"\bnamed\s+by\s+the\s+paper\s+task\b",
+            lower,
+        ):
+            continue
+        examples.append(text)
+    if examples:
+        return examples[:2]
+    claim = str(target.get("claim") or "")
+    surface = target.get("claim_surface_profile") if isinstance(target.get("claim_surface_profile"), dict) else {}
+    entities = [
+        _candidate_text(item, 80)
+        for key in (
+            "components_or_mechanisms",
+            "comparison_targets",
+            "datasets_or_benchmarks",
+            "metrics_or_protocols",
+            "resource_dimensions",
+            "surface_entities",
+        )
+        for item in (surface.get(key) or [])
+        if _candidate_text(item, 80)
+    ]
+    primary = entities[0] if entities else _candidate_text(claim, 80)
+    if issue_type in {"missing_baseline", "unfair_or_weak_baseline"}:
+        return []
+    if issue_type == "missing_ablation":
+        return [f"component-isolation ablation for {primary}"] if primary else []
+    if issue_type in {"missing_robustness_or_generalization", "scope_overclaim"}:
+        return [f"held-out robustness or scope evaluation for {primary}"] if primary else []
+    if issue_type == "evaluation_protocol_risk":
+        return [f"evaluation protocol details for {primary}"] if primary else []
+    if issue_type == "efficiency_cost_gap":
+        return [f"runtime, memory, or compute-cost measurement for {primary}"] if primary else []
+    if issue_type == "reproducibility_gap":
+        return [f"training or implementation details for {primary}"] if primary else []
+    if issue_type == "result_claim_mismatch":
+        return [f"result table matching the claimed effect for {primary}"] if primary else []
+    return [f"specific verification item for {primary}"] if primary else []
+
+
+def _seed_review_issue_candidates_from_targets(
+    state: Dict[str, Any],
+    *,
+    max_candidates: int = 6,
+) -> List[Dict[str, Any]]:
+    try:
+        targets = _hard_negative_diagnosis_targets(state or {}, claims=(state or {}).get("claims"), max_items=8)
+    except Exception:
+        targets = []
+    candidates: List[Dict[str, Any]] = []
+    seen: set[Tuple[str, str, str]] = set()
+    type_counts: Dict[str, int] = {}
+    seedable_types = {
+        "missing_baseline",
+        "unfair_or_weak_baseline",
+        "missing_ablation",
+        "insufficient_evaluation",
+        "missing_robustness_or_generalization",
+        "scope_overclaim",
+        "evaluation_protocol_risk",
+        "efficiency_cost_gap",
+        "result_claim_mismatch",
+    }
+
+    def add_candidate(
+        target: Dict[str, Any],
+        *,
+        issue_type: str,
+        requirement: str,
+        missing_item: str,
+        obligation_id: str = "",
+        source: str = "runner_seed_blueprint",
+    ) -> None:
+        nonlocal candidates
+        claim_id = str(target.get("claim_id") or "").strip()
+        issue_type = str(issue_type or "").strip()
+        requirement = str(requirement or "").strip()
+        missing_item = _candidate_text(missing_item, 160)
+        if not claim_id or not issue_type or not requirement or not missing_item:
+            return
+        if issue_type not in seedable_types:
+            return
+        if type_counts.get(issue_type, 0) >= 2:
+            return
+        inventory = _select_review_issue_seed_inventory(target, requirement, issue_type)
+        if not inventory:
+            return
+        key = (claim_id, issue_type, missing_item.lower())
+        if key in seen:
+            return
+        seen.add(key)
+        type_counts[issue_type] = type_counts.get(issue_type, 0) + 1
+        candidate_id = "reviewer-seed-candidate-" + _candidate_slug(f"{claim_id}-{issue_type}-{missing_item}")
+        weakness = (
+            f"The claim may lack {missing_item}; verify this as a {issue_type.replace('_', ' ')} "
+            "against the paper's observed inventory."
+        )
+        candidates.append(
+            {
+                "candidate_id": candidate_id,
+                "claim_id": claim_id,
+                "claim": _candidate_text(target.get("claim"), 240),
+                "obligation_id": obligation_id,
+                "weakness": weakness,
+                "negative_type": issue_type,
+                "required_evidence_type": requirement,
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "verification_question": (
+                    f"Does the paper's observed inventory cover {missing_item} for claim {claim_id}?"
+                ),
+                "expected_quote_cues": ["Table", "Results", "Experiments", "Evaluation"],
+                "missing_or_weak_items": [missing_item],
+                "observed_inventory": inventory,
+                "source_of_expectation": "reviewer_candidate",
+                "source": source,
+                "status": "pending_absence_audit",
+                "confidence": 0.62,
+                "rationale": (
+                    "Generated from visible entity-level claim obligations / issue blueprints because "
+                    "the Critique discovery payload returned no candidates; still requires strict bundle verification."
+                ),
+            }
+        )
+
+    for target in targets:
+        if not isinstance(target, dict):
+            continue
+        for obligation in target.get("entity_level_claim_obligations") or []:
+            if not isinstance(obligation, dict):
+                continue
+            add_candidate(
+                target,
+                issue_type=str(obligation.get("issue_type") or ""),
+                requirement=str(obligation.get("required_evidence_type") or ""),
+                missing_item=str(obligation.get("expected_entity") or ""),
+                obligation_id=str(obligation.get("obligation_id") or ""),
+                source="runner_seed_entity_obligation",
+            )
+            if len(candidates) >= max_candidates:
+                return candidates[:max_candidates]
+        for blueprint in target.get("issue_candidate_blueprints") or []:
+            if not isinstance(blueprint, dict):
+                continue
+            issue_type = str(blueprint.get("issue_type") or "")
+            requirement = str(blueprint.get("required_evidence_type") or "")
+            for missing_item in _seed_items_from_review_issue_blueprint(target, blueprint):
+                add_candidate(
+                    target,
+                    issue_type=issue_type,
+                    requirement=requirement,
+                    missing_item=missing_item,
+                    source="runner_seed_blueprint",
+                )
+                if len(candidates) >= max_candidates:
+                    return candidates[:max_candidates]
+    return candidates[:max_candidates]
+
+
+def _maybe_seed_review_issue_discovery_payload(
+    worker_id: str,
+    worker_payload: Dict[str, Any],
+    state: Dict[str, Any],
+    manager_payload: Optional[Dict[str, Any]],
+    *,
+    trace_worker: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    if worker_id != "Critique Agent":
+        return worker_payload
+    if not isinstance(manager_payload, dict) or not manager_payload.get("review_issue_discovery_required"):
+        return worker_payload
+    if not isinstance(worker_payload, dict):
+        return worker_payload
+    existing = worker_payload.get("reviewer_negative_candidates")
+    existing_candidates = existing if isinstance(existing, list) else []
+    target_candidate_count = 8
+    if len(existing_candidates) >= target_candidate_count:
+        return worker_payload
+    seeded = _seed_review_issue_candidates_from_targets(state or {}, max_candidates=target_candidate_count)
+    if not seeded:
+        return worker_payload
+    normalized_seed = normalize_review_update_payload({"reviewer_negative_candidates": seeded})
+    seed_candidates = normalized_seed.get("reviewer_negative_candidates", [])
+    if not seed_candidates:
+        return worker_payload
+    seen: set[Tuple[str, str, str]] = set()
+    for candidate in existing_candidates:
+        if not isinstance(candidate, dict):
+            continue
+        seen.add(
+            (
+                str(candidate.get("claim_id") or ""),
+                str(candidate.get("negative_type") or candidate.get("issue_type") or ""),
+                "|".join(str(item or "").strip().lower() for item in candidate.get("missing_or_weak_items") or []),
+            )
+        )
+    top_up: List[Dict[str, Any]] = []
+    for candidate in seed_candidates:
+        key = (
+            str(candidate.get("claim_id") or ""),
+            str(candidate.get("negative_type") or candidate.get("issue_type") or ""),
+            "|".join(str(item or "").strip().lower() for item in candidate.get("missing_or_weak_items") or []),
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        top_up.append(candidate)
+        if len(existing_candidates) + len(top_up) >= target_candidate_count:
+            break
+    if not top_up:
+        return worker_payload
+    updated = copy.deepcopy(worker_payload)
+    updated["reviewer_negative_candidates"] = (list(existing_candidates) + top_up)[:target_candidate_count]
+    summary = _candidate_text(updated.get("dialogue_summary"), 800)
+    updated["dialogue_summary"] = (
+        (summary + " " if summary else "")
+        + f"Runner added {len(top_up)} review issue seed candidates from entity obligations and inventory for strict verification."
+    )
+    if trace_worker is not None:
+        trace_worker["review_issue_seed_fallback_used"] = True
+        trace_worker["review_issue_seed_candidate_count"] = len(top_up)
+        trace_worker["review_issue_seed_candidate_ids"] = [
+            str(item.get("candidate_id") or "") for item in top_up
+        ]
+    return updated
 
 
 def parse_agent_payload(
@@ -2512,8 +2991,24 @@ def parse_agent_payload(
         raise ValueError("Targeted negative Evidence Agent output echoed prompt/schema text instead of direct JSON.")
     try:
         payload = extract_tagged_json(raw_text)
-        return normalize_agent_payload(agent_id, payload, available_workers=available_workers), False
+        normalized = normalize_agent_payload(agent_id, payload, available_workers=available_workers)
+        recovered, partial = _maybe_recover_review_issue_discovery_candidates(
+            agent_id,
+            raw_text,
+            normalized,
+            manager_payload,
+        )
+        return recovered, partial
     except Exception as original_exc:
+        if agent_id == "Critique Agent" and bool((manager_payload or {}).get("review_issue_discovery_required")):
+            recovered_payload, partial = _maybe_recover_review_issue_discovery_candidates(
+                agent_id,
+                raw_text,
+                normalize_review_update_payload({}),
+                manager_payload,
+            )
+            if partial:
+                return recovered_payload, True
         if agent_id == "Evidence Agent" and not recovery_patch_mode:
             try:
                 partial_payload = extract_evidence_partial_payload(
@@ -2918,9 +3413,11 @@ def build_worker_observation(task: Dict[str, Any], manager_payload: Dict[str, An
         review_issue_discovery_block = (
             "# Review Issue Discovery Mode\n"
             "review_issue_discovery_required=true\n"
-            "Primary task: act like a peer reviewer and propose review_issue_candidates for later verification. "
+            "Primary task: act like a peer reviewer and fill review_issue_slots for later verification. "
+            "Mirror every non-null slot candidate in review_issue_candidates. "
             "Do not output verified evidence, claim status changes, or recovery patches. "
-            "Absence/coverage issues must name the concrete missing/mismatch item and point to a claim obligation.\n\n"
+            "Absence/coverage issues must name the concrete missing/mismatch item and point to a claim obligation. "
+            "Do not replace candidate discovery with unresolved questions unless every slot is unsafe.\n\n"
         )
     routing = (
         f"{mode_block}"
@@ -6560,6 +7057,13 @@ def run_review_episode(
                             manager_payload=manager_payload,
                             prompt_text=worker_prompt,
                         )
+                    worker_payload = _maybe_seed_review_issue_discovery_payload(
+                        worker_id,
+                        worker_payload,
+                        obs["review_state"],
+                        manager_payload,
+                        trace_worker=trace_worker,
+                    )
                     if not worker_payload:
                         _record_evidence_empirical_observability(
                             worker_id,
@@ -6968,6 +7472,13 @@ def run_review_batch(
                                 manager_payload=manager_payload,
                                 prompt_text=item["prompt"],
                             )
+                        worker_payload = _maybe_seed_review_issue_discovery_payload(
+                            worker_id,
+                            worker_payload,
+                            task["obs"]["review_state"],
+                            manager_payload,
+                            trace_worker=trace_worker,
+                        )
                         if not worker_payload:
                             _record_evidence_empirical_observability(
                                 worker_id,

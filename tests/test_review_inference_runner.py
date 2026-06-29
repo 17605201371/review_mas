@@ -28,10 +28,12 @@ from agent_system.inference.review_runner import (
     _ensure_recovery_targets,
     _maybe_salvage_recovery_payload,
     _maybe_salvage_turn_level_recovery_patch,
+    _maybe_seed_review_issue_discovery_payload,
     _negative_quote_bank_salvage_payload,
     _quote_bank_from_state_or_meta,
     _real_claim_ids_from_state,
     _scope_evidence_ids_for_turn,
+    _seed_review_issue_candidates_from_targets,
     extract_evidence_partial_payload,
     parse_agent_payload,
 )
@@ -2233,6 +2235,167 @@ def test_non_targeted_parser_keeps_existing_later_json_tolerance():
 
     assert fallback is False
     assert payload["evidence_map"][0]["evidence_id"] == "evidence-1"
+
+
+def test_review_issue_discovery_parser_accepts_bare_json_slots():
+    raw = (
+        '{"evidence_map":[],"flaw_candidates":[],"review_issue_slots":{'
+        '"missing_ablation":{"candidate":{"candidate_id":"review-issue-candidate-1",'
+        '"claim_id":"claim-3","claim":"The method relies on component X.",'
+        '"weakness":"The paper does not isolate component X in an ablation.",'
+        '"issue_type":"missing_ablation","required_evidence_type":"ablation_or_component",'
+        '"quote_grounding_mode":"absence_or_requirement_gap",'
+        '"missing_or_weak_items":["component X ablation"],'
+        '"observed_inventory":[{"inventory_id":"paper-inventory-5"}],'
+        '"status":"pending_absence_audit","source_of_expectation":"reviewer_candidate"},'
+        '"no_candidate_reason":""},'
+        '"missing_baseline":{"candidate":null,"no_candidate_reason":"no concrete missing baseline"}}'
+        ',"review_issue_candidates":[],"conflict_notes":[],"unresolved_questions":[],'
+        '"dialogue_summary":"candidate discovery","recommendation":"undecided"}'
+    )
+
+    payload, fallback = parse_agent_payload(
+        "Critique Agent",
+        raw,
+        manager_payload={"review_issue_discovery_required": True},
+    )
+
+    assert fallback is False
+    assert payload["reviewer_negative_candidates"][0]["candidate_id"] == "review-issue-candidate-1"
+    assert payload["reviewer_negative_candidates"][0]["negative_type"] == "missing_ablation"
+
+
+def test_review_issue_discovery_parser_recovers_candidate_from_truncated_slots():
+    raw = (
+        '{"evidence_map":[],"flaw_candidates":[],"review_issue_slots":{'
+        '"missing_baseline":{"candidate":{"candidate_id":"review-issue-candidate-1",'
+        '"claim_id":"claim-2","claim":"TCMT_C is evaluated as a model variant.",'
+        '"weakness":"TCMT_C is not compared against ViFi-CLIP and VLPrompting.",'
+        '"issue_type":"missing_baseline","required_evidence_type":"baseline_or_comparison",'
+        '"quote_grounding_mode":"absence_or_requirement_gap",'
+        '"missing_or_weak_items":["Comparison of TCMT_C against ViFi-CLIP and VLPrompting"],'
+        '"observed_inventory":[{"quote":"Figure 2 compares TCMT variants with TCMT-FT.",'
+        '"locator":"Figure 2"}],"status":"pending_absence_audit",'
+        '"source_of_expectation":"reviewer_candidate"}, "no_candidate_reason":""},'
+        '"missing_ablation":{"candidate":'
+    )
+
+    payload, partial = parse_agent_payload(
+        "Critique Agent",
+        raw,
+        manager_payload={"review_issue_discovery_required": True},
+    )
+
+    assert partial is True
+    assert payload["reviewer_negative_candidates"][0]["candidate_id"] == "review-issue-candidate-1"
+    assert payload["reviewer_negative_candidates"][0]["negative_type"] == "missing_baseline"
+    assert payload["reviewer_negative_candidates"][0]["missing_or_weak_items"] == [
+        "Comparison of TCMT_C against ViFi-CLIP and VLPrompting"
+    ]
+
+
+def _review_issue_seed_sample_state():
+    claim = "RankHead improves ranking accuracy by using a learned routing component on Benchmark-X."
+    quote = "Table 1 reports ranking accuracy on Benchmark-X for RankHead and baseline systems."
+    return {
+        "paper_text": f"{claim}\n\n{quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "empirical",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["ablation_or_component", "baseline_or_comparison"],
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "evidence-1",
+                "claim_id": "claim-1",
+                "evidence": quote,
+                "raw_quote": quote,
+                "source": "Table 1",
+                "source_locator": "Table 1",
+                "stance": "supports",
+                "strength": "strong",
+                "binding_status": "bound_real_claim",
+                "semantic_grounding_label": "semantic_support_verified",
+                "verified_grounding_label": "paper_grounded_exact",
+                "verified_quote_match_type": "exact",
+            }
+        ],
+        "flaw_candidates": [],
+        "reviewer_negative_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+
+def test_review_issue_seed_candidates_from_targets_are_candidates_only():
+    seeds = _seed_review_issue_candidates_from_targets(_review_issue_seed_sample_state(), max_candidates=4)
+
+    assert seeds
+    assert all(seed["quote_grounding_mode"] == "absence_or_requirement_gap" for seed in seeds)
+    assert all(seed["observed_inventory"] for seed in seeds)
+    assert all(seed["status"] == "pending_absence_audit" for seed in seeds)
+    assert not any("evidence_id" in seed for seed in seeds)
+    assert not any("flaw_id" in seed for seed in seeds)
+
+
+def test_review_issue_discovery_seed_topup_when_critique_returns_no_candidates():
+    state = _review_issue_seed_sample_state()
+    empty_payload = normalize_review_update_payload({"evidence_map": [], "flaw_candidates": []})
+    trace = {}
+
+    seeded = _maybe_seed_review_issue_discovery_payload(
+        "Critique Agent",
+        empty_payload,
+        state,
+        {"review_issue_discovery_required": True},
+        trace_worker=trace,
+    )
+
+    assert seeded["reviewer_negative_candidates"]
+    assert trace["review_issue_seed_fallback_used"] is True
+    assert seeded["evidence_map"] == []
+    assert seeded["flaw_candidates"] == []
+
+
+def test_review_issue_discovery_seed_topup_preserves_model_candidates():
+    payload = normalize_review_update_payload(
+        {
+            "reviewer_negative_candidates": [
+                {
+                    "candidate_id": "model-candidate-1",
+                    "claim_id": "claim-1",
+                    "weakness": "The paper does not isolate RankHead in an ablation.",
+                    "negative_type": "missing_ablation",
+                    "required_evidence_type": "ablation_or_component",
+                    "quote_grounding_mode": "absence_or_requirement_gap",
+                    "missing_or_weak_items": ["RankHead ablation"],
+                    "observed_inventory": [{"quote": "Table 1 reports ranking accuracy.", "locator": "Table 1"}],
+                    "status": "pending_absence_audit",
+                }
+            ]
+        }
+    )
+    trace = {}
+
+    updated = _maybe_seed_review_issue_discovery_payload(
+        "Critique Agent",
+        payload,
+        _review_issue_seed_sample_state(),
+        {"review_issue_discovery_required": True},
+        trace_worker=trace,
+    )
+
+    assert updated["reviewer_negative_candidates"][0]["candidate_id"] == "model-candidate-1"
+    assert len(updated["reviewer_negative_candidates"]) > 1
+    assert trace["review_issue_seed_fallback_used"] is True
+    assert trace["review_issue_seed_candidate_count"] == len(updated["reviewer_negative_candidates"]) - 1
 
 
 def _hardneg_gate_sample_state():

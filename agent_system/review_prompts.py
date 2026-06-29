@@ -207,7 +207,7 @@ Do NOT count:
 - "not found" by itself as evidence
 
 # Output Rules
-Return up to 4 `reviewer_negative_candidates`, preferably covering at least 2 different real claims when possible.
+Return up to 6 `reviewer_negative_candidates`, preferably covering at least 3 different real claims when possible.
 Return `evidence_map: []` in this discovery stage. Do not output verified evidence, raw_quote-bound evidence, flaws, or claim status changes.
 
 Each candidate must include:
@@ -223,6 +223,9 @@ The `missing_or_weak_items` must list concrete entities or dimensions to verify,
 dataset, component/module, model size, hardware setting, or evaluation condition. Avoid vague items like
 "all relevant methods", "key competitors", "more datasets", or "comprehensive evaluation"; if the weakness
 cannot name a concrete item or dimension, do not emit that candidate.
+For ablation or scope coverage, prefer dataset/component-specific items when the paper inventory makes that auditable,
+such as "ablation on latent variable N for SSv2 dataset" or "comparison results for HMDB-51 dataset"; do not write
+only "more datasets" or "more ablations".
 Each `missing_or_weak_items` entry must be a complete noun phrase, normally under 120 characters. Do not end an item
 with a preposition, dangling abbreviation, comma, slash, or unfinished parenthetical. Do not describe the problem as
 "the excerpt/current inventory does not show X"; that is a retrieval gap, not a paper-side review issue.
@@ -300,6 +303,11 @@ The verifier will reject generic obligation labels. "baseline evidence", "ablati
 - When `paper_evaluation_inventory` or the visible excerpt shows a table/list/experiment setup, include one
   `observed_inventory` item with a copied `quote`, `locator`, and short `observed_items`. This quote is not a
   negative quote; it is the paper-side inventory anchor that lets the verifier check an obligation mismatch.
+- For `missing_ablation`, the observed inventory must itself be an ablation/variant/removal/sensitivity anchor.
+  Do not use a general result/comparison table as the inventory for a missing-ablation candidate.
+- `method_support_gap` is a hypothesis lane only unless a later verifier proves a narrow method contract. Prefer
+  baseline, ablation, scope/robustness, protocol/reproducibility, efficiency, or result-claim mismatch candidates
+  when those can be tied to claim anchors and inventory.
 - If the issue is absence/coverage based, set `quote_grounding_mode="absence_or_requirement_gap"` and
   `status="pending_absence_audit"`. It can become a verified review issue only if claim obligation, a concrete reviewer
   candidate item, and verified support/inventory agree. Without a concrete observed inventory quote/list, it remains
@@ -315,13 +323,30 @@ The verifier will reject generic obligation labels. "baseline evidence", "ablati
 Fill `review_issue_slots` using these fixed slots, leaving unsafe slots empty with `candidate:null` and a short
 `no_candidate_reason`: `missing_baseline`, `missing_ablation`, `scope_or_robustness`, `protocol_or_reproducibility`,
 `efficiency_cost`, `result_claim_mismatch`.
-Return up to 6 total candidates across the slots, with at most 2 candidates per `issue_type`. You may also mirror
-the non-null slot candidates in `review_issue_candidates` for backward compatibility.
+Return up to 10 total candidates across the slots, with at most 2 candidates per `issue_type`. Mirror every non-null
+slot candidate in `review_issue_candidates`; this array is required for downstream compatibility.
 Return `evidence_map: []` and `flaw_candidates: []`.
 Do not cite `negative_evidence_ids`. Do not output recovery patches.
-At least 2 candidates should be `absence_or_requirement_gap` or `table_scope_absence` when concrete claim obligations and inventory anchors are visible; direct quote-groundable candidates still take priority when there is a real protocol/result/cost contradiction.
-If no candidate is safe, return an empty candidate list plus an unresolved question explaining which paper-side
-inventory or claim anchor would be needed; do not emit a retrieval-gap candidate.
+Candidate recall is the primary objective in this turn. These are hypotheses for later deterministic verification,
+not final flaws. Do not require a copied negative quote before proposing an absence/coverage issue. When
+`entity_level_claim_obligations`, `issue_candidate_blueprints`, or `inventory_menu` are visible, target 4-6 candidates
+across at least 4 different slots when safe, and at least 3 different slots across distinct claims otherwise. Prefer
+concrete missing items copied or adapted from claim surface entities,
+comparison targets, named components, datasets, metrics, protocol dimensions, or related methods named by the paper.
+At least 2 candidates should be `absence_or_requirement_gap` or `table_scope_absence` when concrete claim obligations
+and inventory anchors are visible; direct quote-groundable candidates still take priority when there is a real
+protocol/result/cost contradiction. Only leave a slot empty when there is no real claim, no concrete missing/mismatch
+item, or no plausible paper-side inventory anchor for that slot. Use `no_candidate_reason` for empty slots. Do not use
+`unresolved_questions` as a substitute for candidate discovery; include unresolved questions only when all slots are unsafe.
+Do not emit a retrieval-gap candidate.
+For `missing_ablation`, check not only whether any ablation exists, but whether the ablation isolates the named component
+or covers the dataset/setting named by the claim. If the paper ablates component X only on Dataset A while the claim or
+inventory names Dataset B/C, emit dataset-specific items like "ablation on X for Dataset B" when the observed ablation
+anchor is visible. For `scope_or_robustness`, emit the same kind of dataset/setting-specific coverage issue only when
+the full paper inventory does not already show matching comparison/evaluation tables.
+For `protocol_or_reproducibility` and `efficiency_cost`, emit candidates when the claim asserts reproducibility,
+implementation completeness, speed, efficiency, cost, latency, memory, parameters, FLOPs, hardware, or compute budget,
+and the observed inventory names the method/result but not the concrete protocol/resource dimension.
 
 Required shape:
 <json>{"evidence_map":[],"flaw_candidates":[],"review_issue_slots":{"missing_baseline":{"candidate":{"candidate_id":"review-issue-candidate-1","claim_id":"claim-1","obligation_id":"obligation-claim-1-missing-baseline-lavt","claim":"short target claim","weakness":"reviewer-style issue to verify","issue_type":"missing_baseline|unfair_or_weak_baseline","required_evidence_type":"baseline_or_comparison","quote_grounding_mode":"absence_or_requirement_gap|table_scope_absence","verification_question":"what exact comparison table/inventory verifies this issue?","expected_quote_cues":["Table","baseline"],"missing_or_weak_items":["specific named baseline/component/dataset/setting/dimension"],"observed_inventory":[{"inventory_id":"inventory id from inventory_menu if available","quote":"copied paper table/list/experiment quote showing what was evaluated","locator":"Table 2 / Section 4.1","observed_items":["dataset/baseline/component/metric actually shown"]}],"candidate_raw_quote":"verbatim quote cue if visible, else empty","quote_id":"quote id if visible, else empty","source_locator":"section/table/figure if visible, else empty","source_of_expectation":"reviewer_candidate","rationale":"why a reviewer should check this issue against verified_support_inventory and paper_evaluation_inventory","confidence":0.75,"status":"pending_absence_audit"},"no_candidate_reason":""},"missing_ablation":{"candidate":null,"no_candidate_reason":"no concrete component plus ablation inventory anchor visible"},"scope_or_robustness":{"candidate":null,"no_candidate_reason":""},"protocol_or_reproducibility":{"candidate":null,"no_candidate_reason":""},"efficiency_cost":{"candidate":null,"no_candidate_reason":""},"result_claim_mismatch":{"candidate":null,"no_candidate_reason":""}},"review_issue_candidates":[],"conflict_notes":[],"unresolved_questions":[],"dialogue_summary":"brief review-issue discovery summary","recommendation":"undecided"}</json>

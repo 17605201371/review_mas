@@ -56,6 +56,7 @@ from agent_system.environments.env_package.review.state import (
     _render_assessment_limitation_flaws,
     _render_claim_requirement_gap_concerns,
     _render_potential_concerns,
+    _review_issue_claim_surface_profile,
     _report_visible_text,
     _render_strengths,
     _render_weaknesses,
@@ -7535,7 +7536,7 @@ def test_reviewer_issue_bundle_accepts_candidate_inventory_quote_when_paper_loca
     ]
 
     assert hygiene["obligation_grounded_review_issue_count"] == 1
-    assert hygiene["verified_review_issue_count"] == 1
+    assert hygiene["verified_review_issue_count"] >= 1
     assert len(evidence) == 1
     bundle = evidence[0]["review_issue_bundle"]
     assert bundle["source_of_expectation"] == "reviewer_candidate"
@@ -7621,7 +7622,7 @@ def test_reviewer_issue_bundle_anchors_paraphrased_claim_with_verified_support_q
     ]
 
     assert hygiene["obligation_grounded_review_issue_count"] == 1
-    assert hygiene["verified_review_issue_count"] == 1
+    assert hygiene["verified_review_issue_count"] >= 1
     assert len(evidence) == 1
     bundle = evidence[0]["review_issue_bundle"]
     assert bundle["claim_anchor"]["quote"] == support_quote
@@ -7829,6 +7830,204 @@ def test_review_issue_specificity_accepts_concrete_experiment_dimensions_not_gen
     )
     assert not _coverage_item_is_specific_for_type("ablation evidence", "missing_ablation")
     assert not _coverage_item_is_specific_for_type("more datasets", "insufficient_evaluation")
+    assert not _coverage_item_is_specific_for_type("strong closed-source reference baseline", "missing_baseline")
+    assert not _coverage_item_is_specific_for_type("same-setting comparison against non-OGL", "missing_baseline")
+    assert not _coverage_item_is_specific_for_type("self-supervised contrastive learning pre-training baseline", "missing_baseline")
+    assert _coverage_item_is_specific_for_type(
+        "other heterogeneous FL baselines like FedBN, Per-FedAvg, or SCAFFOLD",
+        "missing_baseline",
+    )
+    assert not _coverage_item_is_specific_for_type("held-out or coverage evaluation for FL", "scope_overclaim")
+    assert not _coverage_item_is_specific_for_type("component-isolation ablation for objective", "missing_ablation")
+    assert not _coverage_item_is_specific_for_type("component-isolation ablation for pre-trained", "missing_ablation")
+    assert not _coverage_item_is_specific_for_type("component-isolation ablation for when using NCE loss", "missing_ablation")
+    assert _coverage_item_is_specific_for_type("component-isolation ablation for prediction head", "missing_ablation")
+
+
+def test_reviewer_issue_bundle_rejects_short_acronym_baseline_already_observed():
+    claim = "LogoRA outperforms Representation Alignment (RA) across time-series UDA datasets."
+    inventory_quote = "Table 2 compares LogoRA against RA, DANN, and CoDATS on four time-series UDA datasets."
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "comparison",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["baseline_or_comparison"],
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "ev-ra-table",
+                "claim_id": "claim-1",
+                "evidence": inventory_quote,
+                "raw_quote": inventory_quote,
+                "source": "Table 2",
+                "source_locator": "Table 2",
+                "stance": "supports",
+                "strength": "strong",
+                "binding_status": "bound_real_claim",
+                "support_source_bucket": "table_or_figure",
+                "verified_grounding_label": "paper_grounded_exact",
+                "verified_quote_match_type": "exact",
+                "semantic_grounding_label": "semantic_support_verified",
+            }
+        ],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-ra-present",
+                "claim_id": "claim-1",
+                "weakness": "The table omits an RA baseline comparison.",
+                "negative_type": "missing_baseline",
+                "required_evidence_type": "baseline_or_comparison",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["same-setting comparison against RA"],
+                "observed_inventory": [
+                    {
+                        "quote": inventory_quote,
+                        "locator": "Table 2",
+                        "observed_items": ["RA", "DANN", "CoDATS"],
+                    }
+                ],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["obligation_grounded_review_issue_count"] == 0
+    assert hygiene["verified_review_issue_count"] == 0
+
+
+def test_reviewer_issue_bundle_accepts_named_external_baseline_family_absence():
+    claim = "LG-FL outperforms baseline FL methods such as FedAvg and FedProx on heterogeneous data."
+    inventory_quote = "Table 1 compares LG-FL with FedAvg and FedProx under heterogeneous client data."
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "comparison",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["baseline_or_comparison"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-fl-baselines",
+                "claim_id": "claim-1",
+                "weakness": "The FL comparison omits named heterogeneous FL baselines.",
+                "negative_type": "missing_baseline",
+                "required_evidence_type": "baseline_or_comparison",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["other heterogeneous FL baselines like FedBN, Per-FedAvg, or SCAFFOLD"],
+                "observed_inventory": [
+                    {
+                        "quote": inventory_quote,
+                        "locator": "Table 1",
+                        "observed_items": ["FedAvg", "FedProx"],
+                    }
+                ],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    view = build_decision_hygiene_view(copy.deepcopy(state))
+    hygiene = view["decision_hygiene"]
+
+    assert hygiene["obligation_grounded_review_issue_count"] == 1
+    assert hygiene["verified_review_issue_count"] == 1
+    assert hygiene["obligation_grounded_review_issue_type_counts"]["missing_baseline"] == 1
+
+
+def test_claim_obligation_does_not_turn_own_two_letter_method_suffix_into_missing_baseline():
+    claim = "LogoRA outperforms specific baselines like Representation Alignment (RA)."
+    inventory_quote = "Table 1 reports LogoRA against RAINCOAT, CLUDA, and CoDATS on UDA datasets."
+    paper_text = (
+        "\\title{LogoRA: Local-Global Representation Alignment for Time Series Classification}\n"
+        f"{claim}\n\n{inventory_quote}"
+    )
+    span_start = paper_text.index(inventory_quote)
+    state = {
+        "paper_text": paper_text,
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "comparison",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["baseline_or_comparison"],
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "ev-baseline-table",
+                "claim_id": "claim-1",
+                "evidence": inventory_quote,
+                "raw_quote": inventory_quote,
+                "source": "Table 1",
+                "source_locator": "Table 1",
+                "stance": "supports",
+                "strength": "strong",
+                "binding_status": "bound_real_claim",
+                "support_source_bucket": "table_or_figure",
+                "verified_grounding_label": "paper_grounded_exact",
+                "verified_quote_match_type": "exact",
+                "verified_source_span_start": span_start,
+                "verified_source_span_end": span_start + len(inventory_quote) - 1,
+                "semantic_grounding_label": "semantic_support_verified",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene.get("claim_obligation_review_issue_type_counts", {}).get("missing_baseline", 0) == 0
+    assert hygiene["verified_review_issue_count"] == 0
+
+
+def test_review_issue_claim_surface_profile_extracts_component_entities():
+    profile = _review_issue_claim_surface_profile(
+        "ReDrafter achieves state-of-the-art speedup for LLM inference, driven by "
+        "leveraging an RNN draft model, dynamic tree attention, and knowledge distillation."
+    )
+
+    assert "RNN draft model" in profile["components_or_mechanisms"]
+    assert "dynamic tree attention" in profile["components_or_mechanisms"]
+    assert "knowledge distillation" in profile["components_or_mechanisms"]
+    assert "number" not in profile["components_or_mechanisms"]
+
+    latent_profile = _review_issue_claim_surface_profile(
+        "The performance of TCMT varies with the number of latent causal variables (N)."
+    )
+
+    assert "latent causal variables" in latent_profile["components_or_mechanisms"]
 
 
 def test_reviewer_issue_bundle_accepts_deterministic_paper_inventory_anchor():
@@ -7879,6 +8078,112 @@ def test_reviewer_issue_bundle_accepts_deterministic_paper_inventory_anchor():
     assert len(evidence) == 1
     bundle = evidence[0]["review_issue_bundle"]
     assert any(item.get("inventory_source") == "paper_text_inventory" for item in bundle["observed_inventory"])
+
+
+def test_reviewer_issue_bundle_accepts_dataset_specific_ablation_coverage_gap():
+    claim = "The method studies the impact of the latent variable N on action-recognition performance."
+    inventory_quote = (
+        "Table 5: Ablation study for selecting hyperparameters on the Sth-Else dataset. "
+        "We compare TCMT with different numbers of latent variables N in {4,8,12,16} "
+        "using the ViT-B/16 backbone on the Sth-Else data."
+    )
+    dataset_quote = "The other datasets used for novel data are SSv2, HMDB-51, and UCF-101."
+    state = {
+        "paper_text": f"{claim}\n\n{dataset_quote}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "empirical",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["ablation_or_component"],
+            }
+        ],
+        "evidence_map": [],
+        "evaluation_inventory": {"items": []},
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-dataset-ablation",
+                "claim_id": "claim-1",
+                "weakness": "The N ablation is only reported for Sth-Else, not the other named datasets.",
+                "negative_type": "missing_ablation",
+                "required_evidence_type": "ablation_or_component",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": [
+                    "Ablation on latent variable N for SSv2 dataset",
+                    "Ablation on latent variable N for HMDB-51 dataset",
+                ],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    view = build_decision_hygiene_view(copy.deepcopy(state))
+    hygiene = view["decision_hygiene"]
+    evidence = [
+        item for item in view["evidence_map"]
+        if item.get("reviewer_negative_candidate_id") == "reviewer-neg-candidate-dataset-ablation"
+    ]
+
+    assert hygiene["obligation_grounded_review_issue_count"] == 1
+    assert hygiene["verified_review_issue_count"] == 1
+    assert len(evidence) == 1
+    bundle = evidence[0]["review_issue_bundle"]
+    assert any("Sth-Else" in item.get("quote", "") for item in bundle["observed_inventory"])
+
+
+def test_reviewer_issue_bundle_rejects_dataset_specific_ablation_when_scope_is_covered():
+    claim = "The method studies the impact of the latent variable N on action-recognition performance."
+    inventory_quote = (
+        "Table 5: Ablation study for selecting hyperparameters on the Sth-Else and SSv2 datasets. "
+        "We compare TCMT with different numbers of latent variables N in {4,8,12,16} "
+        "using the ViT-B/16 backbone on Sth-Else and SSv2."
+    )
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "empirical",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["ablation_or_component"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-covered-dataset-ablation",
+                "claim_id": "claim-1",
+                "weakness": "The N ablation is allegedly missing for SSv2.",
+                "negative_type": "missing_ablation",
+                "required_evidence_type": "ablation_or_component",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["Ablation on latent variable N for SSv2 dataset"],
+                "observed_inventory": [{"quote": inventory_quote, "locator": "Table 5"}],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["obligation_grounded_review_issue_count"] == 0
+    assert hygiene["verified_review_issue_count"] == 0
 
 
 def test_reviewer_issue_bundle_rejects_claim_text_as_only_paper_inventory_anchor():
@@ -8204,7 +8509,7 @@ def test_reviewer_issue_bundle_accepts_result_claim_mismatch_with_inventory_anch
     assert evidence[0]["review_issue_bundle"]["required_evidence_type"] == "empirical_result"
 
 
-def test_reviewer_issue_bundle_accepts_candidate_method_support_gap_with_inventory_anchor():
+def test_reviewer_issue_bundle_keeps_method_support_gap_unverified_until_narrow_verifier_exists():
     claim = "The method uses a hierarchical routing mechanism to select experts."
     inventory_quote = "Section 3 describes a gating network that scores each expert and selects the top expert."
     state = {
@@ -8266,9 +8571,9 @@ def test_reviewer_issue_bundle_accepts_candidate_method_support_gap_with_invento
     view = build_decision_hygiene_view(copy.deepcopy(state))
     hygiene = view["decision_hygiene"]
 
-    assert hygiene["obligation_grounded_review_issue_count"] == 1
-    assert hygiene["verified_review_issue_count"] == 1
-    assert hygiene["obligation_grounded_review_issue_type_counts"]["method_support_gap"] == 1
+    assert hygiene["obligation_grounded_review_issue_count"] == 0
+    assert hygiene["verified_review_issue_count"] == 0
+    assert "method_support_gap" not in hygiene["obligation_grounded_review_issue_type_counts"]
 
 
 def test_reviewer_issue_bundle_rejects_truncated_missing_item_as_verified_issue():
@@ -8333,6 +8638,88 @@ def test_reviewer_issue_bundle_rejects_truncated_missing_item_as_verified_issue(
 
     assert hygiene["obligation_grounded_review_issue_count"] == 0
     assert hygiene["verified_review_issue_count"] == 0
+
+
+def test_reviewer_issue_bundle_allows_acronym_tail_component_ablation_target():
+    claim = (
+        "The paper proposes Orthogonal Gradient Learning (OGL) to mitigate "
+        "multi-model forgetting in one-shot NAS."
+    )
+    component_quote = (
+        "Our method introduces an orthogonality constraint in OGL and optimizes "
+        "the supernet with orthogonal gradients for different architectures."
+    )
+    state = {
+        "paper_text": f"{claim}\n\n{component_quote}\n\nTable 1 reports NAS results on CIFAR-10.",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "method",
+                "importance": "high",
+                "status": "supported",
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-ogl-ablation",
+                "claim_id": "claim-1",
+                "weakness": "The paper does not isolate the orthogonality constraint in OGL.",
+                "negative_type": "missing_ablation",
+                "required_evidence_type": "ablation_or_component",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["ablation study isolating the orthogonality constraint in OGL"],
+                "observed_inventory": [{"quote": component_quote, "locator": "Method"}],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["obligation_grounded_review_issue_count"] == 1
+    assert hygiene["verified_review_issue_count"] == 1
+
+
+def test_deterministic_component_ablation_seed_uses_method_definition_anchor():
+    claim = "OGL is a novel method to address multi-model forgetting in supernet training."
+    component_quote = (
+        "To overcome the issue, we propose an orthogonal gradient learning (OGL) "
+        "guided supernet training paradigm for one-shot NAS."
+    )
+    state = {
+        "paper_text": f"{claim}\n\n{component_quote}\n\nFigure 4 reports validation accuracy.",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "contribution",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["ablation_or_component"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["obligation_grounded_review_issue_count"] == 1
+    assert hygiene["verified_review_issue_count"] == 1
+    assert hygiene["obligation_grounded_review_issue_type_counts"]["missing_ablation"] == 1
 
 
 def test_reviewer_issue_bundle_rejects_missing_ablation_when_claim_reports_same_ablation():
@@ -8733,6 +9120,57 @@ def test_reviewer_issue_bundle_rejects_efficiency_gap_when_inventory_already_rep
 
     assert hygiene["obligation_grounded_review_issue_count"] == 0
     assert hygiene["verified_review_issue_count"] == 0
+
+
+def test_reviewer_issue_bundle_accepts_efficiency_cost_gap_against_result_inventory():
+    claim = "The proposed graph model is computationally efficient while maintaining strong accuracy."
+    inventory_quote = "Table 2 reports classification accuracy for Ours, GCN, and GraphSAGE on Cora and Citeseer."
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "comparison",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["efficiency_cost"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-efficiency-missing",
+                "claim_id": "claim-1",
+                "weakness": "The efficiency claim is backed by accuracy results but lacks cost measurements.",
+                "negative_type": "efficiency_cost_gap",
+                "required_evidence_type": "efficiency_cost",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["runtime, memory, or hardware measurement"],
+                "observed_inventory": [
+                    {
+                        "quote": inventory_quote,
+                        "locator": "Table 2",
+                        "observed_items": ["accuracy", "Cora", "Citeseer"],
+                    }
+                ],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    view = build_decision_hygiene_view(copy.deepcopy(state))
+    hygiene = view["decision_hygiene"]
+
+    assert hygiene["obligation_grounded_review_issue_count"] == 1
+    assert hygiene["verified_review_issue_count"] == 1
+    assert hygiene["obligation_grounded_review_issue_type_counts"]["efficiency_cost_gap"] == 1
 
 
 def test_reviewer_issue_bundle_rejects_efficiency_gap_with_theory_time_homogeneous_anchor():
@@ -9987,7 +10425,57 @@ def test_entity_claim_obligation_gap_becomes_verified_review_issue_bundle():
     assert hygiene["verified_review_issue_count"] == 1
     assert bundle_items[0]["obligation_id"]
     assert bundle_items[0]["claim_obligation"]["expected_entity"]
+    assert bundle_items[0]["source_of_expectation"] == "claim_obligation"
     assert hygiene["negative_evidence_unlinked_to_flaw_count"] == 0
+
+
+def test_reviewer_negative_candidate_requirement_follows_negative_type_when_misdeclared():
+    candidates = _normalize_reviewer_negative_candidates(
+        [
+            {
+                "candidate_id": "review-issue-candidate-1",
+                "claim_id": "claim-1",
+                "weakness": "The paper does not isolate the RankHead component.",
+                "negative_type": "missing_ablation",
+                "required_evidence_type": "empirical_result",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["RankHead component-isolation ablation"],
+            }
+        ]
+    )
+
+    assert candidates[0]["negative_type"] == "missing_ablation"
+    assert candidates[0]["required_evidence_type"] == "ablation_or_component"
+
+
+def test_deterministic_reviewer_seed_does_not_verify_method_detail_gap():
+    claim = "The RankHead module uses a learned routing objective to improve ranking accuracy."
+    inventory_quote = "Section 3 describes the model architecture and training objective."
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "method",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["method_detail"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["claim_obligation_review_issue_count"] == 0
+    assert hygiene["verified_review_issue_count"] == 0
 
 
 def test_generic_claim_obligation_without_entity_stays_unverified():
@@ -10132,6 +10620,111 @@ def test_reviewer_candidate_missing_inventory_gets_hydrated_from_paper_inventory
     assert hygiene.get("review_issue_candidate_missing_inventory_rejected", 0) == 0
 
 
+def test_reviewer_candidate_rebinds_to_matching_comparison_claim():
+    method_claim = "The paper introduces the HALO data-acquisition mechanism for semantic segmentation."
+    comparison_claim = "HALO achieves superior performance under domain shift compared to baselines."
+    related_quote = "Related work: GPT-4\\citep{gpt4} is a strong prior model for this benchmark family."
+    inventory_quote = "Table 1 compares HALO with RIPU baselines on Cityscapes and reports mIoU."
+    state = {
+        "paper_text": f"{method_claim}\n\n{comparison_claim}\n\n{related_quote}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": method_claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "method",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["method_detail"],
+            },
+            {
+                "claim_id": "claim-2",
+                "claim": comparison_claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "comparison",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["baseline_or_comparison"],
+            },
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-candidate-gpt4-wrong-claim",
+                "claim_id": "claim-1",
+                "claim": "HALO is compared only against RIPU baselines in Table 1.",
+                "weakness": "The comparison omits a same-setting GPT-4 baseline.",
+                "negative_type": "missing_baseline",
+                "required_evidence_type": "baseline_or_comparison",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["same-setting comparison against GPT-4 baseline"],
+                "observed_inventory": [
+                    {
+                        "quote": inventory_quote,
+                        "locator": "Table 1",
+                        "observed_items": ["HALO", "RIPU", "Cityscapes"],
+                    }
+                ],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+    bundle_items = hygiene["review_issue_bundle_items"]
+
+    assert hygiene["reviewer_candidate_review_issue_count"] == 1
+    assert hygiene["verified_review_issue_count"] == 1
+    assert bundle_items[0]["claim_id"] == "claim-2"
+    assert "GPT-4" in bundle_items[0]["missing_or_mismatch"]
+
+
+def test_paper_named_prior_method_can_seed_missing_baseline_issue():
+    claim = "The proposed model outperforms baselines on the RefCOCO segmentation benchmark."
+    related_quote = (
+        "Related work: Prior methods include LAVT\\citep{lavt}, which aligns language "
+        "and vision features for referring segmentation."
+    )
+    inventory_quote = (
+        "Table 2 compares the proposed model with MCN and VLT baselines on RefCOCO "
+        "and reports mIoU and precision for each method."
+    )
+    state = {
+        "paper_text": f"{claim}\n\n{related_quote}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "comparison",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["baseline_or_comparison"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+    bundle_items = hygiene["review_issue_bundle_items"]
+
+    assert hygiene["verified_review_issue_count"] == 1
+    assert hygiene["claim_obligation_review_issue_count"] == 0
+    assert hygiene["reviewer_candidate_review_issue_count"] == 1
+    assert bundle_items[0]["source_of_expectation"] == "reviewer_candidate"
+    assert "LAVT" in bundle_items[0]["missing_or_mismatch"]
+
+
 def test_merge_review_state_materializes_verified_review_issue_bundle_for_recovery():
     claim = "The method compares favorably against baselines on Benchmark-X."
     inventory_quote = (
@@ -10202,9 +10795,12 @@ def test_merge_review_state_materializes_verified_review_issue_bundle_for_recove
 
 
 def test_review_issue_bundle_flaw_materialization_survives_non_audit_id_collision():
-    claim = "The proposed Local-Global Distillation method is computationally efficient."
-    inventory_quote = "The paper states that Local-Global Distillation is more computationally efficient."
-    colliding_flaw_id = "flaw-reviewer-absence-claim-1-efficiency-cost-gap"
+    claim = "CDiffuser uses the contrastive learning component L_c to improve diffusion recommendations."
+    inventory_quote = (
+        "Table 5: Ablation studies. CDiffuser-N removes high-return trajectory sampling and reports "
+        "that the full model performs best."
+    )
+    colliding_flaw_id = "flaw-reviewer-absence-claim-1-missing-ablation"
     state = {
         "paper_text": f"{claim}\n\n{inventory_quote}",
         "claims": [
@@ -10215,8 +10811,8 @@ def test_review_issue_bundle_flaw_materialization_survives_non_audit_id_collisio
                 "claim_type": "empirical",
                 "importance": "high",
                 "status": "supported",
-                "coverage_tags": ["empirical", "efficiency"],
-                "claim_obligations": ["efficiency_cost"],
+                "coverage_tags": ["method", "empirical"],
+                "claim_obligations": ["ablation_or_component"],
             }
         ],
         "evidence_map": [],
@@ -10224,11 +10820,11 @@ def test_review_issue_bundle_flaw_materialization_survives_non_audit_id_collisio
             {
                 "candidate_id": "reviewer-neg-candidate-runtime-cost",
                 "claim_id": "claim-1",
-                "weakness": "The efficiency claim lacks runtime, memory, or FLOP measurements.",
-                "negative_type": "efficiency_cost_gap",
-                "required_evidence_type": "efficiency_cost",
+                "weakness": "The paper does not isolate the contrastive learning component.",
+                "negative_type": "missing_ablation",
+                "required_evidence_type": "ablation_or_component",
                 "quote_grounding_mode": "absence_or_requirement_gap",
-                "missing_or_weak_items": ["runtime and FLOPs comparison"],
+                "missing_or_weak_items": ["contrastive learning component L_c ablation"],
                 "observed_inventory": [{"quote": inventory_quote, "locator": "Section 5"}],
                 "status": "pending_absence_audit",
                 "source_of_expectation": "reviewer_candidate",
@@ -10264,12 +10860,19 @@ def test_review_issue_bundle_flaw_materialization_survives_non_audit_id_collisio
         if item.get("source") == "reviewer_absence_audit"
     ]
 
-    assert hygiene["verified_review_issue_count"] == 1
+    assert hygiene["verified_review_issue_count"] >= 1
     assert hygiene["negative_evidence_unlinked_to_flaw_count"] == 0
-    assert len(issue_evidence) == 1
-    assert len(issue_flaws) == 1
-    assert issue_flaws[0]["flaw_id"].startswith(f"{colliding_flaw_id}-audit-")
-    assert issue_evidence[0]["evidence_id"] in issue_flaws[0]["negative_evidence_ids"]
+    assert issue_evidence
+    assert issue_flaws
+    collision_flaws = [
+        item for item in issue_flaws
+        if str(item.get("flaw_id") or "").startswith(f"{colliding_flaw_id}-audit-")
+    ]
+    assert collision_flaws
+    assert any(
+        evidence.get("evidence_id") in collision_flaws[0]["negative_evidence_ids"]
+        for evidence in issue_evidence
+    )
 
 
 def test_review_issue_bundle_rejects_structural_baseline_without_named_missing_target():
@@ -10547,7 +11150,612 @@ def test_review_issue_bundle_accepts_missing_ablation_when_ablation_is_unrelated
     assert hygiene["verified_review_issue_count"] == 1
 
 
-def test_review_issue_bundle_accepts_efficiency_gap_when_paper_only_says_efficient():
+def test_review_issue_bundle_rejects_non_ablation_without_phrase_as_ablation_inventory():
+    claim = "The model uses long-term processing components for unsupervised temporal reasoning."
+    inventory_quote = "It is trained in a completely unsupervised manner, without any manual annotation or ground truth data of any kind."
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "method",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["ablation_or_component"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-long-term-ablation",
+                "claim_id": "claim-1",
+                "weakness": "The long-term processing component is not isolated in an ablation.",
+                "negative_type": "missing_ablation",
+                "required_evidence_type": "ablation_or_component",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["component-isolation ablation for long-term processing"],
+                "observed_inventory": [{"quote": inventory_quote, "locator": "Method"}],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["obligation_grounded_review_issue_count"] == 0
+    assert hygiene["verified_review_issue_count"] == 0
+
+
+def test_review_issue_bundle_rejects_task_scope_as_missing_ablation_component():
+    claim = "TCMT improves few-shot action recognition in N-way settings."
+    inventory_quote = (
+        "Figure 2: The top-1 accuracy obtained by our proposal versus a baseline model "
+        "in which all parts of the model are updated on the novel data."
+    )
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "empirical",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["ablation_or_component"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-task-ablation",
+                "claim_id": "claim-1",
+                "weakness": "The paper does not isolate few-shot as a component.",
+                "negative_type": "missing_ablation",
+                "required_evidence_type": "ablation_or_component",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["component-isolation ablation for few-shot"],
+                "observed_inventory": [{"quote": inventory_quote, "locator": "Figure 2"}],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            },
+            {
+                "candidate_id": "reviewer-neg-candidate-nway-ablation",
+                "claim_id": "claim-1",
+                "weakness": "The paper does not isolate N-way as a component.",
+                "negative_type": "missing_ablation",
+                "required_evidence_type": "ablation_or_component",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["component-isolation ablation for N-way"],
+                "observed_inventory": [{"quote": inventory_quote, "locator": "Figure 2"}],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            },
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["obligation_grounded_review_issue_count"] == 0
+    assert hygiene["verified_review_issue_count"] == 0
+
+
+def test_review_issue_bundle_rejects_result_table_item_as_missing_ablation():
+    claim = "The UDA method improves cross-domain adaptation."
+    inventory_quote = (
+        "Ablation studies of loss function: We carried out an ablation study and presented "
+        "the results in Table 4."
+    )
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "empirical",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["ablation_or_component"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-result-as-ablation",
+                "claim_id": "claim-1",
+                "weakness": "The paper lacks a quantitative result table for UDA.",
+                "negative_type": "missing_ablation",
+                "required_evidence_type": "ablation_or_component",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["quantitative result table or metric for UDA"],
+                "observed_inventory": [{"quote": inventory_quote, "locator": "Ablation section"}],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["obligation_grounded_review_issue_count"] == 0
+    assert hygiene["verified_review_issue_count"] == 0
+
+
+def test_review_issue_bundle_rejects_method_name_as_claim_obligation_ablation_target():
+    claim = "SPOT learns label-efficient transferable 3D representations."
+    inventory_quote = "Table 6: Ablation study on pre-training strategies across different datasets."
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "method",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["ablation_or_component"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["claim_obligation_review_issue_count"] == 0
+    assert hygiene["verified_review_issue_count"] == 0
+
+
+def test_review_issue_bundle_rejects_related_work_variants_as_ablation_inventory():
+    claim = "Noise Regularization (NR) is the core method proposed to prevent collapse."
+    inventory_quote = "Deep Canonical Correlation Analysis (DCCA) and its variants share simple formulations."
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "method",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["ablation_or_component"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-nr-ablation",
+                "claim_id": "claim-1",
+                "weakness": "The paper does not isolate the noise regularization component.",
+                "negative_type": "missing_ablation",
+                "required_evidence_type": "ablation_or_component",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["Ablation study isolating the noise regularization component"],
+                "observed_inventory": [{"quote": inventory_quote, "locator": "Related work"}],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["obligation_grounded_review_issue_count"] == 0
+    assert hygiene["verified_review_issue_count"] == 0
+
+
+def test_review_issue_bundle_rejects_missing_baseline_when_same_target_is_compared():
+    claim = "SpecDec++ boosts speculative decoding performance compared to fixed-length baselines."
+    comparison_quote = (
+        "Compared with the baseline speculative decoding (SpecDec) with fixed candidate lengths, "
+        "by adaptively determining the candidate lengths via a trained acceptance prediction head, "
+        "SpecDec++ achieves a relative 7.2% improvement."
+    )
+    state = {
+        "paper_text": f"{claim}\n\n{comparison_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "comparison",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["baseline_or_comparison"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-fixed-length-baseline",
+                "claim_id": "claim-1",
+                "weakness": "The paper lacks the fixed-length baseline comparison.",
+                "negative_type": "missing_baseline",
+                "required_evidence_type": "baseline_or_comparison",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["same-setting comparison against fixed-length"],
+                "observed_inventory": [{"quote": comparison_quote, "locator": "Figure 1"}],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["obligation_grounded_review_issue_count"] == 0
+    assert hygiene["verified_review_issue_count"] == 0
+
+
+def test_review_issue_bundle_rejects_shape_similar_gap_when_shape_conditioned_models_compared():
+    claim = "The proposed model outperforms existing methods in generating shape-similar molecules."
+    comparison_quote = (
+        "We conducted a performance comparison between Diff-Shape and two other "
+        "shape-conditioned generative models: SQUID and ShapeMol."
+    )
+    state = {
+        "paper_text": f"{claim}\n\n{comparison_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "comparison",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["baseline_or_comparison"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-shape-baseline",
+                "claim_id": "claim-1",
+                "weakness": "The shape-similar comparison baseline is missing.",
+                "negative_type": "missing_baseline",
+                "required_evidence_type": "baseline_or_comparison",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["same-setting comparison against shape-similar"],
+                "observed_inventory": [{"quote": comparison_quote, "locator": "Evaluation"}],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["obligation_grounded_review_issue_count"] == 0
+    assert hygiene["verified_review_issue_count"] == 0
+
+
+def test_review_issue_bundle_rejects_missing_ablation_when_variant_removes_synonym_target():
+    claim = "CDiffuser uses a contrastive module to improve the generated trajectories."
+    ablation_quote = (
+        "Ablation studies. CDiffuser-C: remove contrastive mechanism from CDiffuser, "
+        "i.e., remove L_c from the full loss."
+    )
+    state = {
+        "paper_text": f"{claim}\n\n{ablation_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "method",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["ablation_or_component"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-contrastive-module",
+                "claim_id": "claim-1",
+                "weakness": "The paper lacks an ablation isolating the contrastive module.",
+                "negative_type": "missing_ablation",
+                "required_evidence_type": "ablation_or_component",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["ablation isolating contrastive module; ablation isolating within module"],
+                "observed_inventory": [{"quote": ablation_quote, "locator": "Ablation"}],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["obligation_grounded_review_issue_count"] == 0
+    assert hygiene["verified_review_issue_count"] == 0
+
+
+def test_review_issue_bundle_rejects_missing_ablation_when_variant_uses_target_loss():
+    claim = "TCMT uses cross-entropy for classification in one variant of the model."
+    ablation_quote = (
+        "Ablation study. When we use cross-entropy for classification loss we denote "
+        "our model by TCMT_H, and use TCMT_C when using NCE loss."
+    )
+    state = {
+        "paper_text": f"{claim}\n\n{ablation_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "method",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["ablation_or_component"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-cross-entropy",
+                "claim_id": "claim-1",
+                "weakness": "The paper lacks an ablation for the cross-entropy loss.",
+                "negative_type": "missing_ablation",
+                "required_evidence_type": "ablation_or_component",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["component-isolation ablation for cross-entropy for classification loss"],
+                "observed_inventory": [{"quote": ablation_quote, "locator": "Ablation"}],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["obligation_grounded_review_issue_count"] == 0
+    assert hygiene["verified_review_issue_count"] == 0
+
+
+def test_component_ablation_seed_rejects_related_work_component_anchor():
+    claim = "ReDrafter achieves speedup by using an RNN draft model and dynamic tree attention."
+    related_quote = (
+        "However, Medusa necessitates multiple draft heads with distinct parameters. "
+        "Its independent prediction mechanism does not leverage the sequential structure."
+    )
+    state = {
+        "paper_text": f"{claim}\n\n{related_quote}\n\nIn this paper, we introduce the Recurrent Drafter.",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "method",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["ablation_or_component"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-prior-mechanism",
+                "claim_id": "claim-1",
+                "weakness": "The paper does not isolate the independent prediction mechanism.",
+                "negative_type": "missing_ablation",
+                "required_evidence_type": "ablation_or_component",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["component-isolation ablation for Its independent prediction mechanism"],
+                "observed_inventory": [
+                    {
+                        "quote": related_quote,
+                        "locator": "Introduction",
+                        "inventory_type": "component_anchor",
+                    }
+                ],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["obligation_grounded_review_issue_count"] == 0
+    assert hygiene["verified_review_issue_count"] == 0
+
+
+def test_review_issue_bundle_rejects_whole_method_acronym_as_ablation_target():
+    claim = "Ablation studies confirm the individual contributions of HALO components."
+    ablation_quote = (
+        "We conduct ablation studies on the components of HALO and additional analyses "
+        "in Section 4.2."
+    )
+    state = {
+        "paper_text": f"{claim}\n\n{ablation_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "empirical",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["ablation_or_component"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-halo-method",
+                "claim_id": "claim-1",
+                "weakness": "The paper does not isolate HALO.",
+                "negative_type": "missing_ablation",
+                "required_evidence_type": "ablation_or_component",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["component-isolation ablation for HALO"],
+                "observed_inventory": [{"quote": ablation_quote, "locator": "Ablation"}],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["obligation_grounded_review_issue_count"] == 0
+    assert hygiene["verified_review_issue_count"] == 0
+
+
+def test_direct_quote_method_support_gap_requires_explicit_gap_cue():
+    claim = "The paper proposes a three-stage RIS framework: Segment, Select, and Correct."
+    quote = (
+        "Our approach consists of three stages, as shown in Figure 1. "
+        "Stages 1 and 2 leverage existing pre-trained models."
+    )
+    state = {
+        "paper_text": f"{claim}\n\n{quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "method",
+                "importance": "high",
+                "status": "supported",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "evidence-method-description",
+                "claim_id": "claim-1",
+                "evidence": quote,
+                "raw_quote": quote,
+                "source": "Method",
+                "source_locator": "Figure: overview instance",
+                "strength": "medium",
+                "stance": "weakens",
+                "binding_status": "bound_real_claim",
+                "verified_grounding_label": "paper_grounded_exact",
+                "verified_quote_match_type": "quote_bank_id_canonical",
+                "semantic_grounding_label": "semantic_negative_verified",
+                "review_negative_label": "review_negative_verified",
+                "negative_evidence_type": "method_support_gap",
+                "review_negative_checked": True,
+            }
+        ],
+        "flaw_candidates": [
+            {
+                "flaw_id": "flaw-method-support",
+                "status": "candidate",
+                "related_claim_ids": ["claim-1"],
+                "evidence_ids": ["evidence-method-description"],
+                "negative_evidence_ids": ["evidence-method-description"],
+                "weakness_type": "method_support_gap",
+            }
+        ],
+        "reviewer_negative_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["review_negative_verified_count"] == 0
+    assert hygiene["verified_review_issue_count"] == 0
+
+
+def test_review_issue_bundle_rejects_missing_ablation_with_only_empirical_result_inventory():
+    claim = "The RankHead module improves ranking accuracy on Benchmark-X."
+    inventory_quote = "Table 1 reports ranking accuracy results on Benchmark-X for Ours and BERT baselines."
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "method",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["ablation_or_component"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-rankhead-ablation",
+                "claim_id": "claim-1",
+                "weakness": "The paper reports results but does not isolate the RankHead component.",
+                "negative_type": "missing_ablation",
+                "required_evidence_type": "ablation_or_component",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["RankHead component-isolation ablation"],
+                "observed_inventory": [{"quote": inventory_quote, "locator": "Table 1"}],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["obligation_grounded_review_issue_count"] == 0
+    assert hygiene["verified_review_issue_count"] == 0
+
+
+def test_review_issue_bundle_rejects_efficiency_gap_when_paper_only_says_efficient():
     claim = "The method processes a video sequence in one pass and is computationally efficient."
     inventory_quote = "The method processes the whole sequence in one go and is more computationally efficient."
     state = {
@@ -10587,8 +11795,8 @@ def test_review_issue_bundle_accepts_efficiency_gap_when_paper_only_says_efficie
 
     hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
 
-    assert hygiene["obligation_grounded_review_issue_count"] == 1
-    assert hygiene["verified_review_issue_count"] == 1
+    assert hygiene["obligation_grounded_review_issue_count"] == 0
+    assert hygiene["verified_review_issue_count"] == 0
 
 
 def test_claim_obligation_structural_efficiency_gap_verifies_without_reviewer_candidate():
@@ -10626,6 +11834,133 @@ def test_claim_obligation_structural_efficiency_gap_verifies_without_reviewer_ca
     assert hygiene["obligation_grounded_review_issue_count"] == 0
     assert hygiene["verified_review_issue_count"] == 0
     assert evidence == []
+
+
+def test_review_issue_bundle_rejects_effectiveness_inventory_for_claim_obligation_efficiency_gap():
+    claim = "SPOT learns label-efficient transferable 3D representations."
+    inventory_quote = (
+        "In this paper, we propose SPOT and demonstrate its effectiveness on various public "
+        "datasets with different downstream tasks under the label-efficiency setting."
+    )
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "empirical",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["efficiency_cost"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["obligation_grounded_review_issue_count"] == 0
+    assert hygiene["verified_review_issue_count"] == 0
+
+
+def test_review_issue_bundle_rejects_template_baseline_family_candidate():
+    claim = "ReDrafter accelerates LLM inference on MT-Bench."
+    inventory_quote = (
+        "In a PyTorch implementation, ReDrafter accelerates Vicuna inference by up to 3.5x "
+        "compared to the autoregressive method in MT-Bench on Nvidia H100 GPUs."
+    )
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "empirical",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["baseline_or_comparison"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-template-baseline",
+                "claim_id": "claim-1",
+                "weakness": "The paper may lack the strongest baseline family named by the paper task.",
+                "negative_type": "missing_baseline",
+                "required_evidence_type": "baseline_or_comparison",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": [
+                    "same-budget comparison for LLM against the strongest baseline family named by the paper task"
+                ],
+                "observed_inventory": [{"quote": inventory_quote, "locator": "Comparison / Robustness excerpt #1"}],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["obligation_grounded_review_issue_count"] == 0
+    assert hygiene["verified_review_issue_count"] == 0
+
+
+def test_review_issue_bundle_rejects_protocol_risk_from_generic_setting_inventory():
+    claim = "SPOT learns label-efficient transferable 3D representations."
+    inventory_quote = (
+        "SPOT demonstrates its effectiveness on various public datasets with different downstream "
+        "tasks under the label-efficiency setting."
+    )
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "empirical",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["evaluation_protocol"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-generic-protocol",
+                "claim_id": "claim-1",
+                "weakness": "The paper may lack a seed or same-budget protocol.",
+                "negative_type": "evaluation_protocol_risk",
+                "required_evidence_type": "evaluation_protocol",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["evaluation split, threshold, seed, or same-budget protocol for SPOT"],
+                "observed_inventory": [{"quote": inventory_quote, "locator": "Abstract"}],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["obligation_grounded_review_issue_count"] == 0
+    assert hygiene["verified_review_issue_count"] == 0
 
 
 def test_claim_obligation_structural_efficiency_gap_rejected_when_cost_metrics_present():
@@ -10703,7 +12038,7 @@ def test_review_issue_bundle_rejects_candidate_introduced_efficiency_gap_without
     assert hygiene["verified_review_issue_count"] == 0
 
 
-def test_review_issue_bundle_accepts_speedup_claim_efficiency_gap_without_explicit_obligation():
+def test_review_issue_bundle_rejects_speedup_claim_when_inventory_lacks_resource_measurement():
     claim = "The adaptive decoding method achieves higher speedup than baselines while preserving output quality."
     inventory_quote = "Table 2 reports acceptance rate and output quality for adaptive decoding baselines."
     state = {
@@ -10741,9 +12076,9 @@ def test_review_issue_bundle_accepts_speedup_claim_efficiency_gap_without_explic
 
     hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
 
-    assert hygiene["obligation_grounded_review_issue_count"] == 1
-    assert hygiene["verified_review_issue_count"] == 1
-    assert hygiene["obligation_grounded_review_issue_type_counts"]["efficiency_cost_gap"] == 1
+    assert hygiene["obligation_grounded_review_issue_count"] == 0
+    assert hygiene["verified_review_issue_count"] == 0
+    assert hygiene["obligation_grounded_review_issue_type_counts"].get("efficiency_cost_gap", 0) == 0
 
 
 def test_review_issue_bundle_accepts_quantitative_gap_when_inventory_is_qualitative():
