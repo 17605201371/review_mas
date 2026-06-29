@@ -1101,6 +1101,50 @@ Demoted from TARGETGUARD by CLUSTERGUARD:
 
 Current narrative: use cluster count as the paper-facing review-issue quantity. The result is not "19 true defects"; it is "15 verifier-passing rows, 8 deduplicated review-worthy clusters, with strict protection lines passing." Remaining bottleneck is issue diversity: missing-ablation still dominates (`13/15` rows, `6/8` clusters). Next work should improve entity-level obligation/inventory diversity, not loosen direct negative quote verification.
 
+## 2026-06-29/30 P28 CLUSTERGUARD API rerun: real hardneg20 result failed one protection line
+
+After the CLUSTERGUARD offline recompute, a real MiMo API hardneg20 rerun was executed with the current code and the same P28 flags:
+
+```bash
+DRMAS_NEG_QUOTE_HYGIENE=1 \
+DRMAS_TARGETED_NEGATIVE_SEARCH=1 \
+DRMAS_FREEFORM_REVIEWER_NEGATIVE=1 \
+DRMAS_REVIEW_ISSUE_BUNDLE=1 \
+MAX_TOKENS=1536 \
+API_MAX_WORKERS=2 \
+API_MAX_RETRIES=8 \
+API_TIMEOUT=600 \
+bash run_hardneg20_guard3.sh
+```
+
+Run artifacts:
+
+- `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260629_223747.jsonl`
+- `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260629_223747.log`
+- `P28_CLUSTERGUARD_API_223747_HARDNEG20_DASHBOARD.md/json`
+- `P28_CLUSTERGUARD_API_223747_HARDNEG20_AUDIT.json`
+- `P28_CLUSTERGUARD_API_223747_REVIEW_ISSUE_CASE_TABLE.md/json`
+- `P28_CLUSTERGUARD_API_223747_RECOVERY_CASE_TABLE.md/json`
+
+API rerun headline metrics:
+
+- `verified_review_issue_count=19`
+- `verified_review_issue_row_count=19`
+- `verified_review_issue_cluster_count=15`
+- `duplicate_review_issue_row_count=4`
+- `reviewer_candidate_review_issue_count=14`
+- `reviewer_candidate_review_issue_cluster_count=10`
+- `review_issue_type_missing_ablation=11`
+- `review_issue_cluster_type_missing_ablation=7`
+- `review_negative_verified_count=1`
+- `mark_contested_commit_count=8`
+- `recovery_case_verified_review_issue_repair=7`
+- `negative_evidence_unlinked_to_flaw=0`
+- `evidence_json_fallback_rate_pct=0`
+- protection: FAIL because `positive_or_neutral_negative_candidate_count=1`
+
+Do not treat `P28_CLUSTERGUARD_API_223747` as a passing paper result. The failing case is `XH3OiIhtvf`: evidence `evidence-critique-negative-1` was labeled `result_claim_mismatch` even though the quote says the federated model without secure aggregator improves EER from `2.57` to `2.36` (`8.57% relative improvement`). This is positive/neutral result text being misused as a negative. Next fix should add a semantic guard for improvement-direction metrics, especially error-rate metrics where lower is better, before accepting `result_claim_mismatch` direct negatives.
+
 ## Validation Commands
 
 Focused review tests:

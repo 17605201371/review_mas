@@ -1,0 +1,770 @@
+{
+  "input": "mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260629_223747.jsonl",
+  "summary": {
+    "bucket::attempted_not_committed": 14,
+    "operation::reject_patch": 13,
+    "evidence_bucket::quote-bank-negative-grounding_candidate": 2,
+    "bucket::verified_review_issue_repair": 7,
+    "operation::mark_contested": 8,
+    "effective_repair_turns": 9,
+    "effective_repair_not_verified_negative_repair": 9,
+    "turns_with_verified_review_issue_bundle_evidence": 7,
+    "evidence_bucket::obligation_grounded_review_issue": 7,
+    "turns_with_verified_review_negative_evidence": 1,
+    "evidence_bucket::verified_review_negative": 1,
+    "bucket::committed_not_effective": 6,
+    "operation::record_diagnosis_pending_concern": 4,
+    "evidence_bucket::insufficient_claim_relation": 1,
+    "bucket::assessment_limitation_routing": 1,
+    "operation::route_to_assessment_limitation": 3,
+    "evidence_bucket::stale_reviewer_absence_audit": 2,
+    "evidence_bucket::missing_evidence_id": 1,
+    "bucket::effective_repair_without_verified_negative": 1,
+    "evidence_bucket::support_only": 2,
+    "case_rows": 29
+  },
+  "cases": [
+    {
+      "paper_id": "ye3NrNrYOY",
+      "turn_id": 6,
+      "narrative_bucket": "attempted_not_committed",
+      "recovery_layer": "attempted",
+      "effective_repair": false,
+      "committed": false,
+      "operation": "reject_patch",
+      "target_type": "claim",
+      "target_id": "claim-1",
+      "target_text": "The proposed TCMT framework learns a temporal causal mechanism from base data via variational inference and holds it fixed during adaptation to novel classes.",
+      "old_status": "partially_supported",
+      "new_status": "unsupported",
+      "failure_code": "BLOCKED_BY_POLICY",
+      "supporting_evidence_ids": [
+        "evidence-negative-quote-bank-quote-critique-negative-2-1"
+      ],
+      "evidence_buckets": {
+        "quote-bank-negative-grounding_candidate": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-negative-quote-bank-quote-critique-negative-2-1",
+          "bucket": "quote-bank-negative-grounding_candidate",
+          "negative_type": "scope_limitation",
+          "review_negative_label": "author_limitation_only",
+          "trusted_grounding": false,
+          "locator": "Limitation / Gap / Negative evidence excerpt #2",
+          "raw_quote": "Extending TCMT to address instantaneous causal relations and providing a better model of the auxiliary context variables are clear directions for future work."
+        }
+      ]
+    },
+    {
+      "paper_id": "WNxlJJIEVj",
+      "turn_id": 5,
+      "narrative_bucket": "attempted_not_committed",
+      "recovery_layer": "",
+      "effective_repair": false,
+      "committed": false,
+      "operation": "",
+      "target_type": "",
+      "target_id": "",
+      "target_text": "",
+      "old_status": "",
+      "new_status": "",
+      "failure_code": "",
+      "supporting_evidence_ids": [],
+      "evidence_buckets": {},
+      "evidence": []
+    },
+    {
+      "paper_id": "WNxlJJIEVj",
+      "turn_id": 6,
+      "narrative_bucket": "verified_review_issue_repair",
+      "recovery_layer": "hygiene_delta_improved",
+      "effective_repair": true,
+      "committed": true,
+      "operation": "mark_contested",
+      "target_type": "claim",
+      "target_id": "claim-1",
+      "target_text": "CDiffuser achieves superior performance on D4RL benchmarks and a high-variance dataset compared to prior methods.",
+      "old_status": "supported",
+      "new_status": "supported",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [
+        "evidence-reviewer-absence-claim-1-baseline-or-comparison-m"
+      ],
+      "evidence_buckets": {
+        "obligation_grounded_review_issue": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-reviewer-absence-claim-1-baseline-or-comparison-m",
+          "bucket": "obligation_grounded_review_issue",
+          "negative_type": "missing_baseline",
+          "review_negative_label": "review_negative_absence_audit_verified",
+          "trusted_grounding": false,
+          "locator": "paper inventory #72",
+          "raw_quote": "missing/mismatch: same-setting comparison against high-retur; observed inventory: Next, we construct high variance datasets and evaluate the performance of CDiffuser and baselines on them. The results demonstrate the significant ..."
+        }
+      ]
+    },
+    {
+      "paper_id": "uOrfve3prk",
+      "turn_id": 4,
+      "narrative_bucket": "attempted_not_committed",
+      "recovery_layer": "attempted",
+      "effective_repair": false,
+      "committed": false,
+      "operation": "reject_patch",
+      "target_type": "",
+      "target_id": "",
+      "target_text": "",
+      "old_status": "",
+      "new_status": "",
+      "failure_code": "BLOCKED_BY_POLICY",
+      "supporting_evidence_ids": [],
+      "evidence_buckets": {},
+      "evidence": []
+    },
+    {
+      "paper_id": "uOrfve3prk",
+      "turn_id": 7,
+      "narrative_bucket": "attempted_not_committed",
+      "recovery_layer": "attempted",
+      "effective_repair": false,
+      "committed": false,
+      "operation": "reject_patch",
+      "target_type": "claim",
+      "target_id": "claim-3",
+      "target_text": "The proposed coherence metric and Pareto analysis effectively unify the evaluation of interpretability and control, despite their inherent tension.",
+      "old_status": "partially_supported",
+      "new_status": "unsupported",
+      "failure_code": "BLOCKED_BY_POLICY",
+      "supporting_evidence_ids": [
+        "evidence-2-turn-6"
+      ],
+      "evidence_buckets": {
+        "verified_review_negative": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-2-turn-6",
+          "bucket": "verified_review_negative",
+          "negative_type": "evaluation_protocol_risk",
+          "review_negative_label": "review_negative_verified",
+          "trusted_grounding": true,
+          "locator": "Limitation / Gap / Negative evidence excerpt #3",
+          "raw_quote": "Note that $\\alpha$ is a hyperparameter that must be tuned for each method, model, and sometimes even intervention feature and thus cannot be used to compare the effects of interventions across methods."
+        }
+      ]
+    },
+    {
+      "paper_id": "7Dub7UXTXN",
+      "turn_id": 4,
+      "narrative_bucket": "committed_not_effective",
+      "recovery_layer": "diagnosis_pending_recorded",
+      "effective_repair": false,
+      "committed": true,
+      "operation": "record_diagnosis_pending_concern",
+      "target_type": "claim_requirement_gap",
+      "target_id": "claim-2",
+      "target_text": "",
+      "old_status": "open",
+      "new_status": "recorded",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [],
+      "evidence_buckets": {},
+      "evidence": []
+    },
+    {
+      "paper_id": "7Dub7UXTXN",
+      "turn_id": 6,
+      "narrative_bucket": "committed_not_effective",
+      "recovery_layer": "diagnosis_pending_recorded",
+      "effective_repair": false,
+      "committed": true,
+      "operation": "record_diagnosis_pending_concern",
+      "target_type": "claim_requirement_gap",
+      "target_id": "claim-3",
+      "target_text": "",
+      "old_status": "open",
+      "new_status": "recorded",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [],
+      "evidence_buckets": {},
+      "evidence": []
+    },
+    {
+      "paper_id": "9zEBK3E9bX",
+      "turn_id": 4,
+      "narrative_bucket": "attempted_not_committed",
+      "recovery_layer": "attempted",
+      "effective_repair": false,
+      "committed": false,
+      "operation": "reject_patch",
+      "target_type": "claim",
+      "target_id": "claim-2",
+      "target_text": "The SPOT framework integrates occupancy prediction as its core pre-training task, with a specific architecture designed for scalability and transfer learning.",
+      "old_status": "supported",
+      "new_status": "unsupported",
+      "failure_code": "BLOCKED_BY_POLICY",
+      "supporting_evidence_ids": [
+        "evidence-targeted-candidate-quote-neg-search-quote-claim-2-negative-result-quote"
+      ],
+      "evidence_buckets": {
+        "insufficient_claim_relation": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-targeted-candidate-quote-neg-search-quote-claim-2-negative-result-quote",
+          "bucket": "insufficient_claim_relation",
+          "negative_type": "negative_result",
+          "review_negative_label": "insufficient_claim_relation",
+          "trusted_grounding": true,
+          "locator": "Section: 4.3 DISCUSSIONS AND ANALYSES",
+          "raw_quote": "5 reveal that relying solely on detection as a pre-training task yields minimal performance gains, particularly"
+        }
+      ]
+    },
+    {
+      "paper_id": "XyB4VvF01X",
+      "turn_id": 4,
+      "narrative_bucket": "assessment_limitation_routing",
+      "recovery_layer": "hygiene_delta_improved",
+      "effective_repair": true,
+      "committed": true,
+      "operation": "route_to_assessment_limitation",
+      "target_type": "flaw",
+      "target_id": "flaw-reviewer-absence-claim-1-missing-ablation",
+      "target_text": "Candidate negative result quote for claim 'A key methodological variant, G2T-Anon-Update, is proposed for the definition model.': paper quote reports 'The addit Candidate negative result quote for claim 'A key methodo...",
+      "old_status": "candidate",
+      "new_status": "downgraded",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [
+        "evidence-negative-quote-bank-quote-critique-negative-1-2"
+      ],
+      "evidence_buckets": {
+        "quote-bank-negative-grounding_candidate": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-negative-quote-bank-quote-critique-negative-1-2",
+          "bucket": "quote-bank-negative-grounding_candidate",
+          "negative_type": "negative_result",
+          "review_negative_label": "insufficient_claim_relation",
+          "trusted_grounding": false,
+          "locator": "Limitation / Gap / Negative evidence excerpt #1",
+          "raw_quote": "The addition of names in G2T-Named-Update fares slightly worse than the main G2T solver G2T-Anon-Update."
+        }
+      ]
+    },
+    {
+      "paper_id": "XyB4VvF01X",
+      "turn_id": 6,
+      "narrative_bucket": "committed_not_effective",
+      "recovery_layer": "diagnosis_pending_recorded",
+      "effective_repair": false,
+      "committed": true,
+      "operation": "record_diagnosis_pending_concern",
+      "target_type": "claim_requirement_gap",
+      "target_id": "claim-3",
+      "target_text": "",
+      "old_status": "open",
+      "new_status": "recorded",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [],
+      "evidence_buckets": {},
+      "evidence": []
+    },
+    {
+      "paper_id": "WpXq5n8yLb",
+      "turn_id": 4,
+      "narrative_bucket": "verified_review_issue_repair",
+      "recovery_layer": "hygiene_delta_improved",
+      "effective_repair": true,
+      "committed": true,
+      "operation": "mark_contested",
+      "target_type": "claim",
+      "target_id": "claim-2",
+      "target_text": "The performance gains are driven by three key components: (1) leveraging an RNN as the draft model conditioning on LLM hidden states, (2) applying a dynamic tree attention algorithm over beam search results to elimina...",
+      "old_status": "partially_supported",
+      "new_status": "partially_supported",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [
+        "evidence-reviewer-absence-claim-2-ablation-or-component-mi"
+      ],
+      "evidence_buckets": {
+        "obligation_grounded_review_issue": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-reviewer-absence-claim-2-ablation-or-component-mi",
+          "bucket": "obligation_grounded_review_issue",
+          "negative_type": "missing_ablation",
+          "review_negative_label": "review_negative_absence_audit_verified",
+          "trusted_grounding": false,
+          "locator": "paper component inventory #1",
+          "raw_quote": "missing/mismatch: component-isolation ablation for recurrent neural network; observed inventory: Additionally, we incorporate the embeddings of historical tokens as recurrent inputs to the draft head."
+        }
+      ]
+    },
+    {
+      "paper_id": "NnExMNiTHw",
+      "turn_id": 4,
+      "narrative_bucket": "attempted_not_committed",
+      "recovery_layer": "patch_validated",
+      "effective_repair": false,
+      "committed": false,
+      "operation": "reject_patch",
+      "target_type": "claim",
+      "target_id": "claim-1",
+      "target_text": "The optimal policy for choosing candidate length K in speculative decoding is a threshold policy derived from an MDP formulation.",
+      "old_status": "uncertain",
+      "new_status": "unsupported",
+      "failure_code": "INSUFFICIENT_EVIDENCE",
+      "supporting_evidence_ids": [],
+      "evidence_buckets": {},
+      "evidence": []
+    },
+    {
+      "paper_id": "NnExMNiTHw",
+      "turn_id": 5,
+      "narrative_bucket": "attempted_not_committed",
+      "recovery_layer": "patch_validated",
+      "effective_repair": false,
+      "committed": false,
+      "operation": "reject_patch",
+      "target_type": "claim",
+      "target_id": "claim-3",
+      "target_text": "SpecDec++ outperforms fixed-K baselines in terms of inference speed or efficiency.",
+      "old_status": "uncertain",
+      "new_status": "unsupported",
+      "failure_code": "EVIDENCE_SEMANTIC_MISMATCH",
+      "supporting_evidence_ids": [
+        "evidence-reviewer-absence-claim-3-baseline-or-comparison-m"
+      ],
+      "evidence_buckets": {
+        "stale_reviewer_absence_audit": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-reviewer-absence-claim-3-baseline-or-comparison-m",
+          "bucket": "stale_reviewer_absence_audit",
+          "negative_type": "missing_baseline",
+          "review_negative_label": "insufficient_semantic_negative",
+          "trusted_grounding": false,
+          "locator": "comparison",
+          "raw_quote": "We compare \\ours with the naive speculative decoding algorithm where the number of the candidate tokens $K$ is fixed as a hyperparameter. We tune $K$ in \\{2,4,6,8,10, 12, 14\\}."
+        }
+      ]
+    },
+    {
+      "paper_id": "fGXyvmWpw6",
+      "turn_id": 3,
+      "narrative_bucket": "attempted_not_committed",
+      "recovery_layer": "attempted",
+      "effective_repair": false,
+      "committed": false,
+      "operation": "reject_patch",
+      "target_type": "flaw",
+      "target_id": "flaw-1",
+      "target_text": "Core claim contradicted by paper evidence The paper's own finding of increased heterogeneity with distilled data contradicts its central premise of mitigating heterogeneity.",
+      "old_status": "",
+      "new_status": "",
+      "failure_code": "BLOCKED_BY_POLICY",
+      "supporting_evidence_ids": [],
+      "evidence_buckets": {},
+      "evidence": []
+    },
+    {
+      "paper_id": "QAgwFiIY4p",
+      "turn_id": 4,
+      "narrative_bucket": "attempted_not_committed",
+      "recovery_layer": "attempted",
+      "effective_repair": false,
+      "committed": false,
+      "operation": "reject_patch",
+      "target_type": "flaw",
+      "target_id": "flaw-reviewer-absence-claim-pst-counts-all-tested-subs",
+      "target_text": "Reviewer-inferred missing evidence: robustness or generalization evidence The paper's visible evaluation or method inventory leaves a missing robustness or generalization concern for claim 'PST counts all tested subst...",
+      "old_status": "",
+      "new_status": "",
+      "failure_code": "BLOCKED_BY_POLICY",
+      "supporting_evidence_ids": [],
+      "evidence_buckets": {},
+      "evidence": []
+    },
+    {
+      "paper_id": "QAgwFiIY4p",
+      "turn_id": 6,
+      "narrative_bucket": "attempted_not_committed",
+      "recovery_layer": "attempted",
+      "effective_repair": false,
+      "committed": false,
+      "operation": "reject_patch",
+      "target_type": "flaw",
+      "target_id": "flaw-reviewer-absence-claim-pst-counts-all-tested-subs",
+      "target_text": "Reviewer-inferred missing evidence: robustness or generalization evidence The paper's visible evaluation or method inventory leaves a missing robustness or generalization concern for claim 'PST counts all tested subst...",
+      "old_status": "",
+      "new_status": "",
+      "failure_code": "BLOCKED_BY_POLICY",
+      "supporting_evidence_ids": [],
+      "evidence_buckets": {},
+      "evidence": []
+    },
+    {
+      "paper_id": "TPAj63ax4Y",
+      "turn_id": 4,
+      "narrative_bucket": "attempted_not_committed",
+      "recovery_layer": "attempted",
+      "effective_repair": false,
+      "committed": false,
+      "operation": "reject_patch",
+      "target_type": "claim",
+      "target_id": "claim-3",
+      "target_text": "The proposed method significantly closes the performance gap between weakly-supervised and fully-supervised approaches on standard benchmarks.",
+      "old_status": "supported",
+      "new_status": "unsupported",
+      "failure_code": "BLOCKED_BY_POLICY",
+      "supporting_evidence_ids": [
+        "evidence-negative-quote-bank-quote-critique-negative-1-1"
+      ],
+      "evidence_buckets": {
+        "missing_evidence_id": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-negative-quote-bank-quote-critique-negative-1-1",
+          "bucket": "missing_evidence_id",
+          "negative_type": "",
+          "review_negative_label": "",
+          "trusted_grounding": false,
+          "locator": "",
+          "raw_quote": ""
+        }
+      ]
+    },
+    {
+      "paper_id": "TPAj63ax4Y",
+      "turn_id": 5,
+      "narrative_bucket": "effective_repair_without_verified_negative",
+      "recovery_layer": "hygiene_delta_improved",
+      "effective_repair": true,
+      "committed": true,
+      "operation": "mark_contested",
+      "target_type": "claim",
+      "target_id": "claim-3",
+      "target_text": "The proposed method significantly closes the performance gap between weakly-supervised and fully-supervised approaches on standard benchmarks.",
+      "old_status": "supported",
+      "new_status": "supported",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [
+        "evidence-reviewer-absence-claim-3-baseline-or-comparison-m"
+      ],
+      "evidence_buckets": {
+        "stale_reviewer_absence_audit": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-reviewer-absence-claim-3-baseline-or-comparison-m",
+          "bucket": "stale_reviewer_absence_audit",
+          "negative_type": "missing_baseline",
+          "review_negative_label": "",
+          "trusted_grounding": false,
+          "locator": "claim-evidence coverage audit",
+          "raw_quote": "Verified review issue bundle: the paper claim and observed inventory support a missing baseline concern; missing/mismatch item(s): same-setting baseline comparison for ZS-Our. Target claim: 'The proposed zero-shot met..."
+        }
+      ]
+    },
+    {
+      "paper_id": "mHv6wcBb0z",
+      "turn_id": 4,
+      "narrative_bucket": "committed_not_effective",
+      "recovery_layer": "patch_committed",
+      "effective_repair": false,
+      "committed": true,
+      "operation": "route_to_assessment_limitation",
+      "target_type": "flaw",
+      "target_id": "flaw-1",
+      "target_text": "Missing component ablation for NR No ablation isolating the noise regularization component's specific effect on preventing model collapse.",
+      "old_status": "candidate",
+      "new_status": "retracted",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [],
+      "evidence_buckets": {},
+      "evidence": []
+    },
+    {
+      "paper_id": "mHv6wcBb0z",
+      "turn_id": 6,
+      "narrative_bucket": "committed_not_effective",
+      "recovery_layer": "patch_committed",
+      "effective_repair": false,
+      "committed": true,
+      "operation": "route_to_assessment_limitation",
+      "target_type": "flaw",
+      "target_id": "flaw-1",
+      "target_text": "Missing component ablation for NR No ablation isolating the noise regularization component's specific effect on preventing model collapse.",
+      "old_status": "candidate",
+      "new_status": "retracted",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [],
+      "evidence_buckets": {},
+      "evidence": []
+    },
+    {
+      "paper_id": "xUe1YqEgd6",
+      "turn_id": 3,
+      "narrative_bucket": "attempted_not_committed",
+      "recovery_layer": "attempted",
+      "effective_repair": false,
+      "committed": false,
+      "operation": "reject_patch",
+      "target_type": "flaw",
+      "target_id": "flaw-reviewer-absence-claim-2-missing-ablation",
+      "target_text": "Reviewer-inferred missing evidence: ablation or component-isolation evidence The paper's visible evaluation or method inventory leaves a missing ablation concern for claim 'The LT-MS method uses a polynomial space-tim...",
+      "old_status": "",
+      "new_status": "",
+      "failure_code": "BLOCKED_BY_POLICY",
+      "supporting_evidence_ids": [],
+      "evidence_buckets": {},
+      "evidence": []
+    },
+    {
+      "paper_id": "xUe1YqEgd6",
+      "turn_id": 4,
+      "narrative_bucket": "verified_review_issue_repair",
+      "recovery_layer": "hygiene_delta_improved",
+      "effective_repair": true,
+      "committed": true,
+      "operation": "mark_contested",
+      "target_type": "claim",
+      "target_id": "claim-2",
+      "target_text": "The method is a novel long-term spatio-temporal model operating in a totally unsupervised way.",
+      "old_status": "supported",
+      "new_status": "supported",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [
+        "evidence-reviewer-absence-claim-2-ablation-or-component-mi"
+      ],
+      "evidence_buckets": {
+        "obligation_grounded_review_issue": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-reviewer-absence-claim-2-ablation-or-component-mi",
+          "bucket": "obligation_grounded_review_issue",
+          "negative_type": "missing_ablation",
+          "review_negative_label": "review_negative_absence_audit_verified",
+          "trusted_grounding": false,
+          "locator": "paper inventory #78",
+          "raw_quote": "missing/mismatch: component-isolation ablation for Divided attention; observed inventory: \\section{5.1 ABLATION STUDY } We have conducted an ablation study to assess three main components of our method LT-MS with four masks $(K\\,=\\,4)$ )..."
+        }
+      ]
+    },
+    {
+      "paper_id": "xUe1YqEgd6",
+      "turn_id": 5,
+      "narrative_bucket": "committed_not_effective",
+      "recovery_layer": "diagnosis_pending_recorded",
+      "effective_repair": false,
+      "committed": true,
+      "operation": "record_diagnosis_pending_concern",
+      "target_type": "claim_requirement_gap",
+      "target_id": "claim-2",
+      "target_text": "",
+      "old_status": "open",
+      "new_status": "recorded",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [],
+      "evidence_buckets": {},
+      "evidence": []
+    },
+    {
+      "paper_id": "YXn76HMetm",
+      "turn_id": 4,
+      "narrative_bucket": "verified_review_issue_repair",
+      "recovery_layer": "hygiene_delta_improved",
+      "effective_repair": true,
+      "committed": true,
+      "operation": "mark_contested",
+      "target_type": "claim",
+      "target_id": "claim-2",
+      "target_text": "The proposed HALO method achieves superior performance in the active learning setting on a novel dataset.",
+      "old_status": "supported",
+      "new_status": "supported",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [
+        "evidence-reviewer-absence-claim-2-baseline-or-comparison-m"
+      ],
+      "evidence_buckets": {
+        "obligation_grounded_review_issue": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-reviewer-absence-claim-2-baseline-or-comparison-m",
+          "bucket": "obligation_grounded_review_issue",
+          "negative_type": "missing_baseline",
+          "review_negative_label": "review_negative_absence_audit_verified",
+          "trusted_grounding": false,
+          "locator": "paper inventory #4",
+          "raw_quote": "missing/mismatch: same-setting comparison against paper-named EqualAL baseline; observed inventory: HALO sets a new state-of-the-art in active learning for semantic segmentation under domain shift and it is the first active learning approach that ..."
+        }
+      ]
+    },
+    {
+      "paper_id": "KOUAayk5Kx",
+      "turn_id": 4,
+      "narrative_bucket": "attempted_not_committed",
+      "recovery_layer": "patch_validated",
+      "effective_repair": false,
+      "committed": false,
+      "operation": "reject_patch",
+      "target_type": "claim",
+      "target_id": "claim-1",
+      "target_text": "Orthogonal Gradient Learning (OGL) is proposed to overcome the issue of multi-model forgetting in one-shot NAS, where weights of previously well-trained architectures are overwritten.",
+      "old_status": "unsupported",
+      "new_status": "supported",
+      "failure_code": "NO_EFFECT_PATCH",
+      "supporting_evidence_ids": [
+        "evidence-1-turn-3",
+        "evidence-small-model-quote-bank-7-turn-3"
+      ],
+      "evidence_buckets": {
+        "support_only": 2
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-1-turn-3",
+          "bucket": "support_only",
+          "negative_type": "generic_gap",
+          "review_negative_label": "",
+          "trusted_grounding": true,
+          "locator": "Section 3.1",
+          "raw_quote": "In order to handle the multi-model forgetting, we design an effective orthogonal gradient learning (OGL) for supernet training and meanwhile avoid the projector attenuation. The main idea is to design a gradient space"
+        },
+        {
+          "evidence_id": "evidence-small-model-quote-bank-7-turn-3",
+          "bucket": "support_only",
+          "negative_type": "generic_gap",
+          "review_negative_label": "",
+          "trusted_grounding": true,
+          "locator": "Lemma 2",
+          "raw_quote": "3 can be obtained according to Lemma 2. Lemma 2. Given a gradient space $S_{r}^{(i,j)}$ consists of a number of gradient vectors, i.e., $S_{r}^{(i,j)}\\,=$ $\\{g_{1},g_{2},...,g_{n}\\}$ , the projection of $\\Delta w_{l,r}^{"
+        }
+      ]
+    },
+    {
+      "paper_id": "KOUAayk5Kx",
+      "turn_id": 5,
+      "narrative_bucket": "verified_review_issue_repair",
+      "recovery_layer": "hygiene_delta_improved",
+      "effective_repair": true,
+      "committed": true,
+      "operation": "mark_contested",
+      "target_type": "claim",
+      "target_id": "claim-1",
+      "target_text": "Orthogonal Gradient Learning (OGL) is proposed to overcome the issue of multi-model forgetting in one-shot NAS, where weights of previously well-trained architectures are overwritten.",
+      "old_status": "supported",
+      "new_status": "supported",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [
+        "evidence-reviewer-absence-claim-1-ablation-or-component-mi"
+      ],
+      "evidence_buckets": {
+        "obligation_grounded_review_issue": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-reviewer-absence-claim-1-ablation-or-component-mi",
+          "bucket": "obligation_grounded_review_issue",
+          "negative_type": "missing_ablation",
+          "review_negative_label": "review_negative_absence_audit_verified",
+          "trusted_grounding": false,
+          "locator": "paper component inventory #1",
+          "raw_quote": "missing/mismatch: component-isolation ablation for orthogonal direction to the gradient; observed inventory: To overcome the issue, we propose an orthogonal gradient learning (OGL) guided supernet training paradigm for one-shot NAS, where the novelty lies ..."
+        }
+      ]
+    },
+    {
+      "paper_id": "KOUAayk5Kx",
+      "turn_id": 6,
+      "narrative_bucket": "verified_review_issue_repair",
+      "recovery_layer": "hygiene_delta_improved",
+      "effective_repair": true,
+      "committed": true,
+      "operation": "mark_contested",
+      "target_type": "claim",
+      "target_id": "claim-2",
+      "target_text": "OGL modifies the training loop of a baseline NAS method to prevent forgetting, and the paper provides implementation details for this modification.",
+      "old_status": "supported",
+      "new_status": "supported",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [
+        "evidence-reviewer-absence-claim-2-ablation-or-component-mi"
+      ],
+      "evidence_buckets": {
+        "obligation_grounded_review_issue": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-reviewer-absence-claim-2-ablation-or-component-mi",
+          "bucket": "obligation_grounded_review_issue",
+          "negative_type": "missing_ablation",
+          "review_negative_label": "review_negative_absence_audit_verified",
+          "trusted_grounding": false,
+          "locator": "paper component inventory #1",
+          "raw_quote": "missing/mismatch: component-isolation ablation for orthogonal gradient; observed inventory: To overcome the issue, we propose an orthogonal gradient learning (OGL) guided supernet training paradigm for one-shot NAS, where the novelty lies ..."
+        }
+      ]
+    },
+    {
+      "paper_id": "KOUAayk5Kx",
+      "turn_id": 7,
+      "narrative_bucket": "verified_review_issue_repair",
+      "recovery_layer": "hygiene_delta_improved",
+      "effective_repair": true,
+      "committed": true,
+      "operation": "mark_contested",
+      "target_type": "claim",
+      "target_id": "claim-2",
+      "target_text": "OGL modifies the training loop of a baseline NAS method to prevent forgetting, and the paper provides implementation details for this modification.",
+      "old_status": "supported",
+      "new_status": "supported",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [
+        "evidence-reviewer-absence-claim-2-ablation-or-component-mi"
+      ],
+      "evidence_buckets": {
+        "obligation_grounded_review_issue": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-reviewer-absence-claim-2-ablation-or-component-mi",
+          "bucket": "obligation_grounded_review_issue",
+          "negative_type": "missing_ablation",
+          "review_negative_label": "review_negative_absence_audit_verified",
+          "trusted_grounding": false,
+          "locator": "paper component inventory #1",
+          "raw_quote": "missing/mismatch: component-isolation ablation for orthogonal gradient; observed inventory: To overcome the issue, we propose an orthogonal gradient learning (OGL) guided supernet training paradigm for one-shot NAS, where the novelty lies ..."
+        }
+      ]
+    },
+    {
+      "paper_id": "XH3OiIhtvf",
+      "turn_id": 4,
+      "narrative_bucket": "attempted_not_committed",
+      "recovery_layer": "attempted",
+      "effective_repair": false,
+      "committed": false,
+      "operation": "reject_patch",
+      "target_type": "",
+      "target_id": "",
+      "target_text": "",
+      "old_status": "",
+      "new_status": "",
+      "failure_code": "BLOCKED_BY_POLICY",
+      "supporting_evidence_ids": [],
+      "evidence_buckets": {},
+      "evidence": []
+    }
+  ]
+}
