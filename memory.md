@@ -1598,6 +1598,8 @@ Figure specs: `PAPER_FIGURE_SPECS_20260701.md`.
 
 Manuscript skeleton: `PAPER_MANUSCRIPT_SKELETON_20260701.md`.
 
+Continuous manuscript draft: `PAPER_CONTINUOUS_DRAFT_20260701.md`.
+
 Core thesis:
 
 - Do not sell DrMAS as a better free-form review generator or accept/reject classifier.
@@ -1621,8 +1623,8 @@ Paper claims not allowed yet:
 
 Current writing status:
 
-- Introduction, method, experiment, related work, figure-spec, and manuscript-skeleton drafts now exist.
+- Introduction, method, experiment, related work, figure-spec, manuscript-skeleton, and continuous-manuscript drafts now exist.
 - Related work currently uses citation targets/placeholders; verify exact bibliography before final manuscript use.
 - Figure specs cover ReviewState lifecycle, two critical-content lanes, row-to-cluster-to-manual-audit funnel, and optional non-destructive recovery.
-- Next paper-writing work should focus on converting the skeleton into a continuous manuscript, verifying bibliography entries, and producing polished figures.
+- Next paper-writing work should focus on polishing the continuous draft, verifying bibliography entries, and producing polished figures.
 - MiMo full20 rerun remains blocked by `402 Insufficient account balance`; keep describing the freshest live rerun as partial16 until a full rerun completes.
