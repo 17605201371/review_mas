@@ -6,6 +6,8 @@ This file turns the current P28.6 state into a paper-facing narrative. It is int
 
 Companion guardrail: `PAPER_CLAIMS_EVIDENCE_MATRIX_20260701.md` maps each paper-level claim to current artifacts, allowed wording, table-ready metrics, and forbidden overclaims.
 
+Introduction prose draft: `PAPER_INTRODUCTION_DRAFT_20260701.md`.
+
 Experiment prose draft: `PAPER_EXPERIMENT_SECTION_DRAFT_20260701.md`.
 
 Method prose draft: `PAPER_METHOD_SECTION_DRAFT_20260701.md`.
@@ -177,6 +179,8 @@ The run stopped because MiMo returned `402 Insufficient account balance`. Do not
 
 ### Introduction
 
+Draft artifact: `PAPER_INTRODUCTION_DRAFT_20260701.md`.
+
 Problem: LLM review generation can sound plausible while losing track of what is actually supported, contested, or speculative.
 
 Gap: Existing review-generation pipelines lack persistent state, lifecycle checks, and recovery mechanisms for evidence and reviewer issues.
@@ -250,10 +254,12 @@ Current limitations:
 
 ### High Value But Not Mandatory For First Draft
 
-1. Improve Critique payload candidate recall so fewer verified issues come from deterministic seeds.
-2. Increase issue type diversity beyond missing ablation.
-3. Add a small oracle/reference-review analysis as an upper-bound evaluation, not as system input.
-4. Run a repeated-seed stability check if budget permits.
+1. Draft related work around LLM review generation, grounding, factuality, and agentic self-correction.
+2. Turn the ReviewState lifecycle, two negative lanes, and row-to-cluster funnel into figure specifications.
+3. Improve Critique payload candidate recall so fewer verified issues come from deterministic seeds.
+4. Increase issue type diversity beyond missing ablation.
+5. Add a small oracle/reference-review analysis as an upper-bound evaluation, not as system input.
+6. Run a repeated-seed stability check if budget permits.
 
 ## 9. Current One-Paragraph Abstract Draft
 

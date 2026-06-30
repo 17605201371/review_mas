@@ -1586,6 +1586,8 @@ New paper-facing blueprint: `PAPER_NARRATIVE_BLUEPRINT_20260701.md`.
 
 Claim/evidence guardrail: `PAPER_CLAIMS_EVIDENCE_MATRIX_20260701.md`.
 
+Introduction-section draft: `PAPER_INTRODUCTION_DRAFT_20260701.md`.
+
 Method-section draft: `PAPER_METHOD_SECTION_DRAFT_20260701.md`.
 
 Experiment-section draft: `PAPER_EXPERIMENT_SECTION_DRAFT_20260701.md`.
@@ -1610,3 +1612,9 @@ Paper claims not allowed yet:
 - Do not headline row count; use cluster count and manual A/B cluster count.
 - Do not claim a fresh full20 P28.6 rerun until MiMo balance is restored and the run completes.
 - Do not claim Critique payload discovery is mature; most current verified issues are deterministic seeds.
+
+Current writing status:
+
+- Introduction, method, and experiment section drafts now exist.
+- Next paper-writing work should focus on related work and figure specs: ReviewState lifecycle, two negative lanes, and row-to-cluster-to-manual-audit funnel.
+- MiMo full20 rerun remains blocked by `402 Insufficient account balance`; keep describing the freshest live rerun as partial16 until a full rerun completes.

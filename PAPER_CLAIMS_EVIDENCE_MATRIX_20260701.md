@@ -9,6 +9,7 @@ Purpose: map every paper-level claim to current evidence, allowed wording, and r
 Primary current artifacts:
 
 - `PAPER_NARRATIVE_BLUEPRINT_20260701.md`
+- `PAPER_INTRODUCTION_DRAFT_20260701.md`
 - `PAPER_METHOD_SECTION_DRAFT_20260701.md`
 - `PAPER_EXPERIMENT_SECTION_DRAFT_20260701.md`
 - `P28_6_PAPER_NARRATIVE_STATUS_20260630.md`
@@ -185,9 +186,15 @@ Prefer:
 
 ## Next Writing Task
 
-The next document to draft should be either:
+The introduction, method, and experiment section drafts now exist:
 
-1. `PAPER_METHOD_SECTION_DRAFT_20260701.md`: method prose with equations/definitions for ReviewState, issue bundle verification, and recovery;
-2. `PAPER_EXPERIMENT_SECTION_DRAFT_20260701.md`: table-ready experiment narrative and captions using the metrics above.
+- `PAPER_INTRODUCTION_DRAFT_20260701.md`
+- `PAPER_METHOD_SECTION_DRAFT_20260701.md`
+- `PAPER_EXPERIMENT_SECTION_DRAFT_20260701.md`
 
-The experiment section should come first if MiMo balance remains blocked, because it clarifies exactly what additional run would prove.
+Next writing should focus on related work and figure specifications:
+
+1. related work framing against generic LLM review generation, retrieval-augmented reviewing, factuality/grounding verification, and agentic self-correction;
+2. figure specs for the ReviewState lifecycle, the two negative lanes, and the row-to-cluster-to-manual-audit funnel.
+
+If MiMo balance is restored, the next experiment remains a fresh full20 P28.6 rerun with the acceptance criteria listed above.
