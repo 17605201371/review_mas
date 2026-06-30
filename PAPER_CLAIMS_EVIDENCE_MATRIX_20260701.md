@@ -21,6 +21,7 @@ Primary current artifacts:
 - `PAPER_CONTINUOUS_DRAFT_20260701.md`
 - `PAPER_READINESS_AUDIT_20260701.md`
 - `PAPER_MANUSCRIPT_PRODUCTION_CHECKLIST_20260701.md`
+- `PAPER_REPRODUCIBILITY_APPENDIX_20260701.md`
 - `P28_6_PAPER_NARRATIVE_STATUS_20260630.md`
 - `P28_6_CONFLICTFIX_TARGETREFINE2_194911_HARDNEG20_DASHBOARD.md/json`
 - `P28_6_CONFLICTFIX_TARGETREFINE2_194911_REVIEW_ISSUE_CASE_TABLE.md/json`
@@ -47,6 +48,7 @@ Current best result is the P28.6 TargetRefine2 offline recompute over hardneg20.
 | DrMAS prevents common false negative-evidence failure modes. | Supported | P28.6: `negative_grounding_conflict_count=0`, `negative_semantic_anchor_conflict_count=0`, `semantic_negative_without_review_relation_count=0`, `positive_or_neutral_negative_candidate_count=0`. | "Final-view hygiene removes active negative-grounding conflicts and positive/neutral negative candidates." | Do not claim no false positives exist globally; this is for measured P28.6 artifacts. |
 | DrMAS supports non-destructive recovery through contested relations. | Supported With Caveat | P28.6 full20: `mark_contested_commit_count=14`, `recovery_case_verified_review_issue_repair=6`; partial16: 5/5. | "Verified issues can trigger non-destructive contested repairs." | Full20 recovery numbers are offline recompute over a prior run; fresh rerun is partial16. |
 | DrMAS blocks unsafe downgrade behavior. | Supported With Caveat | P28.6 dashboard includes `recovery_unsafe_downgrade_attempt_blocked=1`; tests cover no active conflict leakage. | "Unsafe downgrade attempts are tracked separately and do not become the main recovery story." | Need avoid overstating from one observed blocked attempt. |
+| DrMAS implementation is auditable from code and artifact anchors. | Supported With Caveat | `PAPER_REPRODUCIBILITY_APPENDIX_20260701.md` maps concepts to implementation anchors and regeneration scripts. | "The appendix maps ReviewState concepts to code anchors, artifacts, and reproducibility checks." | This supports transparency, not a broader performance claim. |
 | DrMAS discovers diverse reviewer issues. | Preliminary | Current issue set is missing-ablation heavy: `verified_missing_ablation_cluster_count=6` of 9 clusters. | "The current prototype mostly verifies missing-ablation and missing-baseline style issues." | Do not claim broad issue diversity yet. |
 | Critique Agent autonomously discovers most issues. | Not Supported | `reviewer_candidate_review_issue_critique_payload_count=2`, `deterministic_seed_count=11`. | Not paper-ready as a positive claim. | Current pipeline relies heavily on deterministic reviewer seeds. |
 | DrMAS improves accept/reject accuracy. | Not Supported | The project treats accept/reject as a health check, not a target metric. | Do not claim. | Would require a separate benchmark and evaluation. |
@@ -195,7 +197,7 @@ Prefer:
 
 ## Next Writing Task
 
-The introduction, method, experiment, related work, bibliography-candidate, draft-BibTeX, figure-spec, renderable-figure, manuscript-skeleton, continuous-manuscript, readiness-audit, and production-checklist drafts now exist:
+The introduction, method, experiment, related work, bibliography-candidate, draft-BibTeX, figure-spec, renderable-figure, manuscript-skeleton, continuous-manuscript, readiness-audit, production-checklist, and reproducibility-appendix drafts now exist:
 
 - `PAPER_INTRODUCTION_DRAFT_20260701.md`
 - `PAPER_METHOD_SECTION_DRAFT_20260701.md`
@@ -209,12 +211,13 @@ The introduction, method, experiment, related work, bibliography-candidate, draf
 - `PAPER_CONTINUOUS_DRAFT_20260701.md`
 - `PAPER_READINESS_AUDIT_20260701.md`
 - `PAPER_MANUSCRIPT_PRODUCTION_CHECKLIST_20260701.md`
+- `PAPER_REPRODUCIBILITY_APPENDIX_20260701.md`
 
 Next writing should focus on turning placeholders/specs into final manuscript assets:
 
 1. replace draft BibTeX entries with final venue-style records;
 2. render or redraw the Mermaid figure sources into polished figures;
-3. add an appendix or reproducibility note mapping paper concepts to implementation anchors;
+3. fold the reproducibility appendix into the target paper format;
 4. decide whether to keep the conservative offline-full20/partial16 framing or wait for a fresh full20 rerun.
 
 If MiMo balance is restored, the next experiment remains a fresh full20 P28.6 rerun with the acceptance criteria listed above.

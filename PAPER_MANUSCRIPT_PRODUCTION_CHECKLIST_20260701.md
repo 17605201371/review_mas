@@ -8,6 +8,8 @@ Status: production checklist for turning `PAPER_CONTINUOUS_DRAFT_20260701.md` in
 
 The continuous draft is aligned with the current P28.6 artifacts and now ends at the paper conclusion instead of carrying a draft-status section in the main text.
 
+The implementation/reproducibility appendix draft exists at `PAPER_REPRODUCIBILITY_APPENDIX_20260701.md`; it maps paper concepts to code anchors, scripts, artifacts, and metric checks.
+
 The paper-facing result should remain conservative:
 
 - main diagnostic result: 9 obligation-grounded review issue clusters on hardneg20 offline recompute;
@@ -21,7 +23,7 @@ The paper-facing result should remain conservative:
 1. Replace draft BibTeX entries with final venue-style BibTeX, using `PAPER_BIBLIOGRAPHY_CANDIDATES_20260701.md` and `PAPER_REFERENCES_DRAFT_20260701.bib` as the starting point.
 2. Render or redraw the Mermaid figure sources into polished SVG/PDF figures.
 3. Decide whether to keep hardneg20 as the main experiment or wait for a fresh full20 MiMo rerun.
-4. Add an appendix or reproducibility note mapping paper concepts to implementation anchors.
+4. Fold the reproducibility appendix into the target paper format after figures and bibliography are finalized.
 5. Re-audit all result claims after any fresh run changes the dashboard or case tables.
 
 ## Submission-Readiness Blockers

@@ -8,6 +8,8 @@ Figure draft sources are tracked in `PAPER_FIGURES_DRAFT_20260701.md` and `paper
 
 Citation candidates are tracked in `PAPER_BIBLIOGRAPHY_CANDIDATES_20260701.md`; draft citation keys are provided in `PAPER_REFERENCES_DRAFT_20260701.bib`. These keys are usable for manuscript drafting but still need final venue-style BibTeX verification.
 
+Implementation and reproducibility anchors are tracked in `PAPER_REPRODUCIBILITY_APPENDIX_20260701.md`.
+
 ## Abstract
 
 Large language models can generate plausible peer-review text, but fluent reviews may still lose track of which claims are supported, contested, or merely speculative. We present DrMAS, a ReviewState-driven framework for LLM-assisted peer review that represents claims, evidence, reviewer issues, conflicts, hygiene diagnostics, and recovery actions as structured state. DrMAS separates direct quote-grounded negative evidence from obligation-grounded review issues: the latter can be verified through a claim anchor, observed paper inventory, a concrete missing or mismatched entity, and counterevidence checks, without pretending that the paper itself contains a negative sentence. On a hard-negative diagnostic set, DrMAS verifies 13 obligation-grounded issue rows, deduplicating to 9 issue clusters; manual audit judges 8 of 9 clusters valid or defensible. The direct quote-grounded negative lane remains strict and produces no verified direct negatives, highlighting the difference between copied negative quotes and reviewer-inferred issue bundles. Final-view hygiene remains clean in the authoritative artifacts, with zero active negative-grounding conflicts, zero semantic anchor conflicts, zero unlinked negative evidence, and zero positive/neutral negative candidates. These results support a conservative view of LLM review assistance as auditable state maintenance and repair rather than unconstrained review generation.
@@ -195,6 +197,8 @@ verified issue -> downgrade claim status
 The final report is rendered from the audited view. This lets the report distinguish strengths supported by real evidence, direct quote-grounded reviewer negatives if any, obligation-grounded verified review issues, diagnosis-pending concerns, assessment limitations, contested claims, and unresolved questions.
 
 This design is essential to the paper narrative. The final review should not collapse all weak signals into a single flaw list. It should preserve the lifecycle state of each concern.
+
+The implementation appendix maps these paper concepts to code anchors and regeneration scripts. The main text keeps function names out of the core narrative except where needed to define the experimental artifacts.
 
 ## 4. Experiments
 

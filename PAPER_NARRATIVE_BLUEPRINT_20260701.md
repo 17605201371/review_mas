@@ -30,6 +30,8 @@ Submission readiness audit: `PAPER_READINESS_AUDIT_20260701.md`.
 
 Production checklist: `PAPER_MANUSCRIPT_PRODUCTION_CHECKLIST_20260701.md`.
 
+Reproducibility appendix draft: `PAPER_REPRODUCIBILITY_APPENDIX_20260701.md`.
+
 ## 1. Thesis
 
 The paper should not claim that DrMAS is a better free-form review generator or a better accept/reject classifier.
@@ -274,10 +276,10 @@ Current limitations:
 
 ### High Value But Not Mandatory For First Draft
 
-1. Follow `PAPER_MANUSCRIPT_PRODUCTION_CHECKLIST_20260701.md`: finalize bibliography, render figures, add a reproducibility appendix, and choose the empirical path.
+1. Follow `PAPER_MANUSCRIPT_PRODUCTION_CHECKLIST_20260701.md`: finalize bibliography, render figures, integrate the reproducibility appendix, and choose the empirical path.
 2. Render or redraw the Mermaid figure sources into polished paper figures.
 3. Replace draft BibTeX entries with final venue-style records, using `PAPER_BIBLIOGRAPHY_CANDIDATES_20260701.md` and `PAPER_REFERENCES_DRAFT_20260701.bib` as the starting point.
-4. Add an appendix or reproducibility note mapping paper concepts to implementation anchors.
+4. Fold `PAPER_REPRODUCIBILITY_APPENDIX_20260701.md` into the target paper format.
 5. Improve Critique payload candidate recall so fewer verified issues come from deterministic seeds.
 6. Increase issue type diversity beyond missing ablation.
 7. Add a small oracle/reference-review analysis as an upper-bound evaluation, not as system input.

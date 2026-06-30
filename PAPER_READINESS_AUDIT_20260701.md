@@ -37,6 +37,7 @@ The paper is not ready for a strong benchmark-performance claim. The current res
 | Continuous manuscript | `PAPER_CONTINUOUS_DRAFT_20260701.md` | Paper-facing draft; still not camera-ready |
 | Manuscript skeleton | `PAPER_MANUSCRIPT_SKELETON_20260701.md` | Structural backup |
 | Production checklist | `PAPER_MANUSCRIPT_PRODUCTION_CHECKLIST_20260701.md` | Tracks remaining non-body work |
+| Reproducibility appendix | `PAPER_REPRODUCIBILITY_APPENDIX_20260701.md` | Maps concepts to code anchors and artifacts |
 | Introduction | `PAPER_INTRODUCTION_DRAFT_20260701.md` | Folded into continuous draft |
 | Method | `PAPER_METHOD_SECTION_DRAFT_20260701.md` | Folded into continuous draft |
 | Experiments | `PAPER_EXPERIMENT_SECTION_DRAFT_20260701.md` | Folded into continuous draft |
@@ -238,7 +239,7 @@ Tasks:
 - continue reducing implementation-history wording outside experiments;
 - convert Markdown table captions into proper paper captions;
 - make limitations concise but visible;
-- add an appendix pointer for implementation anchors.
+- fold the reproducibility appendix into the target paper format after deciding venue/template constraints.
 
 ### Priority 2: Render Or Redraw Figures
 

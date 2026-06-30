@@ -1610,6 +1610,8 @@ Submission readiness audit: `PAPER_READINESS_AUDIT_20260701.md`.
 
 Production checklist: `PAPER_MANUSCRIPT_PRODUCTION_CHECKLIST_20260701.md`.
 
+Reproducibility appendix draft: `PAPER_REPRODUCIBILITY_APPENDIX_20260701.md`.
+
 Core thesis:
 
 - Do not sell DrMAS as a better free-form review generator or accept/reject classifier.
@@ -1633,9 +1635,10 @@ Paper claims not allowed yet:
 
 Current writing status:
 
-- Introduction, method, experiment, related work, bibliography-candidate, draft-BibTeX, figure-spec, renderable-figure, manuscript-skeleton, continuous-manuscript, readiness-audit, and production-checklist drafts now exist.
+- Introduction, method, experiment, related work, bibliography-candidate, draft-BibTeX, figure-spec, renderable-figure, manuscript-skeleton, continuous-manuscript, readiness-audit, production-checklist, and reproducibility-appendix drafts now exist.
 - The continuous manuscript was polished to reduce P28-specific wording outside experiments, replace development-log table language with paper-facing interpretation, and move the former draft-status/open-items section into `PAPER_MANUSCRIPT_PRODUCTION_CHECKLIST_20260701.md`.
+- The reproducibility appendix maps the paper concepts to implementation anchors, regeneration scripts, authoritative artifacts, expected metric tuples, and explicit non-claims. It is transparency/supporting material, not a new experiment or broader-performance claim.
 - Related work in the continuous draft now uses draft citation keys from `PAPER_REFERENCES_DRAFT_20260701.bib`; `PAPER_BIBLIOGRAPHY_CANDIDATES_20260701.md` maps those keys to API-verified candidate references, but final BibTeX still needs venue-style verification.
 - Figure specs and Mermaid sources cover ReviewState lifecycle, two critical-content lanes, row-to-cluster-to-manual-audit funnel, and optional non-destructive recovery.
-- Next paper-writing work should follow `PAPER_MANUSCRIPT_PRODUCTION_CHECKLIST_20260701.md`: replace draft BibTeX with final venue records, render/redraw polished figures, add a reproducibility appendix, and decide whether to wait for fresh full20 or keep the conservative offline-full20/partial16 framing.
+- Next paper-writing work should follow `PAPER_MANUSCRIPT_PRODUCTION_CHECKLIST_20260701.md`: replace draft BibTeX with final venue records, render/redraw polished figures, fold the reproducibility appendix into the target paper format, and decide whether to wait for fresh full20 or keep the conservative offline-full20/partial16 framing.
 - MiMo full20 rerun remains blocked by `402 Insufficient account balance`; keep describing the freshest live rerun as partial16 until a full rerun completes.
