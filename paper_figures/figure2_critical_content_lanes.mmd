@@ -1,0 +1,26 @@
+flowchart TB
+  subgraph D["Direct quote-grounded negative lane"]
+    D1["Copied paper quote"] --> D2["Grounding check"]
+    D2 --> D3["Semantic negative relation"]
+    D3 --> D4["Reviewer-negative relation"]
+    D4 --> D5["Verified direct negative<br/>P28.6 count = 0"]
+  end
+
+  subgraph O["Obligation-grounded issue lane"]
+    O1["Real claim anchor"] --> O4["Issue bundle verifier"]
+    O2["Observed inventory anchor"] --> O4
+    O3["Concrete missing or<br/>mismatched entity"] --> O4
+    O4 --> O5["Counterevidence check"]
+    O5 --> O6["Verified review issue bundle<br/>9 clusters, 8/9 A-B"]
+  end
+
+  D5 --> F["Audited final view"]
+  O6 --> F
+  F --> R["Render separately:<br/>direct negatives | verified issues | potential concerns"]
+
+  classDef strict fill:#fff3f0,stroke:#a64b3c,stroke-width:1px,color:#111111
+  classDef issue fill:#eef7f2,stroke:#3f7f5a,stroke-width:1px,color:#111111
+  classDef final fill:#eef4ff,stroke:#315f9c,stroke-width:2px,color:#111111
+  class D1,D2,D3,D4,D5 strict
+  class O1,O2,O3,O4,O5,O6 issue
+  class F,R final

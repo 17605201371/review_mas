@@ -1,0 +1,24 @@
+flowchart LR
+  P["Paper text"] --> C["Claim extraction"]
+  C --> E["Evidence grounding<br/>and claim binding"]
+  E --> Q["Reviewer issue<br/>candidate formation"]
+  Q --> I["Issue bundle<br/>verification"]
+  I --> H["Final-view<br/>hygiene audit"]
+  H --> K["Contested relation<br/>and recovery"]
+  K --> O["Final review<br/>from audited state"]
+
+  S["ReviewState<br/>claims | evidence | issues<br/>conflicts | repairs | hygiene"]
+
+  S -. "read/write" .-> C
+  S -. "read/write" .-> E
+  S -. "read/write" .-> Q
+  S -. "read/write" .-> I
+  S -. "read/write" .-> H
+  S -. "read/write" .-> K
+
+  classDef state fill:#eef4ff,stroke:#315f9c,stroke-width:2px,color:#14213d
+  classDef process fill:#ffffff,stroke:#555555,stroke-width:1px,color:#111111
+  classDef output fill:#f0f7ee,stroke:#3f7f45,stroke-width:1px,color:#111111
+  class S state
+  class P,C,E,Q,I,H,K process
+  class O output

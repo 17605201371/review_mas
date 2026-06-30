@@ -4,6 +4,8 @@ Date: 2026-07-01
 
 Status: continuous manuscript draft. This file turns the current section drafts into a single readable paper draft. It still contains citation placeholders and figure/table placeholders. It should not be treated as camera-ready text until bibliography, figures, and the fresh-run status are resolved.
 
+Figure draft sources are tracked in `PAPER_FIGURES_DRAFT_20260701.md` and `paper_figures/*.mmd`.
+
 ## Abstract
 
 Large language models can generate plausible peer-review text, but fluent reviews may still lose track of which claims are supported, contested, or merely speculative. We present DrMAS, a ReviewState-driven framework for LLM-assisted peer review that represents claims, evidence, reviewer issues, conflicts, hygiene diagnostics, and recovery actions as structured state. DrMAS separates direct quote-grounded negative evidence from obligation-grounded review issues: the latter can be verified through a claim anchor, observed paper inventory, a concrete missing or mismatched entity, and counterevidence checks, without pretending that the paper itself contains a negative sentence. On a hard-negative diagnostic set, the current P28.6 pipeline verifies 13 obligation-grounded issue rows, deduplicating to 9 issue clusters; manual audit judges 8 of 9 clusters valid or defensible. The direct quote-grounded negative lane remains strict and produces no verified direct negatives, highlighting the difference between copied negative quotes and reviewer-inferred issue bundles. Final-view hygiene remains clean in the authoritative artifacts, with zero active negative-grounding conflicts, zero semantic anchor conflicts, zero unlinked negative evidence, and zero positive/neutral negative candidates. These results support a conservative view of LLM review assistance as auditable state maintenance and repair rather than unconstrained review generation.
@@ -90,7 +92,7 @@ The current empirical evidence supports this positioning conservatively. P28.6 d
 
 DrMAS treats LLM-assisted reviewing as a state maintenance problem. Instead of asking a model to directly produce a final review, the system incrementally builds a structured ReviewState, audits that state, and renders the final review from an audited view.
 
-[FIGURE 1: ReviewState lifecycle. Place near here.]
+[FIGURE 1: ReviewState lifecycle. Source: `paper_figures/figure1_reviewstate_lifecycle.mmd`. Place near here.]
 
 At a high level, the pipeline starts from paper text, extracts paper claims, grounds and binds evidence to those claims, forms reviewer issue candidates, verifies review issue bundles, applies final-view hygiene, performs non-destructive recovery when needed, and renders the final report from the audited view. The central design decision is to keep direct quote-grounded negative evidence separate from obligation-grounded review issues. A direct quote-grounded negative must be a copied paper quote that itself supports a reviewer-negative relation. An obligation-grounded review issue may instead be verified from a claim anchor, observed paper inventory, a concrete missing or mismatched entity, and the absence of resolving counterevidence.
 
@@ -116,7 +118,7 @@ The system distinguishes support evidence from negative or missing evidence. Acc
 
 DrMAS uses two separate lanes for review-critical information.
 
-[FIGURE 2: Direct quote-grounded negative lane vs obligation-grounded issue lane. Place near here.]
+[FIGURE 2: Direct quote-grounded negative lane vs obligation-grounded issue lane. Source: `paper_figures/figure2_critical_content_lanes.mmd`. Place near here.]
 
 The direct lane is intentionally strict. A record can count as a quote-grounded reviewer negative only if it passes all of the following checks:
 
@@ -172,7 +174,7 @@ This step prevents false negative-evidence artifacts from leaking into the final
 
 Recovery is not a mechanism for forcing accept/reject decisions. It is a mechanism for repairing ReviewState inconsistencies. The preferred recovery action is `mark_contested`: a supported claim can remain supported while being marked contested by a verified review issue.
 
-[OPTIONAL FIGURE 4: Non-destructive recovery. Place near here if space permits.]
+[OPTIONAL FIGURE 4: Non-destructive recovery. Source: `paper_figures/figure4_non_destructive_recovery.mmd`. Place near here if space permits.]
 
 This preserves a supported claim while exposing that a verified issue contests its sufficiency or scope. Unsafe downgrade attempts are tracked separately and should not be described as the main recovery path. The paper should describe recovery as:
 
@@ -261,7 +263,7 @@ Table 1 reports the P28.6 full20 offline recompute. DrMAS verifies 13 review iss
 
 Table 1: P28.6 verifies obligation-grounded review issue bundles conservatively. The main count is the deduplicated cluster count, not the raw row count. The direct quote-grounded negative lane remains strict and produces no verified direct negatives in this run.
 
-[FIGURE 3: Verification funnel from rows to clusters to manual A/B clusters. Place near here.]
+[FIGURE 3: Verification funnel from rows to clusters to manual A/B clusters. Source: `paper_figures/figure3_verification_funnel.mmd`. Place near here.]
 
 The key interpretation is that the useful negative-review signal does not appear as copied paper-negative text. It appears as verified claim-inventory-obligation mismatch. This supports the ReviewState thesis: reviewer issues should be represented as auditable state objects rather than as unstructured negative snippets.
 
@@ -355,7 +357,7 @@ The main contribution is therefore a stateful verification and recovery framewor
 This continuous draft is aligned with current P28.6 artifacts, but it is not camera-ready. The remaining manuscript work is:
 
 1. Replace citation placeholders with verified bibliography entries.
-2. Convert figure placeholders into polished figures.
+2. Render or redraw the Mermaid figure sources into polished figures.
 3. Decide whether to keep hardneg20 as the main experiment or wait for a fresh full20 MiMo rerun.
 4. Add an appendix or reproducibility note mapping paper concepts to implementation anchors.
 5. Re-audit all result claims after any fresh run changes the dashboard or case tables.

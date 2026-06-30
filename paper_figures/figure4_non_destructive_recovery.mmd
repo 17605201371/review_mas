@@ -1,0 +1,15 @@
+flowchart LR
+  S["Real positive support"] --> C["Supported claim"]
+  I["Verified review issue bundle"] --> M["mark_contested"]
+  C --> M
+  M --> K["Supported-but-contested<br/>relation"]
+  K --> V["Final view renders<br/>support plus concern"]
+
+  U["Unsafe downgrade<br/>attempts tracked separately"] -. "blocked" .-> M
+
+  classDef support fill:#eef7f2,stroke:#3f7f5a,stroke-width:1px,color:#111111
+  classDef repair fill:#eef4ff,stroke:#315f9c,stroke-width:2px,color:#111111
+  classDef blocked fill:#fff3f0,stroke:#a64b3c,stroke-width:1px,color:#111111
+  class S,C support
+  class I,M,K,V repair
+  class U blocked

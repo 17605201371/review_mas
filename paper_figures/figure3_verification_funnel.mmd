@@ -1,0 +1,14 @@
+flowchart LR
+  R["13 verifier-passing<br/>issue rows"] --> C["9 deduplicated<br/>issue clusters"]
+  C --> A["8 manual A-B<br/>clusters"]
+
+  R -. "duplicate rows = 4" .-> C
+  C -. "1 C cluster excluded<br/>from conservative headline" .-> A
+
+  Z["Direct quote-grounded<br/>negatives = 0"] --- R
+  H["Active conflict metrics<br/>all measured as 0"] --- A
+
+  classDef count fill:#eef4ff,stroke:#315f9c,stroke-width:2px,color:#111111
+  classDef note fill:#fff8e6,stroke:#9a6a00,stroke-width:1px,color:#111111
+  class R,C,A count
+  class Z,H note
