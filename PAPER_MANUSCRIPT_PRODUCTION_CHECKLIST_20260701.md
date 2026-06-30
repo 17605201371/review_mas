@@ -28,6 +28,8 @@ Manual audit protocol exists at `PAPER_MANUAL_AUDIT_PROTOCOL_20260701.md`. It de
 
 The implementation/reproducibility appendix draft exists at `PAPER_REPRODUCIBILITY_APPENDIX_20260701.md`; it maps paper concepts to code anchors, scripts, artifacts, and metric checks.
 
+The clean and continuous drafts now include a responsible-use paragraph in Discussion. It frames DrMAS as review support and audit infrastructure, not an autonomous reviewer, accept/reject classifier, or source of final review judgments; it also notes that deployment must follow manuscript confidentiality rules and venue policy on LLM assistance.
+
 Figure SVG/PDF drafts exist in `paper_figures/`; they were manually redrawn from the Mermaid specs and validated with `rsvg-convert`. The clean and continuous drafts now reference the rendered SVGs directly. The figures still need target-template placement and final visual QA.
 
 Cleaned draft BibTeX exists at `PAPER_REFERENCES_DRAFT_20260701.bib`, with citation provenance and remaining metadata risks in `PAPER_BIBLIOGRAPHY_AUDIT_20260701.md`. The current draft has three peer-review-specific LLM references and internally consistent citation keys; final target-venue export is still pending.

@@ -1654,6 +1654,7 @@ Paper claims not allowed yet:
 - Do not headline row count; use cluster count and manual A/B cluster count.
 - Do not claim a fresh full20 P28.6 rerun until MiMo balance is restored and the run completes.
 - Do not claim Critique payload discovery is mature; most current verified issues are deterministic seeds.
+- Do not frame DrMAS as a replacement for human reviewer judgment, or as satisfying venue policy or manuscript-confidentiality requirements by itself.
 
 Current writing status:
 
@@ -1664,6 +1665,7 @@ Current writing status:
 - The clean and continuous drafts now use paper-facing terminology in the main prose: final-view validation, recovery action, diagnostic set, and no P28/run-id/API-error-code wording in the main text. Terminology guardrails are in `PAPER_TERMINOLOGY_GUIDE_20260701.md`.
 - The clean and continuous method sections now include a short algorithmic lifecycle block: extract claims/obligations, ground support and neutral inventory, form candidates, verify the two critical-content lanes separately, audit the final view, add non-destructive contested relations, and render from audited state rather than raw model prose.
 - The clean and continuous limitations now explicitly explain deterministic reviewer seeds as auditable verifier stress targets, not evidence of autonomous issue discovery.
+- The clean and continuous discussions now include a responsible-use boundary: DrMAS is review support and audit infrastructure, not an autonomous reviewer, accept/reject classifier, or source of final review judgments; deployment must respect manuscript confidentiality and venue LLM-assistance policy.
 - The continuous draft has been synchronized with the clean body on rendered SVG figure references, the illustrative issue-bundle subsection, manual-audit A/B/C wording, and final-view validation terminology. The remaining intended difference is that the continuous draft keeps top-of-file draft metadata while the clean body is the advisor-facing manuscript body.
 - The advisor review packet gives the next human-facing entry point: read clean body first, then readiness audit, claims/evidence matrix, reproducibility appendix, and bibliography files. It records the current thesis, defensible empirical claim, mandatory caveats, advisor questions, and non-negotiable overclaim guards.
 - The venue-fit decision aid recommends a systems/method or human-AI review-support framing, treats peer-review automation workshops as a high-fit near-term path, and warns against benchmark-heavy ML/NLP positioning unless fresh full20, repeated seeds, broader issue diversity, or a second diagnostic/oracle analysis is added.

@@ -73,7 +73,8 @@ Mandatory caveats:
 - the main full20 result is an offline recomputation over a completed run;
 - the freshest live sanity rerun is partial16, not full20;
 - issue diversity is narrow and missing-ablation heavy;
-- most verified issue rows come from deterministic reviewer seeds, not mature autonomous Critique discovery.
+- most verified issue rows come from deterministic reviewer seeds, not mature autonomous Critique discovery;
+- DrMAS is framed as review support and audit infrastructure, not an autonomous reviewer or source of final review judgments.
 
 ## Figures In The Draft
 
@@ -97,7 +98,8 @@ They parse and render, but still need target-template placement and visual QA.
 7. Are the A/B/C manual-audit labels defined tightly enough for advisor review, or does this need a second annotator before submission?
 8. Is the final-view validation terminology clear enough for the intended venue?
 9. Which pre-mortem risk is most likely for the target venue: empirical scale, direct-negative zero, deterministic seeds, missing-ablation skew, or engineering-artifact framing?
-10. Does the related-work framing need more peer-review-specific references before submission?
+10. Does the responsible-use paragraph satisfy the target venue's expectations for confidentiality, human oversight, and LLM-assistance policy?
+11. Does the related-work framing need more peer-review-specific references before submission?
 
 ## Known Non-Negotiables
 
@@ -107,6 +109,7 @@ They parse and render, but still need target-template placement and visual QA.
 - Do not describe the partial16 run as a fresh full20 result.
 - Do not hide the 0 direct quote-grounded negative count.
 - Do not present recovery as accept/reject correction.
+- Do not present DrMAS as a replacement for human reviewer judgment or venue policy compliance.
 
 ## Next Production Step
 

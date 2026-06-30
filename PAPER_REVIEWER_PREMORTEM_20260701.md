@@ -177,6 +177,26 @@ Concrete manuscript action:
 - Do not use it as the main quantitative result.
 - Keep the compact main-text table focused on claim anchor, inventory anchor, missing relation, verification status, and recovery action.
 
+### Review H: "Is this safe to use in peer review?"
+
+Likely rating impact: medium for human-AI or peer-review venues.
+
+Why the criticism is fair:
+
+- peer-review manuscripts are confidential in many venues;
+- LLM assistance policies differ across venues;
+- an automated review assistant could be misused as a substitute for human judgment.
+
+What the paper can honestly say:
+
+> DrMAS is review-support and audit infrastructure, not an autonomous reviewer. It preserves concern status so human reviewers can inspect direct negatives, verified issue bundles, and diagnosis-pending concerns before using them.
+
+Concrete manuscript action:
+
+- Keep the responsible-use paragraph in Discussion.
+- Do not imply that DrMAS can make final review judgments or accept/reject decisions.
+- State that deployment must follow manuscript confidentiality requirements and venue policy on LLM assistance.
+
 ## Abstract-Level Risk
 
 Current abstract is honest but dense. The biggest abstract risk is that it tries to carry too many caveats at once: 13 rows, 9 clusters, 8/9 manual audit, direct negatives zero, final-view validation zeros, and framework framing.

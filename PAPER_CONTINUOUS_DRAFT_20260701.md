@@ -355,6 +355,8 @@ The result also clarifies what row counts can and cannot mean. A row is an indiv
 
 The result is not yet a broad autonomous review benchmark. Most verified issues come from deterministic reviewer seeds rather than Critique payload candidates, and the issue distribution is missing-ablation heavy. The appropriate next step is not to loosen the verifier, but to improve entity-level obligation extraction and Critique-driven candidate generation while preserving the same final-view protections.
 
+Responsible use follows from the same framing. DrMAS should be used as review support and audit infrastructure, not as an autonomous reviewer, accept/reject classifier, or source of final review judgments. A human reviewer should be able to inspect whether each concern is a direct quote-grounded negative, an obligation-grounded verified issue, or a diagnosis-pending concern before using it in a review. Any deployment also needs to respect manuscript confidentiality and the target venue's policy on LLM assistance; this paper evaluates state verification and rendering safeguards, not policy compliance.
+
 ## 6. Limitations
 
 This experiment has five important limitations.
