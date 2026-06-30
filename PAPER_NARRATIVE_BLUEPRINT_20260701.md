@@ -16,6 +16,8 @@ Related work draft: `PAPER_RELATED_WORK_DRAFT_20260701.md`.
 
 Figure specs: `PAPER_FIGURE_SPECS_20260701.md`.
 
+Manuscript skeleton: `PAPER_MANUSCRIPT_SKELETON_20260701.md`.
+
 ## 1. Thesis
 
 The paper should not claim that DrMAS is a better free-form review generator or a better accept/reject classifier.
@@ -260,12 +262,13 @@ Current limitations:
 
 ### High Value But Not Mandatory For First Draft
 
-1. Convert figure specs into polished paper figures.
-2. Replace related-work citation placeholders with verified bibliography entries.
-3. Improve Critique payload candidate recall so fewer verified issues come from deterministic seeds.
-4. Increase issue type diversity beyond missing ablation.
-5. Add a small oracle/reference-review analysis as an upper-bound evaluation, not as system input.
-6. Run a repeated-seed stability check if budget permits.
+1. Convert `PAPER_MANUSCRIPT_SKELETON_20260701.md` into a continuous paper draft.
+2. Convert figure specs into polished paper figures.
+3. Replace related-work citation placeholders with verified bibliography entries.
+4. Improve Critique payload candidate recall so fewer verified issues come from deterministic seeds.
+5. Increase issue type diversity beyond missing ablation.
+6. Add a small oracle/reference-review analysis as an upper-bound evaluation, not as system input.
+7. Run a repeated-seed stability check if budget permits.
 
 ## 9. Current One-Paragraph Abstract Draft
 

@@ -14,6 +14,7 @@ Primary current artifacts:
 - `PAPER_EXPERIMENT_SECTION_DRAFT_20260701.md`
 - `PAPER_RELATED_WORK_DRAFT_20260701.md`
 - `PAPER_FIGURE_SPECS_20260701.md`
+- `PAPER_MANUSCRIPT_SKELETON_20260701.md`
 - `P28_6_PAPER_NARRATIVE_STATUS_20260630.md`
 - `P28_6_CONFLICTFIX_TARGETREFINE2_194911_HARDNEG20_DASHBOARD.md/json`
 - `P28_6_CONFLICTFIX_TARGETREFINE2_194911_REVIEW_ISSUE_CASE_TABLE.md/json`
@@ -188,18 +189,19 @@ Prefer:
 
 ## Next Writing Task
 
-The introduction, method, experiment, related work, and figure-spec drafts now exist:
+The introduction, method, experiment, related work, figure-spec, and manuscript-skeleton drafts now exist:
 
 - `PAPER_INTRODUCTION_DRAFT_20260701.md`
 - `PAPER_METHOD_SECTION_DRAFT_20260701.md`
 - `PAPER_EXPERIMENT_SECTION_DRAFT_20260701.md`
 - `PAPER_RELATED_WORK_DRAFT_20260701.md`
 - `PAPER_FIGURE_SPECS_20260701.md`
+- `PAPER_MANUSCRIPT_SKELETON_20260701.md`
 
 Next writing should focus on turning placeholders/specs into final manuscript assets:
 
-1. verify bibliography entries for the related-work citation targets;
-2. convert the ReviewState lifecycle, two negative lanes, and row-to-cluster funnel specs into polished figures;
-3. assemble a coherent first manuscript skeleton from the existing section drafts.
+1. convert the manuscript skeleton into a continuous paper draft;
+2. verify bibliography entries for the related-work citation targets;
+3. convert the ReviewState lifecycle, two negative lanes, and row-to-cluster funnel specs into polished figures.
 
 If MiMo balance is restored, the next experiment remains a fresh full20 P28.6 rerun with the acceptance criteria listed above.
