@@ -217,6 +217,46 @@ Interpretation:
 - It is not a big quantity breakthrough. The strict story is "7 system-clustered verified review issue clusters after fragment guard", not "10 independent true defects".
 - Missing-ablation remains dominant. Next quantity work should improve entity-level obligation diversity and normalized inventory coverage for baseline/protocol/reproducibility/efficiency issues, not loosen missing-ablation or direct quote-negative gates.
 
+### 2026-06-30 P28.4 Reproducibility counterevidence precision fix
+
+P28.4 is an offline recompute on the same P28.3 combined hardneg20 source. It fixes one verifier over-rejection: `reproducibility_gap` full-text counterevidence used to treat ordinary method/architecture text containing broad `training` wording as if it satisfied missing training configuration details. The new rule requires actual configuration evidence for configuration-style missing items: optimizer, learning rate, batch size, epochs, random seed, explicit implementation/training details, code release, GitHub, or equivalent config terms.
+
+Artifacts:
+
+- dashboard: `P28_4_REPROFIX_RECOMPUTE_20260630_HARDNEG20_DASHBOARD.md/json`
+- audit: `P28_4_REPROFIX_RECOMPUTE_20260630_HARDNEG20_AUDIT.json`
+- review issue cases: `P28_4_REPROFIX_RECOMPUTE_20260630_REVIEW_ISSUE_CASE_TABLE.md/json`
+- recovery cases: `P28_4_REPROFIX_RECOMPUTE_20260630_RECOVERY_CASE_TABLE.md/json`
+
+Validation:
+
+- focused reproducibility tests were run by direct function invocation because this shell lacks `pytest`;
+- `py_compile` passed for `state.py`, `tests/test_review_decision_hygiene.py`, and dashboard/case/recovery scripts;
+- dashboard recompute used `--fail-on-violation` and passed.
+
+P28.4 metrics vs P28.3:
+
+- protection remains PASS;
+- `negative_evidence_unlinked_to_flaw=0`;
+- `semantic_negative_without_review_relation_count=0`;
+- `positive_or_neutral_negative_candidate_count=0`;
+- `review_negative_verified_count=1` unchanged;
+- `verified_review_issue_count=10 -> 11`;
+- `verified_review_issue_cluster_count=7 -> 8`;
+- `reviewer_candidate_review_issue_count=9 -> 10`;
+- `reviewer_candidate_review_issue_cluster_count=6 -> 7`;
+- `mark_contested_commit_count=4` unchanged;
+- `recovery_case_verified_review_issue_repair=4` unchanged.
+
+New retained cluster:
+
+- `GE6iywJtsV / reproducibility_gap / implementation_reproducibility_details`: the claim anchors `Diff-Shape` / `Graph ControllNet`; observed inventory locates the method architecture; manual grep found no learning rate, optimizer, batch size, epoch, seed, hyperparameter, implementation details, training details, configuration, GitHub, or code-release evidence. This is defensible as a reviewer issue but does not create a new recovery repair in the already completed run.
+
+Interpretation:
+
+- P28.4 is a small precision-preserving quantity gain, not a breakthrough. Paper-facing count should be "8 clustered verified review issues on this recompute", with direct quote negatives still rare and missing-ablation still dominant.
+- The next real quantity lever is still better entity/inventory discovery for baseline, protocol, reproducibility, and efficiency issues in fresh API runs; do not loosen direct quote-negative or missing-ablation gates.
+
 ### 2026-06-29 P28 canonical checkpoint: missing-ablation target-quality guard
 
 Current P28 code path:

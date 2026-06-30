@@ -74,6 +74,7 @@ from agent_system.environments.env_package.review.state import (
     _support_survival_summary,
     _window_resolves_evaluation_or_scope_missing,
     _window_resolves_protocol_or_result_missing,
+    _window_resolves_reproducibility_missing,
     build_decision_hygiene_view,
     build_review_task,
     build_state_audit,
@@ -13289,6 +13290,31 @@ def test_reproducibility_seed_targets_concrete_method_without_details():
     assert targets[0]["observed_inventory"]
 
 
+def test_reproducibility_seed_not_countered_by_plain_method_training_text():
+    claim = {
+        "claim_id": "claim-1",
+        "claim": "Diff-Shape introduces a novel Graph ControllNet architecture for shape-constrained diffusion.",
+        "claim_type": "contribution",
+        "claim_kind": "paper_extracted",
+    }
+    state = {
+        "paper_text": (
+            "In Diff-Shape method, a novel equivariant neural network architecture, "
+            "named Graph ControllNet, was proposed for shape constrained generation. "
+            "The pre-trained unconditional diffusion model can be incorporated into "
+            "Diff-Shape, avoiding the computational cost of training from scratch."
+        ),
+        "claims": [claim],
+        "evidence_map": [],
+        "flaw_candidates": [],
+    }
+
+    targets = _review_issue_reproducibility_seed_targets(state, claim, max_items=1)
+
+    assert targets
+    assert "ControllNet" in targets[0]["missing_item"]
+
+
 def test_reproducibility_seed_rejected_when_configuration_details_exist():
     claim = {
         "claim_id": "claim-1",
@@ -13309,6 +13335,23 @@ def test_reproducibility_seed_rejected_when_configuration_details_exist():
     }
 
     assert _review_issue_reproducibility_seed_targets(state, claim, max_items=1) == []
+
+
+def test_reproducibility_counterevidence_requires_actual_training_configuration():
+    architecture_window = (
+        "Graph ControllNet is proposed as a novel architecture and can avoid "
+        "the cost of training from scratch."
+    )
+    config_window = (
+        "Implementation details: Graph ControllNet is trained for 100 epochs "
+        "with batch size 32, Adam optimizer, learning rate 1e-4, and seed 42."
+    )
+    missing = [
+        "training hyperparameters, configuration, seed, or implementation detail for Graph ControllNet"
+    ]
+
+    assert not _window_resolves_reproducibility_missing(architecture_window, missing)
+    assert _window_resolves_reproducibility_missing(config_window, missing)
 
 
 def test_reproducibility_seed_rejects_generic_domain_or_metric_targets():

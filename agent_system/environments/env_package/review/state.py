@@ -10391,12 +10391,29 @@ def _window_resolves_reproducibility_missing(window: str, missing_items: Sequenc
         )
     if re.search(r"\b(?:distillation|teacher|student)\b", lower_missing):
         return bool(re.search(r"\b(?:teacher|student|distillation\s+loss|temperature|soft\s+labels?|training\s+data|objective)\b", text, re.I))
-    if re.search(r"\b(?:split|fold|seed|random|validation|train|test)\b", lower_missing):
-        return bool(re.search(r"\b(?:train(?:ing)?/?test|split|fold|seed|validation|held[- ]out|cross[- ]validation)\b", text, re.I))
+    if re.search(
+        r"\b(?:hyperparameter|optimizer|learning\s+rate|batch|epoch|schedule|"
+        r"configuration|config|implementation\s+detail|training\s+detail|"
+        r"seed|random\s+seed|code|github)\b",
+        lower_missing,
+    ):
+        return bool(
+            re.search(
+                r"\b(?:hyperparameter|optimizer|adamw?|sgd|learning\s+rate|lr\s*=|"
+                r"batch\s+size|epoch|epochs|schedule|weight\s+decay|"
+                r"random\s+seed|seed\s+\d+|configuration|config|"
+                r"implementation\s+details|training\s+details|code\s+(?:is|will\s+be)?\s*"
+                r"(?:available|released|provided)|github)\b",
+                text,
+                re.I,
+            )
+        )
+    if re.search(r"\b(?:split|fold|validation|train/?test|test\s+split|data\s+split)\b", lower_missing):
+        return bool(re.search(r"\b(?:train(?:ing)?/?test|split|fold|validation|held[- ]out|cross[- ]validation)\b", text, re.I))
+    if re.search(r"\b(?:seed|random)\b", lower_missing):
+        return bool(re.search(r"\b(?:random\s+seed|seed\s+\d+|seeds?\b)\b", text, re.I))
     if re.search(r"\b(?:architecture|layer|activation|parameter|dimension|head)\b", lower_missing):
         return bool(re.search(r"\b(?:layer|activation|parameter|parameters|dimension|hidden\s+size|head|mlp|linear)\b", text, re.I))
-    if re.search(r"\b(?:hyperparameter|optimizer|learning\s+rate|batch|epoch|schedule)\b", lower_missing):
-        return bool(re.search(r"\b(?:hyperparameter|optimizer|learning\s+rate|batch\s+size|epoch|schedule|weight\s+decay)\b", text, re.I))
     return bool(re.search(r"\b(?:code|github|implementation|hyperparameter|optimizer|seed|split|configuration|config)\b", text, re.I))
 
 
