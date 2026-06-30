@@ -16,6 +16,8 @@ Terminology guide exists at `PAPER_TERMINOLOGY_GUIDE_20260701.md`. The clean and
 
 Advisor review packet exists at `PAPER_ADVISOR_REVIEW_PACKET_20260701.md`. It lists the small set of files to read first, the current thesis, the defensible empirical claim, mandatory caveats, and concrete questions for advisor review.
 
+Venue-fit decision aid exists at `PAPER_VENUE_FIT_DECISION_20260701.md`. It recommends a systems/method or human-AI review-support framing, treats peer-review automation workshops as a high-fit path, and warns against benchmark-heavy venues unless fresh full20 and broader empirical coverage are added.
+
 Reviewer pre-mortem exists at `PAPER_REVIEWER_PREMORTEM_20260701.md`. It translates the current risk profile into likely reviewer objections, honest responses, forbidden responses, and concrete manuscript actions.
 
 Issue-bundle case study exists at `PAPER_REVIEW_ISSUE_CASE_STUDY_20260701.md`. It expands the SpecDec++ acceptance-prediction-head cluster into claim anchor, observed inventory anchor, missing entity, target-quality gate, and non-destructive recovery behavior. The clean body now includes a short illustrative case subsection that points to this appendix.
@@ -40,22 +42,24 @@ The paper-facing result should remain conservative:
 
 ## Remaining Production Tasks
 
-1. Re-export final venue-style BibTeX records, using `PAPER_BIBLIOGRAPHY_CANDIDATES_20260701.md`, `PAPER_REFERENCES_DRAFT_20260701.bib`, and `PAPER_BIBLIOGRAPHY_AUDIT_20260701.md` as the starting point.
-2. Convert `PAPER_CLEAN_BODY_DRAFT_20260701.md` into the target venue template.
-3. Place the rendered SVG/PDF figures into the target paper template and check scaling, line wrapping, and cropping.
-4. Use `PAPER_ADVISOR_REVIEW_PACKET_20260701.md` for advisor/internal review before doing heavy venue-template work.
-5. Use `PAPER_REVIEWER_PREMORTEM_20260701.md` to decide whether the current venue path needs more experiments, more reviewer examples, or only template production.
-6. Decide whether the manual audit needs a second annotator before submission or can remain a transparent sanity check.
-7. Decide whether the abstract should keep the direct-negative zero caveat for the target venue; current default is to keep it visible.
-8. Keep using `PAPER_TERMINOLOGY_GUIDE_20260701.md` during template conversion so the final manuscript does not drift back into implementation-log wording.
-9. Decide after advisor review whether the issue-bundle case study should remain appendix material or become a main-paper table/figure.
-10. Keep the offline-full20/partial16 empirical framing unless MiMo balance is restored and a fresh full20 rerun passes the same checks.
-11. Fold the reproducibility appendix into the target paper format after figures and bibliography are finalized.
-12. Re-audit all result claims after any fresh run changes the dashboard or case tables.
+1. Use `PAPER_ADVISOR_REVIEW_PACKET_20260701.md` and `PAPER_VENUE_FIT_DECISION_20260701.md` for advisor/internal review before doing heavy venue-template work.
+2. Choose the venue family first: systems/method, human-AI review support, peer-review automation workshop, or benchmark-heavy ML/NLP.
+3. Re-export final venue-style BibTeX records, using `PAPER_BIBLIOGRAPHY_CANDIDATES_20260701.md`, `PAPER_REFERENCES_DRAFT_20260701.bib`, and `PAPER_BIBLIOGRAPHY_AUDIT_20260701.md` as the starting point.
+4. Convert `PAPER_CLEAN_BODY_DRAFT_20260701.md` into the target venue template only after the venue family is chosen.
+5. Place the rendered SVG/PDF figures into the target paper template and check scaling, line wrapping, and cropping.
+6. Use `PAPER_REVIEWER_PREMORTEM_20260701.md` to decide whether the current venue path needs more experiments, more reviewer examples, or only template production.
+7. Decide whether the manual audit needs a second annotator before submission or can remain a transparent sanity check.
+8. Decide whether the abstract should keep the direct-negative zero caveat for the target venue; current default is to keep it visible.
+9. Keep using `PAPER_TERMINOLOGY_GUIDE_20260701.md` during template conversion so the final manuscript does not drift back into implementation-log wording.
+10. Decide after advisor review whether the issue-bundle case study should remain appendix material or become a main-paper table/figure.
+11. Keep the offline-full20/partial16 empirical framing unless MiMo balance is restored and a fresh full20 rerun passes the same checks.
+12. Fold the reproducibility appendix into the target paper format after figures and bibliography are finalized.
+13. Re-audit all result claims after any fresh run changes the dashboard or case tables.
 
 ## Submission-Readiness Blockers
 
 - No fresh full20 live rerun is available while MiMo returns `402 Insufficient account balance`; this blocks broad benchmark-style claims, not the conservative framework draft.
+- Target venue family is not selected yet; this blocks template conversion and final bibliography export.
 - Figure SVG/PDF drafts exist, but final venue-template placement is not checked.
 - Bibliography keys are internally consistent and cleaned, but final target-venue records are not verified.
 - The empirical result is diagnostic and small; the paper must not claim broad review-quality improvement.

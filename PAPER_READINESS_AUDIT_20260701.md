@@ -28,6 +28,8 @@ The paper is not ready for a strong benchmark-performance claim. The current res
 - most verified issue rows come from deterministic seeds;
 - direct quote-grounded negative count is 0.
 
+Venue fit is therefore part of readiness, not a cosmetic packaging step. The current package best fits a systems/method or human-AI review-support venue, with peer-review automation workshops as the most natural near-term target. Benchmark-heavy ML/NLP venues require more empirical evidence before template conversion is worth the effort.
+
 ## Current Asset Inventory
 
 | Asset | File | Status |
@@ -39,6 +41,7 @@ The paper is not ready for a strong benchmark-performance claim. The current res
 | Abstract revision audit | `PAPER_ABSTRACT_REVISION_AUDIT_20260701.md` | Records why the abstract now headlines clusters rather than raw rows |
 | Terminology guide | `PAPER_TERMINOLOGY_GUIDE_20260701.md` | Keeps main text on paper-facing terms such as final-view validation and recovery action |
 | Advisor review packet | `PAPER_ADVISOR_REVIEW_PACKET_20260701.md` | File index, thesis, caveats, and review questions for advisor/internal review |
+| Venue-fit decision aid | `PAPER_VENUE_FIT_DECISION_20260701.md` | Recommends systems/method or human-AI review-support framing; warns against benchmark-heavy positioning without fresh full20 and broader coverage |
 | Reviewer pre-mortem | `PAPER_REVIEWER_PREMORTEM_20260701.md` | Operational risk audit with likely objections, honest responses, and concrete manuscript actions |
 | Issue-bundle case study | `PAPER_REVIEW_ISSUE_CASE_STUDY_20260701.md` | Concrete SpecDec++ example showing claim anchor, inventory anchor, missing ablation, and non-destructive recovery |
 | Manual audit protocol | `PAPER_MANUAL_AUDIT_PROTOCOL_20260701.md` | Defines A/B/C/D cluster labels and conservative reporting rules for manual audit |
@@ -140,6 +143,8 @@ What would strengthen it for a broader empirical claim:
 - fresh full20 rerun after MiMo is restored;
 - repeated-seed stability;
 - a second diagnostic set or oracle/reference-review upper-bound analysis.
+
+Venue implication: this result can support a conservative framework or review-support paper, but it should not be packaged as a benchmark-heavy performance paper without the above additions.
 
 ### Attack 2: "The system does not find direct negative evidence."
 
@@ -248,6 +253,7 @@ Goal: get feedback on the current conservative framework story before spending e
 Tasks:
 
 - use `PAPER_ADVISOR_REVIEW_PACKET_20260701.md` as the entry point;
+- use `PAPER_VENUE_FIT_DECISION_20260701.md` to choose the first target venue family;
 - use `PAPER_REVIEWER_PREMORTEM_20260701.md` to decide which risk matters most for the intended venue;
 - ask whether the ReviewState-maintenance framing is venue-appropriate;
 - ask whether the 0 direct-negative count should stay in the abstract or move to experiments/limitations;
@@ -259,7 +265,7 @@ Goal: move from the clean body draft to a submission-ready manuscript.
 
 Tasks:
 
-- convert `PAPER_CLEAN_BODY_DRAFT_20260701.md` into the target venue template;
+- convert `PAPER_CLEAN_BODY_DRAFT_20260701.md` into the target venue template only after the venue family is selected;
 - convert Markdown table captions into proper paper captions;
 - make limitations concise but visible;
 - fold the reproducibility appendix into the target paper format after deciding venue/template constraints.
@@ -306,4 +312,4 @@ If MiMo remains blocked:
 
 ## Bottom Line
 
-The current package is good enough for an internal full-paper draft and for advisor-level review. It is not yet ready for submission. The decisive remaining work is not more narrative invention; it is final template polish, final venue-style bibliography export, and either a fresh full20 rerun for stronger empirical claims or disciplined maintenance of the conservative offline-full20/partial16 framing.
+The current package is good enough for an internal full-paper draft and for advisor-level review. It is not yet ready for submission. The decisive remaining work is to choose a venue family, then do final template polish and final venue-style bibliography export. If the target is benchmark-heavy, the paper also needs a fresh full20 rerun and stronger empirical coverage; if the target is systems/method or human-AI review support, it should maintain the conservative offline-full20/partial16 framing.
