@@ -12,6 +12,8 @@ Clean paper body draft exists at `PAPER_CLEAN_BODY_DRAFT_20260701.md`. It remove
 
 Abstract revision audit exists at `PAPER_ABSTRACT_REVISION_AUDIT_20260701.md`. The clean and continuous drafts now use a less dashboard-like abstract: 9 clusters is the headline result, 13 raw rows stay in the experiment table, and the direct-negative zero caveat remains visible.
 
+Terminology guide exists at `PAPER_TERMINOLOGY_GUIDE_20260701.md`. The clean and continuous drafts now use paper-facing terminology: final-view validation instead of hygiene, recovery action instead of patch, and diagnostic set instead of benchmark.
+
 Advisor review packet exists at `PAPER_ADVISOR_REVIEW_PACKET_20260701.md`. It lists the small set of files to read first, the current thesis, the defensible empirical claim, mandatory caveats, and concrete questions for advisor review.
 
 Reviewer pre-mortem exists at `PAPER_REVIEWER_PREMORTEM_20260701.md`. It translates the current risk profile into likely reviewer objections, honest responses, forbidden responses, and concrete manuscript actions.
@@ -45,10 +47,11 @@ The paper-facing result should remain conservative:
 5. Use `PAPER_REVIEWER_PREMORTEM_20260701.md` to decide whether the current venue path needs more experiments, more reviewer examples, or only template production.
 6. Decide whether the manual audit needs a second annotator before submission or can remain a transparent sanity check.
 7. Decide whether the abstract should keep the direct-negative zero caveat for the target venue; current default is to keep it visible.
-8. Decide after advisor review whether the issue-bundle case study should remain appendix material or become a main-paper table/figure.
-9. Keep the offline-full20/partial16 empirical framing unless MiMo balance is restored and a fresh full20 rerun passes the same checks.
-10. Fold the reproducibility appendix into the target paper format after figures and bibliography are finalized.
-11. Re-audit all result claims after any fresh run changes the dashboard or case tables.
+8. Keep using `PAPER_TERMINOLOGY_GUIDE_20260701.md` during template conversion so the final manuscript does not drift back into implementation-log wording.
+9. Decide after advisor review whether the issue-bundle case study should remain appendix material or become a main-paper table/figure.
+10. Keep the offline-full20/partial16 empirical framing unless MiMo balance is restored and a fresh full20 rerun passes the same checks.
+11. Fold the reproducibility appendix into the target paper format after figures and bibliography are finalized.
+12. Re-audit all result claims after any fresh run changes the dashboard or case tables.
 
 ## Submission-Readiness Blockers
 

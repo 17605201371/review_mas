@@ -38,7 +38,11 @@ Status: internal review index for the current DrMAS paper package. This is not p
 8. `PAPER_ABSTRACT_REVISION_AUDIT_20260701.md`
    - Records why the abstract was simplified and which caveats remain visible.
 
-9. `PAPER_REFERENCES_DRAFT_20260701.bib` and `PAPER_BIBLIOGRAPHY_AUDIT_20260701.md`
+9. `PAPER_TERMINOLOGY_GUIDE_20260701.md`
+   - Defines paper-facing terms such as final-view validation, recovery action, diagnostic set, and verified issue cluster.
+   - Best file for preventing the manuscript from drifting back into implementation-log wording.
+
+10. `PAPER_REFERENCES_DRAFT_20260701.bib` and `PAPER_BIBLIOGRAPHY_AUDIT_20260701.md`
    - Draft bibliography and remaining metadata risks.
 
 ## Current Thesis
@@ -82,8 +86,9 @@ They parse and render, but still need target-template placement and visual QA.
 4. Should the direct quote-grounded negative lane with count 0 be in the abstract, or reserved for experiments/limitations?
 5. Does the illustrative issue-bundle case study make the core mechanism clearer, or should it become a figure/table in the main paper?
 6. Are the A/B/C manual-audit labels defined tightly enough for advisor review, or does this need a second annotator before submission?
-7. Which pre-mortem risk is most likely for the target venue: empirical scale, direct-negative zero, deterministic seeds, missing-ablation skew, or engineering-artifact framing?
-8. Does the related-work framing need more peer-review-specific references before submission?
+7. Is the final-view validation terminology clearer than the earlier hygiene wording for the intended venue?
+8. Which pre-mortem risk is most likely for the target venue: empirical scale, direct-negative zero, deterministic seeds, missing-ablation skew, or engineering-artifact framing?
+9. Does the related-work framing need more peer-review-specific references before submission?
 
 ## Known Non-Negotiables
 
