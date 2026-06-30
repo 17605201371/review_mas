@@ -40,6 +40,7 @@ Venue fit is therefore part of readiness, not a cosmetic packaging step. The cur
 | Clean body draft | `PAPER_CLEAN_BODY_DRAFT_20260701.md` | Best current advisor/internal-review manuscript body; main experiment narrative no longer exposes engineering run IDs |
 | Abstract revision audit | `PAPER_ABSTRACT_REVISION_AUDIT_20260701.md` | Records why the abstract now headlines clusters rather than raw rows |
 | Terminology guide | `PAPER_TERMINOLOGY_GUIDE_20260701.md` | Keeps main text on paper-facing terms such as final-view validation and recovery action |
+| Advisor one-page brief | `PAPER_ADVISOR_ONE_PAGE_BRIEF_20260701.md` | Compact decision brief for whether to proceed with the conservative ReviewState framework story |
 | Advisor review packet | `PAPER_ADVISOR_REVIEW_PACKET_20260701.md` | File index, thesis, caveats, and review questions for advisor/internal review |
 | Venue-fit decision aid | `PAPER_VENUE_FIT_DECISION_20260701.md` | Recommends systems/method or human-AI review-support framing; warns against benchmark-heavy positioning without fresh full20 and broader coverage |
 | Reviewer pre-mortem | `PAPER_REVIEWER_PREMORTEM_20260701.md` | Operational risk audit with likely objections, honest responses, and concrete manuscript actions |
@@ -254,6 +255,7 @@ Goal: get feedback on the current conservative framework story before spending e
 Tasks:
 
 - use `PAPER_ADVISOR_REVIEW_PACKET_20260701.md` as the entry point;
+- use `PAPER_ADVISOR_ONE_PAGE_BRIEF_20260701.md` for the first-pass decision discussion;
 - use `PAPER_VENUE_FIT_DECISION_20260701.md` to choose the first target venue family;
 - use `PAPER_REVIEWER_PREMORTEM_20260701.md` to decide which risk matters most for the intended venue;
 - ask whether the ReviewState-maintenance framing is venue-appropriate;

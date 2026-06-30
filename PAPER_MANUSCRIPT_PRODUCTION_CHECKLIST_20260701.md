@@ -16,6 +16,8 @@ Terminology guide exists at `PAPER_TERMINOLOGY_GUIDE_20260701.md`. The clean and
 
 Advisor review packet exists at `PAPER_ADVISOR_REVIEW_PACKET_20260701.md`. It lists the small set of files to read first, the current thesis, the defensible empirical claim, mandatory caveats, and concrete questions for advisor review.
 
+Advisor one-page brief exists at `PAPER_ADVISOR_ONE_PAGE_BRIEF_20260701.md`. It compresses the current thesis, evidence, caveats, and six advisor questions into a decision brief for whether to proceed with the conservative framework story.
+
 Venue-fit decision aid exists at `PAPER_VENUE_FIT_DECISION_20260701.md`. It recommends a systems/method or human-AI review-support framing, treats peer-review automation workshops as a high-fit path, and warns against benchmark-heavy venues unless fresh full20 and broader empirical coverage are added.
 
 Reviewer pre-mortem exists at `PAPER_REVIEWER_PREMORTEM_20260701.md`. It translates the current risk profile into likely reviewer objections, honest responses, forbidden responses, and concrete manuscript actions.
@@ -46,7 +48,7 @@ The paper-facing result should remain conservative:
 
 ## Remaining Production Tasks
 
-1. Use `PAPER_ADVISOR_REVIEW_PACKET_20260701.md` and `PAPER_VENUE_FIT_DECISION_20260701.md` for advisor/internal review before doing heavy venue-template work.
+1. Use `PAPER_ADVISOR_ONE_PAGE_BRIEF_20260701.md`, `PAPER_ADVISOR_REVIEW_PACKET_20260701.md`, and `PAPER_VENUE_FIT_DECISION_20260701.md` for advisor/internal review before doing heavy venue-template work.
 2. Choose the venue family first: systems/method, human-AI review support, peer-review automation workshop, or benchmark-heavy ML/NLP.
 3. Re-export final venue-style BibTeX records, using `PAPER_BIBLIOGRAPHY_CANDIDATES_20260701.md`, `PAPER_REFERENCES_DRAFT_20260701.bib`, and `PAPER_BIBLIOGRAPHY_AUDIT_20260701.md` as the starting point.
 4. Convert `PAPER_CLEAN_BODY_DRAFT_20260701.md` into the target venue template only after the venue family is chosen.

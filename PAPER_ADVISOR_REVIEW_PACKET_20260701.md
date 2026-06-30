@@ -6,51 +6,55 @@ Status: internal review index for the current DrMAS paper package. This is not p
 
 ## What To Read First
 
-1. `PAPER_CLEAN_BODY_DRAFT_20260701.md`
+1. `PAPER_ADVISOR_ONE_PAGE_BRIEF_20260701.md`
+   - Compact decision brief for advisor discussion.
+   - Best file for deciding whether to proceed with the conservative ReviewState framework story before reading the full manuscript.
+
+2. `PAPER_CLEAN_BODY_DRAFT_20260701.md`
    - Best current manuscript body.
    - Uses paper-facing language, rendered SVG figure references, and conservative empirical framing.
    - Engineering run identifiers are now moved out of the main narrative and into supporting documents.
    - Abstract now uses 9 clusters as the headline result and leaves raw row count to the experiment table.
 
-2. `PAPER_READINESS_AUDIT_20260701.md`
+3. `PAPER_READINESS_AUDIT_20260701.md`
    - Skeptical audit of what the paper can and cannot claim.
    - Best file for checking whether the story is overclaiming.
 
-3. `PAPER_CLAIMS_EVIDENCE_MATRIX_20260701.md`
+4. `PAPER_CLAIMS_EVIDENCE_MATRIX_20260701.md`
    - Maps each paper-level claim to current evidence, allowed wording, and forbidden overclaims.
 
-4. `PAPER_RESULT_CONSISTENCY_AUDIT_20260701.md`
+5. `PAPER_RESULT_CONSISTENCY_AUDIT_20260701.md`
    - Verifies that manuscript result numbers match the authoritative P28.6 dashboard/case-table artifacts.
    - Best file for checking table/abstract/figure metric consistency after edits.
 
-5. `PAPER_REVIEWER_PREMORTEM_20260701.md`
+6. `PAPER_REVIEWER_PREMORTEM_20260701.md`
    - Reviewer-risk audit: likely objections, honest responses, forbidden responses, and concrete manuscript actions.
    - Best file for deciding whether the current story is being positioned for the right kind of venue.
 
-6. `PAPER_VENUE_FIT_DECISION_20260701.md`
+7. `PAPER_VENUE_FIT_DECISION_20260701.md`
    - Recommends a systems/method or human-AI review-support framing and explains why benchmark-heavy venues need more evidence.
    - Best file for deciding whether to proceed to template conversion or strengthen experiments first.
 
-7. `PAPER_REPRODUCIBILITY_APPENDIX_20260701.md`
+8. `PAPER_REPRODUCIBILITY_APPENDIX_20260701.md`
    - Maps paper concepts to code anchors, scripts, run artifacts, and metric checks.
    - Use this for traceability, not as main-text narrative.
 
-8. `PAPER_REVIEW_ISSUE_CASE_STUDY_20260701.md`
+9. `PAPER_REVIEW_ISSUE_CASE_STUDY_20260701.md`
    - Explains one verified obligation-grounded issue bundle step by step.
    - Best file for checking whether the claim-anchor, inventory-anchor, missing-entity, and recovery story is understandable.
 
-9. `PAPER_MANUAL_AUDIT_PROTOCOL_20260701.md`
+10. `PAPER_MANUAL_AUDIT_PROTOCOL_20260701.md`
    - Defines the A/B/C/D cluster labels and reporting rules for the 8/9 manual quality statement.
    - Best file for checking whether the manual audit is being used conservatively.
 
-10. `PAPER_ABSTRACT_REVISION_AUDIT_20260701.md`
+11. `PAPER_ABSTRACT_REVISION_AUDIT_20260701.md`
    - Records why the abstract was simplified and which caveats remain visible.
 
-11. `PAPER_TERMINOLOGY_GUIDE_20260701.md`
+12. `PAPER_TERMINOLOGY_GUIDE_20260701.md`
    - Defines paper-facing terms such as final-view validation, recovery action, diagnostic set, and verified issue cluster.
    - Best file for preventing the manuscript from drifting back into implementation-log wording.
 
-12. `PAPER_REFERENCES_DRAFT_20260701.bib` and `PAPER_BIBLIOGRAPHY_AUDIT_20260701.md`
+13. `PAPER_REFERENCES_DRAFT_20260701.bib` and `PAPER_BIBLIOGRAPHY_AUDIT_20260701.md`
    - Draft bibliography and remaining metadata risks.
 
 ## Current Thesis
