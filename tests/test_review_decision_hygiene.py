@@ -61,6 +61,7 @@ from agent_system.environments.env_package.review.state import (
     _render_potential_concerns,
     _review_issue_claim_surface_profile,
     _review_issue_bundle_review_worthiness_failure,
+    _review_issue_reproducibility_seed_targets,
     _review_issue_normalized_cluster_target,
     _review_negative_quote_is_positive_metric_improvement,
     _report_visible_text,
@@ -7868,6 +7869,8 @@ def test_missing_ablation_target_quality_rejects_generic_components_and_actions(
         "component-isolation ablation for is trained with full-batch gradient",
         "component-isolation ablation for study the square loss",
         "component-isolation ablation for fed into the trainable module",
+        "component-isolation ablation for g$ and network",
+        "component-isolation ablation for have designed a transformer-based network",
     ]:
         assert quality(item)["quality"] == "reject"
 
@@ -13098,6 +13101,109 @@ def test_ogl_direction_cluster_target_normalizes_to_orthogonal_gradient_learning
     )
 
 
+def test_prediction_head_subtargets_cluster_to_acceptance_prediction_head():
+    base = {
+        "issue_type": "missing_ablation",
+        "claim_anchor": {
+            "quote": (
+                "SpecDec++ uses an acceptance prediction head to dynamically "
+                "adjust candidate length from token acceptance probabilities."
+            ),
+        },
+        "observed_inventory": [
+            {
+                "quote": (
+                    "We augment the draft model with a trained acceptance "
+                    "prediction head and train it using a weighted BCE loss."
+                ),
+                "locator": "Method",
+            }
+        ],
+    }
+    for item in [
+        "component-isolation ablation for biases in the prediction head",
+        "component-isolation ablation for implement a small prediction head",
+        "component-isolation ablation for Weighted BCE Loss",
+    ]:
+        bundle = copy.deepcopy(base)
+        bundle["missing_or_mismatch"] = {"entity": item, "items": [item]}
+        assert _review_issue_normalized_cluster_target(bundle, "missing_ablation") == "acceptance_prediction_head"
+
+
+def test_action_shell_component_targets_are_stripped_for_clustering():
+    for item in [
+        "component-isolation ablation for which employs a two-branch encoder",
+        "component-isolation ablation for employs a two-branch encoder",
+    ]:
+        bundle = {
+            "issue_type": "missing_ablation",
+            "missing_or_mismatch": {"entity": item, "items": [item]},
+            "claim_anchor": {"quote": "LogoRA employs a two-branch encoder for representation alignment."},
+            "observed_inventory": [
+                {
+                    "quote": "We employ a two-branch encoder using a multi-scale convolutional branch and a patching transformer branch.",
+                    "locator": "Method",
+                }
+            ],
+        }
+        assert _review_issue_normalized_cluster_target(bundle, "missing_ablation") == "two-branch_encoder"
+
+
+def test_reviewer_issue_bundle_rejects_ogl_fragments_when_with_without_ogl_reported():
+    claim = (
+        "The proposed Orthogonal Gradient Learning (OGL) guided supernet "
+        "training method overcomes the multi-model forgetting issue."
+    )
+    component_quote = (
+        "We propose an orthogonal gradient learning (OGL) guided supernet "
+        "training paradigm and design base vectors of the gradient space."
+    )
+    comparison_quote = (
+        "Figure 5 compares architecture rankings of methods with or without OGL. "
+        "The final Kendall Tau values include RandomNAS (0.333), RandomNAS-OGL "
+        "(0.667), GDAS (-0.222), and GDAS-OGL (0.500)."
+    )
+    state = {
+        "paper_text": f"{claim}\n\n{component_quote}\n\n{comparison_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "method",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["ablation_or_component"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-ogl-base-vector-ablation",
+                "claim_id": "claim-1",
+                "weakness": "The paper defines base vectors of the gradient but does not isolate them in an ablation.",
+                "negative_type": "missing_ablation",
+                "required_evidence_type": "ablation_or_component",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["component-isolation ablation for base vectors of the gradient"],
+                "observed_inventory": [{"quote": component_quote, "locator": "Method"}],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["obligation_grounded_review_issue_count"] == 0
+    assert hygiene["verified_review_issue_count"] == 0
+    assert hygiene.get("review_issue_candidate_counterevidence_rejected", 0) >= 1
+
+
 def test_missing_ablation_target_must_be_bound_to_claim_or_inventory():
     bundle = {
         "issue_type": "missing_ablation",
@@ -13156,3 +13262,93 @@ def test_generic_additional_benchmark_scope_target_is_not_specific():
         "additional benchmark dataset matching the claim scope",
         "missing_robustness_or_generalization",
     )
+
+
+def test_reproducibility_seed_targets_concrete_method_without_details():
+    claim = {
+        "claim_id": "claim-1",
+        "claim": "Graph2Tac is a novel framework that represents mathematical concepts as graphs.",
+        "claim_type": "contribution",
+        "claim_kind": "paper_extracted",
+    }
+    state = {
+        "paper_text": (
+            "We propose Graph2Tac, a novel framework that represents mathematical concepts "
+            "as graphs and learns hierarchical representations to guide theorem proving. "
+            "Graph2Tac uses graph encoders to process definitions and lemmas."
+        ),
+        "claims": [claim],
+        "evidence_map": [],
+        "flaw_candidates": [],
+    }
+
+    targets = _review_issue_reproducibility_seed_targets(state, claim, max_items=1)
+
+    assert targets
+    assert "Graph2Tac" in targets[0]["missing_item"]
+    assert targets[0]["observed_inventory"]
+
+
+def test_reproducibility_seed_rejected_when_configuration_details_exist():
+    claim = {
+        "claim_id": "claim-1",
+        "claim": "Graph2Tac is a novel framework that represents mathematical concepts as graphs.",
+        "claim_type": "contribution",
+        "claim_kind": "paper_extracted",
+    }
+    state = {
+        "paper_text": (
+            "We propose Graph2Tac, a novel framework that represents mathematical concepts "
+            "as graphs and learns hierarchical representations. Implementation details: "
+            "Graph2Tac is trained for 100 epochs with batch size 32, Adam optimizer, "
+            "learning rate 1e-4, and seed 42."
+        ),
+        "claims": [claim],
+        "evidence_map": [],
+        "flaw_candidates": [],
+    }
+
+    assert _review_issue_reproducibility_seed_targets(state, claim, max_items=1) == []
+
+
+def test_reproducibility_seed_rejects_generic_domain_or_metric_targets():
+    for target in ["ReLU", "LLM", "LLMs", "GCL", "EER", "MDP", "DCCA-based", "GANs"]:
+        claim = {
+            "claim_id": "claim-1",
+            "claim": f"The method reports results involving {target} in the evaluation.",
+            "claim_type": "method",
+            "claim_kind": "paper_extracted",
+        }
+        state = {
+            "paper_text": (
+                f"The method reports results involving {target} in the evaluation. "
+                f"The paper discusses {target} but does not name it as the proposed method."
+            ),
+            "claims": [claim],
+            "evidence_map": [],
+            "flaw_candidates": [],
+        }
+
+        assert _review_issue_reproducibility_seed_targets(state, claim, max_items=1) == []
+
+
+def test_reproducibility_seed_rejects_when_code_or_training_details_are_present():
+    claim = {
+        "claim_id": "claim-1",
+        "claim": "HALO is a novel framework for hyperbolic active learning under domain shift.",
+        "claim_type": "contribution",
+        "claim_kind": "paper_extracted",
+    }
+    state = {
+        "paper_text": (
+            "We propose HALO, a novel framework for hyperbolic active learning under domain shift. "
+            "Our paper introduces Hyperbolic Feature Reweighting as part of HALO. "
+            "Our code will be released, and HALO is trained with AdamW, batch size 8, "
+            "learning rate 1e-4, and three random seeds."
+        ),
+        "claims": [claim],
+        "evidence_map": [],
+        "flaw_candidates": [],
+    }
+
+    assert _review_issue_reproducibility_seed_targets(state, claim, max_items=1) == []

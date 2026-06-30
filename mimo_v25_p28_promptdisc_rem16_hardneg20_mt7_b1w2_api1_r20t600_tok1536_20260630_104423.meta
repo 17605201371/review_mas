@@ -1,0 +1,5 @@
+run_base=mimo_v25_p28_promptdisc_rem16_hardneg20_mt7_b1w2_api1_r20t600_tok1536_20260630_104423
+start_time=2026-06-30 10:44:23 CST
+params=max_turns=7 manager_batch_size=1 api_max_workers=1 api_max_retries=20 api_timeout=600 dataset=hard_negative_20_remaining_after_20260630_013639.parquet mode=s4 model=mimo-v2.5 max_tokens=1536 temperature=1.0 top_p=0.95 model_adapter_mode=small_model code_commit=1904e33 code_dirty=dirty neg_quote_hygiene=1 targeted_negative_search=1 freeform_reviewer_negative=1 review_issue_bundle=1 continuation_of=mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260630_013639
+launch_mode=background
+pid=4041

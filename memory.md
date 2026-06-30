@@ -151,6 +151,72 @@ Interpretation:
 - Do not loosen these guards to recover count. The next quantity work should improve reviewer-candidate recall for concrete paper-bound issues and stronger recovery bridge coverage.
 - Paper-facing wording should not claim "10 verified true defects" for P28.1. Safer wording: P28.2 retains 6 high-confidence clusters after strict protection and manual-audit-driven precision filtering, with additional candidate recall work still needed.
 
+### 2026-06-30 P28.3 Prompt-discovery + fragment guard recompute on new hardneg20
+
+P28.3 ran a new MiMo hardneg20 sample with prompt-discovery changes and then applied a fresh offline precision recompute.
+
+Run source:
+
+- first API attempt: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260630_013639.jsonl` wrote 4/20 rows, then failed after repeated MiMo `Connection error` retries;
+- remaining run: `mimo_v25_p28_promptdisc_rem16_hardneg20_mt7_b1w2_api1_r20t600_tok1536_20260630_104423.jsonl` completed the remaining 16 rows;
+- combined authoritative source: `P28_3_PROMPTDISC_COMBINED_20260630_013639_104423_HARDNEG20.jsonl`.
+
+Current recompute artifacts:
+
+- dashboard: `P28_3_FRAGMENTGUARD_RECOMPUTE_20260630_HARDNEG20_DASHBOARD.md/json`
+- audit: `P28_3_FRAGMENTGUARD_RECOMPUTE_20260630_HARDNEG20_AUDIT.json`
+- review issue cases: `P28_3_FRAGMENTGUARD_RECOMPUTE_20260630_REVIEW_ISSUE_CASE_TABLE.md/json`
+- recovery cases: `P28_3_FRAGMENTGUARD_RECOMPUTE_20260630_RECOVERY_CASE_TABLE.md/json`
+
+Code changes in this checkpoint:
+
+- Critique review-issue discovery prompt now prefers exact paper-named baseline/method/component/dataset/protocol/resource targets and forbids vague targets such as `specific metric table`, `named benchmark`, `GNN`, `LLM`, `UDA`, generic `component/module`.
+- Deterministic reproducibility seeding was added but then tightened with stopwords, generic target rejection, complex-method checks, and detail counterevidence. Offline recompute showed it is safe but currently not a quantity driver.
+- Missing-ablation target guard now rejects malformed paper-text fragments such as `g$ and network`, strips action shells such as `which employs`, `employs`, `with`, `have designed`, and rejects generic `transformer-based network` targets.
+- Prediction-head subtargets such as `biases in the prediction head`, `implement a small prediction head`, and `Weighted BCE Loss` cluster under `acceptance_prediction_head` instead of inflating separate issue clusters.
+- OGL subtargets such as `base vectors of the gradient` / `pre-constructed gradient` map back to `orthogonal_gradient_learning`, and full-text `with/without OGL` or `RandomNAS/GDAS` vs `*-OGL` comparisons count as counterevidence.
+- Ablation counterevidence matching is now local to the ablation/removal signal. A distant mention of the target elsewhere in the paper no longer makes an unrelated ablation table resolve the missing target.
+- Component-anchor extraction now prefers current-paper definition sentences before generic first target hits, preventing claim-summary or related-work snippets from becoming inventory anchors.
+- `scripts/audit_review_issue_case_table_v1.py` now clears cached `decision_hygiene` before recomputing, matching dashboard/recovery fresh recompute semantics.
+
+P28.3 fragment-guard recompute metrics:
+
+- Overall protection: PASS.
+- `negative_evidence_unlinked_to_flaw=0`
+- `semantic_negative_without_review_relation_count=0`
+- `positive_or_neutral_negative_candidate_count=0`
+- `review_negative_verified_count=1`
+- `verified_review_issue_count=10` (dashboard row count; includes direct quote lane)
+- `verified_review_issue_cluster_count=7`
+- `duplicate_review_issue_row_count=3`
+- `reviewer_candidate_review_issue_count=9`
+- `reviewer_candidate_review_issue_cluster_count=6`
+- `claim_obligation_review_issue_count=0`
+- `review_issue_candidate_total=82`
+- `review_issue_candidate_verified=9`
+- `review_issue_candidate_counterevidence_rejected=33`
+- `review_issue_candidate_missing_inventory_rejected=22`
+- `review_issue_candidate_review_worthiness_rejected=8`
+- `review_issue_candidate_missing_ablation_target_rejected=7`
+- `mark_contested_commit_count=4`
+- `recovery_case_verified_review_issue_repair=4`
+
+Fresh case-table clusters after guard:
+
+- direct quote protocol risk: `uOrfve3prk / evaluation_protocol_risk`
+- reviewer-candidate missing ablation: `9zEBK3E9bX / occupancy_prediction_pretraining_task`
+- reviewer-candidate missing ablation: `WpXq5n8yLb / recurrent_draft_model`
+- reviewer-candidate missing ablation: `NnExMNiTHw / acceptance_prediction_head` (3 rows, 1 cluster)
+- reviewer-candidate missing ablation: `a6SntIisgg / two-branch_encoder` (dashboard counts 2 rows, 1 cluster; case table dedups case rows)
+- reviewer-candidate missing ablation: `mHv6wcBb0z / generalized_noise_regularization`
+- reviewer-candidate missing baseline: `YXn76HMetm / EqualAL baseline`
+
+Interpretation:
+
+- P28.3 is a modest quantity gain over the P28.2 clean lower bound: `verified_review_issue_cluster_count` improves from 6 to 7 while protection remains PASS and `mark_contested` recovery stays at 4 verified-review-issue repairs.
+- It is not a big quantity breakthrough. The strict story is "7 system-clustered verified review issue clusters after fragment guard", not "10 independent true defects".
+- Missing-ablation remains dominant. Next quantity work should improve entity-level obligation diversity and normalized inventory coverage for baseline/protocol/reproducibility/efficiency issues, not loosen missing-ablation or direct quote-negative gates.
+
 ### 2026-06-29 P28 canonical checkpoint: missing-ablation target-quality guard
 
 Current P28 code path:

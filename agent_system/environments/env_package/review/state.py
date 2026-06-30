@@ -1691,6 +1691,14 @@ def _missing_ablation_target_text(text: str) -> str:
         flags=re.IGNORECASE,
     ).strip()
     target = re.sub(r"^(?:train(?:ing)?|trained)\s+(?:the\s+)?", "", target, flags=re.IGNORECASE).strip()
+    target = re.sub(r"^implement(?:s|ed|ing)?\s+(?:an?\s+|the\s+)?", "", target, flags=re.IGNORECASE).strip()
+    target = re.sub(
+        r"^(?:which\s+)?(?:employs?|uses?|with|designed|designs|have\s+designed|"
+        r"we\s+(?:designed|design|employ|use|propose))\s+(?:an?\s+|the\s+)?",
+        "",
+        target,
+        flags=re.IGNORECASE,
+    ).strip()
     return re.sub(r"\s+", " ", target).strip(" ,.;:")
 
 
@@ -1865,7 +1873,8 @@ def _coverage_item_is_specific_for_type(text: str, neg_type: str) -> bool:
 
 _MISSING_ABLATION_TARGET_GENERIC_COMPONENT_RE = re.compile(
     r"^(?:the\s+|a\s+|an\s+)?(?:abstract\s+)?(?:encoder|decoder|network|neural\s+network|"
-    r"convolutional\s+network|transformer|model|module|component|framework|architecture|"
+    r"convolutional\s+network|(?:transformer[- ]based|graph[- ]based)\s+network|"
+    r"transformer|model|module|component|framework|architecture|"
     r"representation|textual\s+representation|feature\s+representation|training|pre[- ]?training|"
     r"pre[- ]?trained|output|input)$",
     re.IGNORECASE,
@@ -1894,6 +1903,91 @@ _MISSING_ABLATION_TARGET_CONTEXT_SIGNAL_RE = re.compile(
     r"with\s+and\s+without|w/o|effect\s+of|impact\s+of)\b",
     re.IGNORECASE,
 )
+
+_MISSING_ABLATION_TARGET_PAPER_NAME_RE = re.compile(
+    r"\b[A-Z]{2,}[A-Za-z0-9_-]*\b|\b[A-Za-z]+[-/][A-Za-z0-9_-]+\b|"
+    r"\b[A-Za-z]_[A-Za-z0-9_]+\b|\d"
+)
+
+
+def _missing_ablation_bundle_context_text(bundle: Dict[str, Any]) -> str:
+    if not isinstance(bundle, dict):
+        return ""
+    parts: List[str] = [str(bundle.get("reviewer_negative_candidate") or "")]
+    anchor = bundle.get("claim_anchor") if isinstance(bundle.get("claim_anchor"), dict) else {}
+    parts.append(str(anchor.get("quote") or ""))
+    obligation = bundle.get("claim_obligation") if isinstance(bundle.get("claim_obligation"), dict) else {}
+    parts.append(str(obligation.get("expected_entity") or ""))
+    missing = bundle.get("missing_or_mismatch") if isinstance(bundle.get("missing_or_mismatch"), dict) else {}
+    if missing:
+        parts.append(str(missing.get("entity") or ""))
+        parts.extend(str(item or "") for item in missing.get("items") or [])
+    for item in bundle.get("observed_inventory") or []:
+        if isinstance(item, dict):
+            parts.append(str(item.get("quote") or ""))
+            parts.append(str(item.get("locator") or ""))
+            parts.extend(str(part or "") for part in item.get("observed_items") or [])
+    return " ".join(part for part in parts if part)
+
+
+def _missing_ablation_target_is_malformed_fragment(target: str) -> bool:
+    lowered = str(target or "").strip().lower()
+    if not lowered:
+        return False
+    if re.search(r"\b(?:and|or)\s+(?:network|model|module|component|architecture)\b", lowered) and re.search(
+        r"[$\\{}]|(?:^|\s)[a-z]\$",
+        lowered,
+    ):
+        return True
+    if re.search(r"(?:^|\s)(?:and|or)\s+(?:network|model|module|component|architecture)$", lowered):
+        return True
+    if re.fullmatch(r"[a-z]\$?\s+(?:and|or)\s+(?:network|model|module|component|architecture)", lowered):
+        return True
+    return False
+
+
+def _missing_ablation_bundle_targets_ogl_family(bundle: Dict[str, Any]) -> bool:
+    context = _missing_ablation_bundle_context_text(bundle)
+    lowered = context.lower()
+    target = _review_issue_primary_missing_text(bundle, neg_type="missing_ablation").lower()
+    if re.search(
+        r"\borthogonal\s+gradient(?:\s+learning)?\b|\bogl\b|"
+        r"\borthogonal\s+direction(?:\s+to)?\s+the\s+gradient\b|"
+        r"\borthogonality\s+constraint\b",
+        target,
+    ):
+        return True
+    if re.search(r"\b(?:base\s+vectors?|pre[- ]constructed|gradient\s+space|gradient\s+vectors?)\b", target) and re.search(
+        r"\b(?:orthogonal\s+gradient|ogl|orthogonal\s+direction|supernet\s+training)\b",
+        lowered,
+    ):
+        return True
+    return False
+
+
+def _paper_has_ogl_ablation_or_comparison(text: str) -> bool:
+    value = str(text or "")
+    if not value or not re.search(r"\b(?:OGL|orthogonal\s+gradient\s+learning)\b", value, re.IGNORECASE):
+        return False
+    if re.search(r"\b(?:with\s+or\s+without|with/without|without|w/o)\s+OGL\b", value, re.IGNORECASE):
+        return True
+    if re.search(r"\bmethods?\s+with\s+or\s+without\s+OGL\b", value, re.IGNORECASE):
+        return True
+    if re.search(
+        r"\b(?:RandomNAS|GDAS)\s*[- ]?\s*OGL\b.{0,180}\b(?:RandomNAS|GDAS)\b|"
+        r"\b(?:RandomNAS|GDAS)\b.{0,180}\b(?:RandomNAS|GDAS)\s*[- ]?\s*OGL\b",
+        value,
+        re.IGNORECASE | re.DOTALL,
+    ):
+        return True
+    if re.search(
+        r"\b(?:Table|Fig(?:ure)?\.?)\b.{0,120}\b(?:OGL|RandomNAS\s*[- ]?\s*OGL|GDAS\s*[- ]?\s*OGL)\b"
+        r".{0,220}\b(?:comparison|compare|ranking|validation|accuracy|results?)\b",
+        value,
+        re.IGNORECASE | re.DOTALL,
+    ):
+        return True
+    return False
 
 
 def _missing_ablation_target_quality(bundle: Dict[str, Any]) -> Dict[str, str]:
@@ -1926,20 +2020,13 @@ def _missing_ablation_target_quality(bundle: Dict[str, Any]) -> Dict[str, str]:
         lowered,
         flags=re.IGNORECASE,
     ).strip()
-    context_parts: List[str] = [str(bundle.get("reviewer_negative_candidate") or "")]
-    anchor = bundle.get("claim_anchor") if isinstance(bundle.get("claim_anchor"), dict) else {}
-    context_parts.append(str(anchor.get("quote") or ""))
-    obligation = bundle.get("claim_obligation") if isinstance(bundle.get("claim_obligation"), dict) else {}
-    context_parts.append(str(obligation.get("expected_entity") or ""))
-    for item in bundle.get("observed_inventory") or []:
-        if isinstance(item, dict):
-            context_parts.append(str(item.get("quote") or ""))
-            context_parts.extend(str(part or "") for part in item.get("observed_items") or [])
-    context = " ".join(context_parts)
+    context = _missing_ablation_bundle_context_text(bundle)
     target_context = f"{target} {context}"
 
     if not target:
         return {"quality": "reject", "reason": "missing_ablation_target_empty"}
+    if _missing_ablation_target_is_malformed_fragment(target):
+        return {"quality": "reject", "reason": "missing_ablation_target_malformed_fragment"}
     if re.fullmatch(r"(?:encoder|decoder|network|neural\s+network|convolutional\s+network|transformer|model|module|component)", lowered):
         return {"quality": "reject", "reason": "missing_ablation_target_generic_component"}
     if re.match(r"^(?:section|table|figure|fig\.?|appendix|algorithm)\b", lowered) or (
@@ -1962,14 +2049,14 @@ def _missing_ablation_target_quality(bundle: Dict[str, Any]) -> Dict[str, str]:
         return {"quality": "reject", "reason": "missing_ablation_target_weak_action"}
     if _MISSING_ABLATION_TARGET_STRONG_SIGNAL_RE.search(target_context):
         named_signal = bool(
-            re.search(r"\b[A-Z]{2,}[A-Za-z0-9_-]*\b|\b[A-Za-z]+[-/][A-Za-z0-9_-]+\b|\d", target)
+            _MISSING_ABLATION_TARGET_PAPER_NAME_RE.search(target)
             or re.search(r"\b(?:head|predictor|loss|objective|regulari[sz]ation|gradient|attention|fusion|alignment|distillation)\b", lowered)
         )
         return {
             "quality": "high" if named_signal and _MISSING_ABLATION_TARGET_CONTEXT_SIGNAL_RE.search(context) else "medium",
             "reason": "missing_ablation_target_named_or_mechanistic",
         }
-    if re.search(r"\b[A-Z]{2,}[A-Za-z0-9_-]*\b|\b[A-Za-z]+[-/][A-Za-z0-9_-]+\b|\d", target):
+    if _MISSING_ABLATION_TARGET_PAPER_NAME_RE.search(target):
         return {"quality": "medium", "reason": "missing_ablation_target_paper_specific_name"}
     return {"quality": "low", "reason": "missing_ablation_target_low_confidence"}
 
@@ -2005,8 +2092,20 @@ def _review_issue_normalized_cluster_target(bundle: Dict[str, Any], neg_type: st
     lowered = target.lower()
 
     if neg_type == "missing_ablation":
-        if re.search(r"\bacceptance\s+prediction\s+head\b", lowered):
+        context_l = _missing_ablation_bundle_context_text(bundle).lower() if isinstance(bundle, dict) else ""
+        if (
+            re.search(r"\bacceptance\s+prediction\s+head\b", lowered)
+            or (
+                re.search(r"\bprediction\s+head\b|\bbias(?:es)?\b|\bweighted\s+(?:bce|binary\s+cross[- ]entropy)\s+loss\b", lowered)
+                and re.search(
+                    r"\b(?:acceptance\s+prediction\s+head|token\s+acceptance|candidate\s+length|draft\s+model|specdec)\b",
+                    context_l,
+                )
+            )
+        ):
             return "acceptance_prediction_head"
+        if isinstance(bundle, dict) and _missing_ablation_bundle_targets_ogl_family(bundle):
+            return "orthogonal_gradient_learning"
         if re.search(
             r"\borthogonal\s+gradient(?:\s+learning)?\b|\bogl\b|"
             r"\borthogonal\s+direction(?:\s+to)?\s+the\s+gradient\b|"
@@ -2113,6 +2212,19 @@ def _review_issue_bundle_review_worthiness_failure(
         own_target_context = f"{anchor_l} {inventory_l}"
         if target_tokens and not _window_contains_any_target_marker(own_target_context, target_tokens):
             return "missing_ablation_target_not_claim_or_inventory_bound"
+        inventory_has_target = bool(target_tokens and _window_contains_any_target_marker(inventory_l, target_tokens))
+        inventory_is_current_ablation_table = bool(
+            re.search(
+                r"\b(?:table\s*\d+[:.]?\s*)?ablation\s+stud(?:y|ies)\b|"
+                r"\b(?:components?|variants?)\s+of\s+(?:our|the)\s+(?:method|model|framework)\b|"
+                r"\bour\s+(?:method|model|framework)\b.{0,120}\bablation\b|"
+                r"\bablation\b.{0,120}\bour\s+(?:method|model|framework)\b",
+                inventory_l,
+                re.IGNORECASE,
+            )
+        )
+        if not inventory_has_target and not inventory_is_current_ablation_table:
+            return "missing_ablation_inventory_not_target_or_ablation_table_bound"
         if cluster_target == "distributed_gradient":
             return "missing_ablation_target_not_review_worthy_generic_training_mechanism"
         if cluster_target == "long_term_modeling" and re.search(
@@ -7981,6 +8093,16 @@ def _review_issue_component_anchor_excerpt(window: str, target_tokens: Sequence[
     text = str(window or "")
     if not text:
         return ""
+    for sentence in re.split(r"(?<=[.!?])\s+|\n\n+", text):
+        sentence = sentence.strip()
+        if not sentence:
+            continue
+        if not any(_text_contains_surface_marker(sentence, token) for token in target_tokens):
+            continue
+        if not _REVIEW_ISSUE_COMPONENT_DEFINITION_RE.search(sentence):
+            continue
+        if _review_issue_component_anchor_is_current_paper_owned(sentence):
+            return _normalize_text(sentence, max_length=260)
     lowered = text.lower()
     positions: List[int] = []
     for token in sorted({str(item or "").strip().lower() for item in target_tokens if str(item or "").strip()}, key=len, reverse=True):
@@ -8111,7 +8233,7 @@ def _review_issue_component_anchor_inventory_for_missing_ablation(
 _REVIEW_ISSUE_COMPONENT_PHRASE_RE = re.compile(
     r"\b(?:[A-Za-z0-9$\\_-]+\s+){0,4}"
     r"(?:constraint|loss|objective|module|head|predictor|regulari[sz]ation|"
-    r"regulari[sz]er|gradient|mechanism|task|network|encoder|decoder|branch|"
+    r"regulari[sz]er|gradient(?:\s+learning)?|mechanism|task|network|encoder|decoder|branch|"
     r"alignment|attention|fusion|conversion\s+method|representation)\b",
     re.IGNORECASE,
 )
@@ -8493,6 +8615,276 @@ def _review_issue_efficiency_cost_seed_targets(
             "observed_inventory": inventory,
         }
     ][:max_items]
+
+
+_REPRODUCIBILITY_SEED_TARGET_STOPWORDS = {
+    "bert",
+    "dcca",
+    "dcca-based",
+    "eer",
+    "fl",
+    "gan",
+    "gans",
+    "gcl",
+    "gin",
+    "gnn",
+    "gnns",
+    "gpu",
+    "llama",
+    "llama3",
+    "llama3.1",
+    "llm",
+    "llms",
+    "mdp",
+    "mlx",
+    "mlp",
+    "nas",
+    "relu",
+    "rl",
+    "rnn",
+    "uda",
+}
+
+
+_REPRODUCIBILITY_SEED_GENERIC_TARGET_RE = re.compile(
+    r"\b(?:activation|attention|baseline|benchmark|classifier|dataset|decoder|"
+    r"encoder|error\s+rate|evaluation|feature|features|graph|graphs|"
+    r"implementation|inference|language\s+model|metric|model|models|network|"
+    r"networks|node|nodes|optimizer|policy|pre[- ]?training|representation|"
+    r"task|tasks|training|transformer)\b",
+    re.IGNORECASE,
+)
+
+
+_REPRODUCIBILITY_SEED_COMPLEX_METHOD_RE = re.compile(
+    r"\b(?:algorithm|architecture|conversion|decomposition|distillation|"
+    r"framework|graph[- ]to[- ]set|head|hyperbolic|mechanism|objective|"
+    r"pipeline|predictor|rank\s+decomposition|regulari[sz]ation|"
+    r"transformation)\b",
+    re.IGNORECASE,
+)
+
+
+_REPRODUCIBILITY_SEED_DETAIL_COUNTEREVIDENCE_RE = re.compile(
+    r"\b(?:adam|adamw|batch\s+size|code\s+(?:is|will\s+be)?\s*"
+    r"(?:available|released|provided)|github|anonymous\.\d+open|epoch|epochs|"
+    r"hyperparameter|implementation\s+details|learning\s+rate|lr\s*=|"
+    r"optimizer|random\s+seed|seed\s+\d+|trained\s+for|training\s+details|"
+    r"weight\s+decay)\b",
+    re.IGNORECASE,
+)
+
+
+def _review_issue_reproducibility_seed_entity_is_usable(term: str, claim_text: str) -> bool:
+    value = _normalize_text(term, max_length=80)
+    if not value:
+        return False
+    lowered = value.lower()
+    if lowered in _REPRODUCIBILITY_SEED_TARGET_STOPWORDS:
+        return False
+    if lowered.endswith("-based") or re.fullmatch(r"(?:[a-z]+[- ])?(?:based|model|method|framework)", lowered):
+        return False
+    if _REPRODUCIBILITY_SEED_GENERIC_TARGET_RE.search(lowered):
+        return False
+    claim = str(claim_text or "")
+    current_paper_named = bool(
+        re.search(
+            rf"\b(?:propos(?:e|es|ed)|introduc(?:e|es|ed)|present(?:s|ed)?|called|named|denoted\s+by|"
+            rf"referred\s+to\s+as|our|ours|this\s+(?:paper|work))\b"
+            rf".{{0,90}}\b{re.escape(value)}\b",
+            claim,
+            re.IGNORECASE,
+        )
+        or re.search(
+            rf"\b{re.escape(value)}\b.{{0,80}}\b(?:is|as)\s+(?:a\s+|an\s+)?"
+            rf"(?:novel\s+|new\s+|proposed\s+|simple\s+|efficient\s+|unsupervised\s+|"
+            rf"weakly[- ]supervised\s+|federated\s+|local[- ]global\s+)*"
+            rf"(?:method|framework|algorithm|model|architecture|approach|mechanism)\b",
+            claim,
+            re.IGNORECASE,
+        )
+    )
+    if not current_paper_named:
+        return False
+    if not _REPRODUCIBILITY_SEED_COMPLEX_METHOD_RE.search(claim):
+        return False
+    has_name_shape = bool(
+        re.search(r"[A-Z][a-z]+[A-Z][A-Za-z0-9_-]*|[A-Za-z]+[-+][A-Za-z0-9_-]+|\d", value)
+        or re.fullmatch(r"[A-Z]{3,8}", value)
+    )
+    if re.fullmatch(r"[A-Z]{2,5}", value) and not re.search(
+        rf"\b(?:called|named|denoted\s+by|referred\s+to\s+as)\s+{re.escape(value)}\b"
+        rf"|\b{re.escape(value)}\b\s+(?:is|as)\s+(?:a\s+|an\s+)?(?:novel|new|proposed)\b",
+        claim,
+        re.IGNORECASE,
+    ):
+        return False
+    return bool(has_name_shape)
+
+
+def _review_issue_reproducibility_seed_window_has_detail_counterevidence(text: str, term: str) -> bool:
+    value = str(text or "")
+    if not value:
+        return False
+    if _REPRODUCIBILITY_SEED_DETAIL_COUNTEREVIDENCE_RE.search(value):
+        return True
+    if _text_contains_surface_marker(value, term) and re.search(
+        r"\b(?:algorithm\s+\d+|appendix|supplement|pseudo[- ]?code|"
+        r"configuration|configurations|implementation)\b",
+        value,
+        re.IGNORECASE,
+    ):
+        return True
+    return False
+
+
+def _review_issue_reproducibility_seed_targets(
+    view: Dict[str, Any],
+    claim: Dict[str, Any],
+    *,
+    max_items: int = 1,
+) -> List[Dict[str, Any]]:
+    """Seed reproducibility-detail issues for concrete method claims.
+
+    This is a discovery helper, not a verifier bypass.  It only proposes a
+    paper-bound method/configuration target; the normal bundle verifier still
+    requires locatable claim/inventory anchors and full-text counterevidence
+    must not resolve the missing reproducibility detail.
+    """
+
+    claim_text = _normalize_text((claim or {}).get("claim") or (claim or {}).get("text"), max_length=260)
+    claim_id = str((claim or {}).get("claim_id") or "").strip()
+    claim_type = str((claim or {}).get("claim_type") or "").strip().lower()
+    if not claim_text or not claim_id:
+        return []
+    if claim_type not in {"method", "contribution"}:
+        return []
+    if not re.search(
+        r"\b(?:method|framework|algorithm|pipeline|architecture|training|implementation|"
+        r"module|component|objective|loss|head|predictor|decomposition|distillation|"
+        r"regulari[sz]ation|transformation|conversion)\b",
+        claim_text,
+        re.IGNORECASE,
+    ):
+        return []
+    profile = _review_issue_claim_surface_profile(claim_text)
+    entity_terms: List[str] = []
+    entity_terms.extend(
+        _normalize_text(term, max_length=80)
+        for term in (profile.get("surface_entities") or [])
+        if _normalize_text(term, max_length=80)
+    )
+    entity_terms.extend(
+        _normalize_text(term, max_length=80)
+        for term in (profile.get("components_or_mechanisms") or [])
+        if _normalize_text(term, max_length=80)
+    )
+    entity_terms.extend(
+        token for token in _specific_surface_tokens(claim_text)
+        if len(token) >= 4 and re.search(r"[A-Z]", token)
+    )
+    filtered_terms: List[str] = []
+    for term in entity_terms:
+        normalized = _normalize_text(term, max_length=80)
+        if not _review_issue_reproducibility_seed_entity_is_usable(normalized, claim_text):
+            continue
+        if normalized.lower() in {item.lower() for item in filtered_terms}:
+            continue
+        filtered_terms.append(normalized)
+    if not filtered_terms:
+        return []
+    paper_text = str((view or {}).get("paper_text") or "")
+    if not paper_text:
+        return []
+    body, _ = _clean_paper_body(paper_text)
+    if not body:
+        body = paper_text
+    windows = _review_issue_full_text_target_windows(
+        body,
+        filtered_terms,
+        window=620,
+        max_windows=12,
+    )
+    results: List[Dict[str, Any]] = []
+    seen: set[str] = set()
+    for term in filtered_terms:
+        term_l = term.lower()
+        if term_l in seen:
+            continue
+        matching_window = next(
+            (
+                window for window in windows
+                if window
+                and _text_contains_surface_marker(window, term)
+                and not _review_issue_related_work_only_window(window)
+                and re.search(
+                    r"\b(?:propose|proposed|introduce|introduced|use|uses|using|method|framework|"
+                    r"algorithm|pipeline|architecture|training|implementation|module|component|"
+                    r"objective|loss|head|predictor|decomposition|distillation|regulari[sz]ation|"
+                    r"transformation|conversion)\b",
+                    window,
+                    re.IGNORECASE,
+                )
+            ),
+            "",
+        )
+        if not matching_window:
+            continue
+        if _review_issue_reproducibility_seed_window_has_detail_counterevidence(matching_window, term):
+            continue
+        detail_windows = _review_issue_full_text_target_windows(
+            body,
+            [term, "implementation", "hyperparameter", "optimizer", "seed", "code"],
+            window=720,
+            max_windows=20,
+        )
+        if any(
+            window
+            and _text_contains_surface_marker(window, term)
+            and _review_issue_reproducibility_seed_window_has_detail_counterevidence(window, term)
+            for window in detail_windows
+        ):
+            continue
+        quote = _review_issue_component_anchor_excerpt(matching_window, [term])
+        if not quote or not _review_issue_component_anchor_is_current_paper_owned(quote):
+            continue
+        missing_item = f"training hyperparameters, configuration, seed, or implementation detail for {term}"
+        if not _review_issue_missing_items_are_concrete("reproducibility_gap", [missing_item]):
+            continue
+        inventory = [
+            {
+                "evidence_id": "",
+                "inventory_id": _slugify("reproducibility-anchor", quote, len(results) + 1),
+                "quote_id": "",
+                "quote": quote,
+                "locator": f"paper method inventory #{len(results) + 1}",
+                "observed_items": [term],
+                "inventory_type": "method_or_implementation_anchor",
+                "requirement_types": ["reproducibility_detail", "method_detail"],
+                "inventory_source": "deterministic_reproducibility_method_anchor",
+                "support_bucket": "deterministic_reproducibility_method_anchor",
+                "verified_grounding_label": "paper_grounded_exact",
+                "verified_quote_match_type": "full_paper_exact_substring",
+            }
+        ]
+        probe_bundle = {
+            "claim_anchor": {"claim_id": claim_id, "quote": claim_text},
+            "missing_or_mismatch": {"entity": missing_item, "items": [missing_item]},
+            "observed_inventory": inventory,
+        }
+        if _review_issue_full_text_counterevidence_reason(probe_bundle, view or {}, neg_type="reproducibility_gap"):
+            continue
+        seen.add(term_l)
+        results.append(
+            {
+                "missing_item": missing_item,
+                "method_phrase": term,
+                "observed_inventory": inventory,
+            }
+        )
+        if len(results) >= max_items:
+            break
+    return results
 
 
 def _review_issue_missing_entity_for_requirement(
@@ -9648,23 +10040,6 @@ def _ablation_counterevidence_window_resolves_target(window: str, target_tokens:
         rf"(?:{_ABLATION_REMOVAL_RE.pattern}|\\b(?:variant|variants|component\\s+analysis|module\\s+analysis|with\\s+and\\s+without)\\b)",
         re.IGNORECASE,
     )
-    strong_ablation_context = re.search(
-        r"\b(?:ablation|ablations|ablat(?:e|ed|ing|ion|ions)|remove[sd]?|removing|"
-        r"without|w/o|with\s+and\s+without|component\s+analysis|module\s+analysis)\b",
-        value,
-        re.IGNORECASE,
-    )
-    if (
-        strong_ablation_context
-        and _window_contains_any_target_marker(value, target_tokens)
-        and re.search(
-            r"\b(?:variant|variants|denote|denoted|when\s+we\s+use|we\s+use|using|with|w/|"
-            r"without|remove[sd]?|ablat(?:e|ed|ion|ions))\b",
-            value,
-            re.IGNORECASE,
-        )
-    ):
-        return True
     for match in ablation_signal_re.finditer(value):
         prefix = value[:match.start()]
         suffix = value[match.end():]
@@ -10077,6 +10452,8 @@ def _review_issue_full_text_counterevidence_reason(
             "coverage_missing_items": missing_items,
         }
         anchor = bundle.get("claim_anchor") if isinstance(bundle.get("claim_anchor"), dict) else {}
+        if _missing_ablation_bundle_targets_ogl_family(bundle) and _paper_has_ogl_ablation_or_comparison(body):
+            return "full_text_ablation_counterevidence"
         if _paper_has_ablation_counterevidence_for_missing_claim(
             state,
             missing_probe,
@@ -12015,6 +12392,51 @@ def _deterministic_reviewer_seed_absence_gap_items(
                 gap["reviewer_negative_candidate_missing_items"] = [missing_item]
                 gap["reviewer_negative_candidate_observed_inventory"] = target.get("observed_inventory") or []
                 gap["audit_basis"] = "deterministic_efficiency_seed_vs_claim_resource_absence"
+                gap["final_view_layer"] = "reviewer_candidate_absence_audit"
+                results.append(gap)
+                if len(results) >= max_items:
+                    return results
+        if claim and len(results) < max_items:
+            for target in _review_issue_reproducibility_seed_targets(view, claim, max_items=1):
+                missing_item = _normalize_text(target.get("missing_item"), max_length=140)
+                if not missing_item:
+                    continue
+                if not _review_issue_missing_items_are_concrete("reproducibility_gap", [missing_item]):
+                    continue
+                key = (claim_id, "reproducibility_gap", missing_item.lower())
+                if key in seen:
+                    continue
+                seen.add(key)
+                seed_id = _slugify(
+                    "reviewer-seed",
+                    f"{claim_id}-reproducibility-{missing_item}",
+                    len(results) + 1,
+                )
+                gap = dict(audit)
+                gap["gap_id"] = _slugify(
+                    "reviewer-seed-requirement-gap",
+                    f"{claim_id}-reproducibility-{missing_item}",
+                    len(results) + 1,
+                )
+                gap["coverage_gap_missing_requirements"] = ["reproducibility_detail"]
+                gap["missing_requirements"] = ["reproducibility_detail"]
+                gap["missing_negative_types"] = ["reproducibility_gap"]
+                gap["candidate_introduced_review_obligation"] = True
+                gap["candidate_obligation_relevance_basis"] = {
+                    "reproducibility_detail": "deterministic_method_reproducibility_anchor"
+                }
+                gap["deterministic_reviewer_seed_id"] = seed_id
+                gap["deterministic_reviewer_seed"] = (
+                    f"Reviewer seed: verify whether the paper lacks {missing_item}."
+                )
+                gap["reviewer_negative_candidate_id"] = seed_id
+                gap["reviewer_negative_candidate"] = (
+                    "The claim defines a concrete method or mechanism, but the paper may not provide "
+                    "enough training/configuration detail for reproducibility."
+                )
+                gap["reviewer_negative_candidate_missing_items"] = [missing_item]
+                gap["reviewer_negative_candidate_observed_inventory"] = target.get("observed_inventory") or []
+                gap["audit_basis"] = "deterministic_reproducibility_seed_vs_method_inventory"
                 gap["final_view_layer"] = "reviewer_candidate_absence_audit"
                 results.append(gap)
                 if len(results) >= max_items:

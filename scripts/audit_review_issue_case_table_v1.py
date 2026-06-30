@@ -41,6 +41,12 @@ def _load_jsonl(path: Path) -> List[Dict[str, Any]]:
     return rows
 
 
+def _state_without_cached_hygiene(state: Dict[str, Any]) -> Dict[str, Any]:
+    clean = copy.deepcopy(state or {})
+    clean.pop("decision_hygiene", None)
+    return clean
+
+
 def _clip(value: Any, limit: int = 180) -> str:
     text = " ".join(str(value or "").split())
     return text if len(text) <= limit else text[: limit - 3] + "..."
@@ -180,7 +186,7 @@ def build_review_issue_case_table(rows: Iterable[Dict[str, Any]]) -> tuple[List[
         raw_state = row.get("review_state") if isinstance(row, dict) else {}
         if not isinstance(raw_state, dict):
             continue
-        state = build_decision_hygiene_view(copy.deepcopy(raw_state))
+        state = build_decision_hygiene_view(_state_without_cached_hygiene(raw_state))
         for evidence in state.get("evidence_map", []) or []:
             if not isinstance(evidence, dict):
                 continue

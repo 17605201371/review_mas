@@ -298,6 +298,10 @@ The verifier will reject generic obligation labels. "baseline evidence", "ablati
 - Use `review_issue_contrast_hints` when present to compare the claim obligation against observed inventory anchors.
   These hints are not evidence. They are there to help you name a paper-side missing/mismatch item, not to complain
   that the current excerpt, prompt, or support inventory is incomplete.
+- Prefer paper-named targets over category labels. Good targets look like a named method/baseline from the paper's
+  related-work/comparison context, a named contribution mechanism, a named dataset/setting, or a named protocol
+  dimension. Bad targets look like "specific metric table", "named benchmark", "stronger baseline", "component",
+  "module", "training", "model", "GNN", "LLM", "UDA", or another broad family label.
 - Use `inventory_menu` when present. Prefer citing its `inventory_id` in `observed_inventory` instead of inventing or
   paraphrasing an anchor. You may still copy the menu quote into `observed_inventory.quote`.
 - When `paper_evaluation_inventory` or the visible excerpt shows a table/list/experiment setup, include one
@@ -305,6 +309,15 @@ The verifier will reject generic obligation labels. "baseline evidence", "ablati
   negative quote; it is the paper-side inventory anchor that lets the verifier check an obligation mismatch.
 - For `missing_ablation`, the observed inventory must itself be an ablation/variant/removal/sensitivity anchor.
   Do not use a general result/comparison table as the inventory for a missing-ablation candidate.
+- For `missing_ablation`, only target a contribution-bound component or mechanism that the paper names as driving
+  performance/behavior. Do not ask for ablations of a task label, ordinary training action, broad architecture family,
+  or component that the paper's ablation/results already isolate.
+- For `missing_baseline`, name the exact missing method or baseline family. Prefer paper-named related methods and
+  cited baselines that are absent from the same-setting comparison table. Do not emit truncated or generic targets
+  such as "pre-training", "distillation-based", "high-return", "GNN", or "UDA".
+- For `insufficient_evaluation`, `scope_or_robustness`, and `result_claim_mismatch`, name the exact dataset, split,
+  metric, protocol condition, or setting. Do not emit placeholders such as "specific metric table for the named
+  benchmark" or "additional benchmark dataset matching the claim scope".
 - `method_support_gap` is a hypothesis lane only unless a later verifier proves a narrow method contract. Prefer
   baseline, ablation, scope/robustness, protocol/reproducibility, efficiency, or result-claim mismatch candidates
   when those can be tied to claim anchors and inventory.
@@ -333,6 +346,10 @@ not final flaws. Do not require a copied negative quote before proposing an abse
 across at least 4 different slots when safe, and at least 3 different slots across distinct claims otherwise. Prefer
 concrete missing items copied or adapted from claim surface entities,
 comparison targets, named components, datasets, metrics, protocol dimensions, or related methods named by the paper.
+Use this priority order for concrete absence candidates: (1) exact paper-named baseline/related method missing from a
+same-setting comparison table; (2) exact contribution mechanism missing from a component-isolation ablation table;
+(3) exact dataset/setting/protocol dimension promised by a claim but absent from the observed inventory; (4) exact
+resource/cost dimension for a speed/efficiency/scale claim. Leave lower-confidence generic slots empty.
 At least 2 candidates should be `absence_or_requirement_gap` or `table_scope_absence` when concrete claim obligations
 and inventory anchors are visible; direct quote-groundable candidates still take priority when there is a real
 protocol/result/cost contradiction. Only leave a slot empty when there is no real claim, no concrete missing/mismatch
