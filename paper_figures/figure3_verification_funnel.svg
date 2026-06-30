@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="520" viewBox="0 0 1100 520" role="img" aria-labelledby="title desc">
+  <title id="title">Verification funnel</title>
+  <desc id="desc">Thirteen verifier-passing issue rows deduplicate to nine issue clusters, and manual audit judges eight clusters valid or defensible. The direct quote-grounded negative count remains zero.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#334155"/>
+    </marker>
+    <style>
+      .bg { fill: #ffffff; }
+      .main { fill: #eef4ff; stroke: #315f9c; stroke-width: 2.4; rx: 16; }
+      .note { fill: #fff8e6; stroke: #9a6a00; stroke-width: 1.6; rx: 12; }
+      .limit { fill: #fff3f0; stroke: #a64b3c; stroke-width: 1.6; rx: 12; }
+      .ok { fill: #eef7f2; stroke: #3f7f45; stroke-width: 1.8; rx: 12; }
+      .arrow { stroke: #334155; stroke-width: 2.4; fill: none; marker-end: url(#arrow); }
+      .dash { stroke: #64748b; stroke-width: 1.7; fill: none; stroke-dasharray: 6 5; marker-end: url(#arrow); }
+      .title { font-family: Arial, Helvetica, sans-serif; font-size: 24px; font-weight: 700; fill: #0f172a; text-anchor: middle; }
+      .subtitle { font-family: Arial, Helvetica, sans-serif; font-size: 15px; fill: #475569; text-anchor: middle; }
+      .big { font-family: Arial, Helvetica, sans-serif; font-size: 34px; font-weight: 700; fill: #0f172a; text-anchor: middle; }
+      .label { font-family: Arial, Helvetica, sans-serif; font-size: 18px; fill: #111827; text-anchor: middle; dominant-baseline: middle; }
+      .small { font-family: Arial, Helvetica, sans-serif; font-size: 14px; fill: #475569; text-anchor: middle; dominant-baseline: middle; }
+    </style>
+  </defs>
+  <rect class="bg" x="0" y="0" width="1100" height="520"/>
+  <text class="title" x="550" y="34">Verification Funnel: Rows Are Not The Headline</text>
+  <text class="subtitle" x="550" y="58">The paper reports deduplicated issue clusters and manual audit, not raw issue-row count.</text>
+
+  <rect class="main" x="72" y="152" width="250" height="128"/>
+  <text class="big" x="197" y="194">13</text>
+  <text class="label" x="197" y="230"><tspan x="197" dy="0">verifier-passing</tspan><tspan x="197" dy="22">issue rows</tspan></text>
+
+  <rect class="main" x="426" y="152" width="250" height="128"/>
+  <text class="big" x="551" y="194">9</text>
+  <text class="label" x="551" y="230"><tspan x="551" dy="0">deduplicated</tspan><tspan x="551" dy="22">issue clusters</tspan></text>
+
+  <rect class="ok" x="780" y="152" width="250" height="128"/>
+  <text class="big" x="905" y="194">8</text>
+  <text class="label" x="905" y="230"><tspan x="905" dy="0">manual A/B</tspan><tspan x="905" dy="22">clusters</tspan></text>
+
+  <path class="arrow" d="M322 216 H426"/>
+  <path class="arrow" d="M676 216 H780"/>
+
+  <rect class="note" x="366" y="320" width="370" height="58"/>
+  <text class="label" x="551" y="349">duplicate rows = 4</text>
+  <path class="dash" d="M551 320 V282"/>
+
+  <rect class="note" x="760" y="320" width="290" height="72"/>
+  <text class="small" x="905" y="343"><tspan x="905" dy="0">1 C cluster excluded from</tspan><tspan x="905" dy="19">conservative quality headline</tspan></text>
+  <path class="dash" d="M905 320 V282"/>
+
+  <rect class="limit" x="72" y="344" width="250" height="76"/>
+  <text class="label" x="197" y="370"><tspan x="197" dy="0">direct quote-grounded</tspan><tspan x="197" dy="22">negatives = 0</tspan></text>
+
+  <rect class="ok" x="426" y="416" width="250" height="62"/>
+  <text class="label" x="551" y="446">active conflict metrics = 0</text>
+
+  <rect class="note" x="780" y="416" width="250" height="62"/>
+  <text class="label" x="905" y="446">missing-ablation clusters = 6</text>
+</svg>

@@ -10,6 +10,8 @@ The continuous draft is aligned with the current P28.6 artifacts and now ends at
 
 The implementation/reproducibility appendix draft exists at `PAPER_REPRODUCIBILITY_APPENDIX_20260701.md`; it maps paper concepts to code anchors, scripts, artifacts, and metric checks.
 
+Figure SVG/PDF drafts exist in `paper_figures/`; they were manually redrawn from the Mermaid specs and validated with `rsvg-convert`. They still need target-template placement and final visual QA.
+
 The paper-facing result should remain conservative:
 
 - main diagnostic result: 9 obligation-grounded review issue clusters on hardneg20 offline recompute;
@@ -21,7 +23,7 @@ The paper-facing result should remain conservative:
 ## Remaining Production Tasks
 
 1. Replace draft BibTeX entries with final venue-style BibTeX, using `PAPER_BIBLIOGRAPHY_CANDIDATES_20260701.md` and `PAPER_REFERENCES_DRAFT_20260701.bib` as the starting point.
-2. Render or redraw the Mermaid figure sources into polished SVG/PDF figures.
+2. Place the rendered SVG/PDF figures into the target paper template and check scaling, line wrapping, and cropping.
 3. Decide whether to keep hardneg20 as the main experiment or wait for a fresh full20 MiMo rerun.
 4. Fold the reproducibility appendix into the target paper format after figures and bibliography are finalized.
 5. Re-audit all result claims after any fresh run changes the dashboard or case tables.
@@ -29,6 +31,6 @@ The paper-facing result should remain conservative:
 ## Submission-Readiness Blockers
 
 - No fresh full20 live rerun is available while MiMo returns `402 Insufficient account balance`.
-- Figure sources exist, but final rendered figures are not checked.
+- Figure SVG/PDF drafts exist, but final venue-template placement is not checked.
 - Bibliography keys are internally consistent, but final venue records are not verified.
 - The empirical result is diagnostic and small; the paper must not claim broad review-quality improvement.

@@ -4,7 +4,7 @@ Date: 2026-07-01
 
 Status: continuous manuscript draft. This file turns the current section drafts into a single readable paper draft. It is written in a paper-facing voice, while final bibliography records, rendered figures, and fresh-run status remain open production tasks.
 
-Figure draft sources are tracked in `PAPER_FIGURES_DRAFT_20260701.md` and `paper_figures/*.mmd`.
+Figure sources and rendered SVG/PDF assets are tracked in `PAPER_FIGURES_DRAFT_20260701.md` and `paper_figures/`.
 
 Citation candidates are tracked in `PAPER_BIBLIOGRAPHY_CANDIDATES_20260701.md`; draft citation keys are provided in `PAPER_REFERENCES_DRAFT_20260701.bib`. These keys are usable for manuscript drafting but still need final venue-style BibTeX verification.
 
@@ -96,7 +96,7 @@ The current empirical evidence supports this positioning conservatively. DrMAS d
 
 DrMAS treats LLM-assisted reviewing as a state maintenance problem. Instead of asking a model to directly produce a final review, the system incrementally builds a structured ReviewState, audits that state, and renders the final review from an audited view.
 
-[FIGURE 1: ReviewState lifecycle. Source: `paper_figures/figure1_reviewstate_lifecycle.mmd`. Place near here.]
+[FIGURE 1: ReviewState lifecycle. Assets: `paper_figures/figure1_reviewstate_lifecycle.svg/pdf`; source: `paper_figures/figure1_reviewstate_lifecycle.mmd`. Place near here.]
 
 At a high level, the pipeline starts from paper text, extracts paper claims, grounds and binds evidence to those claims, forms reviewer issue candidates, verifies review issue bundles, applies final-view hygiene, performs non-destructive recovery when needed, and renders the final report from the audited view. The central design decision is to keep direct quote-grounded negative evidence separate from obligation-grounded review issues. A direct quote-grounded negative must be a copied paper quote that itself supports a reviewer-negative relation. An obligation-grounded review issue may instead be verified from a claim anchor, observed paper inventory, a concrete missing or mismatched entity, and the absence of resolving counterevidence.
 
@@ -122,7 +122,7 @@ The system distinguishes support evidence from negative or missing evidence. Acc
 
 DrMAS uses two separate lanes for review-critical information.
 
-[FIGURE 2: Direct quote-grounded negative lane vs obligation-grounded issue lane. Source: `paper_figures/figure2_critical_content_lanes.mmd`. Place near here.]
+[FIGURE 2: Direct quote-grounded negative lane vs obligation-grounded issue lane. Assets: `paper_figures/figure2_critical_content_lanes.svg/pdf`; source: `paper_figures/figure2_critical_content_lanes.mmd`. Place near here.]
 
 The direct lane is intentionally strict. A record can count as a quote-grounded reviewer negative only if it passes all of the following checks:
 
@@ -178,7 +178,7 @@ This step prevents false negative-evidence artifacts from leaking into the final
 
 Recovery is not a mechanism for forcing accept/reject decisions. It is a mechanism for repairing ReviewState inconsistencies. The preferred recovery action is `mark_contested`: a supported claim can remain supported while being marked contested by a verified review issue.
 
-[OPTIONAL FIGURE 4: Non-destructive recovery. Source: `paper_figures/figure4_non_destructive_recovery.mmd`. Place near here if space permits.]
+[OPTIONAL FIGURE 4: Non-destructive recovery. Assets: `paper_figures/figure4_non_destructive_recovery.svg/pdf`; source: `paper_figures/figure4_non_destructive_recovery.mmd`. Place near here if space permits.]
 
 This preserves a supported claim while exposing that a verified issue contests its sufficiency or scope. Unsafe downgrade attempts are tracked separately and should not be described as the main recovery path. The paper should describe recovery as:
 
@@ -269,7 +269,7 @@ Table 1 reports the P28.6 full20 offline recompute. DrMAS verifies 13 review iss
 
 Table 1. Main hardneg20 diagnostic result. Rows are raw verified records, while clusters deduplicate repeated issue targets within a paper. The direct quote-grounded negative lane remains strict and produces no verified direct negatives in this run.
 
-[FIGURE 3: Verification funnel from rows to clusters to manual A/B clusters. Source: `paper_figures/figure3_verification_funnel.mmd`. Place near here.]
+[FIGURE 3: Verification funnel from rows to clusters to manual A/B clusters. Assets: `paper_figures/figure3_verification_funnel.svg/pdf`; source: `paper_figures/figure3_verification_funnel.mmd`. Place near here.]
 
 The key interpretation is that the useful negative-review signal does not appear as copied paper-negative text. It appears as verified claim-inventory-obligation mismatch. This supports the ReviewState thesis: reviewer issues should be represented as auditable state objects rather than as unstructured negative snippets.
 

@@ -15,7 +15,7 @@ The strongest current version is a conservative systems/method paper:
 This story is defensible because it matches the current artifacts:
 
 - continuous manuscript draft exists;
-- figures exist as Mermaid sources;
+- figures exist as Mermaid sources plus manually redrawn SVG/PDF drafts;
 - draft citation keys and candidate bibliography exist;
 - P28.6 metrics support the central ReviewState/hygiene claim;
 - the paper explicitly admits direct quote-grounded negative discovery remains unsolved.
@@ -45,7 +45,7 @@ The paper is not ready for a strong benchmark-performance claim. The current res
 | Bibliography candidates | `PAPER_BIBLIOGRAPHY_CANDIDATES_20260701.md` | API-verified candidates, not final bibliography |
 | Draft BibTeX | `PAPER_REFERENCES_DRAFT_20260701.bib` | Usable drafting keys, not final venue records |
 | Figure specs | `PAPER_FIGURE_SPECS_20260701.md` | Conceptual figure guardrails |
-| Renderable figure draft | `PAPER_FIGURES_DRAFT_20260701.md` and `paper_figures/*.mmd` | Mermaid source, not rendered SVG/PDF |
+| Renderable figure draft | `PAPER_FIGURES_DRAFT_20260701.md` and `paper_figures/*.{mmd,svg,pdf}` | SVG/PDF drafts rendered; template placement pending |
 | Main metrics | `P28_6_CONFLICTFIX_TARGETREFINE2_194911_*` | Main offline full20 recompute |
 | Fresh sanity run | `P28_6_CONFLICTFIX_MIMO_PARTIAL16_224133_*` | Partial16 only; stopped by MiMo 402 |
 
@@ -224,7 +224,7 @@ Mandatory caveat sentence:
 | Method clarity | 7/10 | Clear lifecycle; still needs polish away from implementation history |
 | Evidence honesty | 8/10 | Major limitations are visible |
 | Empirical strength | 5/10 | Diagnostic hardneg20 only; fresh full20 blocked |
-| Figure readiness | 5/10 | Mermaid sources exist; no rendered final figures |
+| Figure readiness | 7/10 | SVG/PDF drafts exist and render; target-template placement still pending |
 | Citation readiness | 5/10 | Draft keys exist; final BibTeX not verified |
 | Submission readiness | 6/10 | Good draft package, not camera-ready |
 
@@ -243,13 +243,12 @@ Tasks:
 
 ### Priority 2: Render Or Redraw Figures
 
-Goal: produce final figure assets from `paper_figures/*.mmd`.
+Goal: place the rendered figure assets into the target paper template and perform visual QA.
 
 Tasks:
 
-- install or run Mermaid CLI, or redraw figures in the target template;
-- verify line wrapping and labels;
-- export SVG/PDF;
+- verify line wrapping and labels after template placement;
+- check scaling, cropping, and grayscale readability;
 - keep direct negative count 0 and row-to-cluster funnel visible.
 
 ### Priority 3: Finalize Bibliography

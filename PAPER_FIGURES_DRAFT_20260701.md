@@ -2,20 +2,20 @@
 
 Date: 2026-07-01
 
-Status: renderable figure draft. This file converts `PAPER_FIGURE_SPECS_20260701.md` into concrete Mermaid figure sources and paper captions. The source `.mmd` files live in `paper_figures/`.
+Status: figure asset draft. This file converts `PAPER_FIGURE_SPECS_20260701.md` into concrete Mermaid sources, hand-redrawn SVG figures, PDF exports, and paper captions. The source and rendered files live in `paper_figures/`.
 
 Do not treat these as final camera-ready figures until the venue format and figure style are chosen. They are designed to be faithful to the current P28.6 narrative and to avoid overstating the result.
 
-Local render status: not rendered in this environment because `mmdc` is unavailable. The Mermaid source has been written conservatively, but SVG/PDF export still needs a render pass.
+Local render status: Mermaid CLI (`mmdc`) is unavailable, so the figures were manually redrawn as SVG and exported to PDF with `rsvg-convert`. All four SVG files parse with `xmllint` and render successfully to PNG/PDF with `rsvg-convert`. Venue-template placement, cropping, and final style checks are still pending.
 
 ## Figure Assets
 
-| Figure | Source | Manuscript Placement | Purpose |
-| --- | --- | --- | --- |
-| Figure 1 | `paper_figures/figure1_reviewstate_lifecycle.mmd` | Method overview | Show ReviewState maintenance lifecycle |
-| Figure 2 | `paper_figures/figure2_critical_content_lanes.mmd` | Method, two lanes | Separate direct negatives from obligation-grounded issues |
-| Figure 3 | `paper_figures/figure3_verification_funnel.mmd` | Experiments, main result | Prevent row-count inflation |
-| Figure 4 | `paper_figures/figure4_non_destructive_recovery.mmd` | Method or appendix | Explain supported-but-contested recovery |
+| Figure | Source | Rendered Assets | Manuscript Placement | Purpose |
+| --- | --- | --- | --- | --- |
+| Figure 1 | `paper_figures/figure1_reviewstate_lifecycle.mmd` | `paper_figures/figure1_reviewstate_lifecycle.svg/pdf` | Method overview | Show ReviewState maintenance lifecycle |
+| Figure 2 | `paper_figures/figure2_critical_content_lanes.mmd` | `paper_figures/figure2_critical_content_lanes.svg/pdf` | Method, two lanes | Separate direct negatives from obligation-grounded issues |
+| Figure 3 | `paper_figures/figure3_verification_funnel.mmd` | `paper_figures/figure3_verification_funnel.svg/pdf` | Experiments, main result | Prevent row-count inflation |
+| Figure 4 | `paper_figures/figure4_non_destructive_recovery.mmd` | `paper_figures/figure4_non_destructive_recovery.svg/pdf` | Method or appendix | Explain supported-but-contested recovery |
 
 ## Figure 1: ReviewState Lifecycle
 
@@ -142,16 +142,14 @@ Audit note: this figure should be optional in the main paper if space is tight. 
 
 ## Rendering Notes
 
-Suggested export targets:
+Mermaid source remains available as a conceptual backup. The current paper assets are the hand-redrawn SVG files and their PDF exports:
 
 ```bash
-mmdc -i paper_figures/figure1_reviewstate_lifecycle.mmd -o paper_figures/figure1_reviewstate_lifecycle.svg
-mmdc -i paper_figures/figure2_critical_content_lanes.mmd -o paper_figures/figure2_critical_content_lanes.svg
-mmdc -i paper_figures/figure3_verification_funnel.mmd -o paper_figures/figure3_verification_funnel.svg
-mmdc -i paper_figures/figure4_non_destructive_recovery.mmd -o paper_figures/figure4_non_destructive_recovery.svg
+rsvg-convert paper_figures/figure1_reviewstate_lifecycle.svg -o /tmp/drmas_fig_check/figure1_reviewstate_lifecycle.png
+rsvg-convert -f pdf paper_figures/figure1_reviewstate_lifecycle.svg -o paper_figures/figure1_reviewstate_lifecycle.pdf
 ```
 
-If Mermaid CLI is unavailable, use the code blocks above directly in a Markdown renderer or convert them manually in the target paper template.
+The same `rsvg-convert -f pdf` pattern was used for Figures 2-4. Before submission, re-check each figure after placing it in the target paper template.
 
 ## Figure Claim Guardrails
 

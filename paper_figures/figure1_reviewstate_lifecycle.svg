@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="520" viewBox="0 0 1200 520" role="img" aria-labelledby="title desc">
+  <title id="title">ReviewState lifecycle</title>
+  <desc id="desc">DrMAS extracts claims, grounds evidence, verifies review issue bundles, audits final-view hygiene, and applies non-destructive recovery around a central ReviewState before rendering the final review.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#334155"/>
+    </marker>
+    <marker id="stateArrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#315f9c"/>
+    </marker>
+    <style>
+      .bg { fill: #ffffff; }
+      .process { fill: #ffffff; stroke: #475569; stroke-width: 1.6; rx: 10; }
+      .state { fill: #eef4ff; stroke: #315f9c; stroke-width: 2.4; rx: 14; }
+      .output { fill: #eef7f2; stroke: #3f7f45; stroke-width: 1.8; rx: 10; }
+      .arrow { stroke: #334155; stroke-width: 2; fill: none; marker-end: url(#arrow); }
+      .stateEdge { stroke: #315f9c; stroke-width: 1.6; fill: none; stroke-dasharray: 6 5; marker-end: url(#stateArrow); }
+      .label { font-family: Arial, Helvetica, sans-serif; font-size: 17px; fill: #111827; text-anchor: middle; dominant-baseline: middle; }
+      .small { font-family: Arial, Helvetica, sans-serif; font-size: 14px; fill: #315f9c; text-anchor: middle; }
+      .title { font-family: Arial, Helvetica, sans-serif; font-size: 24px; font-weight: 700; fill: #0f172a; text-anchor: middle; }
+      .subtitle { font-family: Arial, Helvetica, sans-serif; font-size: 15px; fill: #475569; text-anchor: middle; }
+    </style>
+  </defs>
+  <rect class="bg" x="0" y="0" width="1200" height="520"/>
+  <text class="title" x="600" y="34">DrMAS ReviewState Lifecycle</text>
+  <text class="subtitle" x="600" y="58">The final review is rendered only after state-level verification, hygiene, and non-destructive recovery.</text>
+
+  <rect class="process" x="28" y="94" width="138" height="74"/>
+  <text class="label" x="97" y="124"><tspan x="97" dy="0">Paper</tspan><tspan x="97" dy="21">text</tspan></text>
+
+  <rect class="process" x="190" y="94" width="138" height="74"/>
+  <text class="label" x="259" y="124"><tspan x="259" dy="0">Claim</tspan><tspan x="259" dy="21">extraction</tspan></text>
+
+  <rect class="process" x="352" y="94" width="146" height="74"/>
+  <text class="label" x="425" y="113"><tspan x="425" dy="0">Evidence</tspan><tspan x="425" dy="21">grounding and</tspan><tspan x="425" dy="21">claim binding</tspan></text>
+
+  <rect class="process" x="526" y="94" width="146" height="74"/>
+  <text class="label" x="599" y="113"><tspan x="599" dy="0">Reviewer issue</tspan><tspan x="599" dy="21">candidate</tspan><tspan x="599" dy="21">formation</tspan></text>
+
+  <rect class="process" x="700" y="94" width="146" height="74"/>
+  <text class="label" x="773" y="113"><tspan x="773" dy="0">Issue bundle</tspan><tspan x="773" dy="21">verification</tspan></text>
+
+  <rect class="process" x="874" y="94" width="146" height="74"/>
+  <text class="label" x="947" y="113"><tspan x="947" dy="0">Final-view</tspan><tspan x="947" dy="21">hygiene</tspan><tspan x="947" dy="21">audit</tspan></text>
+
+  <rect class="process" x="1048" y="94" width="124" height="74"/>
+  <text class="label" x="1110" y="113"><tspan x="1110" dy="0">Contested</tspan><tspan x="1110" dy="21">relation and</tspan><tspan x="1110" dy="21">recovery</tspan></text>
+
+  <rect class="output" x="502" y="426" width="196" height="62"/>
+  <text class="label" x="600" y="448"><tspan x="600" dy="0">Final review</tspan><tspan x="600" dy="21">from audited state</tspan></text>
+
+  <path class="arrow" d="M166 131 H190"/>
+  <path class="arrow" d="M328 131 H352"/>
+  <path class="arrow" d="M498 131 H526"/>
+  <path class="arrow" d="M672 131 H700"/>
+  <path class="arrow" d="M846 131 H874"/>
+  <path class="arrow" d="M1020 131 H1048"/>
+  <path class="arrow" d="M1110 168 C1110 394 750 457 698 457"/>
+
+  <rect class="state" x="270" y="254" width="660" height="112"/>
+  <text class="label" x="600" y="284"><tspan x="600" dy="0">ReviewState</tspan></text>
+  <text class="subtitle" x="600" y="314">claims | evidence | issue bundles | conflicts | repairs | hygiene diagnostics</text>
+  <text class="small" x="600" y="342">read/write state object shared across extraction, verification, hygiene, and recovery</text>
+
+  <path class="stateEdge" d="M600 254 C600 210 259 208 259 170"/>
+  <path class="stateEdge" d="M600 254 C600 212 425 208 425 170"/>
+  <path class="stateEdge" d="M600 254 C600 216 599 208 599 170"/>
+  <path class="stateEdge" d="M600 254 C600 212 773 208 773 170"/>
+  <path class="stateEdge" d="M600 254 C600 210 947 208 947 170"/>
+  <path class="stateEdge" d="M600 254 C600 210 1110 208 1110 170"/>
+  <text class="small" x="352" y="226">state audit, not raw prose</text>
+</svg>

@@ -2,7 +2,9 @@
 
 Date: 2026-07-01
 
-These specs define figures that match the current P28.6 narrative. They are not final artwork. They specify what each figure should communicate, what data it can use, and what overclaims it must avoid.
+These specs define figures that match the current P28.6 narrative. They specify what each figure should communicate, what data it can use, and what overclaims it must avoid.
+
+Current render status: each figure now has a Mermaid source plus a manually redrawn SVG and PDF draft in `paper_figures/`. The SVG/PDF files are draft paper assets, but they still need target-template placement and final visual QA.
 
 ## Figure 1: ReviewState Lifecycle
 

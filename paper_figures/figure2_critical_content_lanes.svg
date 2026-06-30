@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="620" viewBox="0 0 1200 620" role="img" aria-labelledby="title desc">
+  <title id="title">Two critical-content lanes</title>
+  <desc id="desc">Direct quote-grounded reviewer negatives are verified separately from obligation-grounded review issue bundles. The current diagnostic artifacts have zero verified direct negatives and nine verified review issue clusters.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#334155"/>
+    </marker>
+    <style>
+      .bg { fill: #ffffff; }
+      .panelStrict { fill: #fff7f4; stroke: #a64b3c; stroke-width: 2; rx: 14; }
+      .panelIssue { fill: #f2faf5; stroke: #3f7f5a; stroke-width: 2; rx: 14; }
+      .boxStrict { fill: #ffffff; stroke: #a64b3c; stroke-width: 1.5; rx: 10; }
+      .boxIssue { fill: #ffffff; stroke: #3f7f5a; stroke-width: 1.5; rx: 10; }
+      .boxFinal { fill: #eef4ff; stroke: #315f9c; stroke-width: 2; rx: 12; }
+      .arrow { stroke: #334155; stroke-width: 2; fill: none; marker-end: url(#arrow); }
+      .laneTitle { font-family: Arial, Helvetica, sans-serif; font-size: 21px; font-weight: 700; fill: #111827; text-anchor: middle; }
+      .title { font-family: Arial, Helvetica, sans-serif; font-size: 24px; font-weight: 700; fill: #0f172a; text-anchor: middle; }
+      .subtitle { font-family: Arial, Helvetica, sans-serif; font-size: 15px; fill: #475569; text-anchor: middle; }
+      .label { font-family: Arial, Helvetica, sans-serif; font-size: 16px; fill: #111827; text-anchor: middle; dominant-baseline: middle; }
+      .metricRed { font-family: Arial, Helvetica, sans-serif; font-size: 18px; font-weight: 700; fill: #8f372e; text-anchor: middle; }
+      .metricGreen { font-family: Arial, Helvetica, sans-serif; font-size: 18px; font-weight: 700; fill: #2f6f4d; text-anchor: middle; }
+      .note { font-family: Arial, Helvetica, sans-serif; font-size: 14px; fill: #475569; text-anchor: middle; }
+    </style>
+  </defs>
+  <rect class="bg" x="0" y="0" width="1200" height="620"/>
+  <text class="title" x="600" y="34">Two Critical-Content Lanes</text>
+  <text class="subtitle" x="600" y="58">Direct negative quotes and reviewer-inferred obligation gaps are verified and reported separately.</text>
+
+  <rect class="panelStrict" x="40" y="96" width="530" height="370"/>
+  <text class="laneTitle" x="305" y="128">Direct quote-grounded negative lane</text>
+  <text class="note" x="305" y="152">Requires copied paper text that itself supports a reviewer-negative relation</text>
+
+  <rect class="boxStrict" x="75" y="190" width="128" height="62"/>
+  <text class="label" x="139" y="211"><tspan x="139" dy="0">Copied paper</tspan><tspan x="139" dy="20">quote</tspan></text>
+  <rect class="boxStrict" x="224" y="190" width="128" height="62"/>
+  <text class="label" x="288" y="211"><tspan x="288" dy="0">Grounding</tspan><tspan x="288" dy="20">check</tspan></text>
+  <rect class="boxStrict" x="373" y="190" width="128" height="62"/>
+  <text class="label" x="437" y="211"><tspan x="437" dy="0">Semantic</tspan><tspan x="437" dy="20">negative</tspan></text>
+
+  <rect class="boxStrict" x="150" y="304" width="150" height="66"/>
+  <text class="label" x="225" y="326"><tspan x="225" dy="0">Reviewer-negative</tspan><tspan x="225" dy="20">relation</tspan></text>
+  <rect class="boxStrict" x="330" y="304" width="166" height="66"/>
+  <text class="label" x="413" y="319"><tspan x="413" dy="0">Verified direct</tspan><tspan x="413" dy="20">negative</tspan></text>
+  <text class="metricRed" x="413" y="404">current count = 0</text>
+
+  <path class="arrow" d="M203 221 H224"/>
+  <path class="arrow" d="M352 221 H373"/>
+  <path class="arrow" d="M437 252 C437 286 225 272 225 304"/>
+  <path class="arrow" d="M300 337 H330"/>
+
+  <rect class="panelIssue" x="630" y="96" width="530" height="370"/>
+  <text class="laneTitle" x="895" y="128">Obligation-grounded issue lane</text>
+  <text class="note" x="895" y="152">Verifies claim-inventory-obligation mismatch without fabricating a negative quote</text>
+
+  <rect class="boxIssue" x="668" y="184" width="146" height="62"/>
+  <text class="label" x="741" y="205"><tspan x="741" dy="0">Real claim</tspan><tspan x="741" dy="20">anchor</tspan></text>
+  <rect class="boxIssue" x="668" y="274" width="146" height="62"/>
+  <text class="label" x="741" y="295"><tspan x="741" dy="0">Observed</tspan><tspan x="741" dy="20">inventory anchor</tspan></text>
+  <rect class="boxIssue" x="668" y="364" width="146" height="62"/>
+  <text class="label" x="741" y="385"><tspan x="741" dy="0">Concrete missing</tspan><tspan x="741" dy="20">or mismatch</tspan></text>
+
+  <rect class="boxIssue" x="875" y="244" width="158" height="74"/>
+  <text class="label" x="954" y="269"><tspan x="954" dy="0">Issue bundle</tspan><tspan x="954" dy="20">verifier</tspan></text>
+  <rect class="boxIssue" x="875" y="354" width="158" height="62"/>
+  <text class="label" x="954" y="375"><tspan x="954" dy="0">Counterevidence</tspan><tspan x="954" dy="20">check</tspan></text>
+  <rect class="boxIssue" x="1048" y="244" width="90" height="172"/>
+  <text class="label" x="1093" y="288"><tspan x="1093" dy="0">Verified</tspan><tspan x="1093" dy="20">review</tspan><tspan x="1093" dy="20">issue</tspan><tspan x="1093" dy="20">bundle</tspan></text>
+  <text class="metricGreen" x="954" y="448">9 clusters, 8/9 A-B</text>
+
+  <path class="arrow" d="M814 215 C842 215 842 281 875 281"/>
+  <path class="arrow" d="M814 305 H875"/>
+  <path class="arrow" d="M814 395 C842 395 842 318 875 318"/>
+  <path class="arrow" d="M954 318 V354"/>
+  <path class="arrow" d="M1033 385 H1048"/>
+
+  <rect class="boxFinal" x="305" y="505" width="590" height="70"/>
+  <text class="label" x="600" y="527"><tspan x="600" dy="0">Audited final view renders separately</tspan><tspan x="600" dy="22">direct negatives | verified review issues | potential concerns</tspan></text>
+
+  <path class="arrow" d="M413 370 C413 468 520 505 560 505"/>
+  <path class="arrow" d="M1093 416 C1093 496 735 505 640 505"/>
+</svg>

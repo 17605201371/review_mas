@@ -216,7 +216,7 @@ The introduction, method, experiment, related work, bibliography-candidate, draf
 Next writing should focus on turning placeholders/specs into final manuscript assets:
 
 1. replace draft BibTeX entries with final venue-style records;
-2. render or redraw the Mermaid figure sources into polished figures;
+2. place the rendered SVG/PDF figure drafts into the target paper template and verify visual fit;
 3. fold the reproducibility appendix into the target paper format;
 4. decide whether to keep the conservative offline-full20/partial16 framing or wait for a fresh full20 rerun.
 
