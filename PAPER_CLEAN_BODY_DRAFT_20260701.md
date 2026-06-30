@@ -194,7 +194,7 @@ The final report is rendered from the audited view. This lets the report disting
 
 This design is essential to the paper narrative. The final review should not collapse all weak signals into a single flaw list. It should preserve the lifecycle state of each concern.
 
-The implementation appendix maps these paper concepts to code anchors and regeneration scripts. The main text keeps function names out of the core narrative except where needed to define the experimental artifacts.
+The implementation appendix maps these paper concepts to code anchors, regeneration commands, and artifact identifiers. The main text focuses on the review-state concepts and reports only the identifiers needed to make the empirical claims traceable.
 
 ## 4. Experiments
 
@@ -212,21 +212,9 @@ RQ4 asks what still limits the current system. This covers the remaining gap bet
 
 ### 4.2 Evaluation Setting
 
-We use the hard-negative diagnostic set `hard_negative_20_20260611.parquet`, a 20-paper subset designed to stress negative-evidence and reviewer-issue handling. The main reported run is the P28.6 TargetRefine2 offline recompute over a completed MiMo v2.5 hardneg20 run:
+We use a 20-paper hard-negative diagnostic set designed to stress negative-evidence and reviewer-issue handling. The main reported result is an offline full20 recomputation over a completed MiMo v2.5 run using the final issue-bundle verifier and conflict-cleaning logic. Exact dataset names, run identifiers, and regeneration commands are recorded in the reproducibility appendix rather than used as part of the paper's main narrative.
 
-```text
-P28_6_CONFLICTFIX_TARGETREFINE2_194911_*
-```
-
-The run uses the P28 review-issue bundle pipeline with negative quote hygiene, targeted negative search, free-form reviewer issue candidates, and conservative final-view hygiene. We report the P28.6 recompute because it applies the final verifier and conflict-cleaning logic consistently to the completed run.
-
-We also include a fresh MiMo rerun sanity check:
-
-```text
-P28_6_CONFLICTFIX_MIMO_PARTIAL16_224133_*
-```
-
-This run completed 16 of 20 papers before the MiMo API returned `402 Insufficient account balance`. We use it only as a partial consistency check, not as the main full20 result.
+We also include a fresh live sanity check with the same model family and verification logic. That run completed 16 of 20 papers before external API access ended, so we use it only as partial consistency evidence and not as the main full20 result.
 
 ### 4.3 Metrics
 
@@ -242,7 +230,7 @@ Safety and hygiene metrics include active negative-grounding conflicts, semantic
 
 ### 4.4 Main Result: Verified Review Issue Bundles
 
-Table 1 reports the P28.6 full20 offline recompute. DrMAS verifies 13 review issue rows, which collapse to 9 issue clusters. Manual audit judges 8 of the 9 clusters as valid or defensible reviewer concerns.
+Table 1 reports the main full20 diagnostic result. DrMAS verifies 13 review issue rows, which collapse to 9 issue clusters. Manual audit judges 8 of the 9 clusters as valid or defensible reviewer concerns.
 
 | Metric | Value |
 | --- | ---: |
@@ -267,7 +255,7 @@ Table 1. Main hardneg20 diagnostic result. Rows are raw verified records, while 
 
 ![Figure 3: Verification funnel from rows to clusters to manual A/B clusters](paper_figures/figure3_verification_funnel.svg)
 
-Figure 3. P28.6 reports review issue quality at the cluster level. Thirteen verifier-passing issue rows deduplicate to nine issue clusters; manual audit judges eight clusters valid or defensible. Raw row count is not used as the paper headline.
+Figure 3. Review issue quality is reported at the cluster level. Thirteen verifier-passing issue rows deduplicate to nine issue clusters; manual audit judges eight clusters valid or defensible. Raw row count is not used as the paper headline.
 
 The key interpretation is that the useful negative-review signal does not appear as copied paper-negative text. It appears as verified claim-inventory-obligation mismatch. This supports the ReviewState thesis: reviewer issues should be represented as auditable state objects rather than as unstructured negative snippets.
 
@@ -306,7 +294,7 @@ Table 3 reports recovery and safety signals. The main recovery action is `mark_c
 | unlinked negative evidence | 0 | 0 |
 | positive/neutral negative candidates | 0 | 0 |
 
-Table 3. Recovery and safety metrics. Verified issues can expose supported-but-contested claims without destructively downgrading claim status. The fresh partial16 rerun is included only as a consistency check because the MiMo account balance stopped the run before all 20 papers completed.
+Table 3. Recovery and safety metrics. Verified issues can expose supported-but-contested claims without destructively downgrading claim status. The fresh partial16 rerun is included only as a consistency check because external API access ended before all 20 papers completed.
 
 The recovery result should be phrased carefully. The full20 result is an offline recompute over a completed run, so its recovery counts should not be described as a fresh full20 live rerun. The fresh partial16 run gives a cleaner live-run sanity check, but it is incomplete.
 
@@ -336,7 +324,7 @@ Second, the issue distribution is narrow. The current verified clusters are most
 
 Third, the candidate source distribution shows that autonomous Critique discovery is immature: only 2 verified rows come from Critique payload candidates, while 11 come from deterministic reviewer seeds.
 
-Fourth, the fresh MiMo rerun is incomplete. It stopped at 16 of 20 papers because the MiMo API returned `402 Insufficient account balance`.
+Fourth, the fresh live rerun is incomplete. It stopped at 16 of 20 papers because external API access ended.
 
 Fifth, hardneg20 is a diagnostic set. It is useful for stress-testing ReviewState hygiene and reviewer issue verification, but it is not enough by itself to support broad benchmark claims.
 

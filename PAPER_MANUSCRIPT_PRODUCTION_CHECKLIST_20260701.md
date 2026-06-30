@@ -8,7 +8,9 @@ Status: production checklist for turning `PAPER_CONTINUOUS_DRAFT_20260701.md` in
 
 The continuous draft is aligned with the current P28.6 artifacts and now ends at the paper conclusion instead of carrying a draft-status section in the main text.
 
-Clean paper body draft exists at `PAPER_CLEAN_BODY_DRAFT_20260701.md`. It removes workflow metadata from the continuous draft and uses rendered SVG figure references with paper-facing captions. This is the preferred file for advisor/internal manuscript review.
+Clean paper body draft exists at `PAPER_CLEAN_BODY_DRAFT_20260701.md`. It removes workflow metadata from the continuous draft and uses rendered SVG figure references with paper-facing captions. It has also been polished to keep engineering run identifiers and API failure details out of the main experimental narrative. This is the preferred file for advisor/internal manuscript review.
+
+Advisor review packet exists at `PAPER_ADVISOR_REVIEW_PACKET_20260701.md`. It lists the small set of files to read first, the current thesis, the defensible empirical claim, mandatory caveats, and concrete questions for advisor review.
 
 The implementation/reproducibility appendix draft exists at `PAPER_REPRODUCIBILITY_APPENDIX_20260701.md`; it maps paper concepts to code anchors, scripts, artifacts, and metric checks.
 
@@ -31,9 +33,10 @@ The paper-facing result should remain conservative:
 1. Re-export final venue-style BibTeX records, using `PAPER_BIBLIOGRAPHY_CANDIDATES_20260701.md`, `PAPER_REFERENCES_DRAFT_20260701.bib`, and `PAPER_BIBLIOGRAPHY_AUDIT_20260701.md` as the starting point.
 2. Convert `PAPER_CLEAN_BODY_DRAFT_20260701.md` into the target venue template.
 3. Place the rendered SVG/PDF figures into the target paper template and check scaling, line wrapping, and cropping.
-4. Keep the offline-full20/partial16 empirical framing unless MiMo balance is restored and a fresh full20 rerun passes the same checks.
-5. Fold the reproducibility appendix into the target paper format after figures and bibliography are finalized.
-6. Re-audit all result claims after any fresh run changes the dashboard or case tables.
+4. Use `PAPER_ADVISOR_REVIEW_PACKET_20260701.md` for advisor/internal review before doing heavy venue-template work.
+5. Keep the offline-full20/partial16 empirical framing unless MiMo balance is restored and a fresh full20 rerun passes the same checks.
+6. Fold the reproducibility appendix into the target paper format after figures and bibliography are finalized.
+7. Re-audit all result claims after any fresh run changes the dashboard or case tables.
 
 ## Submission-Readiness Blockers
 

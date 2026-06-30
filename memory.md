@@ -1618,6 +1618,8 @@ Reproducibility appendix draft: `PAPER_REPRODUCIBILITY_APPENDIX_20260701.md`.
 
 Empirical framing decision: `PAPER_EMPIRICAL_FRAMING_DECISION_20260701.md`.
 
+Advisor review packet: `PAPER_ADVISOR_REVIEW_PACKET_20260701.md`.
+
 Core thesis:
 
 - Do not sell DrMAS as a better free-form review generator or accept/reject classifier.
@@ -1643,10 +1645,11 @@ Current writing status:
 
 - Introduction, method, experiment, related work, bibliography-candidate, cleaned draft-BibTeX, bibliography-audit, figure-spec, renderable-figure, manuscript-skeleton, continuous-manuscript, clean-body, readiness-audit, production-checklist, reproducibility-appendix, and empirical-framing decision drafts now exist.
 - The continuous manuscript was polished to reduce P28-specific wording outside experiments, replace development-log table language with paper-facing interpretation, and move the former draft-status/open-items section into `PAPER_MANUSCRIPT_PRODUCTION_CHECKLIST_20260701.md`.
-- The clean body draft removes workflow metadata from the continuous draft and replaces bracketed figure placeholders with rendered SVG figure references and paper-facing captions. It is now the preferred manuscript body for advisor/internal review.
+- The clean body draft removes workflow metadata from the continuous draft and replaces bracketed figure placeholders with rendered SVG figure references and paper-facing captions. It has been further polished to keep P28/run identifiers, dataset filenames, and API error-code details out of the main experiment narrative. It is now the preferred manuscript body for advisor/internal review.
+- The advisor review packet gives the next human-facing entry point: read clean body first, then readiness audit, claims/evidence matrix, reproducibility appendix, and bibliography files. It records the current thesis, defensible empirical claim, mandatory caveats, advisor questions, and non-negotiable overclaim guards.
 - The reproducibility appendix maps the paper concepts to implementation anchors, regeneration scripts, authoritative artifacts, expected metric tuples, and explicit non-claims. It is transparency/supporting material, not a new experiment or broader-performance claim.
 - The empirical framing decision is no longer open for the conservative draft: use P28.6 offline full20 as the main diagnostic result and fresh MiMo partial16 only as a live sanity check. Fresh full20 remains required for stronger benchmark-style claims, not for continuing the framework paper narrative.
 - Related work in the continuous draft now uses citation keys from cleaned `PAPER_REFERENCES_DRAFT_20260701.bib`; `PAPER_BIBLIOGRAPHY_CANDIDATES_20260701.md` maps those keys to API-verified candidate references; `PAPER_BIBLIOGRAPHY_AUDIT_20260701.md` records record-level metadata risks. Final BibTeX still needs target-venue export/verification.
 - Figure specs, Mermaid sources, manually redrawn SVG drafts, and PDF exports now cover ReviewState lifecycle, two critical-content lanes, row-to-cluster-to-manual-audit funnel, and optional non-destructive recovery. The SVG files parse with `xmllint`, render with `rsvg-convert`, and were visually checked via temporary PNG renders. They still need target-template placement/cropping checks.
-- Next paper-writing work should follow `PAPER_MANUSCRIPT_PRODUCTION_CHECKLIST_20260701.md`: convert `PAPER_CLEAN_BODY_DRAFT_20260701.md` into the target venue template, replace cleaned draft BibTeX with final venue records, place rendered figures in the target template, fold the reproducibility appendix into the target paper format, and maintain the conservative offline-full20/partial16 framing unless a fresh full20 rerun becomes available and passes the same checks.
+- Next paper-writing work should follow `PAPER_MANUSCRIPT_PRODUCTION_CHECKLIST_20260701.md`: use `PAPER_ADVISOR_REVIEW_PACKET_20260701.md` for advisor/internal review before heavy venue-template work, then convert `PAPER_CLEAN_BODY_DRAFT_20260701.md` into the target venue template, replace cleaned draft BibTeX with final venue records, place rendered figures in the target template, fold the reproducibility appendix into the target paper format, and maintain the conservative offline-full20/partial16 framing unless a fresh full20 rerun becomes available and passes the same checks.
 - MiMo full20 rerun remains blocked by `402 Insufficient account balance`; keep describing the freshest live rerun as partial16 until a full rerun completes.

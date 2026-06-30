@@ -35,7 +35,8 @@ The paper is not ready for a strong benchmark-performance claim. The current res
 | Narrative blueprint | `PAPER_NARRATIVE_BLUEPRINT_20260701.md` | Current guardrail |
 | Claims/evidence matrix | `PAPER_CLAIMS_EVIDENCE_MATRIX_20260701.md` | Current claim audit |
 | Continuous manuscript | `PAPER_CONTINUOUS_DRAFT_20260701.md` | Paper-facing draft; still not camera-ready |
-| Clean body draft | `PAPER_CLEAN_BODY_DRAFT_20260701.md` | Best current advisor/internal-review manuscript body |
+| Clean body draft | `PAPER_CLEAN_BODY_DRAFT_20260701.md` | Best current advisor/internal-review manuscript body; main experiment narrative no longer exposes engineering run IDs |
+| Advisor review packet | `PAPER_ADVISOR_REVIEW_PACKET_20260701.md` | File index, thesis, caveats, and review questions for advisor/internal review |
 | Manuscript skeleton | `PAPER_MANUSCRIPT_SKELETON_20260701.md` | Structural backup |
 | Production checklist | `PAPER_MANUSCRIPT_PRODUCTION_CHECKLIST_20260701.md` | Tracks remaining non-body work |
 | Reproducibility appendix | `PAPER_REPRODUCIBILITY_APPENDIX_20260701.md` | Maps concepts to code anchors and artifacts |
@@ -233,19 +234,29 @@ Mandatory caveat sentence:
 
 ## Next Work Priority
 
-### Priority 1: Continue Manuscript Production Polish
+### Priority 1: Advisor/Internal Review
+
+Goal: get feedback on the current conservative framework story before spending effort on target-template production.
+
+Tasks:
+
+- use `PAPER_ADVISOR_REVIEW_PACKET_20260701.md` as the entry point;
+- ask whether the ReviewState-maintenance framing is venue-appropriate;
+- ask whether the 0 direct-negative count should stay in the abstract or move to experiments/limitations;
+- decide whether a concrete issue-bundle case study figure is needed.
+
+### Priority 2: Continue Manuscript Production Polish
 
 Goal: move from the clean body draft to a submission-ready manuscript.
 
 Tasks:
 
 - convert `PAPER_CLEAN_BODY_DRAFT_20260701.md` into the target venue template;
-- continue reducing implementation-history wording outside experiments;
 - convert Markdown table captions into proper paper captions;
 - make limitations concise but visible;
 - fold the reproducibility appendix into the target paper format after deciding venue/template constraints.
 
-### Priority 2: Render Or Redraw Figures
+### Priority 3: Render Or Redraw Figures
 
 Goal: place the rendered figure assets into the target paper template and perform visual QA.
 
@@ -255,7 +266,7 @@ Tasks:
 - check scaling, cropping, and grayscale readability;
 - keep direct negative count 0 and row-to-cluster funnel visible.
 
-### Priority 3: Finalize Bibliography
+### Priority 4: Finalize Bibliography
 
 Goal: replace the cleaned draft records in `PAPER_REFERENCES_DRAFT_20260701.bib` with final target-venue exports.
 
@@ -265,7 +276,7 @@ Tasks:
 - verify author lists and venues;
 - decide whether to add more LLM peer-review references.
 
-### Priority 4: Decide Empirical Path
+### Priority 5: Decide Empirical Path
 
 Current framing:
 
