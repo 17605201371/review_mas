@@ -239,10 +239,10 @@ Mandatory caveat sentence:
 | --- | ---: | --- |
 | Thesis coherence | 8/10 | Strong and now consistent across docs |
 | Method clarity | 7.5/10 | Clear lifecycle; clean/continuous drafts now avoid implementation-log/P28/run-id wording |
-| Evidence honesty | 8/10 | Major limitations are visible |
+| Evidence honesty | 8/10 | Major limitations are visible; result consistency audit ties paper-facing numbers to P28.6 artifacts |
 | Empirical strength | 5/10 | Diagnostic hardneg20 only; framing decision is conservative |
 | Figure readiness | 7.5/10 | SVG/PDF drafts exist, render, and are referenced in both main drafts; target-template placement still pending |
-| Citation readiness | 7/10 | Cleaned BibTeX and audit exist; final venue export still pending |
+| Citation readiness | 7.5/10 | Cleaned BibTeX, peer-review-specific references, and audit exist; final venue export still pending |
 | Submission readiness | 6.7/10 | Clean body draft and abstract polish exist; target template integration still pending |
 
 ## Next Work Priority
@@ -303,7 +303,7 @@ If MiMo balance returns:
 
 - rerun fresh full20 P28.6;
 - regenerate dashboard/case/recovery tables;
-- re-audit all result claims.
+- re-audit all result claims with `PAPER_RESULT_CONSISTENCY_AUDIT_20260701.md`.
 
 If MiMo remains blocked:
 

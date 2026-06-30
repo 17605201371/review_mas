@@ -20,6 +20,8 @@ Venue-fit decision aid exists at `PAPER_VENUE_FIT_DECISION_20260701.md`. It reco
 
 Reviewer pre-mortem exists at `PAPER_REVIEWER_PREMORTEM_20260701.md`. It translates the current risk profile into likely reviewer objections, honest responses, forbidden responses, and concrete manuscript actions.
 
+Result consistency audit exists at `PAPER_RESULT_CONSISTENCY_AUDIT_20260701.md`. It checks that the clean/continuous manuscript, Table 1, Figure 3, manual-audit wording, and recovery table match the authoritative P28.6 artifacts. Use it after any edit that touches result numbers, result wording, or artifact identifiers.
+
 Issue-bundle case study exists at `PAPER_REVIEW_ISSUE_CASE_STUDY_20260701.md`. It expands the SpecDec++ acceptance-prediction-head cluster into claim anchor, observed inventory anchor, missing entity, target-quality gate, and non-destructive recovery behavior. The clean and continuous drafts now include a compact main-text audit table plus a pointer to the detailed appendix.
 
 Manual audit protocol exists at `PAPER_MANUAL_AUDIT_PROTOCOL_20260701.md`. It defines A/B/C/D cluster labels, reporting rules, and non-claims for the 8/9 manual quality statement. The clean body now gives the short A/B/C definition in the manual-cluster-audit section.
@@ -28,7 +30,7 @@ The implementation/reproducibility appendix draft exists at `PAPER_REPRODUCIBILI
 
 Figure SVG/PDF drafts exist in `paper_figures/`; they were manually redrawn from the Mermaid specs and validated with `rsvg-convert`. The clean and continuous drafts now reference the rendered SVGs directly. The figures still need target-template placement and final visual QA.
 
-Cleaned draft BibTeX exists at `PAPER_REFERENCES_DRAFT_20260701.bib`, with citation provenance and remaining metadata risks in `PAPER_BIBLIOGRAPHY_AUDIT_20260701.md`.
+Cleaned draft BibTeX exists at `PAPER_REFERENCES_DRAFT_20260701.bib`, with citation provenance and remaining metadata risks in `PAPER_BIBLIOGRAPHY_AUDIT_20260701.md`. The current draft has three peer-review-specific LLM references and internally consistent citation keys; final target-venue export is still pending.
 
 Empirical framing is recorded in `PAPER_EMPIRICAL_FRAMING_DECISION_20260701.md`: proceed with offline-full20 as the main diagnostic result and partial16 as the live sanity check for the conservative framework draft; require fresh full20 only for stronger benchmark-style claims.
 
@@ -54,7 +56,7 @@ The paper-facing result should remain conservative:
 10. Decide after advisor review whether the main-text issue-bundle table should stay, be shortened, or move back to appendix depending on venue space.
 11. Keep the offline-full20/partial16 empirical framing unless MiMo balance is restored and a fresh full20 rerun passes the same checks.
 12. Fold the reproducibility appendix into the target paper format after figures and bibliography are finalized.
-13. Re-audit all result claims after any fresh run changes the dashboard or case tables.
+13. Re-audit all result claims after any fresh run changes the dashboard or case tables, using `PAPER_RESULT_CONSISTENCY_AUDIT_20260701.md` as the starting checklist.
 
 ## Submission-Readiness Blockers
 
@@ -62,4 +64,5 @@ The paper-facing result should remain conservative:
 - Target venue family is not selected yet; this blocks template conversion and final bibliography export.
 - Figure SVG/PDF drafts exist, but final venue-template placement is not checked.
 - Bibliography keys are internally consistent and cleaned, but final target-venue records are not verified.
+- Result claims are internally consistent with P28.6 artifacts as of `PAPER_RESULT_CONSISTENCY_AUDIT_20260701.md`; this must be rechecked after any fresh run, table edit, or template conversion.
 - The empirical result is diagnostic and small; the paper must not claim broad review-quality improvement.
