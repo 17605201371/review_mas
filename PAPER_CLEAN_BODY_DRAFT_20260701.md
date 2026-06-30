@@ -92,6 +92,21 @@ Figure 1. DrMAS treats LLM-assisted reviewing as ReviewState maintenance. The sy
 
 At a high level, the pipeline starts from paper text, extracts paper claims, grounds and binds evidence to those claims, forms reviewer issue candidates, verifies review issue bundles, applies final-view validation, performs non-destructive recovery when needed, and renders the final report from the audited view. The central design decision is to keep direct quote-grounded negative evidence separate from obligation-grounded review issues. A direct quote-grounded negative must be a copied paper quote that itself supports a reviewer-negative relation. An obligation-grounded review issue may instead be verified from a claim anchor, observed paper inventory, a concrete missing or mismatched entity, and the absence of resolving counterevidence.
 
+Operationally, DrMAS is a sequence of typed state transitions rather than a single generation call:
+
+```text
+Input: paper text P
+1. Extract paper claims C and evidence obligations.
+2. Ground support evidence and neutral paper inventory E against P.
+3. Form reviewer issue candidates F without treating candidates as evidence.
+4. Verify direct quote-grounded negatives and obligation-grounded issue bundles in separate lanes.
+5. Build the final-view validation audit H and remove stale, generic, or unsafe critical records.
+6. If a supported claim is contested by a verified issue, add a non-destructive contested relation K.
+7. Render the final review from the audited state view, not from raw model prose.
+```
+
+This algorithmic view is important for the paper's claim. DrMAS does not rely on the model being correct in one pass. Each transition has an explicit evidence requirement, and a failed transition leaves a candidate as diagnosis-pending or rejected rather than allowing it to become a verified flaw.
+
 ### 3.2 ReviewState
 
 We define a ReviewState as a structured state object:
