@@ -6,6 +6,8 @@ This file turns the current P28.6 state into a paper-facing narrative. It is int
 
 Companion guardrail: `PAPER_CLAIMS_EVIDENCE_MATRIX_20260701.md` maps each paper-level claim to current artifacts, allowed wording, table-ready metrics, and forbidden overclaims.
 
+Experiment prose draft: `PAPER_EXPERIMENT_SECTION_DRAFT_20260701.md`.
+
 ## 1. Thesis
 
 The paper should not claim that DrMAS is a better free-form review generator or a better accept/reject classifier.
