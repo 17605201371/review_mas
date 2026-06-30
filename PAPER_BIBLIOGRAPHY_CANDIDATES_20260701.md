@@ -12,6 +12,8 @@ Verification sources used in this pass:
 
 Do not treat this as a final `.bib` file. Before submission, export venue-style BibTeX from DBLP, ACL Anthology, arXiv, Crossref, or publisher pages and re-check author lists.
 
+Draft BibTeX file: `PAPER_REFERENCES_DRAFT_20260701.bib`.
+
 ## Placeholder Mapping
 
 | Placeholder in draft | Candidate references | Current status |
@@ -122,22 +124,22 @@ Recommended placeholder replacements:
 
 ```text
 [CITATION: LLM peer-review evaluation]
-  -> Liang et al. (2023)
+  -> \citep{liang2023llmfeedback}
 
 [CITATION: RAG and grounded scientific assistance]
-  -> Lewis et al. (2020); Gao et al. (2023); Wadden et al. (2020)
+  -> \citep{lewis2020rag,gao2023alce,wadden2020scifact}
 
 [CITATION: factuality and attribution verification]
-  -> Rashkin et al. (2021); Thorne et al. (2018); Wadden et al. (2020)
+  -> \citep{rashkin2021attribution,thorne2018fever,wadden2020scifact}
 
 [CITATION: multi-agent LLM systems]
-  -> Wu et al. (2023); Li et al. (2023)
+  -> \citep{wu2023autogen,li2023camel}
 
 [CITATION: LLM self-correction]
-  -> Madaan et al. (2023); Shinn et al. (2023)
+  -> \citep{madaan2023selfrefine,shinn2023reflexion}
 
 [CITATION: argument mining and evidence graphs]
-  -> Lawrence and Reed (2020); Thorne et al. (2018); Wadden et al. (2020)
+  -> \citep{lawrence2020argumentmining,thorne2018fever,wadden2020scifact}
 ```
 
 Keep final prose conservative: these references situate DrMAS but do not prove the P28.6 result. The P28.6 result is supported by local artifacts, not by related work.

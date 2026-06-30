@@ -6,7 +6,7 @@ Status: continuous manuscript draft. This file turns the current section drafts 
 
 Figure draft sources are tracked in `PAPER_FIGURES_DRAFT_20260701.md` and `paper_figures/*.mmd`.
 
-Citation candidates are tracked in `PAPER_BIBLIOGRAPHY_CANDIDATES_20260701.md`; inline citation placeholders should not be replaced until final BibTeX is verified.
+Citation candidates are tracked in `PAPER_BIBLIOGRAPHY_CANDIDATES_20260701.md`; draft citation keys are provided in `PAPER_REFERENCES_DRAFT_20260701.bib`. These keys are usable for manuscript drafting but still need final venue-style BibTeX verification.
 
 ## Abstract
 
@@ -44,7 +44,7 @@ The broader lesson is that reliable LLM-assisted reviewing is not only a prompti
 
 ### 2.1 LLM-Assisted Peer Review
 
-Recent work studies whether large language models can provide useful feedback on research papers, summarize manuscripts, identify weaknesses, or assist reviewers during peer review [CITATION: LLM peer-review evaluation]. These systems often evaluate generated review text directly: whether it is helpful, whether it overlaps with human reviews, or whether authors and reviewers perceive it as useful.
+Recent work studies whether large language models can provide useful feedback on research papers, summarize manuscripts, identify weaknesses, or assist reviewers during peer review \citep{liang2023llmfeedback}. These systems often evaluate generated review text directly: whether it is helpful, whether it overlaps with human reviews, or whether authors and reviewers perceive it as useful.
 
 DrMAS addresses a complementary problem. Instead of treating review generation as the main object, it treats the intermediate review state as the object that must be maintained, audited, and repaired. This distinction matters because a fluent review can mix grounded strengths, unsupported criticisms, author-stated limitations, retrieval failures, and speculative concerns in the same prose. DrMAS therefore represents claims, evidence, reviewer issues, conflicts, and recovery actions as structured state before rendering the final review.
 
@@ -52,7 +52,7 @@ The current results should not be framed as showing that DrMAS is a better gener
 
 ### 2.2 Retrieval-Augmented And Grounded Scientific Assistance
 
-Retrieval-augmented generation and grounded scientific QA systems aim to reduce hallucination by conditioning generation on source documents and requiring evidence citations [CITATION: RAG and grounded scientific assistance]. In paper-review settings, this usually means retrieving relevant excerpts and asking the model to justify its comments with quotations or citations.
+Retrieval-augmented generation and grounded scientific QA systems aim to reduce hallucination by conditioning generation on source documents and requiring evidence citations \citep{lewis2020rag,gao2023alce,wadden2020scifact}. In paper-review settings, this usually means retrieving relevant excerpts and asking the model to justify its comments with quotations or citations.
 
 DrMAS uses grounding, but the central contribution is not retrieval alone. The system distinguishes paper quotes that directly support a claim from neutral inventory anchors that support an absence-style review issue. For example, an experiment table can be positive or neutral paper content while still serving as the observed inventory anchor for a missing-ablation concern. This lets DrMAS verify reviewer issues that are not directly expressed as negative paper sentences.
 
@@ -60,7 +60,7 @@ This is a key difference from a pure quote-grounding view. If a system requires 
 
 ### 2.3 Factuality, Attribution, And Evidence Verification
 
-A large body of work studies factuality, attribution, and evidence verification for generated text [CITATION: factuality and attribution verification]. These methods ask whether generated statements are supported by source material, whether citations are faithful, or whether an answer contradicts evidence.
+A large body of work studies factuality, attribution, and evidence verification for generated text \citep{rashkin2021attribution,thorne2018fever,wadden2020scifact}. These methods ask whether generated statements are supported by source material, whether citations are faithful, or whether an answer contradicts evidence.
 
 DrMAS inherits the same concern but applies it to the lifecycle of a review. The unit of verification is not only a generated sentence. It can be a state object: a claim binding, an evidence record, a review issue bundle, a contested relation, or a recovery patch. This state-level view makes it possible to ask more specific questions: whether evidence is grounded in the paper, whether it supports a real claim rather than a fallback artifact, whether a negative label is semantically appropriate, whether a reviewer issue is a direct negative or an obligation-grounded absence issue, and whether the final report is using stale or unlinked evidence.
 
@@ -68,7 +68,7 @@ The P28.6 hygiene metrics are examples of this state-level verification. Active 
 
 ### 2.4 Multi-Agent Reviewing And Self-Correction
 
-Agentic LLM systems often divide a task among roles, such as planner, retriever, verifier, critic, and editor [CITATION: multi-agent LLM systems]. Self-correction systems ask models to critique and revise their own outputs, sometimes with tool use or external feedback [CITATION: LLM self-correction].
+Agentic LLM systems often divide a task among roles, such as planner, retriever, verifier, critic, and editor \citep{wu2023autogen,li2023camel}. Self-correction systems ask models to critique and revise their own outputs, sometimes with tool use or external feedback \citep{madaan2023selfrefine,shinn2023reflexion}.
 
 DrMAS uses multiple roles, but the paper should not frame the contribution as "more agents." The contribution is the persistent ReviewState that agents read and update. Without explicit state semantics, a critic can produce plausible objections that are not grounded, and a repair step can overwrite useful support while trying to fix a flaw. DrMAS constrains repair through typed operations such as contested relations, preserving supported claims while exposing verified issues.
 
@@ -76,7 +76,7 @@ This also explains why recovery is reported as state repair, not decision correc
 
 ### 2.5 Review-State And Argument-State Representations
 
-Structured argumentation and evidence graphs represent claims, supports, attacks, and relations among evidence [CITATION: argument mining and evidence graphs]. These lines of work are relevant because peer review is not just text generation; it is an argument about a paper's claims, evidence, limitations, and unresolved risks.
+Structured argumentation and evidence graphs represent claims, supports, attacks, and relations among evidence \citep{lawrence2020argumentmining,thorne2018fever,wadden2020scifact}. These lines of work are relevant because peer review is not just text generation; it is an argument about a paper's claims, evidence, limitations, and unresolved risks.
 
 DrMAS can be positioned as a review-specific state representation. A ReviewState includes paper claims, evidence records, issue bundles, conflict relations, recovery logs, and final-view hygiene diagnostics. The review issue bundle is especially important: it represents a reviewer concern as a typed relation among a claim anchor, observed inventory, a missing or mismatched entity, and counterevidence checks.
 
@@ -358,7 +358,7 @@ The main contribution is therefore a stateful verification and recovery framewor
 
 This continuous draft is aligned with current P28.6 artifacts, but it is not camera-ready. The remaining manuscript work is:
 
-1. Replace citation placeholders with final BibTeX entries, using `PAPER_BIBLIOGRAPHY_CANDIDATES_20260701.md` as the starting point.
+1. Replace draft BibTeX entries with final venue-style BibTeX, using `PAPER_BIBLIOGRAPHY_CANDIDATES_20260701.md` and `PAPER_REFERENCES_DRAFT_20260701.bib` as the starting point.
 2. Render or redraw the Mermaid figure sources into polished figures.
 3. Decide whether to keep hardneg20 as the main experiment or wait for a fresh full20 MiMo rerun.
 4. Add an appendix or reproducibility note mapping paper concepts to implementation anchors.

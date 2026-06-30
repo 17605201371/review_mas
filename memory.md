@@ -1596,6 +1596,8 @@ Related-work draft: `PAPER_RELATED_WORK_DRAFT_20260701.md`.
 
 Bibliography candidates: `PAPER_BIBLIOGRAPHY_CANDIDATES_20260701.md`.
 
+Draft BibTeX: `PAPER_REFERENCES_DRAFT_20260701.bib`.
+
 Figure specs: `PAPER_FIGURE_SPECS_20260701.md`.
 
 Renderable figure draft: `PAPER_FIGURES_DRAFT_20260701.md` plus `paper_figures/*.mmd`.
@@ -1627,8 +1629,8 @@ Paper claims not allowed yet:
 
 Current writing status:
 
-- Introduction, method, experiment, related work, bibliography-candidate, figure-spec, renderable-figure, manuscript-skeleton, and continuous-manuscript drafts now exist.
-- Related work currently uses citation placeholders; `PAPER_BIBLIOGRAPHY_CANDIDATES_20260701.md` maps them to API-verified candidate references, but final BibTeX still needs venue-style verification.
+- Introduction, method, experiment, related work, bibliography-candidate, draft-BibTeX, figure-spec, renderable-figure, manuscript-skeleton, and continuous-manuscript drafts now exist.
+- Related work in the continuous draft now uses draft citation keys from `PAPER_REFERENCES_DRAFT_20260701.bib`; `PAPER_BIBLIOGRAPHY_CANDIDATES_20260701.md` maps those keys to API-verified candidate references, but final BibTeX still needs venue-style verification.
 - Figure specs and Mermaid sources cover ReviewState lifecycle, two critical-content lanes, row-to-cluster-to-manual-audit funnel, and optional non-destructive recovery.
-- Next paper-writing work should focus on polishing the continuous draft, turning bibliography candidates into final BibTeX, and rendering/redrawing polished figures.
+- Next paper-writing work should focus on polishing the continuous draft, replacing draft BibTeX with final venue records, and rendering/redrawing polished figures.
 - MiMo full20 rerun remains blocked by `402 Insufficient account balance`; keep describing the freshest live rerun as partial16 until a full rerun completes.
