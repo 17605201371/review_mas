@@ -96,7 +96,9 @@ The current empirical evidence supports this positioning conservatively. DrMAS d
 
 DrMAS treats LLM-assisted reviewing as a state maintenance problem. Instead of asking a model to directly produce a final review, the system incrementally builds a structured ReviewState, audits that state, and renders the final review from an audited view.
 
-[FIGURE 1: ReviewState lifecycle. Assets: `paper_figures/figure1_reviewstate_lifecycle.svg/pdf`; source: `paper_figures/figure1_reviewstate_lifecycle.mmd`. Place near here.]
+![Figure 1: ReviewState lifecycle](paper_figures/figure1_reviewstate_lifecycle.svg)
+
+Figure 1. DrMAS treats LLM-assisted reviewing as ReviewState maintenance. The system extracts claims, grounds evidence, forms and verifies review issue bundles, audits the final view, and applies non-destructive recovery before rendering a final review. The central object is the ReviewState, not raw generated prose.
 
 At a high level, the pipeline starts from paper text, extracts paper claims, grounds and binds evidence to those claims, forms reviewer issue candidates, verifies review issue bundles, applies final-view validation, performs non-destructive recovery when needed, and renders the final report from the audited view. The central design decision is to keep direct quote-grounded negative evidence separate from obligation-grounded review issues. A direct quote-grounded negative must be a copied paper quote that itself supports a reviewer-negative relation. An obligation-grounded review issue may instead be verified from a claim anchor, observed paper inventory, a concrete missing or mismatched entity, and the absence of resolving counterevidence.
 
@@ -122,7 +124,9 @@ The system distinguishes support evidence from negative or missing evidence. Acc
 
 DrMAS uses two separate lanes for review-critical information.
 
-[FIGURE 2: Direct quote-grounded negative lane vs obligation-grounded issue lane. Assets: `paper_figures/figure2_critical_content_lanes.svg/pdf`; source: `paper_figures/figure2_critical_content_lanes.mmd`. Place near here.]
+![Figure 2: Direct quote-grounded negative lane vs obligation-grounded issue lane](paper_figures/figure2_critical_content_lanes.svg)
+
+Figure 2. DrMAS separates direct quote-grounded reviewer negatives from obligation-grounded review issues. The first lane requires a copied paper quote that itself supports a reviewer-negative relation. The second lane verifies issues from a claim-inventory-obligation mismatch, allowing concerns such as missing ablations or missing baselines to be represented without fabricating negative quotes.
 
 The direct lane is intentionally strict. A record can count as a quote-grounded reviewer negative only if it passes all of the following checks:
 
@@ -178,7 +182,9 @@ This step prevents false negative-evidence artifacts from leaking into the final
 
 Recovery is not a mechanism for forcing accept/reject decisions. It is a mechanism for repairing ReviewState inconsistencies. The preferred recovery action is `mark_contested`: a supported claim can remain supported while being marked contested by a verified review issue.
 
-[OPTIONAL FIGURE 4: Non-destructive recovery. Assets: `paper_figures/figure4_non_destructive_recovery.svg/pdf`; source: `paper_figures/figure4_non_destructive_recovery.mmd`. Place near here if space permits.]
+![Figure 4: Non-destructive recovery](paper_figures/figure4_non_destructive_recovery.svg)
+
+Figure 4. Recovery in DrMAS is non-destructive. Verified review issues can create a supported-but-contested relation rather than downgrading a claim that has real positive support.
 
 This preserves a supported claim while exposing that a verified issue contests its sufficiency or scope. Unsafe downgrade attempts are tracked separately and should not be described as the main recovery path. The paper should describe recovery as:
 
@@ -257,13 +263,21 @@ Table 1 reports the main full20 diagnostic result. DrMAS verifies 13 review issu
 
 Table 1. Main hardneg20 diagnostic result. Rows are raw verified records, while clusters deduplicate repeated issue targets within a paper. The direct quote-grounded negative lane remains strict and produces no verified direct negatives in this run.
 
-[FIGURE 3: Verification funnel from rows to clusters to manual A/B clusters. Assets: `paper_figures/figure3_verification_funnel.svg/pdf`; source: `paper_figures/figure3_verification_funnel.mmd`. Place near here.]
+![Figure 3: Verification funnel from rows to clusters to manual A/B clusters](paper_figures/figure3_verification_funnel.svg)
+
+Figure 3. Review issue quality is reported at the cluster level. Thirteen verifier-passing issue rows deduplicate to nine issue clusters; manual audit judges eight clusters valid or defensible. Raw row count is not used as the paper headline.
 
 The key interpretation is that the useful negative-review signal does not appear as copied paper-negative text. It appears as verified claim-inventory-obligation mismatch. This supports the ReviewState thesis: reviewer issues should be represented as auditable state objects rather than as unstructured negative snippets.
 
-### 4.5 Manual Cluster Audit
+### 4.5 Illustrative Issue Bundle
 
-Table 2 summarizes the manual cluster audit. Three clusters are strong A-class issues; five are defensible B-class issues; one is a C-class concern that should not be counted in a paper-ready precision headline.
+One verified cluster illustrates the distinction. In the SpecDec++ case, the paper claims an adaptive candidate-length mechanism and states that it uses "a trained acceptance prediction head to predict the conditional acceptance probability of the candidate tokens." DrMAS treats this statement as neutral inventory evidence: it shows that a named mechanism exists, but it is not itself a negative quote. The verified issue is the missing relation between the claim, the named mechanism, and the expected component-isolation ablation for the acceptance prediction head.
+
+This case is counted as one issue cluster, not as multiple independent defects, even though it appears in three related rows attached to overlapping claims. The target-quality gate classifies the acceptance prediction head as a high-confidence missing-ablation target because it is a named mechanism rather than a generic component. Recovery then applies `mark_contested` to the supported claim: the claim remains supported, but the audited state records that its evidence is contested by a verified review issue. This example is expanded in the case-study appendix.
+
+### 4.6 Manual Cluster Audit
+
+Table 2 summarizes the manual cluster audit. The audit unit is a deduplicated issue cluster, not a raw row. We use A for clear review-worthy issues, B for defensible reviewer concerns that should be worded cautiously, and C for plausible but over-demanding or template-like concerns that should not enter the conservative paper-ready count. Three clusters are strong A-class issues; five are defensible B-class issues; one is a C-class concern.
 
 | Cluster target | Issue type | Manual label | Paper use |
 | --- | --- | --- | --- |
@@ -277,11 +291,11 @@ Table 2 summarizes the manual cluster audit. Three clusters are strong A-class i
 | EqualAL baseline | missing_baseline | B | defensible example |
 | number of motion components beyond K=4 | missing_ablation | C | exclude from conservative quality count |
 
-Table 2. Manual audit of verified issue clusters. We report 8 of 9 A/B clusters as the conservative quality count and exclude the C-class cluster from the paper-ready precision headline.
+Table 2. Manual audit of verified issue clusters. We report 8 of 9 A/B clusters as the conservative quality count and exclude the C-class cluster from the paper-ready headline. This is a small sanity-check audit, not a population-level precision estimate.
 
 The issue distribution is intentionally reported as a limitation: 6 of the 9 clusters are missing-ablation issues, 2 are missing-baseline issues, and 1 is a reproducibility issue. This is enough to demonstrate the issue-bundle verification mechanism, but not enough to claim broad reviewer issue diversity.
 
-### 4.6 Recovery And Safety
+### 4.7 Recovery And Safety
 
 Table 3 reports recovery and safety signals. The main recovery action is `mark_contested`: a supported claim can remain supported while being marked contested by a verified review issue. This is non-destructive state repair, not a decision override.
 
@@ -296,11 +310,11 @@ Table 3 reports recovery and safety signals. The main recovery action is `mark_c
 | unlinked negative evidence | 0 | 0 |
 | positive/neutral negative candidates | 0 | 0 |
 
-Table 3. Recovery and safety metrics. Verified issues can expose supported-but-contested claims without destructively downgrading claim status. The fresh partial16 rerun is included only as a consistency check because the MiMo account balance stopped the run before all 20 papers completed.
+Table 3. Recovery and safety metrics. Verified issues can expose supported-but-contested claims without destructively downgrading claim status. The fresh partial16 rerun is included only as a consistency check because external API access ended before all 20 papers completed.
 
 The recovery result should be phrased carefully. The full20 result is an offline recompute over a completed run, so its recovery counts should not be described as a fresh full20 live rerun. The fresh partial16 run gives a cleaner live-run sanity check, but it is incomplete.
 
-### 4.7 Interpretation Of The Diagnostic Result
+### 4.8 Interpretation Of The Diagnostic Result
 
 The diagnostic result should not be read as a simple count-maximization exercise. Earlier development runs produced more issue rows by allowing generic or malformed missing-ablation targets, but those rows were not paper-ready. The current reported result is intentionally smaller because it applies target-quality checks, counterevidence checks, clustering, and final-view conflict cleanup before a concern can be counted as a verified review issue.
 

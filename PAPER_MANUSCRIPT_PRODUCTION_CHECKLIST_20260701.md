@@ -6,7 +6,7 @@ Status: production checklist for turning `PAPER_CONTINUOUS_DRAFT_20260701.md` in
 
 ## Current Manuscript State
 
-The continuous draft is aligned with the current P28.6 artifacts and now ends at the paper conclusion instead of carrying a draft-status section in the main text.
+The continuous draft is aligned with the current artifacts and now ends at the paper conclusion instead of carrying a draft-status section in the main text. It now uses the same rendered figure references, illustrative issue-bundle subsection, manual-audit wording, and paper-facing terminology as the clean body draft; its remaining difference is that it still carries draft metadata at the top.
 
 Clean paper body draft exists at `PAPER_CLEAN_BODY_DRAFT_20260701.md`. It removes workflow metadata from the continuous draft and uses rendered SVG figure references with paper-facing captions. It has also been polished to keep engineering run identifiers and API failure details out of the main experimental narrative. This is the preferred file for advisor/internal manuscript review.
 
@@ -24,7 +24,7 @@ Manual audit protocol exists at `PAPER_MANUAL_AUDIT_PROTOCOL_20260701.md`. It de
 
 The implementation/reproducibility appendix draft exists at `PAPER_REPRODUCIBILITY_APPENDIX_20260701.md`; it maps paper concepts to code anchors, scripts, artifacts, and metric checks.
 
-Figure SVG/PDF drafts exist in `paper_figures/`; they were manually redrawn from the Mermaid specs and validated with `rsvg-convert`. They still need target-template placement and final visual QA.
+Figure SVG/PDF drafts exist in `paper_figures/`; they were manually redrawn from the Mermaid specs and validated with `rsvg-convert`. The clean and continuous drafts now reference the rendered SVGs directly. The figures still need target-template placement and final visual QA.
 
 Cleaned draft BibTeX exists at `PAPER_REFERENCES_DRAFT_20260701.bib`, with citation provenance and remaining metadata risks in `PAPER_BIBLIOGRAPHY_AUDIT_20260701.md`.
 

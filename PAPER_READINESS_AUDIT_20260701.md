@@ -34,7 +34,7 @@ The paper is not ready for a strong benchmark-performance claim. The current res
 | --- | --- | --- |
 | Narrative blueprint | `PAPER_NARRATIVE_BLUEPRINT_20260701.md` | Current guardrail |
 | Claims/evidence matrix | `PAPER_CLAIMS_EVIDENCE_MATRIX_20260701.md` | Current claim audit |
-| Continuous manuscript | `PAPER_CONTINUOUS_DRAFT_20260701.md` | Paper-facing draft; still not camera-ready |
+| Continuous manuscript | `PAPER_CONTINUOUS_DRAFT_20260701.md` | Paper-facing draft with metadata; synchronized with clean body on figures, case study, manual-audit wording, and terminology |
 | Clean body draft | `PAPER_CLEAN_BODY_DRAFT_20260701.md` | Best current advisor/internal-review manuscript body; main experiment narrative no longer exposes engineering run IDs |
 | Abstract revision audit | `PAPER_ABSTRACT_REVISION_AUDIT_20260701.md` | Records why the abstract now headlines clusters rather than raw rows |
 | Terminology guide | `PAPER_TERMINOLOGY_GUIDE_20260701.md` | Keeps main text on paper-facing terms such as final-view validation and recovery action |
@@ -235,7 +235,7 @@ Mandatory caveat sentence:
 | Method clarity | 7.5/10 | Clear lifecycle; clean/continuous drafts now avoid main-text hygiene/P28/run-id wording |
 | Evidence honesty | 8/10 | Major limitations are visible |
 | Empirical strength | 5/10 | Diagnostic hardneg20 only; framing decision is conservative |
-| Figure readiness | 7/10 | SVG/PDF drafts exist and render; target-template placement still pending |
+| Figure readiness | 7.5/10 | SVG/PDF drafts exist, render, and are referenced in both main drafts; target-template placement still pending |
 | Citation readiness | 7/10 | Cleaned BibTeX and audit exist; final venue export still pending |
 | Submission readiness | 6.7/10 | Clean body draft and abstract polish exist; target template integration still pending |
 
