@@ -26,6 +26,8 @@ Manuscript skeleton: `PAPER_MANUSCRIPT_SKELETON_20260701.md`.
 
 Continuous manuscript draft: `PAPER_CONTINUOUS_DRAFT_20260701.md`.
 
+Submission readiness audit: `PAPER_READINESS_AUDIT_20260701.md`.
+
 ## 1. Thesis
 
 The paper should not claim that DrMAS is a better free-form review generator or a better accept/reject classifier.
@@ -270,13 +272,14 @@ Current limitations:
 
 ### High Value But Not Mandatory For First Draft
 
-1. Polish `PAPER_CONTINUOUS_DRAFT_20260701.md` into a venue-ready manuscript draft.
-2. Render or redraw the Mermaid figure sources into polished paper figures.
-3. Replace draft BibTeX entries with final venue-style records, using `PAPER_BIBLIOGRAPHY_CANDIDATES_20260701.md` and `PAPER_REFERENCES_DRAFT_20260701.bib` as the starting point.
-4. Improve Critique payload candidate recall so fewer verified issues come from deterministic seeds.
-5. Increase issue type diversity beyond missing ablation.
-6. Add a small oracle/reference-review analysis as an upper-bound evaluation, not as system input.
-7. Run a repeated-seed stability check if budget permits.
+1. Follow `PAPER_READINESS_AUDIT_20260701.md`: polish the continuous draft, render figures, finalize bibliography, and choose the empirical path.
+2. Polish `PAPER_CONTINUOUS_DRAFT_20260701.md` into a venue-ready manuscript draft.
+3. Render or redraw the Mermaid figure sources into polished paper figures.
+4. Replace draft BibTeX entries with final venue-style records, using `PAPER_BIBLIOGRAPHY_CANDIDATES_20260701.md` and `PAPER_REFERENCES_DRAFT_20260701.bib` as the starting point.
+5. Improve Critique payload candidate recall so fewer verified issues come from deterministic seeds.
+6. Increase issue type diversity beyond missing ablation.
+7. Add a small oracle/reference-review analysis as an upper-bound evaluation, not as system input.
+8. Run a repeated-seed stability check if budget permits.
 
 ## 9. Current One-Paragraph Abstract Draft
 

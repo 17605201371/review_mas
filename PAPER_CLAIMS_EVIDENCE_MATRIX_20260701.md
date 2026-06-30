@@ -19,6 +19,7 @@ Primary current artifacts:
 - `PAPER_FIGURES_DRAFT_20260701.md`
 - `PAPER_MANUSCRIPT_SKELETON_20260701.md`
 - `PAPER_CONTINUOUS_DRAFT_20260701.md`
+- `PAPER_READINESS_AUDIT_20260701.md`
 - `P28_6_PAPER_NARRATIVE_STATUS_20260630.md`
 - `P28_6_CONFLICTFIX_TARGETREFINE2_194911_HARDNEG20_DASHBOARD.md/json`
 - `P28_6_CONFLICTFIX_TARGETREFINE2_194911_REVIEW_ISSUE_CASE_TABLE.md/json`
@@ -193,7 +194,7 @@ Prefer:
 
 ## Next Writing Task
 
-The introduction, method, experiment, related work, bibliography-candidate, draft-BibTeX, figure-spec, renderable-figure, manuscript-skeleton, and continuous-manuscript drafts now exist:
+The introduction, method, experiment, related work, bibliography-candidate, draft-BibTeX, figure-spec, renderable-figure, manuscript-skeleton, continuous-manuscript, and readiness-audit drafts now exist:
 
 - `PAPER_INTRODUCTION_DRAFT_20260701.md`
 - `PAPER_METHOD_SECTION_DRAFT_20260701.md`
@@ -205,11 +206,13 @@ The introduction, method, experiment, related work, bibliography-candidate, draf
 - `PAPER_FIGURES_DRAFT_20260701.md`
 - `PAPER_MANUSCRIPT_SKELETON_20260701.md`
 - `PAPER_CONTINUOUS_DRAFT_20260701.md`
+- `PAPER_READINESS_AUDIT_20260701.md`
 
 Next writing should focus on turning placeholders/specs into final manuscript assets:
 
-1. polish the continuous manuscript draft into venue-ready prose;
-2. replace draft BibTeX entries with final venue-style records;
-3. render or redraw the Mermaid figure sources into polished figures.
+1. follow the readiness audit priorities;
+2. polish the continuous manuscript draft into venue-ready prose;
+3. replace draft BibTeX entries with final venue-style records;
+4. render or redraw the Mermaid figure sources into polished figures.
 
 If MiMo balance is restored, the next experiment remains a fresh full20 P28.6 rerun with the acceptance criteria listed above.

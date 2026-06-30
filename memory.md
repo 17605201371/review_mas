@@ -1606,6 +1606,8 @@ Manuscript skeleton: `PAPER_MANUSCRIPT_SKELETON_20260701.md`.
 
 Continuous manuscript draft: `PAPER_CONTINUOUS_DRAFT_20260701.md`.
 
+Submission readiness audit: `PAPER_READINESS_AUDIT_20260701.md`.
+
 Core thesis:
 
 - Do not sell DrMAS as a better free-form review generator or accept/reject classifier.
@@ -1629,8 +1631,8 @@ Paper claims not allowed yet:
 
 Current writing status:
 
-- Introduction, method, experiment, related work, bibliography-candidate, draft-BibTeX, figure-spec, renderable-figure, manuscript-skeleton, and continuous-manuscript drafts now exist.
+- Introduction, method, experiment, related work, bibliography-candidate, draft-BibTeX, figure-spec, renderable-figure, manuscript-skeleton, continuous-manuscript, and readiness-audit drafts now exist.
 - Related work in the continuous draft now uses draft citation keys from `PAPER_REFERENCES_DRAFT_20260701.bib`; `PAPER_BIBLIOGRAPHY_CANDIDATES_20260701.md` maps those keys to API-verified candidate references, but final BibTeX still needs venue-style verification.
 - Figure specs and Mermaid sources cover ReviewState lifecycle, two critical-content lanes, row-to-cluster-to-manual-audit funnel, and optional non-destructive recovery.
-- Next paper-writing work should focus on polishing the continuous draft, replacing draft BibTeX with final venue records, and rendering/redrawing polished figures.
+- Next paper-writing work should follow `PAPER_READINESS_AUDIT_20260701.md`: polish the continuous draft, replace draft BibTeX with final venue records, render/redraw polished figures, and decide whether to wait for fresh full20 or keep the conservative offline-full20/partial16 framing.
 - MiMo full20 rerun remains blocked by `402 Insufficient account balance`; keep describing the freshest live rerun as partial16 until a full rerun completes.
