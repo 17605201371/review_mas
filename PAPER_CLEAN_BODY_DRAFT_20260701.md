@@ -259,7 +259,13 @@ Figure 3. Review issue quality is reported at the cluster level. Thirteen verifi
 
 The key interpretation is that the useful negative-review signal does not appear as copied paper-negative text. It appears as verified claim-inventory-obligation mismatch. This supports the ReviewState thesis: reviewer issues should be represented as auditable state objects rather than as unstructured negative snippets.
 
-### 4.5 Manual Cluster Audit
+### 4.5 Illustrative Issue Bundle
+
+One verified cluster illustrates the distinction. In the SpecDec++ case, the paper claims an adaptive candidate-length mechanism and states that it uses "a trained acceptance prediction head to predict the conditional acceptance probability of the candidate tokens." DrMAS treats this statement as neutral inventory evidence: it shows that a named mechanism exists, but it is not itself a negative quote. The verified issue is the missing relation between the claim, the named mechanism, and the expected component-isolation ablation for the acceptance prediction head.
+
+This case is counted as one issue cluster, not as multiple independent defects, even though it appears in three related rows attached to overlapping claims. The target-quality gate classifies the acceptance prediction head as a high-confidence missing-ablation target because it is a named mechanism rather than a generic component. Recovery then applies `mark_contested` to the supported claim: the claim remains supported, but the audited state records that its evidence is contested by a verified review issue. This example is expanded in the case-study appendix.
+
+### 4.6 Manual Cluster Audit
 
 Table 2 summarizes the manual cluster audit. Three clusters are strong A-class issues; five are defensible B-class issues; one is a C-class concern that should not be counted in a paper-ready precision headline.
 
@@ -279,7 +285,7 @@ Table 2. Manual audit of verified issue clusters. We report 8 of 9 A/B clusters 
 
 The issue distribution is intentionally reported as a limitation: 6 of the 9 clusters are missing-ablation issues, 2 are missing-baseline issues, and 1 is a reproducibility issue. This is enough to demonstrate the issue-bundle verification mechanism, but not enough to claim broad reviewer issue diversity.
 
-### 4.6 Recovery And Safety
+### 4.7 Recovery And Safety
 
 Table 3 reports recovery and safety signals. The main recovery action is `mark_contested`: a supported claim can remain supported while being marked contested by a verified review issue. This is non-destructive state repair, not a decision override.
 
@@ -298,7 +304,7 @@ Table 3. Recovery and safety metrics. Verified issues can expose supported-but-c
 
 The recovery result should be phrased carefully. The full20 result is an offline recompute over a completed run, so its recovery counts should not be described as a fresh full20 live rerun. The fresh partial16 run gives a cleaner live-run sanity check, but it is incomplete.
 
-### 4.7 Interpretation Of The Diagnostic Result
+### 4.8 Interpretation Of The Diagnostic Result
 
 The diagnostic result should not be read as a simple count-maximization exercise. Earlier development runs produced more issue rows by allowing generic or malformed missing-ablation targets, but those rows were not paper-ready. The current reported result is intentionally smaller because it applies target-quality checks, counterevidence checks, clustering, and final-view conflict cleanup before a concern can be counted as a verified review issue.
 

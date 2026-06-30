@@ -22,7 +22,11 @@ Status: internal review index for the current DrMAS paper package. This is not p
    - Maps paper concepts to code anchors, scripts, run artifacts, and metric checks.
    - Use this for traceability, not as main-text narrative.
 
-5. `PAPER_REFERENCES_DRAFT_20260701.bib` and `PAPER_BIBLIOGRAPHY_AUDIT_20260701.md`
+5. `PAPER_REVIEW_ISSUE_CASE_STUDY_20260701.md`
+   - Explains one verified obligation-grounded issue bundle step by step.
+   - Best file for checking whether the claim-anchor, inventory-anchor, missing-entity, and recovery story is understandable.
+
+6. `PAPER_REFERENCES_DRAFT_20260701.bib` and `PAPER_BIBLIOGRAPHY_AUDIT_20260701.md`
    - Draft bibliography and remaining metadata risks.
 
 ## Current Thesis
@@ -64,7 +68,7 @@ They parse and render, but still need target-template placement and visual QA.
 2. Should the paper foreground obligation-grounded issue bundles as the main conceptual contribution, or frame them as one mechanism inside a broader ReviewState lifecycle?
 3. Is the conservative result sentence acceptable, or does the venue require a fresh full20 rerun before submission?
 4. Should the direct quote-grounded negative lane with count 0 be in the abstract, or reserved for experiments/limitations?
-5. Are the current figures sufficient, or should one figure be replaced by a concrete issue-bundle case study?
+5. Does the illustrative issue-bundle case study make the core mechanism clearer, or should it become a figure/table in the main paper?
 6. Does the related-work framing need more peer-review-specific references before submission?
 
 ## Known Non-Negotiables

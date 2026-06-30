@@ -37,6 +37,7 @@ The paper is not ready for a strong benchmark-performance claim. The current res
 | Continuous manuscript | `PAPER_CONTINUOUS_DRAFT_20260701.md` | Paper-facing draft; still not camera-ready |
 | Clean body draft | `PAPER_CLEAN_BODY_DRAFT_20260701.md` | Best current advisor/internal-review manuscript body; main experiment narrative no longer exposes engineering run IDs |
 | Advisor review packet | `PAPER_ADVISOR_REVIEW_PACKET_20260701.md` | File index, thesis, caveats, and review questions for advisor/internal review |
+| Issue-bundle case study | `PAPER_REVIEW_ISSUE_CASE_STUDY_20260701.md` | Concrete SpecDec++ example showing claim anchor, inventory anchor, missing ablation, and non-destructive recovery |
 | Manuscript skeleton | `PAPER_MANUSCRIPT_SKELETON_20260701.md` | Structural backup |
 | Production checklist | `PAPER_MANUSCRIPT_PRODUCTION_CHECKLIST_20260701.md` | Tracks remaining non-body work |
 | Reproducibility appendix | `PAPER_REPRODUCIBILITY_APPENDIX_20260701.md` | Maps concepts to code anchors and artifacts |
@@ -243,7 +244,7 @@ Tasks:
 - use `PAPER_ADVISOR_REVIEW_PACKET_20260701.md` as the entry point;
 - ask whether the ReviewState-maintenance framing is venue-appropriate;
 - ask whether the 0 direct-negative count should stay in the abstract or move to experiments/limitations;
-- decide whether a concrete issue-bundle case study figure is needed.
+- decide whether the concrete issue-bundle case study should remain text/appendix material or become a main-paper figure/table.
 
 ### Priority 2: Continue Manuscript Production Polish
 
