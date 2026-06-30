@@ -28,6 +28,8 @@ Manuscript skeleton: `PAPER_MANUSCRIPT_SKELETON_20260701.md`.
 
 Continuous manuscript draft: `PAPER_CONTINUOUS_DRAFT_20260701.md`.
 
+Clean paper body draft: `PAPER_CLEAN_BODY_DRAFT_20260701.md`.
+
 Submission readiness audit: `PAPER_READINESS_AUDIT_20260701.md`.
 
 Production checklist: `PAPER_MANUSCRIPT_PRODUCTION_CHECKLIST_20260701.md`.
@@ -282,7 +284,7 @@ Current decision: proceed with the P28.6 offline full20 recompute as the main di
 
 ### High Value But Not Mandatory For Conservative Framework Draft
 
-1. Follow `PAPER_MANUSCRIPT_PRODUCTION_CHECKLIST_20260701.md`: finalize bibliography, place rendered figures in the target template, integrate the reproducibility appendix, and preserve the empirical framing decision.
+1. Follow `PAPER_MANUSCRIPT_PRODUCTION_CHECKLIST_20260701.md`: convert the clean body draft into the target template, finalize bibliography, place rendered figures, integrate the reproducibility appendix, and preserve the empirical framing decision.
 2. Place the rendered SVG/PDF figure drafts into the target paper template and verify visual fit.
 3. Replace cleaned draft BibTeX entries with final venue-style records, using `PAPER_BIBLIOGRAPHY_CANDIDATES_20260701.md`, `PAPER_REFERENCES_DRAFT_20260701.bib`, and `PAPER_BIBLIOGRAPHY_AUDIT_20260701.md` as the starting point.
 4. Fold `PAPER_REPRODUCIBILITY_APPENDIX_20260701.md` into the target paper format.

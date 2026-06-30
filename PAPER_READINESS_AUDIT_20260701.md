@@ -35,6 +35,7 @@ The paper is not ready for a strong benchmark-performance claim. The current res
 | Narrative blueprint | `PAPER_NARRATIVE_BLUEPRINT_20260701.md` | Current guardrail |
 | Claims/evidence matrix | `PAPER_CLAIMS_EVIDENCE_MATRIX_20260701.md` | Current claim audit |
 | Continuous manuscript | `PAPER_CONTINUOUS_DRAFT_20260701.md` | Paper-facing draft; still not camera-ready |
+| Clean body draft | `PAPER_CLEAN_BODY_DRAFT_20260701.md` | Best current advisor/internal-review manuscript body |
 | Manuscript skeleton | `PAPER_MANUSCRIPT_SKELETON_20260701.md` | Structural backup |
 | Production checklist | `PAPER_MANUSCRIPT_PRODUCTION_CHECKLIST_20260701.md` | Tracks remaining non-body work |
 | Reproducibility appendix | `PAPER_REPRODUCIBILITY_APPENDIX_20260701.md` | Maps concepts to code anchors and artifacts |
@@ -228,16 +229,17 @@ Mandatory caveat sentence:
 | Empirical strength | 5/10 | Diagnostic hardneg20 only; framing decision is conservative |
 | Figure readiness | 7/10 | SVG/PDF drafts exist and render; target-template placement still pending |
 | Citation readiness | 7/10 | Cleaned BibTeX and audit exist; final venue export still pending |
-| Submission readiness | 6/10 | Good draft package, not camera-ready |
+| Submission readiness | 6.5/10 | Clean body draft exists; target template integration still pending |
 
 ## Next Work Priority
 
 ### Priority 1: Continue Manuscript Production Polish
 
-Goal: move from a paper-facing draft to a submission-ready manuscript.
+Goal: move from the clean body draft to a submission-ready manuscript.
 
 Tasks:
 
+- convert `PAPER_CLEAN_BODY_DRAFT_20260701.md` into the target venue template;
 - continue reducing implementation-history wording outside experiments;
 - convert Markdown table captions into proper paper captions;
 - make limitations concise but visible;
