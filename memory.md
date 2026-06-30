@@ -1628,6 +1628,8 @@ Venue fit decision: `PAPER_VENUE_FIT_DECISION_20260701.md`.
 
 Reviewer pre-mortem: `PAPER_REVIEWER_PREMORTEM_20260701.md`.
 
+Result consistency audit: `PAPER_RESULT_CONSISTENCY_AUDIT_20260701.md`.
+
 Issue-bundle case study: `PAPER_REVIEW_ISSUE_CASE_STUDY_20260701.md`.
 
 Manual audit protocol: `PAPER_MANUAL_AUDIT_PROTOCOL_20260701.md`.
@@ -1666,6 +1668,7 @@ Current writing status:
 - The advisor review packet gives the next human-facing entry point: read clean body first, then readiness audit, claims/evidence matrix, reproducibility appendix, and bibliography files. It records the current thesis, defensible empirical claim, mandatory caveats, advisor questions, and non-negotiable overclaim guards.
 - The venue-fit decision aid recommends a systems/method or human-AI review-support framing, treats peer-review automation workshops as a high-fit near-term path, and warns against benchmark-heavy ML/NLP positioning unless fresh full20, repeated seeds, broader issue diversity, or a second diagnostic/oracle analysis is added.
 - The reviewer pre-mortem operationalizes the risk story: likely objections are empirical scale, direct-negative zero, deterministic reviewer seeds, missing-ablation skew, small manual audit, engineering-artifact framing, and case-study trust. It lists honest responses, forbidden responses, and exact manuscript actions.
+- The result consistency audit checks that clean/continuous manuscript metrics match P28.6 dashboards and case-table artifacts. It confirms the paper-facing tuple: 13 rows, 9 clusters, 8/9 A/B manual clusters, direct quote-grounded negatives 0, full20 mark-contested 14, verified-review-issue repairs 6, partial16 clusters 8, and protection lines 0/PASS.
 - The issue-bundle case study explains the SpecDec++ acceptance-prediction-head cluster as a concrete ReviewState example: claim anchor + neutral inventory anchor + missing component-isolation ablation + high target quality + non-destructive `mark_contested` recovery. The clean and continuous drafts now include a compact main-text audit table for this case and leave the detailed audit in `PAPER_REVIEW_ISSUE_CASE_STUDY_20260701.md`.
 - The manual audit protocol defines A/B/C/D cluster labels, states that the audit unit is deduplicated issue cluster rather than raw row, and forbids treating 8/9 as population precision or independent defects. The clean body now includes the short A/B/C definition before the manual cluster audit table.
 - The reproducibility appendix maps the paper concepts to implementation anchors, regeneration scripts, authoritative artifacts, expected metric tuples, and explicit non-claims. It is transparency/supporting material, not a new experiment or broader-performance claim.

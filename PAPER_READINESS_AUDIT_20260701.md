@@ -43,6 +43,7 @@ Venue fit is therefore part of readiness, not a cosmetic packaging step. The cur
 | Advisor review packet | `PAPER_ADVISOR_REVIEW_PACKET_20260701.md` | File index, thesis, caveats, and review questions for advisor/internal review |
 | Venue-fit decision aid | `PAPER_VENUE_FIT_DECISION_20260701.md` | Recommends systems/method or human-AI review-support framing; warns against benchmark-heavy positioning without fresh full20 and broader coverage |
 | Reviewer pre-mortem | `PAPER_REVIEWER_PREMORTEM_20260701.md` | Operational risk audit with likely objections, honest responses, and concrete manuscript actions |
+| Result consistency audit | `PAPER_RESULT_CONSISTENCY_AUDIT_20260701.md` | Checks that manuscript result numbers match the authoritative P28.6 dashboard/case-table artifacts |
 | Issue-bundle case study | `PAPER_REVIEW_ISSUE_CASE_STUDY_20260701.md` | Concrete SpecDec++ example showing claim anchor, inventory anchor, missing ablation, and non-destructive recovery |
 | Manual audit protocol | `PAPER_MANUAL_AUDIT_PROTOCOL_20260701.md` | Defines A/B/C/D cluster labels and conservative reporting rules for manual audit |
 | Manuscript skeleton | `PAPER_MANUSCRIPT_SKELETON_20260701.md` | Structural backup |

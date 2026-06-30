@@ -38,7 +38,7 @@ This improves citation readiness, but the bibliography is still not camera-ready
 
 ## Current Citation Coverage
 
-The continuous manuscript currently uses 13 bibliography keys across 14 citation occurrences. The coverage is adequate for a conservative draft:
+The continuous manuscript currently uses 13 unique bibliography keys across 16 citation-key uses. The coverage is adequate for a conservative draft:
 
 - LLM-assisted peer review: `liang2023llmfeedback`, `zhuang2025automatedreview`, `sun2025peerreview`
 - retrieval-augmented and citation-grounded generation: `lewis2020rag`, `gao2023alce`, `wadden2020scifact`
