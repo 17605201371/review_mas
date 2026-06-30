@@ -1592,6 +1592,10 @@ Method-section draft: `PAPER_METHOD_SECTION_DRAFT_20260701.md`.
 
 Experiment-section draft: `PAPER_EXPERIMENT_SECTION_DRAFT_20260701.md`.
 
+Related-work draft: `PAPER_RELATED_WORK_DRAFT_20260701.md`.
+
+Figure specs: `PAPER_FIGURE_SPECS_20260701.md`.
+
 Core thesis:
 
 - Do not sell DrMAS as a better free-form review generator or accept/reject classifier.
@@ -1615,6 +1619,8 @@ Paper claims not allowed yet:
 
 Current writing status:
 
-- Introduction, method, and experiment section drafts now exist.
-- Next paper-writing work should focus on related work and figure specs: ReviewState lifecycle, two negative lanes, and row-to-cluster-to-manual-audit funnel.
+- Introduction, method, experiment, related work, and figure-spec drafts now exist.
+- Related work currently uses citation targets/placeholders; verify exact bibliography before final manuscript use.
+- Figure specs cover ReviewState lifecycle, two critical-content lanes, row-to-cluster-to-manual-audit funnel, and optional non-destructive recovery.
+- Next paper-writing work should focus on converting specs/placeholders into manuscript assets: verified bibliography, polished figures, and a coherent full-paper skeleton.
 - MiMo full20 rerun remains blocked by `402 Insufficient account balance`; keep describing the freshest live rerun as partial16 until a full rerun completes.
