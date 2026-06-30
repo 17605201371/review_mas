@@ -1873,7 +1873,7 @@ def _coverage_item_is_specific_for_type(text: str, neg_type: str) -> bool:
 
 _MISSING_ABLATION_TARGET_GENERIC_COMPONENT_RE = re.compile(
     r"^(?:the\s+|a\s+|an\s+)?(?:abstract\s+)?(?:encoder|decoder|network|neural\s+network|"
-    r"convolutional\s+network|(?:transformer[- ]based|graph[- ]based)\s+network|"
+    r"deep\s+neural\s+network|convolutional\s+network|(?:transformer[- ]based|graph[- ]based)\s+network|"
     r"transformer|model|module|component|framework|architecture|"
     r"representation|textual\s+representation|feature\s+representation|training|pre[- ]?training|"
     r"pre[- ]?trained|output|input)$",
@@ -1882,8 +1882,9 @@ _MISSING_ABLATION_TARGET_GENERIC_COMPONENT_RE = re.compile(
 
 _MISSING_ABLATION_TARGET_WEAK_ACTION_RE = re.compile(
     r"^(?:is\s+|are\s+|was\s+|were\s+)?(?:trained|training|pre[- ]?trained|"
-    r"predicts?|predicting|outputs?|generates?|uses?|using|applies?|applying|"
-    r"learns?|learning|operates?|implemented|evaluated|compares?|stud(?:y|ies|ying|ied)|"
+    r"predicts?|predicting|outputs?|generates?|using|uses?|applying|applies?|"
+    r"learns?|learning|optimizes?|optimizing|updates?|updated|operates?|implemented|evaluated|"
+    r"compares?|stud(?:y|ies|ying|ied)|devises?|devised|expects?|expecting|"
     r"fed|feeds?|feeding)\b",
     re.IGNORECASE,
 )
@@ -1934,6 +1935,10 @@ def _missing_ablation_target_is_malformed_fragment(target: str) -> bool:
     lowered = str(target or "").strip().lower()
     if not lowered:
         return False
+    if re.search(r"\bwe\s+(?:expect|show|use|propose|train|optimi[sz]e)\b", lowered):
+        return True
+    if re.search(r"\b(?:function|method|model|framework)\s+(?:generates?|predicts?|outputs?|uses?)\b", lowered):
+        return True
     if re.search(r"\b(?:and|or)\s+(?:network|model|module|component|architecture)\b", lowered) and re.search(
         r"[$\\{}]|(?:^|\s)[a-z]\$",
         lowered,
@@ -2010,6 +2015,8 @@ def _missing_ablation_target_quality(bundle: Dict[str, Any]) -> Dict[str, str]:
         ]
     raw = raw_items[0] if raw_items else ""
     target = _missing_ablation_target_text(raw)
+    target = re.sub(r"^of\s+(?:an?\s+|the\s+)?", "", target, flags=re.IGNORECASE).strip()
+    target = re.sub(r"^training\s+of\s+(?:an?\s+|the\s+)?", "", target, flags=re.IGNORECASE).strip()
     target = re.sub(r"^(?:train|training)\s+(?:an?\s+|the\s+)?", "", target, flags=re.IGNORECASE).strip()
     target = re.sub(r"^(?:with|using)\s+(?:an?\s+|the\s+)?", "", target, flags=re.IGNORECASE).strip()
     target = re.sub(r"\s+", " ", target).strip(" ,.;:")
@@ -2025,17 +2032,33 @@ def _missing_ablation_target_quality(bundle: Dict[str, Any]) -> Dict[str, str]:
 
     if not target:
         return {"quality": "reject", "reason": "missing_ablation_target_empty"}
+    if _MISSING_ABLATION_TARGET_WEAK_ACTION_RE.search(target.lower()):
+        return {"quality": "reject", "reason": "missing_ablation_target_weak_action"}
     if _missing_ablation_target_is_malformed_fragment(target):
         return {"quality": "reject", "reason": "missing_ablation_target_malformed_fragment"}
-    if re.fullmatch(r"(?:encoder|decoder|network|neural\s+network|convolutional\s+network|transformer|model|module|component)", lowered):
+    if re.fullmatch(
+        r"(?:encoder|decoder|network|neural\s+network|deep\s+neural\s+network|"
+        r"convolutional\s+network|transformer|model|module|component|fusion|alignment|gradient)",
+        lowered,
+    ):
         return {"quality": "reject", "reason": "missing_ablation_target_generic_component"}
+    if re.fullmatch(r"(?:federated\s+)?gradient", lowered) and not re.search(
+        r"\b(?:orthogonal|ogl|matching|learning)\b",
+        lowered,
+    ):
+        return {"quality": "reject", "reason": "missing_ablation_target_not_contribution_bound"}
     if re.match(r"^(?:section|table|figure|fig\.?|appendix|algorithm)\b", lowered) or (
         len(lowered.split()) >= 4
         and re.search(r"\b(?:describes?|states?|reports?|shows?|presents?|introduces?|contains?|uses?|used)\b", lowered)
     ):
         return {"quality": "reject", "reason": "missing_ablation_target_prose_fragment"}
-    if _MISSING_ABLATION_TARGET_WEAK_ACTION_RE.search(lowered):
+    if len(lowered.split()) >= 3 and re.search(
+        r"\b(?:generates?|predicts?|outputs?|updates?|updated|expects?|devises?|devised)\b",
+        lowered,
+    ):
         return {"quality": "reject", "reason": "missing_ablation_target_weak_action"}
+    if re.fullmatch(r"(?:t?he\s+)?following\s+empirical\s+loss|empirical\s+loss", lowered):
+        return {"quality": "reject", "reason": "missing_ablation_target_prose_fragment"}
     if _MISSING_ABLATION_TARGET_GENERIC_COMPONENT_RE.fullmatch(lowered) or _MISSING_ABLATION_TARGET_GENERIC_COMPONENT_RE.fullmatch(target_core):
         if not (
             _MISSING_ABLATION_TARGET_STRONG_SIGNAL_RE.search(target_context)
@@ -10102,6 +10125,88 @@ def _ablation_counterevidence_window_resolves_item(window: str, missing_item: st
     return _ablation_counterevidence_window_resolves_target(window, target_tokens)
 
 
+def _ablation_counterevidence_window_resolves_semantic_table(window: str, missing_items: Sequence[str]) -> bool:
+    """Catch table-level ablation counterevidence whose rows use different words.
+
+    The generic resolver is intentionally token-tight.  These patterns cover
+    recurring table structures where the paper has already ablated the claimed
+    mechanism, but the table caption/body describes the experiment at the
+    strategy or architecture level rather than repeating the exact target text.
+    """
+
+    text = re.sub(r"\s+", " ", str(window or "")).lower()
+    missing = _missing_joined_text(missing_items)
+    if not text or not missing:
+        return False
+    has_ablation = bool(_ABLATION_COUNTEREVIDENCE_RE.search(text) or _REVIEW_ISSUE_ABLATION_RESOLUTION_RE.search(text))
+    if not has_ablation:
+        return False
+
+    if (
+        re.search(r"\boccupancy\s+prediction\b", missing)
+        and re.search(r"\bpre[- ]?training\b", missing)
+        and re.search(r"\bpre[- ]?training\s+strateg(?:y|ies|ies)\b", text)
+        and re.search(r"\boccupancy\s+prediction\s+task\b|\boccupancy\s+prediction\b.{0,120}\beffectiveness\b", text)
+        and re.search(r"\btab(?:le)?\.?\s*\d+|\bresults?\s+(?:presented\s+)?in\s+tab", text)
+    ):
+        return True
+
+    if (
+        re.search(r"\btwo[- ]?branch\b|\blocal\s+.*global\b|\bglobal\s+.*local\b", missing)
+        and re.search(r"\bencoder\b", missing)
+        and re.search(r"\bablation\s+stud(?:y|ies)\s+of\s+model\s+architecture\b|\bmodel\s+architecture\b.{0,80}\bablation\b", text)
+        and re.search(
+            r"\bglobal\s+encoder\s*\$?\+\$?\s*local\s+encoder\b|"
+            r"\blocal\s+encoder\s*\$?\+\$?\s*global\s+encoder\b",
+            text,
+        )
+        and re.search(
+            r"\btransformer\s*\$?\+\$?\s*tcn\b|"
+            r"\bglobal\s+encoder\s*\$?\+\$?\s*tcn\b|"
+            r"\bmulti[- ]scale\s+local\s+encoder\b",
+            text,
+        )
+    ):
+        return True
+
+    if (
+        re.search(r"\bmulti[- ]scale\b|\bconvolutional\s+branch\b|\blocal\s+encoder\b", missing)
+        and re.search(r"\bbranch\b|\bencoder\b", missing)
+        and re.search(r"\bablation\s+stud(?:y|ies)\s+of\s+model\s+architecture\b|\bmodel\s+architecture\b.{0,80}\bablation\b", text)
+        and re.search(
+            r"\bglobal\s+encoder\s*\$?\+\$?\s*local\s+encoder\b|"
+            r"\blocal\s+encoder\s*\$?\+\$?\s*global\s+encoder\b",
+            text,
+        )
+        and re.search(r"\\abbr\b|\blogora\b|\bmulti[- ]scale\s+local\s+encoder\b", text)
+    ):
+        return True
+
+    if (
+        re.search(r"\bpatch(?:ing)?\s+transformer\s+branch\b|\btransformer[- ]based\s+encoder\s+branch\b", missing)
+        and re.search(r"\bablation\s+stud(?:y|ies)\s+of\s+model\s+architecture\b|\bmodel\s+architecture\b.{0,80}\bablation\b", text)
+        and re.search(r"\btransformer\b", text)
+        and re.search(
+            r"\btransformer\s*\$?\+\$?\s*tcn\b|"
+            r"\bglobal\s+encoder\s*\$?\+\$?\s*local\s+encoder\b|"
+            r"\\abbr\b|\blogora\b",
+            text,
+        )
+    ):
+        return True
+
+    if (
+        re.search(r"\bfusion\b|\bfusion\s+module\b|\bfeature\s+fusion\b|\bcross[- ]attention\b", missing)
+        and re.search(r"\bfusion\s+methods?\b|\bfeature\s+fusion\s+methods?\b|\bfusion\s+module\b", text)
+        and re.search(r"\baddition\b", text)
+        and re.search(r"\bconcatenation\b", text)
+        and re.search(r"\bcross[- ]attention\b", text)
+    ):
+        return True
+
+    return False
+
+
 def _ablation_missing_item_target_tokens(missing_item: str) -> set[str]:
     """Concrete component tokens for an alleged missing ablation target."""
     generic = {
@@ -10148,6 +10253,8 @@ def _ablation_missing_items_resolved_by_text(text: str, missing_items: Sequence[
     A broad method-name hit such as "CDiffuser-N" should not resolve a more
     specific "remove the contrastive component" missing-ablation issue.
     """
+    if _ablation_counterevidence_window_resolves_semantic_table(text, missing_items):
+        return True
     meaningful_items: List[str] = []
     for item in missing_items or []:
         tokens = _ablation_missing_item_target_tokens(str(item or ""))
@@ -15813,6 +15920,16 @@ def _negative_grounding_conflict_is_semantic_rejection(conflict: Dict[str, Any])
     if not isinstance(conflict, dict):
         return False
     reason = str(conflict.get("reason") or "")
+    if (
+        reason == "negative_evidence_id_not_negative_stance"
+        and str(conflict.get("source") or "").strip() == "quote-bank-negative-grounding"
+    ):
+        return True
+    if (
+        reason == "negative_evidence_id_not_verified"
+        and str(conflict.get("source") or "").strip() == ABSENCE_AUDIT_SOURCE
+    ):
+        return True
     if reason == "negative_evidence_id_not_review_negative":
         return True
     if reason != "negative_evidence_id_not_verified":
@@ -16513,6 +16630,24 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
         bundle = record.get("review_issue_bundle")
         return str(bundle.get("source_of_expectation") or "") if isinstance(bundle, dict) else ""
 
+    def _review_issue_record_candidate_kind(record: Dict[str, Any]) -> str:
+        bundle = record.get("review_issue_bundle") if isinstance(record.get("review_issue_bundle"), dict) else {}
+        candidate_id = str(
+            record.get("reviewer_negative_candidate_id")
+            or bundle.get("reviewer_negative_candidate_id")
+            or ""
+        ).strip()
+        if candidate_id.startswith("reviewer-seed"):
+            return "deterministic_reviewer_seed"
+        if candidate_id.startswith("review-issue-candidate"):
+            return "critique_payload_candidate"
+        if candidate_id:
+            return "other_reviewer_candidate"
+        source = _review_issue_record_expectation_source(record)
+        if source == "claim_obligation":
+            return "claim_obligation_fallback"
+        return source or "unknown"
+
     reviewer_candidate_review_issue_signatures = {
         signature
         for signature, record in review_issue_records_by_signature.items()
@@ -16524,6 +16659,11 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
     )
     claim_obligation_review_issue_type_counts: Counter[str] = Counter(
         signature[1] for signature in claim_obligation_review_issue_signatures if signature[1]
+    )
+    reviewer_candidate_kind_counts: Counter[str] = Counter(
+        _review_issue_record_candidate_kind(record)
+        for signature, record in review_issue_records_by_signature.items()
+        if signature in reviewer_candidate_review_issue_signatures
     )
     reviewer_candidate_review_issue_claim_ids = {
         signature[0] for signature in reviewer_candidate_review_issue_signatures if signature[0]
@@ -16701,6 +16841,15 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
         "reviewer_candidate_review_issue_count": len(reviewer_candidate_review_issue_signatures),
         "reviewer_candidate_review_issue_claim_count": len(reviewer_candidate_review_issue_claim_ids),
         "reviewer_candidate_review_issue_type_counts": dict(reviewer_candidate_review_issue_type_counts),
+        "reviewer_candidate_review_issue_critique_payload_count": int(
+            reviewer_candidate_kind_counts.get("critique_payload_candidate", 0)
+        ),
+        "reviewer_candidate_review_issue_deterministic_seed_count": int(
+            reviewer_candidate_kind_counts.get("deterministic_reviewer_seed", 0)
+        ),
+        "reviewer_candidate_review_issue_other_candidate_count": int(
+            reviewer_candidate_kind_counts.get("other_reviewer_candidate", 0)
+        ),
         "claim_obligation_review_issue_count": len(claim_obligation_review_issue_signatures),
         "claim_obligation_review_issue_claim_count": len(claim_obligation_review_issue_claim_ids),
         "claim_obligation_review_issue_type_counts": dict(claim_obligation_review_issue_type_counts),
@@ -16716,7 +16865,8 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
         "verified_review_issue_cluster_count": quote_grounded_review_negative_count + obligation_grounded_review_issue_cluster_count,
         "duplicate_review_issue_row_count": max(
             0,
-            obligation_grounded_review_issue_count - obligation_grounded_review_issue_cluster_count,
+            (quote_grounded_review_negative_count + obligation_grounded_review_issue_count)
+            - (quote_grounded_review_negative_count + obligation_grounded_review_issue_cluster_count),
         ),
         "review_issue_cluster_type_counts": dict(review_issue_cluster_type_counts),
         "reviewer_candidate_review_issue_cluster_type_counts": dict(reviewer_candidate_review_issue_cluster_type_counts),
@@ -22307,6 +22457,7 @@ def _flaw_negative_grounding_conflicts(flaw: Dict[str, Any], state: Dict[str, An
                 "review_negative_label": review_label,
                 "review_negative_reason": str(record.get("review_negative_reason") or ""),
                 "negative_evidence_type": _negative_evidence_type_for_record(record),
+                "source": str(record.get("source") or ""),
             })
     return conflicts
 

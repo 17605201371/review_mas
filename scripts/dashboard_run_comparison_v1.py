@@ -242,6 +242,31 @@ def _turn_has_harmful_commit_risk(tl: Dict[str, Any]) -> bool:
     return bool(_recovery_turn_delta(tl).get("negative_recovery_commit"))
 
 
+def _turn_has_committed_harmful_recovery(tl: Dict[str, Any]) -> bool:
+    if not _turn_has_harmful_commit_risk(tl):
+        return False
+    return bool(
+        tl.get("recovery_patch_committed")
+        or tl.get("recovery_committed")
+        or tl.get("recovery_commit_applied")
+        or tl.get("recovery_layer_state_mutation_applied")
+    )
+
+
+def _turn_has_blocked_unsafe_downgrade_attempt(tl: Dict[str, Any]) -> bool:
+    if _turn_has_committed_harmful_recovery(tl):
+        return False
+    operation = str(tl.get("recovery_patch_operation") or "")
+    if operation not in {"reject_patch", "downgrade_claim_to_unsupported", "downgrade_final_to_candidate"}:
+        return False
+    failure_code = str(tl.get("recovery_failure_code") or tl.get("recovery_patch_failure_code") or "")
+    if failure_code and failure_code != "BLOCKED_BY_POLICY":
+        return False
+    old_status = str(tl.get("old_status") or "")
+    new_status = str(tl.get("new_status") or "")
+    return bool(old_status and new_status and old_status != new_status)
+
+
 def _row_evidence_lookup(row: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     state = _decision_view(row)
     return {
@@ -747,6 +772,15 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     out["obligation_grounded_review_issue_claim_count"] = _sum(rows, "obligation_grounded_review_issue_claim_count")
     out["reviewer_candidate_review_issue_count"] = _sum(rows, "reviewer_candidate_review_issue_count")
     out["reviewer_candidate_review_issue_claim_count"] = _sum(rows, "reviewer_candidate_review_issue_claim_count")
+    out["reviewer_candidate_review_issue_critique_payload_count"] = _sum(
+        rows, "reviewer_candidate_review_issue_critique_payload_count"
+    )
+    out["reviewer_candidate_review_issue_deterministic_seed_count"] = _sum(
+        rows, "reviewer_candidate_review_issue_deterministic_seed_count"
+    )
+    out["reviewer_candidate_review_issue_other_candidate_count"] = _sum(
+        rows, "reviewer_candidate_review_issue_other_candidate_count"
+    )
     out["claim_obligation_review_issue_count"] = _sum(rows, "claim_obligation_review_issue_count")
     out["claim_obligation_review_issue_claim_count"] = _sum(rows, "claim_obligation_review_issue_claim_count")
     out["verified_review_issue_count"] = _sum(rows, "verified_review_issue_count")
@@ -1140,6 +1174,10 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
                 rec["recovery_no_effect_commit"] += 1
             if _turn_has_harmful_commit_risk(tl):
                 rec["recovery_harmful_commit_risk"] += 1
+            if _turn_has_committed_harmful_recovery(tl):
+                rec["recovery_harmful_commit_committed"] += 1
+            if _turn_has_blocked_unsafe_downgrade_attempt(tl):
+                rec["recovery_unsafe_downgrade_attempt_blocked"] += 1
             if tl.get("recovery_committed"):
                 rec["recovery_committed"] += 1
             if tl.get("recovery_terminal"):
@@ -1226,6 +1264,8 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     out["recovery_effective_repair"] = rec["recovery_effective_repair"]
     out["recovery_no_effect_commit"] = rec["recovery_no_effect_commit"]
     out["recovery_harmful_commit_risk"] = rec["recovery_harmful_commit_risk"]
+    out["recovery_harmful_commit_committed"] = rec["recovery_harmful_commit_committed"]
+    out["recovery_unsafe_downgrade_attempt_blocked"] = rec["recovery_unsafe_downgrade_attempt_blocked"]
     out["recovery_safe_blocked_weak_target"] = rec["recovery_safe_blocked_weak_target"]
     out["recovery_safe_blocked_terminal_target"] = rec["recovery_safe_blocked_terminal_target"]
     out["recovery_terminal_turns"] = rec["recovery_terminal_turns"]
@@ -1696,6 +1736,9 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "obligation_grounded_review_issue_claim_count",
         "reviewer_candidate_review_issue_count",
         "reviewer_candidate_review_issue_claim_count",
+        "reviewer_candidate_review_issue_critique_payload_count",
+        "reviewer_candidate_review_issue_deterministic_seed_count",
+        "reviewer_candidate_review_issue_other_candidate_count",
         "claim_obligation_review_issue_count",
         "claim_obligation_review_issue_claim_count",
         "verified_review_issue_count",
@@ -1901,6 +1944,8 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "recovery_effective_repair",
         "recovery_no_effect_commit",
         "recovery_harmful_commit_risk",
+        "recovery_harmful_commit_committed",
+        "recovery_unsafe_downgrade_attempt_blocked",
         "recovery_safe_resolution",
         "recovery_safe_resolution_or_clean_state",
         "hygiene_delta_or_safe_block",

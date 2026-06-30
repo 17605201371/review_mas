@@ -115,6 +115,20 @@ def _case_cluster_fields(paper_id: str, bucket: str, evidence: Dict[str, Any], s
     }
 
 
+def _reviewer_candidate_kind(candidate_id: str, source_of_expectation: str) -> str:
+    if str(candidate_id or "").startswith("reviewer-seed"):
+        return "deterministic_reviewer_seed"
+    if str(candidate_id or "").startswith("review-issue-candidate"):
+        return "critique_payload_candidate"
+    if candidate_id:
+        return "other_reviewer_candidate"
+    if source_of_expectation == "claim_obligation":
+        return "claim_obligation_fallback"
+    if source_of_expectation == "direct_quote":
+        return "direct_quote"
+    return source_of_expectation or "unknown"
+
+
 def _evidence_case(row: Dict[str, Any], state: Dict[str, Any], evidence: Dict[str, Any]) -> Dict[str, Any]:
     claim_id = str(evidence.get("claim_id") or "")
     paper_id = _paper_id(row, state)
@@ -157,12 +171,14 @@ def _evidence_case(row: Dict[str, Any], state: Dict[str, Any], evidence: Dict[st
         reviewer_candidate_id = ""
 
     cluster_fields = _case_cluster_fields(paper_id, bucket, evidence, state)
+    reviewer_candidate_kind = _reviewer_candidate_kind(reviewer_candidate_id, source_of_expectation)
     return {
         "paper_id": paper_id,
         "bucket": bucket,
         "issue_type": neg_type,
         "claim_id": claim_id,
         "source_of_expectation": source_of_expectation,
+        "reviewer_candidate_kind": reviewer_candidate_kind,
         "reviewer_candidate_id": reviewer_candidate_id,
         "missing_or_mismatch": missing,
         "inventory_or_quote_locator": locator,
@@ -219,6 +235,8 @@ def build_review_issue_case_table(rows: Iterable[Dict[str, Any]]) -> tuple[List[
             summary[f"type::{neg_type}"] += 1
             if case.get("source_of_expectation"):
                 summary[f"source::{case.get('source_of_expectation')}"] += 1
+            if case.get("reviewer_candidate_kind"):
+                summary[f"candidate_kind::{case.get('reviewer_candidate_kind')}"] += 1
     clusters: Dict[str, List[Dict[str, Any]]] = {}
     for case in cases:
         clusters.setdefault(str(case.get("issue_cluster_key") or ""), []).append(case)
@@ -259,11 +277,13 @@ def render_markdown(input_path: Path, cases: List[Dict[str, Any]], summary: Dict
         f"- quote-grounded cases: `{summary.get('bucket::quote_grounded_review_issue', 0)}`",
         f"- obligation-grounded cases: `{summary.get('bucket::obligation_grounded_review_issue', 0)}`",
         f"- reviewer-candidate cases: `{summary.get('source::reviewer_candidate', 0)}`",
+        f"- critique-payload candidate cases: `{summary.get('candidate_kind::critique_payload_candidate', 0)}`",
+        f"- deterministic-seed candidate cases: `{summary.get('candidate_kind::deterministic_reviewer_seed', 0)}`",
         f"- reviewer-candidate clusters: `{summary.get('reviewer_candidate_review_issue_cluster_count', 0)}`",
         f"- claim-obligation fallback cases: `{summary.get('source::claim_obligation', 0)}`",
         "",
-        "| paper_id | cluster id | cluster target | cluster size | representative | cluster claim ids | bucket | issue_type | claim_id | source | candidate id | missing/mismatch | inventory count | inventory sources | ablation target quality | ablation target reason | verification basis | inventory/quote locator | inventory/quote | claim anchor |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+        "| paper_id | cluster id | cluster target | cluster size | representative | cluster claim ids | bucket | issue_type | claim_id | source | candidate kind | candidate id | missing/mismatch | inventory count | inventory sources | ablation target quality | ablation target reason | verification basis | inventory/quote locator | inventory/quote | claim anchor |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for case in cases:
         lines.append(
@@ -281,6 +301,7 @@ def render_markdown(input_path: Path, cases: List[Dict[str, Any]], summary: Dict
                     "issue_type",
                     "claim_id",
                     "source_of_expectation",
+                    "reviewer_candidate_kind",
                     "reviewer_candidate_id",
                     "missing_or_mismatch",
                     "inventory_count",

@@ -1006,6 +1006,123 @@ def test_flaw_has_negative_grounding_rejects_explicit_field_when_evidence_is_not
     assert hg["invalid_negative_evidence_id_count"] == 1
 
 
+def test_quote_bank_negative_candidate_non_negative_anchor_is_safe_rejection():
+    state = {
+        "claims": [{"claim_id": "claim-1", "claim": "The method generalizes across datasets.", "status": "supported"}],
+        "evidence_map": [
+            {
+                "evidence_id": "e-quote-bank-neg",
+                "claim_id": "claim-1",
+                "evidence": "Candidate paper quote for review-negative checking: the method generalizes across datasets.",
+                "raw_quote": "The method generalizes across datasets.",
+                "source": "quote-bank-negative-grounding",
+                "strength": "missing",
+                "stance": "missing",
+                "negative_evidence_type": "scope_limitation",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_mismatch",
+                "review_negative_label": "insufficient_semantic_negative",
+            }
+        ],
+        "flaw_candidates": [
+            {
+                "flaw_id": "flaw-quote-bank",
+                "title": "Candidate scope limitation quote",
+                "description": "A positive/generalization quote should not remain an active negative grounding conflict.",
+                "severity": "major",
+                "status": "candidate",
+                "related_claim_ids": ["claim-1"],
+                "negative_evidence_ids": ["e-quote-bank-neg"],
+            }
+        ],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    view = build_decision_hygiene_view(state)
+    flaw = view["flaw_candidates"][0]
+    hygiene = view["decision_hygiene"]
+
+    assert flaw["status"] == "downgraded"
+    assert flaw["hygiene_status_reason"] in {
+        "decision_view_ungrounded_or_fallback_flaw",
+        "semantic_rejected_negative_anchor",
+    }
+    assert hygiene["negative_grounding_conflict_count"] == 0
+    assert hygiene["invalid_negative_evidence_id_count"] == 0
+    assert hygiene["negative_evidence_semantic_rejected_count"] == 1
+
+
+def test_stale_reviewer_absence_audit_anchor_is_safe_rejection_not_active_conflict():
+    state = {
+        "paper_text": "The method uses a component. The method generates an action representation.",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The method uses a component.",
+                "claim_kind": "paper_extracted",
+                "status": "supported",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "e-stale-absence",
+                "claim_id": "claim-1",
+                "evidence": "Verified review issue bundle: stale missing ablation concern.",
+                "source": "reviewer_absence_audit",
+                "strength": "missing",
+                "stance": "missing",
+                "negative_evidence_type": "missing_ablation",
+                "audit_basis": "claim_requirement_vs_verified_support",
+                "review_negative_label": "review_negative_absence_audit_verified",
+                "verified_grounding_label": "paper_absence_audit_verified",
+                "semantic_grounding_label": "semantic_negative_verified",
+                "review_issue_source": "obligation_grounded_review_issue",
+                "review_issue_verification_status": "verified_review_issue",
+                "missing_requirement": "ablation_or_component",
+                "review_issue_bundle": {
+                    "verification_status": "verified_review_issue",
+                    "not_quote_negative": True,
+                    "issue_type": "missing_ablation",
+                    "claim_id": "claim-1",
+                    "claim_anchor": {"quote": "The method uses a component."},
+                    "missing_or_mismatch": {
+                        "entity": "component-isolation ablation for function generates the action representation",
+                        "items": ["component-isolation ablation for function generates the action representation"],
+                    },
+                    "observed_inventory": [{"quote": "The method generates an action representation.", "locator": "Method"}],
+                },
+            }
+        ],
+        "flaw_candidates": [
+            {
+                "flaw_id": "flaw-stale-absence",
+                "title": "Stale absence issue",
+                "description": "A stale reviewer-absence issue rejected by the current verifier should not remain active.",
+                "severity": "major",
+                "status": "candidate",
+                "related_claim_ids": ["claim-1"],
+                "negative_evidence_ids": ["e-stale-absence"],
+            }
+        ],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    view = build_decision_hygiene_view(state)
+    flaw = view["flaw_candidates"][0]
+    hygiene = view["decision_hygiene"]
+
+    assert flaw["status"] == "downgraded"
+    assert hygiene["verified_review_issue_count"] == 0
+    assert hygiene["reviewer_absence_verified_count"] == 0
+    assert hygiene["negative_grounding_conflict_count"] == 0
+    assert hygiene["invalid_negative_evidence_id_count"] == 0
+    assert hygiene["negative_evidence_semantic_rejected_count"] == 1
+
+
 def test_flaw_negative_grounding_ignores_unresolved_explicit_ids_when_map_is_known():
     state = {
         "evidence_map": [
@@ -13352,6 +13469,218 @@ def test_reproducibility_counterevidence_requires_actual_training_configuration(
 
     assert not _window_resolves_reproducibility_missing(architecture_window, missing)
     assert _window_resolves_reproducibility_missing(config_window, missing)
+
+
+def test_missing_ablation_counterevidence_detects_pretraining_strategy_table():
+    window = (
+        "Table 6: Ablation study on pre-training strategies across different datasets. "
+        "The results presented in Tab. 6 demonstrate the effectiveness of the "
+        "occupancy prediction task in enhancing downstream task performance. "
+        "Detection-only and segmentation-only pre-training yield smaller gains."
+    )
+
+    assert _ablation_missing_items_resolved_by_text(
+        window,
+        ["ablation comparing occupancy prediction to alternative pre-training tasks"],
+    )
+
+
+def test_missing_ablation_counterevidence_detects_latex_architecture_table():
+    window = (
+        "Ablation studies of model architecture. We evaluate different backbones. "
+        "Transformer $+$ TCN reports one variant, Global Encoder $+$ TCN reports "
+        "another variant, Global Encoder $+$ Local Encoder reports the two-branch "
+        "architecture, and LogoRA is the full model."
+    )
+
+    assert _ablation_missing_items_resolved_by_text(
+        window,
+        ["component-isolation ablation for which employs a two-branch encoder"],
+    )
+
+
+def test_missing_ablation_counterevidence_detects_multiscale_branch_architecture_table():
+    window = (
+        "Ablation studies of model architecture. We evaluate different backbones. "
+        "Global Encoder $+$ Local Encoder reports the local-global encoder variant. "
+        "With the adoption of the multi-scale local encoder, which corresponds to "
+        "our \\abbr, the performance is the best."
+    )
+
+    assert _ablation_missing_items_resolved_by_text(
+        window,
+        ["component-isolation ablation for comprising a multi-scale convolutional branch"],
+    )
+
+
+def test_missing_ablation_counterevidence_detects_transformer_branch_architecture_table():
+    window = (
+        "Ablation studies of model architecture. Transformer reports one variant, "
+        "Transformer $+$ TCN reports a combined backbone, Global Encoder $+$ Local "
+        "Encoder reports the local-global variant, and \\abbr is the full model."
+    )
+
+    assert _ablation_missing_items_resolved_by_text(
+        window,
+        ["component-isolation ablation for patching transformer branch"],
+    )
+
+
+def test_missing_ablation_counterevidence_detects_fusion_method_table():
+    window = (
+        "Ablation studies of fusion methods. Comparison of various feature fusion "
+        "methods. We compared different fusion methods using addition, "
+        "concatenation, and cross-attention through our Local-Global Fusion Module."
+    )
+
+    assert _ablation_missing_items_resolved_by_text(
+        window,
+        ["component-isolation ablation for fusion module"],
+    )
+
+
+def test_missing_ablation_target_quality_rejects_ordinary_optimize_action():
+    bundle = {
+        "issue_type": "missing_ablation",
+        "missing_or_mismatch": {
+            "items": ["component-isolation ablation for optimize the following empirical loss"]
+        },
+        "claim_anchor": {"quote": "The method optimizes the following empirical loss."},
+        "observed_inventory": [
+            {
+                "quote": "The model is trained to optimize the following empirical loss.",
+                "locator": "Method",
+                "observed_items": ["optimize", "empirical", "loss"],
+            }
+        ],
+    }
+
+    assert _missing_ablation_target_quality(bundle) == {
+        "quality": "reject",
+        "reason": "missing_ablation_target_weak_action",
+    }
+
+
+def test_missing_ablation_target_quality_rejects_following_empirical_loss_fragment():
+    bundle = {
+        "issue_type": "missing_ablation",
+        "missing_or_mismatch": {
+            "items": ["component-isolation ablation for he following empirical loss"]
+        },
+        "claim_anchor": {"quote": "The method optimizes the following empirical loss."},
+        "observed_inventory": [
+            {
+                "quote": "The model is trained to optimize the following empirical loss.",
+                "locator": "Method",
+                "observed_items": ["following", "empirical", "loss"],
+            }
+        ],
+    }
+
+    assert _missing_ablation_target_quality(bundle) == {
+        "quality": "reject",
+        "reason": "missing_ablation_target_prose_fragment",
+    }
+
+
+def test_missing_ablation_target_quality_rejects_action_representation_fragment():
+    bundle = {
+        "issue_type": "missing_ablation",
+        "missing_or_mismatch": {
+            "items": ["component-isolation ablation for function generates the action representation"]
+        },
+        "claim_anchor": {"quote": "The function generates the action representation."},
+        "observed_inventory": [{"quote": "The action representation is generated by the function."}],
+    }
+
+    assert _missing_ablation_target_quality(bundle) == {
+        "quality": "reject",
+        "reason": "missing_ablation_target_malformed_fragment",
+    }
+
+
+def test_missing_ablation_target_quality_rejects_loss_expectation_fragment():
+    bundle = {
+        "issue_type": "missing_ablation",
+        "missing_or_mismatch": {
+            "items": ["component-isolation ablation for effective we expect the loss"]
+        },
+        "claim_anchor": {"quote": "To be effective we expect the loss to suppress noisy masks."},
+        "observed_inventory": [{"quote": "Finally, we highlight the benefits of our design choices."}],
+    }
+
+    assert _missing_ablation_target_quality(bundle) == {
+        "quality": "reject",
+        "reason": "missing_ablation_target_malformed_fragment",
+    }
+
+
+def test_missing_ablation_target_quality_rejects_generic_training_network():
+    bundle = {
+        "issue_type": "missing_ablation",
+        "missing_or_mismatch": {
+            "items": ["component-isolation ablation for training of deep neural network"]
+        },
+        "claim_anchor": {"quote": "The proposed system trains a deep neural network."},
+        "observed_inventory": [{"quote": "Each device independently trains its model."}],
+    }
+
+    assert _missing_ablation_target_quality(bundle) == {
+        "quality": "reject",
+        "reason": "missing_ablation_target_generic_component",
+    }
+
+
+def test_missing_ablation_target_quality_rejects_gradient_update_fragment():
+    bundle = {
+        "issue_type": "missing_ablation",
+        "missing_or_mismatch": {
+            "items": ["component-isolation ablation for is updated by the gradient"]
+        },
+        "claim_anchor": {"quote": "The supernet weight is updated by the gradient."},
+        "observed_inventory": [{"quote": "OGL updates the supernet weights during training."}],
+    }
+
+    assert _missing_ablation_target_quality(bundle) == {
+        "quality": "reject",
+        "reason": "missing_ablation_target_weak_action",
+    }
+
+
+def test_missing_ablation_target_quality_rejects_bare_federated_gradient():
+    bundle = {
+        "issue_type": "missing_ablation",
+        "missing_or_mismatch": {
+            "items": ["component-isolation ablation for federated gradient"]
+        },
+        "claim_anchor": {
+            "quote": "The method uses local-global distillation and iterative distribution matching."
+        },
+        "observed_inventory": [
+            {
+                "quote": "We propose iterative distribution matching to balance local virtual data.",
+                "observed_items": ["distribution matching", "local virtual data"],
+            }
+        ],
+    }
+
+    assert _missing_ablation_target_quality(bundle) == {
+        "quality": "reject",
+        "reason": "missing_ablation_target_not_contribution_bound",
+    }
+
+
+def test_missing_ablation_counterevidence_detects_bare_fusion_target_table():
+    window = (
+        "Ablation studies of fusion methods: We compared cross-attention with "
+        "other feature fusion methods such as concatenation and addition. "
+        "The table reports addition, concatenation, and cross-attention."
+    )
+
+    assert _ablation_missing_items_resolved_by_text(
+        window,
+        ["component-isolation ablation for fusion"],
+    )
 
 
 def test_reproducibility_seed_rejects_generic_domain_or_metric_targets():

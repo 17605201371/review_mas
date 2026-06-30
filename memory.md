@@ -1433,3 +1433,149 @@ May work added evidence grounding fields, quote/locator audits, final-view diagn
 Early June work explored recovery target hydration, gap/evidence-link repair, programmatic locators, negative noise filtering, contested support, and claim-requirement audit. Useful pieces survived as final-view/dashboard hygiene and tests; live prompt/controller additions that displaced Evidence Agent support formation were rejected.
 
 Do not expand this archive with detailed old run tables. Put detailed experiment writeups in separate markdown files and keep only current decisions here.
+
+## P28.5 TargetRefine2 Current Checkpoint (2026-06-30)
+
+Purpose: preserve the P28 reviewer-issue quantity gains without letting generic missing-ablation targets become verified review issues. This checkpoint tightens target quality and semantic ablation counterevidence, then recomputes over a fresh MiMo hardneg20 run.
+
+Fresh API run used:
+
+```bash
+DRMAS_NEG_QUOTE_HYGIENE=1 \
+DRMAS_TARGETED_NEGATIVE_SEARCH=1 \
+DRMAS_FREEFORM_REVIEWER_NEGATIVE=1 \
+DRMAS_REVIEW_ISSUE_BUNDLE=1 \
+MAX_TOKENS=1536 \
+API_MAX_WORKERS=2 \
+API_MAX_RETRIES=8 \
+API_TIMEOUT=600 \
+bash run_hardneg20_guard3.sh
+```
+
+Fresh run files:
+
+- `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260630_194911.jsonl`
+- `P28_5_FRESH_194911_HARDNEG20_DASHBOARD.md/json`
+- `P28_5_FRESH_194911_REVIEW_ISSUE_CASE_TABLE.md/json`
+- `P28_5_FRESH_194911_RECOVERY_CASE_TABLE.md/json`
+
+Raw fresh result before final target refinement:
+
+- protection: PASS
+- `verified_review_issue_count=22`
+- `verified_review_issue_cluster_count=16`
+- `reviewer_candidate_review_issue_count=22`
+- `mark_contested_commit_count=14`
+- `recovery_case_verified_review_issue_repair=14`
+
+This raw count is not paper-ready. Manual audit found obvious false positives from malformed/generic missing-ablation targets, including `function generates the action representation`, bare `fusion`, bare `federated gradient`, `effective we expect the loss`, and generic `training of deep neural network`.
+
+TargetRefine2 code changes:
+
+- Reject missing-ablation action/prose fragments (`generates`, `expects`, `updated by the gradient`, `function generates ...`, empirical-loss fragments).
+- Reject generic architecture/training targets (`deep neural network`, bare `fusion`, bare `gradient`, bare `federated gradient`) unless the target text itself contains a contribution-specific mechanism such as OGL/orthogonal gradient/matching/learning.
+- Add semantic table counterevidence for ablation tables whose rows/captions use different wording, especially SPOT-style pre-training strategy tables and LogoRA-style model architecture/fusion-method tables.
+- Dashboard/case table now separates reviewer candidates into `critique_payload_candidate`, `deterministic_reviewer_seed`, and other candidate kinds.
+- Recovery table now separates actual harmful commits from blocked unsafe downgrade attempts.
+
+Authoritative offline recompute after TargetRefine2:
+
+- `P28_5_TARGETREFINE2_194911_HARDNEG20_DASHBOARD.md/json`
+- `P28_5_TARGETREFINE2_194911_HARDNEG20_AUDIT.json`
+- `P28_5_TARGETREFINE2_194911_REVIEW_ISSUE_CASE_TABLE.md/json`
+- `P28_5_TARGETREFINE2_194911_RECOVERY_CASE_TABLE.md/json`
+- `P28_5_TARGETREFINE2_MANUAL_CLUSTER_AUDIT_20260630.md`
+
+TargetRefine2 metrics:
+
+- protection: PASS
+- `review_negative_verified_count=0`
+- `verified_review_issue_count=13`
+- `verified_review_issue_cluster_count=9`
+- `duplicate_review_issue_row_count=4`
+- `reviewer_candidate_review_issue_count=13`
+- `reviewer_candidate_review_issue_critique_payload_count=2`
+- `reviewer_candidate_review_issue_deterministic_seed_count=11`
+- `claim_obligation_review_issue_count=0`
+- `verified_missing_ablation_cluster_count=6`
+- `mark_contested_commit_count=14`
+- `recovery_case_verified_review_issue_repair=6`
+- `recovery_harmful_commit_committed=0`
+- `recovery_unsafe_downgrade_attempt_blocked=1`
+- `negative_evidence_unlinked_to_flaw=0`
+- `semantic_negative_without_review_relation_count=0`
+- `positive_or_neutral_negative_candidate_count=0`
+
+Manual cluster audit:
+
+- System-verified clusters: 9
+- Manual A/B clusters: 8/9
+- Strong A clusters: recurrent draft model, acceptance prediction head, generalized noise regularization
+- Defensible B clusters: class-balancing CE loss, GrCN/ControllNet reproducibility details, PropGCL transformation phase/weights, recent GNN/graph-transformer baselines, EqualAL baseline
+- C cluster: `number_motion_components_beyond` because the paper already has K sensitivity up to K=4; asking beyond K=4 is plausible but too demanding for a paper-ready verified main-result count
+
+Current paper-facing statement: TargetRefine2 verifies 9 obligation-grounded review issue clusters on hardneg20, with 8/9 manually judged A/B. It does not restore direct quote-grounded negative discovery (`review_negative_verified_count=0`). The contribution remains conservative obligation-grounded review issue verification plus non-destructive recovery.
+
+Important caveat: TargetRefine2 is an offline recompute over a fresh API run. Because the final guard was applied after the API run, the recovery table still contains stale absence repairs (`effective_repair_without_verified_negative=8`). A fresh API rerun with the final TargetRefine2 code is required before using live recovery counts in the paper.
+
+## P28.6 ConflictFix Narrative Checkpoint (2026-06-30)
+
+Purpose: clean the remaining final-view hygiene conflicts without changing the strict verifier or inflating issue counts. This checkpoint fixes a metric/narrative hazard exposed by P28.5: old quote-bank negative candidates and stale reviewer-absence audit artifacts could remain as active `negative_grounding_conflict_count` even when they were not counted as verified review issues.
+
+Code behavior:
+
+- `quote-bank-negative-grounding` records that are not actually negative stance are treated as safe rejected negative anchors, not active negative-grounding conflicts.
+- stale `reviewer_absence_audit` evidence/flaws that no longer pass the current review-issue bundle verifier are treated as rejected stale anchors, not active conflicts.
+- ordinary direct negative misbindings still remain active conflicts.
+- Added regression tests for quote-bank non-negative anchors and stale reviewer-absence audit anchors.
+
+Authoritative P28.6 artifacts:
+
+- `P28_6_PAPER_NARRATIVE_STATUS_20260630.md`
+- `P28_6_CONFLICTFIX_TARGETREFINE2_194911_HARDNEG20_DASHBOARD.md/json`
+- `P28_6_CONFLICTFIX_TARGETREFINE2_194911_HARDNEG20_AUDIT.json`
+- `P28_6_CONFLICTFIX_TARGETREFINE2_194911_REVIEW_ISSUE_CASE_TABLE.md/json`
+- `P28_6_CONFLICTFIX_TARGETREFINE2_194911_RECOVERY_CASE_TABLE.md/json`
+- `P28_6_CONFLICTFIX_MIMO_PARTIAL16_224133_HARDNEG20_DASHBOARD.md/json`
+- `P28_6_CONFLICTFIX_MIMO_PARTIAL16_224133_HARDNEG20_AUDIT.json`
+- `P28_6_CONFLICTFIX_MIMO_PARTIAL16_224133_REVIEW_ISSUE_CASE_TABLE.md/json`
+- `P28_6_CONFLICTFIX_MIMO_PARTIAL16_224133_RECOVERY_CASE_TABLE.md/json`
+
+P28.6 full20 offline recompute over `20260630_194911`:
+
+- protection: PASS
+- `paper_count=20`
+- `review_negative_verified_count=0`
+- `verified_review_issue_count=13`
+- `verified_review_issue_cluster_count=9`
+- `duplicate_review_issue_row_count=4`
+- `reviewer_candidate_review_issue_count=13`
+- `reviewer_candidate_review_issue_critique_payload_count=2`
+- `reviewer_candidate_review_issue_deterministic_seed_count=11`
+- `claim_obligation_review_issue_count=0`
+- `verified_missing_ablation_cluster_count=6`
+- `mark_contested_commit_count=14`
+- `recovery_case_verified_review_issue_repair=6`
+- `negative_grounding_conflict_count=0`
+- `negative_semantic_anchor_conflict_count=0`
+- `semantic_negative_without_review_relation_count=0`
+- `negative_evidence_unlinked_to_flaw=0`
+- `positive_or_neutral_negative_candidate_count=0`
+
+P28.6 fresh MiMo partial16 recompute over `20260630_224133`:
+
+- protection: PASS
+- `paper_count=16`
+- `verified_review_issue_count=12`
+- `verified_review_issue_cluster_count=8`
+- `reviewer_candidate_review_issue_count=12`
+- `reviewer_candidate_review_issue_critique_payload_count=0`
+- `reviewer_candidate_review_issue_deterministic_seed_count=12`
+- `mark_contested_commit_count=5`
+- `recovery_case_verified_review_issue_repair=5`
+- `negative_grounding_conflict_count=0`
+- `negative_semantic_anchor_conflict_count=0`
+
+MiMo status: a lightweight MiMo API test reached the service but returned `402 Insufficient account balance`; the fresh run stopped at 16/20 for the same reason. Do not claim a fresh full20 P28.6 rerun until MiMo balance/key is restored.
+
+Current paper-facing statement: P28.6 supports the ReviewState narrative that DrMAS verifies obligation-grounded review issue bundles conservatively. On hardneg20 offline recompute it yields 9 issue clusters, with the prior TargetRefine2 manual audit judging 8/9 clusters A/B. It does not restore direct quote-grounded negative discovery (`review_negative_verified_count=0`). Phrase live recovery carefully: full20 recovery numbers are offline recompute over a completed run; the freshest live-rerun evidence is partial16.
