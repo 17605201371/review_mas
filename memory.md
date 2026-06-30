@@ -1584,6 +1584,8 @@ Current paper-facing statement: P28.6 supports the ReviewState narrative that Dr
 
 New paper-facing blueprint: `PAPER_NARRATIVE_BLUEPRINT_20260701.md`.
 
+Claim/evidence guardrail: `PAPER_CLAIMS_EVIDENCE_MATRIX_20260701.md`.
+
 Core thesis:
 
 - Do not sell DrMAS as a better free-form review generator or accept/reject classifier.

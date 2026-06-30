@@ -4,6 +4,8 @@ Date: 2026-07-01
 
 This file turns the current P28.6 state into a paper-facing narrative. It is intentionally stricter than a development log: every claim below is either currently supported by artifacts, explicitly marked as a limitation, or listed as a required next experiment.
 
+Companion guardrail: `PAPER_CLAIMS_EVIDENCE_MATRIX_20260701.md` maps each paper-level claim to current artifacts, allowed wording, table-ready metrics, and forbidden overclaims.
+
 ## 1. Thesis
 
 The paper should not claim that DrMAS is a better free-form review generator or a better accept/reject classifier.
