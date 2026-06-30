@@ -8,6 +8,8 @@ Companion guardrail: `PAPER_CLAIMS_EVIDENCE_MATRIX_20260701.md` maps each paper-
 
 Experiment prose draft: `PAPER_EXPERIMENT_SECTION_DRAFT_20260701.md`.
 
+Method prose draft: `PAPER_METHOD_SECTION_DRAFT_20260701.md`.
+
 ## 1. Thesis
 
 The paper should not claim that DrMAS is a better free-form review generator or a better accept/reject classifier.

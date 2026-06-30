@@ -1586,6 +1586,8 @@ New paper-facing blueprint: `PAPER_NARRATIVE_BLUEPRINT_20260701.md`.
 
 Claim/evidence guardrail: `PAPER_CLAIMS_EVIDENCE_MATRIX_20260701.md`.
 
+Method-section draft: `PAPER_METHOD_SECTION_DRAFT_20260701.md`.
+
 Experiment-section draft: `PAPER_EXPERIMENT_SECTION_DRAFT_20260701.md`.
 
 Core thesis:
