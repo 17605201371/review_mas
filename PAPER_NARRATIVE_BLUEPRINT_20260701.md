@@ -16,7 +16,9 @@ Related work draft: `PAPER_RELATED_WORK_DRAFT_20260701.md`.
 
 Bibliography candidates: `PAPER_BIBLIOGRAPHY_CANDIDATES_20260701.md`.
 
-Draft BibTeX: `PAPER_REFERENCES_DRAFT_20260701.bib`.
+Cleaned draft BibTeX: `PAPER_REFERENCES_DRAFT_20260701.bib`.
+
+Bibliography audit: `PAPER_BIBLIOGRAPHY_AUDIT_20260701.md`.
 
 Figure specs: `PAPER_FIGURE_SPECS_20260701.md`.
 
@@ -278,7 +280,7 @@ Current limitations:
 
 1. Follow `PAPER_MANUSCRIPT_PRODUCTION_CHECKLIST_20260701.md`: finalize bibliography, place rendered figures in the target template, integrate the reproducibility appendix, and choose the empirical path.
 2. Place the rendered SVG/PDF figure drafts into the target paper template and verify visual fit.
-3. Replace draft BibTeX entries with final venue-style records, using `PAPER_BIBLIOGRAPHY_CANDIDATES_20260701.md` and `PAPER_REFERENCES_DRAFT_20260701.bib` as the starting point.
+3. Replace cleaned draft BibTeX entries with final venue-style records, using `PAPER_BIBLIOGRAPHY_CANDIDATES_20260701.md`, `PAPER_REFERENCES_DRAFT_20260701.bib`, and `PAPER_BIBLIOGRAPHY_AUDIT_20260701.md` as the starting point.
 4. Fold `PAPER_REPRODUCIBILITY_APPENDIX_20260701.md` into the target paper format.
 5. Improve Critique payload candidate recall so fewer verified issues come from deterministic seeds.
 6. Increase issue type diversity beyond missing ablation.

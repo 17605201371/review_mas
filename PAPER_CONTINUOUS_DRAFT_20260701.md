@@ -6,7 +6,7 @@ Status: continuous manuscript draft. This file turns the current section drafts 
 
 Figure sources and rendered SVG/PDF assets are tracked in `PAPER_FIGURES_DRAFT_20260701.md` and `paper_figures/`.
 
-Citation candidates are tracked in `PAPER_BIBLIOGRAPHY_CANDIDATES_20260701.md`; draft citation keys are provided in `PAPER_REFERENCES_DRAFT_20260701.bib`. These keys are usable for manuscript drafting but still need final venue-style BibTeX verification.
+Citation candidates are tracked in `PAPER_BIBLIOGRAPHY_CANDIDATES_20260701.md`; cleaned draft BibTeX is provided in `PAPER_REFERENCES_DRAFT_20260701.bib`; citation provenance and remaining metadata risks are tracked in `PAPER_BIBLIOGRAPHY_AUDIT_20260701.md`. The bibliography is suitable for manuscript drafting but still needs final venue-style verification before submission.
 
 Implementation and reproducibility anchors are tracked in `PAPER_REPRODUCIBILITY_APPENDIX_20260701.md`.
 

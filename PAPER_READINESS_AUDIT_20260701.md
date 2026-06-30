@@ -42,8 +42,9 @@ The paper is not ready for a strong benchmark-performance claim. The current res
 | Method | `PAPER_METHOD_SECTION_DRAFT_20260701.md` | Folded into continuous draft |
 | Experiments | `PAPER_EXPERIMENT_SECTION_DRAFT_20260701.md` | Folded into continuous draft |
 | Related work | `PAPER_RELATED_WORK_DRAFT_20260701.md` | Superseded by continuous draft plus BibTeX keys |
-| Bibliography candidates | `PAPER_BIBLIOGRAPHY_CANDIDATES_20260701.md` | API-verified candidates, not final bibliography |
-| Draft BibTeX | `PAPER_REFERENCES_DRAFT_20260701.bib` | Usable drafting keys, not final venue records |
+| Bibliography candidates | `PAPER_BIBLIOGRAPHY_CANDIDATES_20260701.md` | API-verified candidates and provenance notes |
+| Draft BibTeX | `PAPER_REFERENCES_DRAFT_20260701.bib` | Cleaned drafting records, not final venue export |
+| Bibliography audit | `PAPER_BIBLIOGRAPHY_AUDIT_20260701.md` | Record-level metadata risks and sources |
 | Figure specs | `PAPER_FIGURE_SPECS_20260701.md` | Conceptual figure guardrails |
 | Renderable figure draft | `PAPER_FIGURES_DRAFT_20260701.md` and `paper_figures/*.{mmd,svg,pdf}` | SVG/PDF drafts rendered; template placement pending |
 | Main metrics | `P28_6_CONFLICTFIX_TARGETREFINE2_194911_*` | Main offline full20 recompute |
@@ -225,7 +226,7 @@ Mandatory caveat sentence:
 | Evidence honesty | 8/10 | Major limitations are visible |
 | Empirical strength | 5/10 | Diagnostic hardneg20 only; fresh full20 blocked |
 | Figure readiness | 7/10 | SVG/PDF drafts exist and render; target-template placement still pending |
-| Citation readiness | 5/10 | Draft keys exist; final BibTeX not verified |
+| Citation readiness | 7/10 | Cleaned BibTeX and audit exist; final venue export still pending |
 | Submission readiness | 6/10 | Good draft package, not camera-ready |
 
 ## Next Work Priority
@@ -253,12 +254,11 @@ Tasks:
 
 ### Priority 3: Finalize Bibliography
 
-Goal: replace `PAPER_REFERENCES_DRAFT_20260701.bib` with venue-style records.
+Goal: replace the cleaned draft records in `PAPER_REFERENCES_DRAFT_20260701.bib` with final target-venue exports.
 
 Tasks:
 
 - export entries from DBLP/ACL Anthology/arXiv/Crossref;
-- remove draft `note` fields;
 - verify author lists and venues;
 - decide whether to add more LLM peer-review references.
 

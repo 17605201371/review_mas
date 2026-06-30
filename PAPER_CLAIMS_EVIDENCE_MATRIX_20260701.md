@@ -15,6 +15,7 @@ Primary current artifacts:
 - `PAPER_RELATED_WORK_DRAFT_20260701.md`
 - `PAPER_BIBLIOGRAPHY_CANDIDATES_20260701.md`
 - `PAPER_REFERENCES_DRAFT_20260701.bib`
+- `PAPER_BIBLIOGRAPHY_AUDIT_20260701.md`
 - `PAPER_FIGURE_SPECS_20260701.md`
 - `PAPER_FIGURES_DRAFT_20260701.md`
 - `PAPER_MANUSCRIPT_SKELETON_20260701.md`
@@ -197,7 +198,7 @@ Prefer:
 
 ## Next Writing Task
 
-The introduction, method, experiment, related work, bibliography-candidate, draft-BibTeX, figure-spec, renderable-figure, manuscript-skeleton, continuous-manuscript, readiness-audit, production-checklist, and reproducibility-appendix drafts now exist:
+The introduction, method, experiment, related work, bibliography-candidate, cleaned draft-BibTeX, bibliography-audit, figure-spec, renderable-figure, manuscript-skeleton, continuous-manuscript, readiness-audit, production-checklist, and reproducibility-appendix drafts now exist:
 
 - `PAPER_INTRODUCTION_DRAFT_20260701.md`
 - `PAPER_METHOD_SECTION_DRAFT_20260701.md`
@@ -205,6 +206,7 @@ The introduction, method, experiment, related work, bibliography-candidate, draf
 - `PAPER_RELATED_WORK_DRAFT_20260701.md`
 - `PAPER_BIBLIOGRAPHY_CANDIDATES_20260701.md`
 - `PAPER_REFERENCES_DRAFT_20260701.bib`
+- `PAPER_BIBLIOGRAPHY_AUDIT_20260701.md`
 - `PAPER_FIGURE_SPECS_20260701.md`
 - `PAPER_FIGURES_DRAFT_20260701.md`
 - `PAPER_MANUSCRIPT_SKELETON_20260701.md`
@@ -215,7 +217,7 @@ The introduction, method, experiment, related work, bibliography-candidate, draf
 
 Next writing should focus on turning placeholders/specs into final manuscript assets:
 
-1. replace draft BibTeX entries with final venue-style records;
+1. replace cleaned draft BibTeX entries with final venue-style records;
 2. place the rendered SVG/PDF figure drafts into the target paper template and verify visual fit;
 3. fold the reproducibility appendix into the target paper format;
 4. decide whether to keep the conservative offline-full20/partial16 framing or wait for a fresh full20 rerun.
