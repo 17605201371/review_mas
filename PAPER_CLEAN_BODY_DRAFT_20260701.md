@@ -267,7 +267,7 @@ This case is counted as one issue cluster, not as multiple independent defects, 
 
 ### 4.6 Manual Cluster Audit
 
-Table 2 summarizes the manual cluster audit. Three clusters are strong A-class issues; five are defensible B-class issues; one is a C-class concern that should not be counted in a paper-ready precision headline.
+Table 2 summarizes the manual cluster audit. The audit unit is a deduplicated issue cluster, not a raw row. We use A for clear review-worthy issues, B for defensible reviewer concerns that should be worded cautiously, and C for plausible but over-demanding or template-like concerns that should not enter the conservative paper-ready count. Three clusters are strong A-class issues; five are defensible B-class issues; one is a C-class concern.
 
 | Cluster target | Issue type | Manual label | Paper use |
 | --- | --- | --- | --- |
@@ -281,7 +281,7 @@ Table 2 summarizes the manual cluster audit. Three clusters are strong A-class i
 | EqualAL baseline | missing_baseline | B | defensible example |
 | number of motion components beyond K=4 | missing_ablation | C | exclude from conservative quality count |
 
-Table 2. Manual audit of verified issue clusters. We report 8 of 9 A/B clusters as the conservative quality count and exclude the C-class cluster from the paper-ready precision headline.
+Table 2. Manual audit of verified issue clusters. We report 8 of 9 A/B clusters as the conservative quality count and exclude the C-class cluster from the paper-ready headline. This is a small sanity-check audit, not a population-level precision estimate.
 
 The issue distribution is intentionally reported as a limitation: 6 of the 9 clusters are missing-ablation issues, 2 are missing-baseline issues, and 1 is a reproducibility issue. This is enough to demonstrate the issue-bundle verification mechanism, but not enough to claim broad reviewer issue diversity.
 

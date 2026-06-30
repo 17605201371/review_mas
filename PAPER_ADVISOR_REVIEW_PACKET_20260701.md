@@ -30,7 +30,11 @@ Status: internal review index for the current DrMAS paper package. This is not p
    - Explains one verified obligation-grounded issue bundle step by step.
    - Best file for checking whether the claim-anchor, inventory-anchor, missing-entity, and recovery story is understandable.
 
-7. `PAPER_REFERENCES_DRAFT_20260701.bib` and `PAPER_BIBLIOGRAPHY_AUDIT_20260701.md`
+7. `PAPER_MANUAL_AUDIT_PROTOCOL_20260701.md`
+   - Defines the A/B/C/D cluster labels and reporting rules for the 8/9 manual quality statement.
+   - Best file for checking whether the manual audit is being used conservatively.
+
+8. `PAPER_REFERENCES_DRAFT_20260701.bib` and `PAPER_BIBLIOGRAPHY_AUDIT_20260701.md`
    - Draft bibliography and remaining metadata risks.
 
 ## Current Thesis
@@ -73,8 +77,9 @@ They parse and render, but still need target-template placement and visual QA.
 3. Is the conservative result sentence acceptable, or does the venue require a fresh full20 rerun before submission?
 4. Should the direct quote-grounded negative lane with count 0 be in the abstract, or reserved for experiments/limitations?
 5. Does the illustrative issue-bundle case study make the core mechanism clearer, or should it become a figure/table in the main paper?
-6. Which pre-mortem risk is most likely for the target venue: empirical scale, direct-negative zero, deterministic seeds, missing-ablation skew, or engineering-artifact framing?
-7. Does the related-work framing need more peer-review-specific references before submission?
+6. Are the A/B/C manual-audit labels defined tightly enough for advisor review, or does this need a second annotator before submission?
+7. Which pre-mortem risk is most likely for the target venue: empirical scale, direct-negative zero, deterministic seeds, missing-ablation skew, or engineering-artifact framing?
+8. Does the related-work framing need more peer-review-specific references before submission?
 
 ## Known Non-Negotiables
 

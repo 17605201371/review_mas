@@ -16,6 +16,8 @@ Reviewer pre-mortem exists at `PAPER_REVIEWER_PREMORTEM_20260701.md`. It transla
 
 Issue-bundle case study exists at `PAPER_REVIEW_ISSUE_CASE_STUDY_20260701.md`. It expands the SpecDec++ acceptance-prediction-head cluster into claim anchor, observed inventory anchor, missing entity, target-quality gate, and non-destructive recovery behavior. The clean body now includes a short illustrative case subsection that points to this appendix.
 
+Manual audit protocol exists at `PAPER_MANUAL_AUDIT_PROTOCOL_20260701.md`. It defines A/B/C/D cluster labels, reporting rules, and non-claims for the 8/9 manual quality statement. The clean body now gives the short A/B/C definition in the manual-cluster-audit section.
+
 The implementation/reproducibility appendix draft exists at `PAPER_REPRODUCIBILITY_APPENDIX_20260701.md`; it maps paper concepts to code anchors, scripts, artifacts, and metric checks.
 
 Figure SVG/PDF drafts exist in `paper_figures/`; they were manually redrawn from the Mermaid specs and validated with `rsvg-convert`. They still need target-template placement and final visual QA.
@@ -39,10 +41,11 @@ The paper-facing result should remain conservative:
 3. Place the rendered SVG/PDF figures into the target paper template and check scaling, line wrapping, and cropping.
 4. Use `PAPER_ADVISOR_REVIEW_PACKET_20260701.md` for advisor/internal review before doing heavy venue-template work.
 5. Use `PAPER_REVIEWER_PREMORTEM_20260701.md` to decide whether the current venue path needs more experiments, more reviewer examples, or only template production.
-6. Decide after advisor review whether the issue-bundle case study should remain appendix material or become a main-paper table/figure.
-7. Keep the offline-full20/partial16 empirical framing unless MiMo balance is restored and a fresh full20 rerun passes the same checks.
-8. Fold the reproducibility appendix into the target paper format after figures and bibliography are finalized.
-9. Re-audit all result claims after any fresh run changes the dashboard or case tables.
+6. Decide whether the manual audit needs a second annotator before submission or can remain a transparent sanity check.
+7. Decide after advisor review whether the issue-bundle case study should remain appendix material or become a main-paper table/figure.
+8. Keep the offline-full20/partial16 empirical framing unless MiMo balance is restored and a fresh full20 rerun passes the same checks.
+9. Fold the reproducibility appendix into the target paper format after figures and bibliography are finalized.
+10. Re-audit all result claims after any fresh run changes the dashboard or case tables.
 
 ## Submission-Readiness Blockers
 

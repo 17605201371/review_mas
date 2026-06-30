@@ -39,6 +39,7 @@ The paper is not ready for a strong benchmark-performance claim. The current res
 | Advisor review packet | `PAPER_ADVISOR_REVIEW_PACKET_20260701.md` | File index, thesis, caveats, and review questions for advisor/internal review |
 | Reviewer pre-mortem | `PAPER_REVIEWER_PREMORTEM_20260701.md` | Operational risk audit with likely objections, honest responses, and concrete manuscript actions |
 | Issue-bundle case study | `PAPER_REVIEW_ISSUE_CASE_STUDY_20260701.md` | Concrete SpecDec++ example showing claim anchor, inventory anchor, missing ablation, and non-destructive recovery |
+| Manual audit protocol | `PAPER_MANUAL_AUDIT_PROTOCOL_20260701.md` | Defines A/B/C/D cluster labels and conservative reporting rules for manual audit |
 | Manuscript skeleton | `PAPER_MANUSCRIPT_SKELETON_20260701.md` | Structural backup |
 | Production checklist | `PAPER_MANUSCRIPT_PRODUCTION_CHECKLIST_20260701.md` | Tracks remaining non-body work |
 | Reproducibility appendix | `PAPER_REPRODUCIBILITY_APPENDIX_20260701.md` | Maps concepts to code anchors and artifacts |
@@ -191,6 +192,8 @@ What would strengthen it:
 - independent second annotator;
 - adjudication criteria;
 - case appendix with claim anchor, inventory anchor, missing entity, and counterevidence result.
+
+Current mitigation: `PAPER_MANUAL_AUDIT_PROTOCOL_20260701.md` defines the A/B/C/D labels and explicitly forbids treating 8/9 as a population-level precision estimate.
 
 ### Attack 6: "The paper reads like engineering logs."
 
