@@ -40,6 +40,18 @@ The revised abstract follows this order:
 | Direct-negative count 0 | Kept explicitly as a limitation and motivation. |
 | "unconstrained review generation" | Tightened to "autonomous review generation." |
 
+## Second Pass Compression
+
+After the method-lifecycle and compact issue-bundle table edits, the abstract was compressed again to read less like a metric ledger. The current version keeps the same evidence but uses five sentence roles:
+
+1. fluency can collapse support, contestation, and speculation;
+2. DrMAS treats reviewing as typed ReviewState maintenance;
+3. the paper's central distinction is direct quote negatives versus obligation-grounded issues;
+4. the diagnostic result is 9 clusters, 8 manually judged valid or defensible, with two final-view validation protections clean;
+5. the strict direct-quote negative lane remains at 0, so the claim is conservative state maintenance rather than autonomous review generation.
+
+No result claim changed in this compression pass.
+
 ## Guardrails Preserved
 
 The revised abstract still avoids all unsafe claims:
