@@ -34,8 +34,9 @@ The paper is not ready for a strong benchmark-performance claim. The current res
 | --- | --- | --- |
 | Narrative blueprint | `PAPER_NARRATIVE_BLUEPRINT_20260701.md` | Current guardrail |
 | Claims/evidence matrix | `PAPER_CLAIMS_EVIDENCE_MATRIX_20260701.md` | Current claim audit |
-| Continuous manuscript | `PAPER_CONTINUOUS_DRAFT_20260701.md` | Readable draft, not camera-ready |
+| Continuous manuscript | `PAPER_CONTINUOUS_DRAFT_20260701.md` | Paper-facing draft; still not camera-ready |
 | Manuscript skeleton | `PAPER_MANUSCRIPT_SKELETON_20260701.md` | Structural backup |
+| Production checklist | `PAPER_MANUSCRIPT_PRODUCTION_CHECKLIST_20260701.md` | Tracks remaining non-body work |
 | Introduction | `PAPER_INTRODUCTION_DRAFT_20260701.md` | Folded into continuous draft |
 | Method | `PAPER_METHOD_SECTION_DRAFT_20260701.md` | Folded into continuous draft |
 | Experiments | `PAPER_EXPERIMENT_SECTION_DRAFT_20260701.md` | Folded into continuous draft |
@@ -228,14 +229,13 @@ Mandatory caveat sentence:
 
 ## Next Work Priority
 
-### Priority 1: Polish Continuous Draft
+### Priority 1: Continue Manuscript Production Polish
 
-Goal: make `PAPER_CONTINUOUS_DRAFT_20260701.md` read like a paper, not a development summary.
+Goal: move from a paper-facing draft to a submission-ready manuscript.
 
 Tasks:
 
-- reduce P28-specific wording outside experiments;
-- move "Draft Status And Open Items" to a separate planning doc before submission;
+- continue reducing implementation-history wording outside experiments;
 - convert Markdown table captions into proper paper captions;
 - make limitations concise but visible;
 - add an appendix pointer for implementation anchors.

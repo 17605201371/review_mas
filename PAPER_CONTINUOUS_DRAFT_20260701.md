@@ -2,7 +2,7 @@
 
 Date: 2026-07-01
 
-Status: continuous manuscript draft. This file turns the current section drafts into a single readable paper draft. It still contains citation placeholders and figure/table placeholders. It should not be treated as camera-ready text until bibliography, figures, and the fresh-run status are resolved.
+Status: continuous manuscript draft. This file turns the current section drafts into a single readable paper draft. It is written in a paper-facing voice, while final bibliography records, rendered figures, and fresh-run status remain open production tasks.
 
 Figure draft sources are tracked in `PAPER_FIGURES_DRAFT_20260701.md` and `paper_figures/*.mmd`.
 
@@ -10,7 +10,7 @@ Citation candidates are tracked in `PAPER_BIBLIOGRAPHY_CANDIDATES_20260701.md`; 
 
 ## Abstract
 
-Large language models can generate plausible peer-review text, but fluent reviews may still lose track of which claims are supported, contested, or merely speculative. We present DrMAS, a ReviewState-driven framework for LLM-assisted peer review that represents claims, evidence, reviewer issues, conflicts, hygiene diagnostics, and recovery actions as structured state. DrMAS separates direct quote-grounded negative evidence from obligation-grounded review issues: the latter can be verified through a claim anchor, observed paper inventory, a concrete missing or mismatched entity, and counterevidence checks, without pretending that the paper itself contains a negative sentence. On a hard-negative diagnostic set, the current P28.6 pipeline verifies 13 obligation-grounded issue rows, deduplicating to 9 issue clusters; manual audit judges 8 of 9 clusters valid or defensible. The direct quote-grounded negative lane remains strict and produces no verified direct negatives, highlighting the difference between copied negative quotes and reviewer-inferred issue bundles. Final-view hygiene remains clean in the authoritative artifacts, with zero active negative-grounding conflicts, zero semantic anchor conflicts, zero unlinked negative evidence, and zero positive/neutral negative candidates. These results support a conservative view of LLM review assistance as auditable state maintenance and repair rather than unconstrained review generation.
+Large language models can generate plausible peer-review text, but fluent reviews may still lose track of which claims are supported, contested, or merely speculative. We present DrMAS, a ReviewState-driven framework for LLM-assisted peer review that represents claims, evidence, reviewer issues, conflicts, hygiene diagnostics, and recovery actions as structured state. DrMAS separates direct quote-grounded negative evidence from obligation-grounded review issues: the latter can be verified through a claim anchor, observed paper inventory, a concrete missing or mismatched entity, and counterevidence checks, without pretending that the paper itself contains a negative sentence. On a hard-negative diagnostic set, DrMAS verifies 13 obligation-grounded issue rows, deduplicating to 9 issue clusters; manual audit judges 8 of 9 clusters valid or defensible. The direct quote-grounded negative lane remains strict and produces no verified direct negatives, highlighting the difference between copied negative quotes and reviewer-inferred issue bundles. Final-view hygiene remains clean in the authoritative artifacts, with zero active negative-grounding conflicts, zero semantic anchor conflicts, zero unlinked negative evidence, and zero positive/neutral negative candidates. These results support a conservative view of LLM review assistance as auditable state maintenance and repair rather than unconstrained review generation.
 
 ## 1. Introduction
 
@@ -26,7 +26,7 @@ The core design is a two-lane treatment of critical review content. The first la
 
 DrMAS also treats recovery as state repair, not as decision correction. When a claim has real positive support but is contested by a verified issue, the preferred repair is to mark the claim as supported-but-contested. The system does not need to destructively downgrade the claim status to expose the concern. This is important for paper review: a strong contribution can be genuinely supported while still being limited by missing ablations, incomplete comparisons, or insufficient reproducibility details.
 
-We evaluate DrMAS on the hardneg20 diagnostic set, which stresses negative-evidence and reviewer-issue handling. The current P28.6 result should be read conservatively. The direct quote-grounded negative lane remains strict and produces no verified direct negatives. The main result is instead obligation-grounded issue verification: on a hardneg20 offline recompute, DrMAS verifies 13 review issue rows that deduplicate to 9 issue clusters, with manual audit judging 8 of the 9 clusters valid or defensible. The final-view hygiene checks remain clean: active negative-grounding conflicts, semantic anchor conflicts, semantic negatives without verified review relation, unlinked negative evidence, and positive/neutral negative candidates are all zero in the authoritative P28.6 artifacts.
+We evaluate DrMAS on the hardneg20 diagnostic set, which stresses negative-evidence and reviewer-issue handling. The result should be read conservatively. The direct quote-grounded negative lane remains strict and produces no verified direct negatives. The main result is instead obligation-grounded issue verification: on a hardneg20 offline recompute, DrMAS verifies 13 review issue rows that deduplicate to 9 issue clusters, with manual audit judging 8 of the 9 clusters valid or defensible. The final-view hygiene checks remain clean: active negative-grounding conflicts, semantic anchor conflicts, semantic negatives without verified review relation, unlinked negative evidence, and positive/neutral negative candidates are all zero in the authoritative artifacts.
 
 These results support a narrower but stronger claim than broad autonomous review generation. DrMAS shows that review-critical information can be represented as auditable state objects, verified through explicit lifecycle checks, and surfaced through non-destructive recovery. The system does not yet solve direct quote-grounded negative discovery, broad issue diversity, or autonomous Critique-driven candidate recall. Most current verified issues are missing-ablation heavy and many come from deterministic reviewer seeds. We treat these as limitations rather than hiding them behind aggregate counts.
 
@@ -64,7 +64,7 @@ A large body of work studies factuality, attribution, and evidence verification 
 
 DrMAS inherits the same concern but applies it to the lifecycle of a review. The unit of verification is not only a generated sentence. It can be a state object: a claim binding, an evidence record, a review issue bundle, a contested relation, or a recovery patch. This state-level view makes it possible to ask more specific questions: whether evidence is grounded in the paper, whether it supports a real claim rather than a fallback artifact, whether a negative label is semantically appropriate, whether a reviewer issue is a direct negative or an obligation-grounded absence issue, and whether the final report is using stale or unlinked evidence.
 
-The P28.6 hygiene metrics are examples of this state-level verification. Active negative-grounding conflicts, semantic anchor conflicts, semantic negatives without review relation, unlinked negative evidence, and positive/neutral negative candidates are tracked explicitly rather than hidden inside generated prose.
+The hygiene metrics in our evaluation are examples of this state-level verification. Active negative-grounding conflicts, semantic anchor conflicts, semantic negatives without review relation, unlinked negative evidence, and positive/neutral negative candidates are tracked explicitly rather than hidden inside generated prose.
 
 ### 2.4 Multi-Agent Reviewing And Self-Correction
 
@@ -86,7 +86,7 @@ This differs from ordinary argument mining because the state is operational. The
 
 DrMAS sits at the intersection of LLM-assisted reviewing, grounded generation, factuality verification, and agentic self-correction. Its distinguishing claim is that reviewing should be treated as auditable state maintenance. The final review should not be trusted merely because it is fluent or quote-rich. It should be trusted only insofar as its claims, evidence, reviewer issues, conflicts, and repairs survive explicit state-level checks.
 
-The current empirical evidence supports this positioning conservatively. P28.6 does not solve direct quote-grounded negative discovery and does not establish broad autonomous issue discovery. It does show that obligation-grounded review issues can be verified as state objects and that measured false-negative-evidence failure modes can be kept out of the final view.
+The current empirical evidence supports this positioning conservatively. DrMAS does not solve direct quote-grounded negative discovery and does not establish broad autonomous issue discovery. It does show that obligation-grounded review issues can be verified as state objects and that measured false-negative-evidence failure modes can be kept out of the final view.
 
 ## 3. Method
 
@@ -133,7 +133,7 @@ AND non-noise negative type
 AND linked flaw or issue
 ```
 
-This lane is counted by `review_negative_verified_count`. The current experiments show that this lane remains hard: the P28.6 run has `review_negative_verified_count=0`. We present this as an honest limitation, not as a hidden failure.
+This lane is counted by `review_negative_verified_count`. The reported diagnostic run shows that this lane remains hard: `review_negative_verified_count=0`. We present this as an honest limitation, not as a hidden failure.
 
 The second lane verifies reviewer issues that are not copied negative quotes. This is the current main mechanism. An obligation-grounded issue is represented as a review issue bundle containing an issue identifier, claim identifier, issue type, required evidence type, claim anchor, observed inventory anchor, missing or mismatched entity, source of expectation, verification status, and an explicit marker that the issue is not a quote-negative record. This lane is counted by `verified_review_issue_count` and deduplicated by `verified_review_issue_cluster_count`.
 
@@ -170,7 +170,7 @@ This distinction is important for the paper's safety story. The system can surfa
 
 The final-view hygiene pass constructs an audited decision/report view. This view verifies evidence records against the current state, builds evaluation and method inventory, performs claim-requirement audit, materializes verified review issue bundles, filters stale gaps and stale conflicts, reconciles support in the audited view, downgrades unsafe flaws, tracks active negative-grounding conflicts, and deduplicates review issue rows into clusters.
 
-This step prevents false negative-evidence artifacts from leaking into the final review. In P28.6, stale reviewer-absence anchors and quote-bank negative candidates that no longer pass the verifier are treated as safe rejections, not active conflicts.
+This step prevents false negative-evidence artifacts from leaking into the final review. In the reported artifacts, stale reviewer-absence anchors and quote-bank negative candidates that no longer pass the verifier are treated as safe rejections, not active conflicts.
 
 ### 3.8 Recovery As Non-Destructive Repair
 
@@ -263,7 +263,7 @@ Table 1 reports the P28.6 full20 offline recompute. DrMAS verifies 13 review iss
 | positive/neutral negative candidates | 0 |
 | protection | PASS |
 
-Table 1: P28.6 verifies obligation-grounded review issue bundles conservatively. The main count is the deduplicated cluster count, not the raw row count. The direct quote-grounded negative lane remains strict and produces no verified direct negatives in this run.
+Table 1. Main hardneg20 diagnostic result. Rows are raw verified records, while clusters deduplicate repeated issue targets within a paper. The direct quote-grounded negative lane remains strict and produces no verified direct negatives in this run.
 
 [FIGURE 3: Verification funnel from rows to clusters to manual A/B clusters. Source: `paper_figures/figure3_verification_funnel.mmd`. Place near here.]
 
@@ -285,7 +285,7 @@ Table 2 summarizes the manual cluster audit. Three clusters are strong A-class i
 | EqualAL baseline | missing_baseline | B | defensible example |
 | number of motion components beyond K=4 | missing_ablation | C | exclude from conservative quality count |
 
-Table 2: Manual audit separates system-verified issue clusters from paper-ready review-worthy clusters. We report 8 of 9 A/B clusters as the conservative quality count.
+Table 2. Manual audit of verified issue clusters. We report 8 of 9 A/B clusters as the conservative quality count and exclude the C-class cluster from the paper-ready precision headline.
 
 The issue distribution is intentionally reported as a limitation: 6 of the 9 clusters are missing-ablation issues, 2 are missing-baseline issues, and 1 is a reproducibility issue. This is enough to demonstrate the issue-bundle verification mechanism, but not enough to claim broad reviewer issue diversity.
 
@@ -304,21 +304,15 @@ Table 3 reports recovery and safety signals. The main recovery action is `mark_c
 | unlinked negative evidence | 0 | 0 |
 | positive/neutral negative candidates | 0 | 0 |
 
-Table 3: Recovery is evaluated as state repair. Verified issues can expose supported-but-contested claims without destructively downgrading claim status. The fresh partial16 rerun is included only as a consistency check because the MiMo account balance stopped the run before all 20 papers completed.
+Table 3. Recovery and safety metrics. Verified issues can expose supported-but-contested claims without destructively downgrading claim status. The fresh partial16 rerun is included only as a consistency check because the MiMo account balance stopped the run before all 20 papers completed.
 
 The recovery result should be phrased carefully. The full20 result is an offline recompute over a completed run, so its recovery counts should not be described as a fresh full20 live rerun. The fresh partial16 run gives a cleaner live-run sanity check, but it is incomplete.
 
-### 4.7 Diagnostic Progress Across P28
+### 4.7 Interpretation Of The Diagnostic Result
 
-Table 4 describes the role of the latest P28 steps. The sequence should not be presented as simple metric maximization. P28.6 is a precision and hygiene checkpoint.
+The diagnostic result should not be read as a simple count-maximization exercise. Earlier development runs produced more issue rows by allowing generic or malformed missing-ablation targets, but those rows were not paper-ready. The current reported result is intentionally smaller because it applies target-quality checks, counterevidence checks, clustering, and final-view conflict cleanup before a concern can be counted as a verified review issue.
 
-| Stage | Main effect | Paper interpretation |
-| --- | --- | --- |
-| Raw P28.5 | higher issue row count but generic or malformed missing-ablation targets | useful recall signal, not paper-ready |
-| TargetRefine2 | rejects generic targets and keeps 9 verified clusters | precision checkpoint |
-| ConflictFix P28.6 | moves stale or quote-bank false negative anchors out of active conflicts | final-view hygiene checkpoint |
-
-Table 4: The P28 progression improves precision and final-view hygiene. It does not solve direct quote-grounded negative discovery.
+This interpretation matters for the paper. The contribution is not that the system maximizes the number of criticisms. The contribution is that it separates candidate generation from conservative issue verification, reports row-level duplicates separately from cluster-level issues, and keeps stale or quote-bank false-negative anchors out of the final view.
 
 ## 5. Discussion
 
@@ -350,16 +344,6 @@ Before treating these results as final paper evidence, we need a fresh full20 P2
 
 LLM-assisted peer review should not be evaluated only as a problem of generating fluent review text. A useful review assistant must track what is supported, contested, speculative, stale, or unsafe to render. DrMAS addresses this by maintaining an explicit ReviewState with claims, evidence, review issues, conflicts, hygiene diagnostics, and recovery actions.
 
-The current P28.6 results show that obligation-grounded review issues can be verified conservatively through claim anchors, observed inventory, concrete missing or mismatched entities, and counterevidence checks, while measured false-negative-evidence artifacts are kept out of the final view. The direct quote-grounded negative lane remains unsolved in the current run, and broad autonomous issue discovery remains future work.
+The current diagnostic results show that obligation-grounded review issues can be verified conservatively through claim anchors, observed inventory, concrete missing or mismatched entities, and counterevidence checks, while measured false-negative-evidence artifacts are kept out of the final view. The direct quote-grounded negative lane remains unsolved in the current run, and broad autonomous issue discovery remains future work.
 
 The main contribution is therefore a stateful verification and recovery framework for LLM-assisted reviewing: a way to make review text accountable to an auditable lifecycle before it reaches the final report.
-
-## Draft Status And Open Items
-
-This continuous draft is aligned with current P28.6 artifacts, but it is not camera-ready. The remaining manuscript work is:
-
-1. Replace draft BibTeX entries with final venue-style BibTeX, using `PAPER_BIBLIOGRAPHY_CANDIDATES_20260701.md` and `PAPER_REFERENCES_DRAFT_20260701.bib` as the starting point.
-2. Render or redraw the Mermaid figure sources into polished figures.
-3. Decide whether to keep hardneg20 as the main experiment or wait for a fresh full20 MiMo rerun.
-4. Add an appendix or reproducibility note mapping paper concepts to implementation anchors.
-5. Re-audit all result claims after any fresh run changes the dashboard or case tables.
