@@ -8,7 +8,7 @@ Status: pre-submission risk audit for the current DrMAS paper narrative. This is
 
 The paper is currently viable only as a conservative framework/mechanism paper:
 
-> DrMAS treats LLM-assisted peer review as auditable ReviewState maintenance. It verifies obligation-grounded review issue bundles, keeps direct quote-grounded negatives separate, audits final-view hygiene, and performs non-destructive contested recovery.
+> DrMAS treats LLM-assisted peer review as auditable ReviewState maintenance. It verifies obligation-grounded review issue bundles, keeps direct quote-grounded negatives separate, performs final-view validation, and supports non-destructive contested recovery.
 
 The paper is not currently viable as:
 
@@ -34,7 +34,7 @@ Why the criticism is fair:
 
 What the paper can honestly say:
 
-> We evaluate a diagnostic hard-negative setting designed to stress ReviewState hygiene and reviewer-issue verification. The result is evidence for a conservative state-maintenance mechanism, not a broad benchmark claim.
+> We evaluate a diagnostic hard-negative setting designed to stress ReviewState validation and reviewer-issue verification. The result is evidence for a conservative state-maintenance mechanism, not a broad benchmark claim.
 
 What the paper must not say:
 
@@ -85,7 +85,7 @@ Why the criticism is fair:
 
 What the paper can honestly say:
 
-> Candidate generation and issue verification are separated. This paper evaluates conservative bundle verification and state hygiene, not mature autonomous issue discovery.
+> Candidate generation and issue verification are separated. This paper evaluates conservative bundle verification and final-view validation, not mature autonomous issue discovery.
 
 What the paper must not say:
 
@@ -96,7 +96,7 @@ Concrete manuscript action:
 
 - Keep source distribution in Table 1.
 - In limitations, say Critique-driven recall is future work.
-- If space allows, add a sentence that deterministic seeds are used as auditable stress targets for the verifier.
+- Keep the deterministic-seed explanation explicit: seeds are auditable stress targets for verifier behavior, not autonomous discovery evidence.
 
 ### Review D: "The issues are mostly missing ablations."
 
@@ -145,18 +145,18 @@ Why the criticism could happen:
 
 - implementation history is long;
 - artifact names and run IDs can make the paper feel like a log;
-- many contributions are hygiene and state-management mechanisms.
+- many contributions are validation and state-management mechanisms.
 
 What the paper can honestly say:
 
-> The contribution is not a collection of patches. It is a review-specific state lifecycle: typed claims, evidence lanes, issue bundles, final-view hygiene, and non-destructive recovery.
+> The contribution is not a collection of implementation fixes. It is a review-specific state lifecycle: typed claims, evidence lanes, issue bundles, final-view validation, and non-destructive recovery.
 
 Concrete manuscript action:
 
 - Keep P28/run identifiers out of the clean body.
 - Put code anchors and regeneration commands in the reproducibility appendix.
 - Lead with ReviewState semantics, not implementation chronology.
-- Consider renaming "hygiene" to "final-view validation" in the final venue version if reviewers may find hygiene informal.
+- Keep "final-view validation" in the final venue version; avoid reverting to informal implementation-log wording.
 
 ### Review G: "Why should we trust the case study?"
 
@@ -179,13 +179,13 @@ Concrete manuscript action:
 
 ## Abstract-Level Risk
 
-Current abstract is honest but dense. The biggest abstract risk is that it tries to carry too many caveats at once: 13 rows, 9 clusters, 8/9 manual audit, direct negatives zero, hygiene zeros, and framework framing.
+Current abstract is honest but dense. The biggest abstract risk is that it tries to carry too many caveats at once: 13 rows, 9 clusters, 8/9 manual audit, direct negatives zero, final-view validation zeros, and framework framing.
 
 Safer abstract structure:
 
 1. Problem: fluent reviews collapse support, contestation, and speculation.
 2. Method: ReviewState with two critical-content lanes and non-destructive recovery.
-3. Result: 9 issue clusters, 8/9 valid or defensible, hygiene protections clean.
+3. Result: 9 issue clusters, 8/9 valid or defensible, final-view validation protections clean.
 4. Caveat: direct quote-grounded negative lane remains strict and yields zero verified direct negatives.
 5. Claim: conservative state maintenance, not autonomous review generation.
 
@@ -218,9 +218,8 @@ If targeting a peer-review automation venue:
 1. Shorten the abstract by reducing metric density, while keeping the zero direct-negative caveat visible.
 2. Add a compact A/B/C manual-audit criteria box or appendix subsection.
 3. Convert the SpecDec++ case study into either a small main-text table or an appendix table, depending on venue space.
-4. Replace informal "hygiene" wording with "final-view validation" in the final venue draft if needed.
-5. Add one paragraph in limitations explaining deterministic reviewer seeds as verifier stress targets, not autonomous discovery evidence.
-6. Add one sentence in related work contrasting DrMAS with free-form LLM review generation and citation-only grounding systems.
+4. Keep final-view validation terminology consistent during venue-template conversion.
+5. Add one sentence in related work contrasting DrMAS with free-form LLM review generation and citation-only grounding systems if the target venue needs stronger positioning.
 
 ## Things Not To Do Next
 

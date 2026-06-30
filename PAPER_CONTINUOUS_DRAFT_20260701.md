@@ -353,7 +353,7 @@ First, the direct quote-grounded negative lane remains weak: `review_negative_ve
 
 Second, the issue distribution is narrow. The current verified clusters are mostly missing-ablation issues, with fewer missing-baseline and reproducibility examples.
 
-Third, the candidate source distribution shows that autonomous Critique discovery is immature: only 2 verified rows come from Critique payload candidates, while 11 come from deterministic reviewer seeds.
+Third, the candidate source distribution shows that autonomous Critique discovery is immature: only 2 verified rows come from Critique payload candidates, while 11 come from deterministic reviewer seeds. We use these deterministic seeds as auditable stress targets for the verifier, not as evidence that the system autonomously discovers a broad set of reviewer issues. This keeps the experiment focused on whether candidate concerns can be verified, clustered, rejected, or rendered safely once they enter ReviewState.
 
 Fourth, the fresh live rerun is incomplete. It stopped at 16 of 20 papers because external API access ended.
 

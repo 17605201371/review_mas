@@ -17,7 +17,7 @@ This story is defensible because it matches the current artifacts:
 - continuous manuscript draft exists;
 - figures exist as Mermaid sources plus manually redrawn SVG/PDF drafts;
 - draft citation keys and candidate bibliography exist;
-- P28.6 metrics support the central ReviewState/hygiene claim;
+- P28.6 metrics support the central ReviewState validation claim;
 - the paper explicitly admits direct quote-grounded negative discovery remains unsolved.
 
 The paper is not ready for a strong benchmark-performance claim. The current result is diagnostic and conservative, not broad:
@@ -82,9 +82,9 @@ Supported paper-facing facts:
 | verified_missing_ablation_cluster_count | 6 | issue distribution is missing-ablation heavy |
 | mark_contested_commit_count | 14 | non-destructive recovery signal |
 | recovery_case_verified_review_issue_repair | 6 | conservative recovery count |
-| negative_grounding_conflict_count | 0 | hygiene success |
-| negative_semantic_anchor_conflict_count | 0 | hygiene success |
-| semantic_negative_without_review_relation_count | 0 | hygiene success |
+| negative_grounding_conflict_count | 0 | final-view validation success |
+| negative_semantic_anchor_conflict_count | 0 | final-view validation success |
+| semantic_negative_without_review_relation_count | 0 | final-view validation success |
 | negative_evidence_unlinked_to_flaw | 0 | linkage protection |
 | positive_or_neutral_negative_candidate_count | 0 | false-negative-evidence protection |
 
@@ -112,7 +112,7 @@ These claims are currently defensible if stated with caveats:
 3. DrMAS verifies 9 obligation-grounded review issue clusters on hardneg20 offline recompute.
 4. Manual audit judges 8 of 9 clusters valid or defensible.
 5. Direct quote-grounded negative discovery remains weak, with count 0 in the current run.
-6. Final-view hygiene removes measured false-negative-evidence artifacts in P28.6 artifacts.
+6. Final-view validation removes measured false-negative-evidence artifacts in P28.6 artifacts.
 7. Recovery is non-destructive: verified issues can mark supported claims as contested rather than downgrading them.
 
 ## Claims To Avoid
@@ -132,7 +132,7 @@ Do not write any of the following:
 
 ### Attack 1: "This is only 20 papers."
 
-Valid. The response is to frame hardneg20 as a diagnostic stress test for ReviewState hygiene, not a broad benchmark. The paper should avoid population-level performance claims.
+Valid. The response is to frame hardneg20 as a diagnostic stress test for ReviewState validation, not a broad benchmark. The paper should avoid population-level performance claims.
 
 Best response:
 
@@ -178,7 +178,7 @@ Valid. Main offline recompute has 11 deterministic-seed rows and 2 critique-payl
 
 Best response:
 
-> We do not claim autonomous broad issue discovery. Candidate generation and bundle verification are separated; this paper focuses on conservative verification and state hygiene.
+> We do not claim autonomous broad issue discovery. Candidate generation and bundle verification are separated; this paper focuses on conservative verification and final-view validation.
 
 What would strengthen it:
 
@@ -208,7 +208,7 @@ Partly valid. The continuous draft is readable, but some terms still expose impl
 
 Best response:
 
-> Polish the paper around concepts: ReviewState, issue bundle, final-view hygiene, contested repair. Move implementation anchors and P28 history to appendix.
+> Polish the paper around concepts: ReviewState, issue bundle, final-view validation, contested repair. Move implementation anchors and P28 history to appendix.
 
 Concrete edit:
 
@@ -237,7 +237,7 @@ Mandatory caveat sentence:
 | Dimension | Score | Rationale |
 | --- | ---: | --- |
 | Thesis coherence | 8/10 | Strong and now consistent across docs |
-| Method clarity | 7.5/10 | Clear lifecycle; clean/continuous drafts now avoid main-text hygiene/P28/run-id wording |
+| Method clarity | 7.5/10 | Clear lifecycle; clean/continuous drafts now avoid implementation-log/P28/run-id wording |
 | Evidence honesty | 8/10 | Major limitations are visible |
 | Empirical strength | 5/10 | Diagnostic hardneg20 only; framing decision is conservative |
 | Figure readiness | 7.5/10 | SVG/PDF drafts exist, render, and are referenced in both main drafts; target-template placement still pending |

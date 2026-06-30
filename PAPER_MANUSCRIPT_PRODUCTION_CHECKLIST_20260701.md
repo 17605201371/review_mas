@@ -12,7 +12,7 @@ Clean paper body draft exists at `PAPER_CLEAN_BODY_DRAFT_20260701.md`. It remove
 
 Abstract revision audit exists at `PAPER_ABSTRACT_REVISION_AUDIT_20260701.md`. The clean and continuous drafts now use a less dashboard-like abstract: 9 clusters is the headline result, 13 raw rows stay in the experiment table, and the direct-negative zero caveat remains visible.
 
-Terminology guide exists at `PAPER_TERMINOLOGY_GUIDE_20260701.md`. The clean and continuous drafts now use paper-facing terminology: final-view validation instead of hygiene, recovery action instead of patch, and diagnostic set instead of benchmark.
+Terminology guide exists at `PAPER_TERMINOLOGY_GUIDE_20260701.md`. The clean and continuous drafts now use paper-facing terminology: final-view validation, recovery action, and diagnostic set instead of older implementation-log wording.
 
 Advisor review packet exists at `PAPER_ADVISOR_REVIEW_PACKET_20260701.md`. It lists the small set of files to read first, the current thesis, the defensible empirical claim, mandatory caveats, and concrete questions for advisor review.
 

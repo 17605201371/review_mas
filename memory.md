@@ -1635,7 +1635,7 @@ Manual audit protocol: `PAPER_MANUAL_AUDIT_PROTOCOL_20260701.md`.
 Core thesis:
 
 - Do not sell DrMAS as a better free-form review generator or accept/reject classifier.
-- Sell it as ReviewState maintenance: claims, evidence, reviewer issues, conflicts, final-view hygiene, and non-destructive recovery.
+- Sell it as ReviewState maintenance: claims, evidence, reviewer issues, conflicts, final-view validation, and non-destructive recovery.
 - Main result is not direct negative quote discovery. Direct quote lane remains strict and currently has `review_negative_verified_count=0`.
 - Main current evidence is obligation-grounded issue verification: P28.6 full20 offline recompute has 9 verified issue clusters, with 8/9 manually judged A/B, and protection lines passing.
 
@@ -1659,8 +1659,9 @@ Current writing status:
 - The continuous manuscript was polished to reduce P28-specific wording outside experiments, replace development-log table language with paper-facing interpretation, and move the former draft-status/open-items section into `PAPER_MANUSCRIPT_PRODUCTION_CHECKLIST_20260701.md`.
 - The clean body draft removes workflow metadata from the continuous draft and replaces bracketed figure placeholders with rendered SVG figure references and paper-facing captions. It has been further polished to keep P28/run identifiers, dataset filenames, and API error-code details out of the main experiment narrative. It is now the preferred manuscript body for advisor/internal review.
 - The clean and continuous draft abstracts were simplified to avoid reading like a dashboard: headline is now 9 obligation-grounded issue clusters with 8 manually judged valid/defensible; 13 raw rows are left to the experiment table; direct quote-grounded negative count 0 remains visible as a caveat. Rationale is in `PAPER_ABSTRACT_REVISION_AUDIT_20260701.md`.
-- The clean and continuous drafts now use paper-facing terminology in the main prose: final-view validation instead of hygiene, recovery action instead of patch, and no P28/run-id/API-error-code wording in the main text. Terminology guardrails are in `PAPER_TERMINOLOGY_GUIDE_20260701.md`.
+- The clean and continuous drafts now use paper-facing terminology in the main prose: final-view validation, recovery action, diagnostic set, and no P28/run-id/API-error-code wording in the main text. Terminology guardrails are in `PAPER_TERMINOLOGY_GUIDE_20260701.md`.
 - The clean and continuous method sections now include a short algorithmic lifecycle block: extract claims/obligations, ground support and neutral inventory, form candidates, verify the two critical-content lanes separately, audit the final view, add non-destructive contested relations, and render from audited state rather than raw model prose.
+- The clean and continuous limitations now explicitly explain deterministic reviewer seeds as auditable verifier stress targets, not evidence of autonomous issue discovery.
 - The continuous draft has been synchronized with the clean body on rendered SVG figure references, the illustrative issue-bundle subsection, manual-audit A/B/C wording, and final-view validation terminology. The remaining intended difference is that the continuous draft keeps top-of-file draft metadata while the clean body is the advisor-facing manuscript body.
 - The advisor review packet gives the next human-facing entry point: read clean body first, then readiness audit, claims/evidence matrix, reproducibility appendix, and bibliography files. It records the current thesis, defensible empirical claim, mandatory caveats, advisor questions, and non-negotiable overclaim guards.
 - The venue-fit decision aid recommends a systems/method or human-AI review-support framing, treats peer-review automation workshops as a high-fit near-term path, and warns against benchmark-heavy ML/NLP positioning unless fresh full20, repeated seeds, broader issue diversity, or a second diagnostic/oracle analysis is added.
