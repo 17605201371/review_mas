@@ -1,6 +1,8 @@
 # 论文目标、系统目标与开发路线图（PAPER_GOAL_AND_ROADMAP.md）
 
 最后更新：2026-06-14。本文件是 P26 阶段的**纲领文件**：它把"论文要讲什么"→"系统要实现什么"→"当前差在哪"→"下一步怎么走"串成一条线，作为后续开发/审计的总护栏。
+
+> 2026-07-01 注：P28 之后，当前论文叙事已从"找更多负向 quote"收束为"ReviewState-driven verified review issue bundles"。最新可写口径见 [`PAPER_NARRATIVE_BLUEPRINT_20260701.md`](PAPER_NARRATIVE_BLUEPRINT_20260701.md) 和 [`P28_6_PAPER_NARRATIVE_STATUS_20260630.md`](P28_6_PAPER_NARRATIVE_STATUS_20260630.md)。本文件保留 P26 的历史路线和红线，但不再代表当前实验主结果。
 配套：开关说明见 [`SWITCHES.md`](SWITCHES.md)，压制点代码定位见 [`P26_NEGATIVE_DISCOVERY_CODE_LOCATIONS.md`](P26_NEGATIVE_DISCOVERY_CODE_LOCATIONS.md)，决策日志见 [`memory.md`](memory.md)。
 
 ---

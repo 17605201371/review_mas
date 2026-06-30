@@ -1579,3 +1579,28 @@ P28.6 fresh MiMo partial16 recompute over `20260630_224133`:
 MiMo status: a lightweight MiMo API test reached the service but returned `402 Insufficient account balance`; the fresh run stopped at 16/20 for the same reason. Do not claim a fresh full20 P28.6 rerun until MiMo balance/key is restored.
 
 Current paper-facing statement: P28.6 supports the ReviewState narrative that DrMAS verifies obligation-grounded review issue bundles conservatively. On hardneg20 offline recompute it yields 9 issue clusters, with the prior TargetRefine2 manual audit judging 8/9 clusters A/B. It does not restore direct quote-grounded negative discovery (`review_negative_verified_count=0`). Phrase live recovery carefully: full20 recovery numbers are offline recompute over a completed run; the freshest live-rerun evidence is partial16.
+
+## Paper Narrative Blueprint (2026-07-01)
+
+New paper-facing blueprint: `PAPER_NARRATIVE_BLUEPRINT_20260701.md`.
+
+Core thesis:
+
+- Do not sell DrMAS as a better free-form review generator or accept/reject classifier.
+- Sell it as ReviewState maintenance: claims, evidence, reviewer issues, conflicts, final-view hygiene, and non-destructive recovery.
+- Main result is not direct negative quote discovery. Direct quote lane remains strict and currently has `review_negative_verified_count=0`.
+- Main current evidence is obligation-grounded issue verification: P28.6 full20 offline recompute has 9 verified issue clusters, with 8/9 manually judged A/B, and protection lines passing.
+
+Paper claims allowed now:
+
+- DrMAS separates direct quote-grounded negatives from obligation-grounded reviewer issues.
+- DrMAS verifies non-quote reviewer issues through claim anchors, observed inventory, concrete missing/mismatch entities, and counterevidence checks.
+- P28.6 maintains zero active negative-grounding conflicts, zero semantic anchor conflicts, zero unlinked negative evidence, and zero positive/neutral negative candidates.
+- Recovery should be described as non-destructive state repair (`mark_contested`), not decision fixing.
+
+Paper claims not allowed yet:
+
+- Do not claim broad autonomous defect discovery.
+- Do not headline row count; use cluster count and manual A/B cluster count.
+- Do not claim a fresh full20 P28.6 rerun until MiMo balance is restored and the run completes.
+- Do not claim Critique payload discovery is mature; most current verified issues are deterministic seeds.
