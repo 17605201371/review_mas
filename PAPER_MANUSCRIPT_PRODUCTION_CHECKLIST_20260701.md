@@ -20,7 +20,7 @@ Venue-fit decision aid exists at `PAPER_VENUE_FIT_DECISION_20260701.md`. It reco
 
 Reviewer pre-mortem exists at `PAPER_REVIEWER_PREMORTEM_20260701.md`. It translates the current risk profile into likely reviewer objections, honest responses, forbidden responses, and concrete manuscript actions.
 
-Issue-bundle case study exists at `PAPER_REVIEW_ISSUE_CASE_STUDY_20260701.md`. It expands the SpecDec++ acceptance-prediction-head cluster into claim anchor, observed inventory anchor, missing entity, target-quality gate, and non-destructive recovery behavior. The clean body now includes a short illustrative case subsection that points to this appendix.
+Issue-bundle case study exists at `PAPER_REVIEW_ISSUE_CASE_STUDY_20260701.md`. It expands the SpecDec++ acceptance-prediction-head cluster into claim anchor, observed inventory anchor, missing entity, target-quality gate, and non-destructive recovery behavior. The clean and continuous drafts now include a compact main-text audit table plus a pointer to the detailed appendix.
 
 Manual audit protocol exists at `PAPER_MANUAL_AUDIT_PROTOCOL_20260701.md`. It defines A/B/C/D cluster labels, reporting rules, and non-claims for the 8/9 manual quality statement. The clean body now gives the short A/B/C definition in the manual-cluster-audit section.
 
@@ -51,7 +51,7 @@ The paper-facing result should remain conservative:
 7. Decide whether the manual audit needs a second annotator before submission or can remain a transparent sanity check.
 8. Decide whether the abstract should keep the direct-negative zero caveat for the target venue; current default is to keep it visible.
 9. Keep using `PAPER_TERMINOLOGY_GUIDE_20260701.md` during template conversion so the final manuscript does not drift back into implementation-log wording.
-10. Decide after advisor review whether the issue-bundle case study should remain appendix material or become a main-paper table/figure.
+10. Decide after advisor review whether the main-text issue-bundle table should stay, be shortened, or move back to appendix depending on venue space.
 11. Keep the offline-full20/partial16 empirical framing unless MiMo balance is restored and a fresh full20 rerun passes the same checks.
 12. Fold the reproducibility appendix into the target paper format after figures and bibliography are finalized.
 13. Re-audit all result claims after any fresh run changes the dashboard or case tables.

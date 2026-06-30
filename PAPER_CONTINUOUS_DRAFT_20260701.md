@@ -288,11 +288,21 @@ The key interpretation is that the useful negative-review signal does not appear
 
 One verified cluster illustrates the distinction. In the SpecDec++ case, the paper claims an adaptive candidate-length mechanism and states that it uses "a trained acceptance prediction head to predict the conditional acceptance probability of the candidate tokens." DrMAS treats this statement as neutral inventory evidence: it shows that a named mechanism exists, but it is not itself a negative quote. The verified issue is the missing relation between the claim, the named mechanism, and the expected component-isolation ablation for the acceptance prediction head.
 
+| Bundle element | SpecDec++ acceptance-prediction-head cluster |
+| --- | --- |
+| Claim anchor | Adaptive candidate length is presented as a mechanism for boosting speculative decoding performance. |
+| Observed inventory anchor | The paper states that it augments the draft model with a trained acceptance prediction head. |
+| Missing relation | The verified inventory does not show a component-isolation ablation for the acceptance prediction head. |
+| Verification status | High-confidence missing-ablation target; one deduplicated issue cluster over three related rows. |
+| Recovery action | The supported claim is marked contested by the verified issue rather than downgraded. |
+
+Table 2. Compact audit trail for the illustrative issue bundle. The inventory anchor is neutral paper content, not a negative quote; the review issue comes from the verified claim-inventory-obligation mismatch.
+
 This case is counted as one issue cluster, not as multiple independent defects, even though it appears in three related rows attached to overlapping claims. The target-quality gate classifies the acceptance prediction head as a high-confidence missing-ablation target because it is a named mechanism rather than a generic component. Recovery then applies `mark_contested` to the supported claim: the claim remains supported, but the audited state records that its evidence is contested by a verified review issue. This example is expanded in the case-study appendix.
 
 ### 4.6 Manual Cluster Audit
 
-Table 2 summarizes the manual cluster audit. The audit unit is a deduplicated issue cluster, not a raw row. We use A for clear review-worthy issues, B for defensible reviewer concerns that should be worded cautiously, and C for plausible but over-demanding or template-like concerns that should not enter the conservative paper-ready count. Three clusters are strong A-class issues; five are defensible B-class issues; one is a C-class concern.
+Table 3 summarizes the manual cluster audit. The audit unit is a deduplicated issue cluster, not a raw row. We use A for clear review-worthy issues, B for defensible reviewer concerns that should be worded cautiously, and C for plausible but over-demanding or template-like concerns that should not enter the conservative paper-ready count. Three clusters are strong A-class issues; five are defensible B-class issues; one is a C-class concern.
 
 | Cluster target | Issue type | Manual label | Paper use |
 | --- | --- | --- | --- |
@@ -306,13 +316,13 @@ Table 2 summarizes the manual cluster audit. The audit unit is a deduplicated is
 | EqualAL baseline | missing_baseline | B | defensible example |
 | number of motion components beyond K=4 | missing_ablation | C | exclude from conservative quality count |
 
-Table 2. Manual audit of verified issue clusters. We report 8 of 9 A/B clusters as the conservative quality count and exclude the C-class cluster from the paper-ready headline. This is a small sanity-check audit, not a population-level precision estimate.
+Table 3. Manual audit of verified issue clusters. We report 8 of 9 A/B clusters as the conservative quality count and exclude the C-class cluster from the paper-ready headline. This is a small sanity-check audit, not a population-level precision estimate.
 
 The issue distribution is intentionally reported as a limitation: 6 of the 9 clusters are missing-ablation issues, 2 are missing-baseline issues, and 1 is a reproducibility issue. This is enough to demonstrate the issue-bundle verification mechanism, but not enough to claim broad reviewer issue diversity.
 
 ### 4.7 Recovery And Safety
 
-Table 3 reports recovery and safety signals. The main recovery action is `mark_contested`: a supported claim can remain supported while being marked contested by a verified review issue. This is non-destructive state repair, not a decision override.
+Table 4 reports recovery and safety signals. The main recovery action is `mark_contested`: a supported claim can remain supported while being marked contested by a verified review issue. This is non-destructive state repair, not a decision override.
 
 | Metric | Full20 offline | Fresh partial16 |
 | --- | ---: | ---: |
@@ -325,7 +335,7 @@ Table 3 reports recovery and safety signals. The main recovery action is `mark_c
 | unlinked negative evidence | 0 | 0 |
 | positive/neutral negative candidates | 0 | 0 |
 
-Table 3. Recovery and safety metrics. Verified issues can expose supported-but-contested claims without destructively downgrading claim status. The fresh partial16 rerun is included only as a consistency check because external API access ended before all 20 papers completed.
+Table 4. Recovery and safety metrics. Verified issues can expose supported-but-contested claims without destructively downgrading claim status. The fresh partial16 rerun is included only as a consistency check because external API access ended before all 20 papers completed.
 
 The recovery result should be phrased carefully. The full20 result is an offline recompute over a completed run, so its recovery counts should not be described as a fresh full20 live rerun. The fresh partial16 run gives a cleaner live-run sanity check, but it is incomplete.
 

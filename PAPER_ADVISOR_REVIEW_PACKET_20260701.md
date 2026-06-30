@@ -89,7 +89,7 @@ They parse and render, but still need target-template placement and visual QA.
 3. Should the paper foreground obligation-grounded issue bundles as the main conceptual contribution, or frame them as one mechanism inside a broader ReviewState lifecycle?
 4. Is the conservative result sentence acceptable, or does the venue require a fresh full20 rerun before submission?
 5. Should the direct quote-grounded negative lane with count 0 be in the abstract, or reserved for experiments/limitations?
-6. Does the illustrative issue-bundle case study make the core mechanism clearer, or should it become a figure/table in the main paper?
+6. Does the compact issue-bundle table make the core mechanism clearer, or should it be shortened or moved to the appendix for the target venue?
 7. Are the A/B/C manual-audit labels defined tightly enough for advisor review, or does this need a second annotator before submission?
 8. Is the final-view validation terminology clear enough for the intended venue?
 9. Which pre-mortem risk is most likely for the target venue: empirical scale, direct-negative zero, deterministic seeds, missing-ablation skew, or engineering-artifact framing?

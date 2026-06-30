@@ -175,7 +175,7 @@ Concrete manuscript action:
 
 - Keep case study language explanatory.
 - Do not use it as the main quantitative result.
-- If space permits, add a compact table with claim anchor, inventory anchor, missing entity, target quality, and recovery action.
+- Keep the compact main-text table focused on claim anchor, inventory anchor, missing relation, verification status, and recovery action.
 
 ## Abstract-Level Risk
 
@@ -217,7 +217,7 @@ If targeting a peer-review automation venue:
 
 1. Shorten the abstract by reducing metric density, while keeping the zero direct-negative caveat visible.
 2. Add a compact A/B/C manual-audit criteria box or appendix subsection.
-3. Convert the SpecDec++ case study into either a small main-text table or an appendix table, depending on venue space.
+3. After venue selection, decide whether the compact SpecDec++ table stays in the main text or moves to the appendix for space.
 4. Keep final-view validation terminology consistent during venue-template conversion.
 5. Add one sentence in related work contrasting DrMAS with free-form LLM review generation and citation-only grounding systems if the target venue needs stronger positioning.
 

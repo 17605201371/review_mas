@@ -257,7 +257,7 @@ Tasks:
 - use `PAPER_REVIEWER_PREMORTEM_20260701.md` to decide which risk matters most for the intended venue;
 - ask whether the ReviewState-maintenance framing is venue-appropriate;
 - ask whether the 0 direct-negative count should stay in the abstract or move to experiments/limitations;
-- decide whether the concrete issue-bundle case study should remain text/appendix material or become a main-paper figure/table.
+- decide whether the compact issue-bundle table should remain in the main text or move to the appendix under the target venue's space constraints.
 
 ### Priority 2: Continue Manuscript Production Polish
 
