@@ -1610,6 +1610,8 @@ Continuous manuscript draft: `PAPER_CONTINUOUS_DRAFT_20260701.md`.
 
 Clean paper body draft: `PAPER_CLEAN_BODY_DRAFT_20260701.md`.
 
+Abstract revision audit: `PAPER_ABSTRACT_REVISION_AUDIT_20260701.md`.
+
 Submission readiness audit: `PAPER_READINESS_AUDIT_20260701.md`.
 
 Production checklist: `PAPER_MANUSCRIPT_PRODUCTION_CHECKLIST_20260701.md`.
@@ -1652,6 +1654,7 @@ Current writing status:
 - Introduction, method, experiment, related work, bibliography-candidate, cleaned draft-BibTeX, bibliography-audit, figure-spec, renderable-figure, manuscript-skeleton, continuous-manuscript, clean-body, readiness-audit, production-checklist, reproducibility-appendix, and empirical-framing decision drafts now exist.
 - The continuous manuscript was polished to reduce P28-specific wording outside experiments, replace development-log table language with paper-facing interpretation, and move the former draft-status/open-items section into `PAPER_MANUSCRIPT_PRODUCTION_CHECKLIST_20260701.md`.
 - The clean body draft removes workflow metadata from the continuous draft and replaces bracketed figure placeholders with rendered SVG figure references and paper-facing captions. It has been further polished to keep P28/run identifiers, dataset filenames, and API error-code details out of the main experiment narrative. It is now the preferred manuscript body for advisor/internal review.
+- The clean and continuous draft abstracts were simplified to avoid reading like a dashboard: headline is now 9 obligation-grounded issue clusters with 8 manually judged valid/defensible; 13 raw rows are left to the experiment table; direct quote-grounded negative count 0 remains visible as a caveat. Rationale is in `PAPER_ABSTRACT_REVISION_AUDIT_20260701.md`.
 - The advisor review packet gives the next human-facing entry point: read clean body first, then readiness audit, claims/evidence matrix, reproducibility appendix, and bibliography files. It records the current thesis, defensible empirical claim, mandatory caveats, advisor questions, and non-negotiable overclaim guards.
 - The reviewer pre-mortem operationalizes the risk story: likely objections are empirical scale, direct-negative zero, deterministic reviewer seeds, missing-ablation skew, small manual audit, engineering-artifact framing, and case-study trust. It lists honest responses, forbidden responses, and exact manuscript actions.
 - The issue-bundle case study explains the SpecDec++ acceptance-prediction-head cluster as a concrete ReviewState example: claim anchor + neutral inventory anchor + missing component-isolation ablation + high target quality + non-destructive `mark_contested` recovery. The clean body now includes a short illustrative case subsection and leaves the detailed audit in `PAPER_REVIEW_ISSUE_CASE_STUDY_20260701.md`.

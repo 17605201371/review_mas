@@ -10,6 +10,7 @@ Status: internal review index for the current DrMAS paper package. This is not p
    - Best current manuscript body.
    - Uses paper-facing language, rendered SVG figure references, and conservative empirical framing.
    - Engineering run identifiers are now moved out of the main narrative and into supporting documents.
+   - Abstract now uses 9 clusters as the headline result and leaves raw row count to the experiment table.
 
 2. `PAPER_READINESS_AUDIT_20260701.md`
    - Skeptical audit of what the paper can and cannot claim.
@@ -34,7 +35,10 @@ Status: internal review index for the current DrMAS paper package. This is not p
    - Defines the A/B/C/D cluster labels and reporting rules for the 8/9 manual quality statement.
    - Best file for checking whether the manual audit is being used conservatively.
 
-8. `PAPER_REFERENCES_DRAFT_20260701.bib` and `PAPER_BIBLIOGRAPHY_AUDIT_20260701.md`
+8. `PAPER_ABSTRACT_REVISION_AUDIT_20260701.md`
+   - Records why the abstract was simplified and which caveats remain visible.
+
+9. `PAPER_REFERENCES_DRAFT_20260701.bib` and `PAPER_BIBLIOGRAPHY_AUDIT_20260701.md`
    - Draft bibliography and remaining metadata risks.
 
 ## Current Thesis
