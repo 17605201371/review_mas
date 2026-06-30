@@ -23,6 +23,7 @@ Primary current artifacts:
 - `PAPER_READINESS_AUDIT_20260701.md`
 - `PAPER_MANUSCRIPT_PRODUCTION_CHECKLIST_20260701.md`
 - `PAPER_REPRODUCIBILITY_APPENDIX_20260701.md`
+- `PAPER_EMPIRICAL_FRAMING_DECISION_20260701.md`
 - `P28_6_PAPER_NARRATIVE_STATUS_20260630.md`
 - `P28_6_CONFLICTFIX_TARGETREFINE2_194911_HARDNEG20_DASHBOARD.md/json`
 - `P28_6_CONFLICTFIX_TARGETREFINE2_194911_REVIEW_ISSUE_CASE_TABLE.md/json`
@@ -30,7 +31,7 @@ Primary current artifacts:
 - `P28_5_TARGETREFINE2_MANUAL_CLUSTER_AUDIT_20260630.md`
 - `P28_6_CONFLICTFIX_MIMO_PARTIAL16_224133_HARDNEG20_DASHBOARD.md/json`
 
-Current best result is the P28.6 TargetRefine2 offline recompute over hardneg20. The fresh MiMo rerun is only partial16 because MiMo returned `402 Insufficient account balance`.
+Current best result is the P28.6 TargetRefine2 offline recompute over hardneg20. The empirical framing decision is to use that full20 offline recompute as the main diagnostic result for the conservative framework draft, while treating the fresh MiMo partial16 as a live-run sanity check. A fresh full20 rerun remains required for stronger benchmark-style claims.
 
 ## Claim Status Legend
 
@@ -198,7 +199,7 @@ Prefer:
 
 ## Next Writing Task
 
-The introduction, method, experiment, related work, bibliography-candidate, cleaned draft-BibTeX, bibliography-audit, figure-spec, renderable-figure, manuscript-skeleton, continuous-manuscript, readiness-audit, production-checklist, and reproducibility-appendix drafts now exist:
+The introduction, method, experiment, related work, bibliography-candidate, cleaned draft-BibTeX, bibliography-audit, figure-spec, renderable-figure, manuscript-skeleton, continuous-manuscript, readiness-audit, production-checklist, reproducibility-appendix, and empirical-framing decision drafts now exist:
 
 - `PAPER_INTRODUCTION_DRAFT_20260701.md`
 - `PAPER_METHOD_SECTION_DRAFT_20260701.md`
@@ -214,12 +215,13 @@ The introduction, method, experiment, related work, bibliography-candidate, clea
 - `PAPER_READINESS_AUDIT_20260701.md`
 - `PAPER_MANUSCRIPT_PRODUCTION_CHECKLIST_20260701.md`
 - `PAPER_REPRODUCIBILITY_APPENDIX_20260701.md`
+- `PAPER_EMPIRICAL_FRAMING_DECISION_20260701.md`
 
 Next writing should focus on turning placeholders/specs into final manuscript assets:
 
 1. replace cleaned draft BibTeX entries with final venue-style records;
 2. place the rendered SVG/PDF figure drafts into the target paper template and verify visual fit;
 3. fold the reproducibility appendix into the target paper format;
-4. decide whether to keep the conservative offline-full20/partial16 framing or wait for a fresh full20 rerun.
+4. keep the conservative offline-full20/partial16 framing unless a fresh full20 rerun becomes available and passes the same checks.
 
 If MiMo balance is restored, the next experiment remains a fresh full20 P28.6 rerun with the acceptance criteria listed above.

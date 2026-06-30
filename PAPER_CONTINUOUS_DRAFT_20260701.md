@@ -342,7 +342,7 @@ Fourth, the fresh MiMo rerun is incomplete. It stopped at 16 of 20 papers becaus
 
 Fifth, hardneg20 is a diagnostic set. It is useful for stress-testing ReviewState hygiene and reviewer issue verification, but it is not enough by itself to support broad benchmark claims.
 
-Before treating these results as final paper evidence, we need a fresh full20 P28.6 run with the current code. If MiMo balance remains unavailable, the paper should explicitly describe the full20 result as an offline recompute and the partial16 result as the freshest live sanity check.
+This evidence is sufficient for a conservative framework paper, but not for a broad benchmark claim. A fresh full20 run with the current code would strengthen stability and live-run confidence. Until that run is available, the paper should explicitly describe the main full20 result as an offline recompute and the partial16 result as the freshest live sanity check.
 
 ## 7. Conclusion
 

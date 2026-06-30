@@ -14,6 +14,8 @@ Figure SVG/PDF drafts exist in `paper_figures/`; they were manually redrawn from
 
 Cleaned draft BibTeX exists at `PAPER_REFERENCES_DRAFT_20260701.bib`, with citation provenance and remaining metadata risks in `PAPER_BIBLIOGRAPHY_AUDIT_20260701.md`.
 
+Empirical framing is recorded in `PAPER_EMPIRICAL_FRAMING_DECISION_20260701.md`: proceed with offline-full20 as the main diagnostic result and partial16 as the live sanity check for the conservative framework draft; require fresh full20 only for stronger benchmark-style claims.
+
 The paper-facing result should remain conservative:
 
 - main diagnostic result: 9 obligation-grounded review issue clusters on hardneg20 offline recompute;
@@ -26,13 +28,13 @@ The paper-facing result should remain conservative:
 
 1. Re-export final venue-style BibTeX records, using `PAPER_BIBLIOGRAPHY_CANDIDATES_20260701.md`, `PAPER_REFERENCES_DRAFT_20260701.bib`, and `PAPER_BIBLIOGRAPHY_AUDIT_20260701.md` as the starting point.
 2. Place the rendered SVG/PDF figures into the target paper template and check scaling, line wrapping, and cropping.
-3. Decide whether to keep hardneg20 as the main experiment or wait for a fresh full20 MiMo rerun.
+3. Keep the offline-full20/partial16 empirical framing unless MiMo balance is restored and a fresh full20 rerun passes the same checks.
 4. Fold the reproducibility appendix into the target paper format after figures and bibliography are finalized.
 5. Re-audit all result claims after any fresh run changes the dashboard or case tables.
 
 ## Submission-Readiness Blockers
 
-- No fresh full20 live rerun is available while MiMo returns `402 Insufficient account balance`.
+- No fresh full20 live rerun is available while MiMo returns `402 Insufficient account balance`; this blocks broad benchmark-style claims, not the conservative framework draft.
 - Figure SVG/PDF drafts exist, but final venue-template placement is not checked.
 - Bibliography keys are internally consistent and cleaned, but final target-venue records are not verified.
 - The empirical result is diagnostic and small; the paper must not claim broad review-quality improvement.

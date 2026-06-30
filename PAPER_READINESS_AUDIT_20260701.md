@@ -38,6 +38,7 @@ The paper is not ready for a strong benchmark-performance claim. The current res
 | Manuscript skeleton | `PAPER_MANUSCRIPT_SKELETON_20260701.md` | Structural backup |
 | Production checklist | `PAPER_MANUSCRIPT_PRODUCTION_CHECKLIST_20260701.md` | Tracks remaining non-body work |
 | Reproducibility appendix | `PAPER_REPRODUCIBILITY_APPENDIX_20260701.md` | Maps concepts to code anchors and artifacts |
+| Empirical framing decision | `PAPER_EMPIRICAL_FRAMING_DECISION_20260701.md` | Defines offline-full20/partial16 conservative framing |
 | Introduction | `PAPER_INTRODUCTION_DRAFT_20260701.md` | Folded into continuous draft |
 | Method | `PAPER_METHOD_SECTION_DRAFT_20260701.md` | Folded into continuous draft |
 | Experiments | `PAPER_EXPERIMENT_SECTION_DRAFT_20260701.md` | Folded into continuous draft |
@@ -127,7 +128,7 @@ Best response:
 
 > We evaluate a diagnostic hard-negative set to stress the state lifecycle and false-negative-evidence failure modes. The contribution is the verified state-management mechanism, not a broad leaderboard result.
 
-What would strengthen it:
+What would strengthen it for a broader empirical claim:
 
 - fresh full20 rerun after MiMo is restored;
 - repeated-seed stability;
@@ -224,7 +225,7 @@ Mandatory caveat sentence:
 | Thesis coherence | 8/10 | Strong and now consistent across docs |
 | Method clarity | 7/10 | Clear lifecycle; still needs polish away from implementation history |
 | Evidence honesty | 8/10 | Major limitations are visible |
-| Empirical strength | 5/10 | Diagnostic hardneg20 only; fresh full20 blocked |
+| Empirical strength | 5/10 | Diagnostic hardneg20 only; framing decision is conservative |
 | Figure readiness | 7/10 | SVG/PDF drafts exist and render; target-template placement still pending |
 | Citation readiness | 7/10 | Cleaned BibTeX and audit exist; final venue export still pending |
 | Submission readiness | 6/10 | Good draft package, not camera-ready |
@@ -264,6 +265,12 @@ Tasks:
 
 ### Priority 4: Decide Empirical Path
 
+Current framing:
+
+- keep offline full20 as the main diagnostic result for the conservative framework paper;
+- keep partial16 as the freshest live sanity check;
+- do not claim a fresh full20 rerun.
+
 If MiMo balance returns:
 
 - rerun fresh full20 P28.6;
@@ -278,4 +285,4 @@ If MiMo remains blocked:
 
 ## Bottom Line
 
-The current package is good enough for an internal full-paper draft and for advisor-level review. It is not yet ready for submission. The decisive remaining work is not more narrative invention; it is final polish, figures, bibliography, and either a fresh full20 rerun or a deliberately conservative empirical framing.
+The current package is good enough for an internal full-paper draft and for advisor-level review. It is not yet ready for submission. The decisive remaining work is not more narrative invention; it is final template polish, final venue-style bibliography export, and either a fresh full20 rerun for stronger empirical claims or disciplined maintenance of the conservative offline-full20/partial16 framing.

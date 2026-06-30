@@ -34,6 +34,8 @@ Production checklist: `PAPER_MANUSCRIPT_PRODUCTION_CHECKLIST_20260701.md`.
 
 Reproducibility appendix draft: `PAPER_REPRODUCIBILITY_APPENDIX_20260701.md`.
 
+Empirical framing decision: `PAPER_EMPIRICAL_FRAMING_DECISION_20260701.md`.
+
 ## 1. Thesis
 
 The paper should not claim that DrMAS is a better free-form review generator or a better accept/reject classifier.
@@ -261,9 +263,11 @@ Current limitations:
 - manual audit is still needed to claim A/B quality;
 - hardneg20 is a small diagnostic set, not a final benchmark.
 
-## 8. Next Experiments Needed For Paper-Ready Status
+## 8. Empirical Framing And Next Experiments
 
-### Required
+Current decision: proceed with the P28.6 offline full20 recompute as the main diagnostic result for the conservative framework draft, and use the fresh MiMo partial16 run only as a live-run sanity check. This supports ReviewState-maintenance claims, not broad benchmark-style claims.
+
+### Required Before Stronger Benchmark Claims
 
 1. Restore MiMo balance or provide a working MiMo key.
 2. Run fresh full hardneg20 with current P28.6 code.
@@ -276,9 +280,9 @@ Current limitations:
    - `negative_evidence_unlinked_to_flaw=0`;
    - `positive_or_neutral_negative_candidate_count=0`.
 
-### High Value But Not Mandatory For First Draft
+### High Value But Not Mandatory For Conservative Framework Draft
 
-1. Follow `PAPER_MANUSCRIPT_PRODUCTION_CHECKLIST_20260701.md`: finalize bibliography, place rendered figures in the target template, integrate the reproducibility appendix, and choose the empirical path.
+1. Follow `PAPER_MANUSCRIPT_PRODUCTION_CHECKLIST_20260701.md`: finalize bibliography, place rendered figures in the target template, integrate the reproducibility appendix, and preserve the empirical framing decision.
 2. Place the rendered SVG/PDF figure drafts into the target paper template and verify visual fit.
 3. Replace cleaned draft BibTeX entries with final venue-style records, using `PAPER_BIBLIOGRAPHY_CANDIDATES_20260701.md`, `PAPER_REFERENCES_DRAFT_20260701.bib`, and `PAPER_BIBLIOGRAPHY_AUDIT_20260701.md` as the starting point.
 4. Fold `PAPER_REPRODUCIBILITY_APPENDIX_20260701.md` into the target paper format.
@@ -293,4 +297,4 @@ Large language models can generate plausible paper reviews, but their conclusion
 
 ## 10. Current Status In One Sentence
 
-P28.6 is good enough to support the paper's ReviewState and verified-review-issue narrative, but not enough to claim broad autonomous defect discovery; the next bottleneck is a fresh full20 rerun plus improved Critique-driven issue diversity.
+P28.6 is good enough to support a conservative ReviewState and verified-review-issue framework narrative, using offline-full20 plus partial16 sanity-check framing, but not enough to claim broad autonomous defect discovery or benchmark-style review-quality improvement.
