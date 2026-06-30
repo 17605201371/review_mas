@@ -46,7 +46,7 @@ The broader lesson is that reliable LLM-assisted reviewing is not only a prompti
 
 ### 2.1 LLM-Assisted Peer Review
 
-Recent work studies whether large language models can provide useful feedback on research papers, summarize manuscripts, identify weaknesses, or assist reviewers during peer review \citep{liang2023llmfeedback}. These systems often evaluate generated review text directly: whether it is helpful, whether it overlaps with human reviews, or whether authors and reviewers perceive it as useful.
+Recent work studies whether large language models can provide useful feedback on research papers, summarize manuscripts, identify weaknesses, or assist reviewers during peer review \citep{liang2023llmfeedback,zhuang2025automatedreview,sun2025peerreview}. This literature highlights both the opportunity and the risk of automated scholarly review: generated feedback can appear useful, but review quality depends on whether claims, evidence, limitations, and criticisms are faithfully handled. Many systems evaluate generated review text directly: whether it is helpful, whether it overlaps with human reviews, or whether authors and reviewers perceive it as useful.
 
 DrMAS addresses a complementary problem. Instead of treating review generation as the main object, it treats the intermediate review state as the object that must be maintained, audited, and repaired. This distinction matters because a fluent review can mix grounded strengths, unsupported criticisms, author-stated limitations, retrieval failures, and speculative concerns in the same prose. DrMAS therefore represents claims, evidence, reviewer issues, conflicts, and recovery actions as structured state before rendering the final review.
 

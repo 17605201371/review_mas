@@ -13,6 +13,7 @@ The draft bibliography has been upgraded from placeholder-style records to clean
 - expanded arXiv author lists from arXiv metadata;
 - replaced confirmed ACL papers with ACL Anthology-style proceedings records;
 - replaced confirmed NeurIPS papers with proceedings records where DBLP/Crossref metadata was available;
+- added two peer-review-specific DOI-backed records to reduce overreliance on a single LLM peer-review citation;
 - kept uncertain or arXiv-only records as `@misc` instead of inventing venue metadata.
 
 This improves citation readiness, but the bibliography is still not camera-ready. Before submission, export final records from the target venue's preferred bibliography source and re-check style requirements.
@@ -22,6 +23,8 @@ This improves citation readiness, but the bibliography is still not camera-ready
 | Key | Current Entry Type | Metadata Basis | Remaining Risk |
 | --- | --- | --- | --- |
 | `liang2023llmfeedback` | `@misc` arXiv | arXiv metadata for `2310.01783`; Semantic Scholar previously indicated a venue, but live venue metadata was not stable enough to encode here | Verify whether final journal/venue metadata should replace arXiv |
+| `zhuang2025automatedreview` | `@article` Information Fusion | Crossref DOI `10.1016/j.inffus.2025.103332` returned title, authors, journal, volume, article/page number, and year | Re-export final BibTeX from publisher if target style requires issue/month fields |
+| `sun2025peerreview` | `@article` Scientometrics | Crossref DOI `10.1007/s11192-025-05440-w` returned title, author, journal, volume, pages, and year | Re-export final BibTeX from publisher if target style requires issue/month fields |
 | `lewis2020rag` | `@inproceedings` NeurIPS | DBLP returned NeurIPS 2020 proceedings URL and full author list; arXiv author list cross-checked | Add page range if target style requires it |
 | `gao2023alce` | `@misc` arXiv | arXiv metadata for `2305.14627`; ACL/Crossref lookup did not return a stable venue record in this pass | Verify final venue if published |
 | `wadden2020scifact` | `@inproceedings` EMNLP | ACL Anthology BibTeX for `2020.emnlp-main.609`; Crossref DOI matched | Low; re-export from ACL before final submission |
@@ -35,9 +38,9 @@ This improves citation readiness, but the bibliography is still not camera-ready
 
 ## Current Citation Coverage
 
-The continuous manuscript currently uses 11 bibliography keys across 14 citation occurrences. The coverage is adequate for a conservative draft:
+The continuous manuscript currently uses 13 bibliography keys across 14 citation occurrences. The coverage is adequate for a conservative draft:
 
-- LLM-assisted peer review: `liang2023llmfeedback`
+- LLM-assisted peer review: `liang2023llmfeedback`, `zhuang2025automatedreview`, `sun2025peerreview`
 - retrieval-augmented and citation-grounded generation: `lewis2020rag`, `gao2023alce`, `wadden2020scifact`
 - factuality, attribution, and verification: `rashkin2021attribution`, `thorne2018fever`, `wadden2020scifact`
 - multi-agent LLM systems: `wu2023autogen`, `li2023camel`
@@ -48,7 +51,7 @@ The continuous manuscript currently uses 11 bibliography keys across 14 citation
 
 These are not blockers for the current internal draft, but they are likely reviewer-facing weaknesses:
 
-1. Add one or two more LLM peer-review/review-generation evaluation references beyond Liang et al. if the final related work section expands.
+1. Add a specific LLM review-generation benchmark reference if the final related work section expands toward benchmark comparison rather than state maintenance.
 2. Add a structured peer-review, argument-state, or review-decision support reference if a strong ReviewState-adjacent prior work source is identified.
 3. Decide whether ALCE and attribution references are sufficient for citation faithfulness, or whether the final venue expects a broader factuality literature slice.
 4. Re-export final BibTeX in the style expected by the target venue.
@@ -60,6 +63,6 @@ The cleanup pass checked:
 - arXiv metadata for arXiv IDs used in the bibliography;
 - DBLP public API for NeurIPS/RAG/CAMEL/Self-Refine metadata where it responded;
 - ACL Anthology BibTeX for FEVER and SciFact;
-- Crossref DOI metadata for SciFact, Reflexion, and Argument Mining.
+- Crossref DOI metadata for SciFact, Reflexion, Argument Mining, and the two 2025 peer-review-specific records.
 
 The pass deliberately avoided filling uncertain venue fields from memory.

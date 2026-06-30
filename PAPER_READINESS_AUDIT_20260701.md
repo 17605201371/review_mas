@@ -288,7 +288,7 @@ Tasks:
 
 - export entries from DBLP/ACL Anthology/arXiv/Crossref;
 - verify author lists and venues;
-- decide whether to add more LLM peer-review references.
+- re-export final venue-style BibTeX, including the added peer-review survey/challenges references.
 
 ### Priority 5: Decide Empirical Path
 

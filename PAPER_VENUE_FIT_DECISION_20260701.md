@@ -82,7 +82,7 @@ Emphasize:
 
 Needed strengthening:
 
-- add more peer-review-specific related work if time allows;
+- keep the newly added peer-review-specific related work conservative and re-export final BibTeX before submission;
 - consider turning the issue-bundle case study into a main-paper table.
 
 ### Benchmark-Heavy ML/NLP Framing
@@ -99,10 +99,10 @@ Would need:
 
 ## Related Work Implications
 
-The current bibliography is adequate for an internal systems/method draft, but the target venue changes what must be strengthened:
+The current bibliography is adequate for an internal systems/method draft and now has three peer-review-specific LLM references. The target venue still changes what must be strengthened:
 
 - Systems/method route: current RAG, factuality, multi-agent, and argument-mining references are probably enough for an initial draft, pending final BibTeX export.
-- Human-AI or peer-review route: add one or two more LLM peer-review / AI-assisted reviewing references beyond the current Liang et al. citation.
+- Human-AI or peer-review route: the added peer-review survey/challenges citations help; add a narrower review-generation benchmark citation only if the final framing moves toward generation quality comparison.
 - Benchmark-heavy route: add benchmark and evaluation references, then run more experiments before submission.
 
 Do not invent venue metadata or citations. Use `PAPER_BIBLIOGRAPHY_AUDIT_20260701.md` before adding references.

@@ -11,6 +11,7 @@ Verification sources used in this pass:
 - DBLP public API for several NeurIPS/CoRR proceedings records.
 - ACL Anthology BibTeX for FEVER and SciFact.
 - Crossref API for DOI-backed conference/journal entries.
+- Crossref API for the peer-review-specific 2025 survey/challenges records added in the latest pass.
 
 Do not treat this as a final camera-ready bibliography. Before submission, export venue-style BibTeX from DBLP, ACL Anthology, arXiv, Crossref, or publisher pages and re-check author lists.
 
@@ -22,7 +23,7 @@ Bibliography audit: `PAPER_BIBLIOGRAPHY_AUDIT_20260701.md`.
 
 | Placeholder in draft | Candidate references | Current status |
 | --- | --- | --- |
-| `[CITATION: LLM peer-review evaluation]` | Liang et al., "Can large language models provide useful feedback on research papers? A large-scale empirical analysis" | arXiv metadata used in cleaned BibTeX; final venue metadata still pending |
+| `[CITATION: LLM peer-review evaluation]` | Liang et al., "Can large language models provide useful feedback on research papers? A large-scale empirical analysis"; Zhuang et al., "Large language models for automated scholarly paper review: A survey"; Sun, "Large language models in peer review: challenges and opportunities" | Liang arXiv metadata used in cleaned BibTeX; Zhuang and Sun DOI metadata verified through Crossref |
 | `[CITATION: RAG and grounded scientific assistance]` | Lewis et al., "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks"; Gao et al., "Enabling Large Language Models to Generate Text with Citations"; Wadden et al., "Fact or Fiction: Verifying Scientific Claims" | Lewis verified via DBLP/NeurIPS; Gao kept as arXiv; Wadden verified via ACL/Crossref |
 | `[CITATION: factuality and attribution verification]` | Rashkin et al., "Measuring Attribution in Natural Language Generation Models"; Thorne et al., "FEVER"; Wadden et al., "Fact or Fiction" | Rashkin kept as arXiv; Thorne and Wadden verified via ACL/Crossref |
 | `[CITATION: multi-agent LLM systems]` | Wu et al., "AutoGen"; Li et al., "CAMEL" | AutoGen kept as arXiv/CoRR; CAMEL verified via DBLP/NeurIPS |
@@ -41,9 +42,23 @@ Bibliography audit: `PAPER_BIBLIOGRAPHY_AUDIT_20260701.md`.
    - Use for: motivating LLM peer-review feedback and review-generation evaluation.
    - Caution: verify final venue/publisher metadata before final BibTeX.
 
+2. Zhenzhen Zhuang, Jiandong Chen, Hongfeng Xu, Yuwen Jiang, and Jialiang Lin. "Large language models for automated scholarly paper review: A survey."
+   - Metadata source: Crossref API for DOI `10.1016/j.inffus.2025.103332`.
+   - Year returned: 2025.
+   - Container returned: Information Fusion.
+   - Volume/pages returned: 124, article/page `103332`.
+   - Use for: situating DrMAS within automated scholarly paper review and identifying the broader review-automation problem space.
+
+3. Zhuanlan Sun. "Large language models in peer review: challenges and opportunities."
+   - Metadata source: Crossref API for DOI `10.1007/s11192-025-05440-w`.
+   - Year returned: 2025.
+   - Container returned: Scientometrics.
+   - Volume/pages returned: 130, 5503--5546.
+   - Use for: motivating peer-review-specific risks and opportunities without claiming DrMAS solves broad automated review.
+
 ### Retrieval-Augmented And Grounded Generation
 
-2. Patrick Lewis et al. "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks."
+4. Patrick Lewis et al. "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks."
    - Metadata source: DBLP and arXiv API.
    - arXiv: `2005.11401`.
    - Venue record returned: NeurIPS 2020.
@@ -51,7 +66,7 @@ Bibliography audit: `PAPER_BIBLIOGRAPHY_AUDIT_20260701.md`.
    - Use for: retrieval-augmented generation background.
    - Caution: add final venue page range if required.
 
-3. Tianyu Gao, Howard Yen, Jiatong Yu, and Danqi Chen. "Enabling Large Language Models to Generate Text with Citations."
+5. Tianyu Gao, Howard Yen, Jiatong Yu, and Danqi Chen. "Enabling Large Language Models to Generate Text with Citations."
    - Metadata source: arXiv API.
    - arXiv: `2305.14627`.
    - First arXiv date returned: 2023-05-24.
@@ -59,21 +74,21 @@ Bibliography audit: `PAPER_BIBLIOGRAPHY_AUDIT_20260701.md`.
 
 ### Scientific Claim Verification And Factuality
 
-4. David Wadden, Shanchuan Lin, Kyle Lo, Lucy Lu Wang, Madeleine van Zuylen, Arman Cohan, and Hannaneh Hajishirzi. "Fact or Fiction: Verifying Scientific Claims."
+6. David Wadden, Shanchuan Lin, Kyle Lo, Lucy Lu Wang, Madeleine van Zuylen, Arman Cohan, and Hannaneh Hajishirzi. "Fact or Fiction: Verifying Scientific Claims."
    - Metadata source: ACL Anthology BibTeX, Crossref DOI metadata, and arXiv API.
    - arXiv: `2004.14974`.
    - ACL Anthology: `2020.emnlp-main.609`.
    - First arXiv date returned: 2020-04-30.
    - Use for: scientific claim verification and evidence grounding.
 
-5. James Thorne, Andreas Vlachos, Christos Christodoulopoulos, and Arpit Mittal. "FEVER: a Large-scale Dataset for Fact Extraction and VERification."
+7. James Thorne, Andreas Vlachos, Christos Christodoulopoulos, and Arpit Mittal. "FEVER: a Large-scale Dataset for Fact Extraction and VERification."
    - Metadata source: ACL Anthology BibTeX, DBLP, and Crossref API.
    - Year returned: 2018.
    - DOI: `10.18653/v1/n18-1074`.
    - Container returned: NAACL-HLT 2018, Volume 1 (Long Papers).
    - Use for: fact extraction and verification background.
 
-6. Hannah Rashkin et al. "Measuring Attribution in Natural Language Generation Models."
+8. Hannah Rashkin et al. "Measuring Attribution in Natural Language Generation Models."
    - Metadata source: arXiv API.
    - arXiv: `2112.12870`.
    - First arXiv date returned: 2021-12-23.
@@ -82,27 +97,27 @@ Bibliography audit: `PAPER_BIBLIOGRAPHY_AUDIT_20260701.md`.
 
 ### Agentic LLM Systems And Self-Correction
 
-7. Qingyun Wu et al. "AutoGen: Enabling Next-Gen LLM Applications via Multi-Agent Conversation."
+9. Qingyun Wu et al. "AutoGen: Enabling Next-Gen LLM Applications via Multi-Agent Conversation."
    - Metadata source: arXiv API.
    - arXiv: `2308.08155`.
    - First arXiv date returned: 2023-08-16.
    - Use for: multi-agent LLM systems.
 
-8. Guohao Li, Hasan Abed Al Kader Hammoud, Hani Itani, Dmitrii Khizbullin, and Bernard Ghanem. "CAMEL: Communicative Agents for \"Mind\" Exploration of Large Language Model Society."
+10. Guohao Li, Hasan Abed Al Kader Hammoud, Hani Itani, Dmitrii Khizbullin, and Bernard Ghanem. "CAMEL: Communicative Agents for \"Mind\" Exploration of Large Language Model Society."
    - Metadata source: DBLP and arXiv API.
    - arXiv: `2303.17760`.
    - Venue record returned: NeurIPS 2023.
    - First arXiv date returned: 2023-03-31.
    - Use for: multi-agent communicative LLM systems.
 
-9. Aman Madaan et al. "Self-Refine: Iterative Refinement with Self-Feedback."
+11. Aman Madaan et al. "Self-Refine: Iterative Refinement with Self-Feedback."
    - Metadata source: DBLP and arXiv API.
    - arXiv: `2303.17651`.
    - Venue record returned: NeurIPS 2023.
    - First arXiv date returned: 2023-03-30.
    - Use for: LLM self-correction and iterative refinement.
 
-10. Noah Shinn, Federico Cassano, Edward Berman, Ashwin Gopinath, Karthik Narasimhan, and Shunyu Yao. "Reflexion: Language Agents with Verbal Reinforcement Learning."
+12. Noah Shinn, Federico Cassano, Edward Berman, Ashwin Gopinath, Karthik Narasimhan, and Shunyu Yao. "Reflexion: Language Agents with Verbal Reinforcement Learning."
     - Metadata source: Crossref and arXiv API.
     - arXiv: `2303.11366`.
     - Venue record returned: NeurIPS 2023.
@@ -112,7 +127,7 @@ Bibliography audit: `PAPER_BIBLIOGRAPHY_AUDIT_20260701.md`.
 
 ### Argument Mining And Claim-Evidence Structure
 
-11. John Lawrence and Chris Reed. "Argument Mining: A Survey."
+13. John Lawrence and Chris Reed. "Argument Mining: A Survey."
     - Metadata source: Crossref API.
     - Year returned: 2020.
     - DOI: `10.1162/coli_a_00364`.
@@ -123,10 +138,10 @@ Bibliography audit: `PAPER_BIBLIOGRAPHY_AUDIT_20260701.md`.
 
 These areas still need better venue-specific citations before final submission:
 
-1. A second or third LLM peer-review evaluation paper beyond Liang et al.
-2. A paper specifically about LLM review generation benchmarks, if the final related work needs more coverage.
-3. A structured peer-review or decision-support reference, if available, to support the ReviewState framing.
-4. A citation for citation-faithfulness evaluation beyond ALCE, if the venue expects broader factuality coverage.
+1. A paper specifically about LLM review generation benchmarks, if the final related work needs more coverage.
+2. A structured peer-review or decision-support reference, if available, to support the ReviewState framing.
+3. A citation for citation-faithfulness evaluation beyond ALCE, if the venue expects broader factuality coverage.
+4. Final venue-style BibTeX export for the 2025 peer-review survey/challenges records.
 
 ## How To Use In The Draft
 
@@ -134,7 +149,7 @@ Recommended placeholder replacements:
 
 ```text
 [CITATION: LLM peer-review evaluation]
-  -> \citep{liang2023llmfeedback}
+  -> \citep{liang2023llmfeedback,zhuang2025automatedreview,sun2025peerreview}
 
 [CITATION: RAG and grounded scientific assistance]
   -> \citep{lewis2020rag,gao2023alce,wadden2020scifact}
