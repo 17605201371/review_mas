@@ -6,6 +6,8 @@ Status: continuous manuscript draft. This file turns the current section drafts 
 
 Figure draft sources are tracked in `PAPER_FIGURES_DRAFT_20260701.md` and `paper_figures/*.mmd`.
 
+Citation candidates are tracked in `PAPER_BIBLIOGRAPHY_CANDIDATES_20260701.md`; inline citation placeholders should not be replaced until final BibTeX is verified.
+
 ## Abstract
 
 Large language models can generate plausible peer-review text, but fluent reviews may still lose track of which claims are supported, contested, or merely speculative. We present DrMAS, a ReviewState-driven framework for LLM-assisted peer review that represents claims, evidence, reviewer issues, conflicts, hygiene diagnostics, and recovery actions as structured state. DrMAS separates direct quote-grounded negative evidence from obligation-grounded review issues: the latter can be verified through a claim anchor, observed paper inventory, a concrete missing or mismatched entity, and counterevidence checks, without pretending that the paper itself contains a negative sentence. On a hard-negative diagnostic set, the current P28.6 pipeline verifies 13 obligation-grounded issue rows, deduplicating to 9 issue clusters; manual audit judges 8 of 9 clusters valid or defensible. The direct quote-grounded negative lane remains strict and produces no verified direct negatives, highlighting the difference between copied negative quotes and reviewer-inferred issue bundles. Final-view hygiene remains clean in the authoritative artifacts, with zero active negative-grounding conflicts, zero semantic anchor conflicts, zero unlinked negative evidence, and zero positive/neutral negative candidates. These results support a conservative view of LLM review assistance as auditable state maintenance and repair rather than unconstrained review generation.
@@ -356,7 +358,7 @@ The main contribution is therefore a stateful verification and recovery framewor
 
 This continuous draft is aligned with current P28.6 artifacts, but it is not camera-ready. The remaining manuscript work is:
 
-1. Replace citation placeholders with verified bibliography entries.
+1. Replace citation placeholders with final BibTeX entries, using `PAPER_BIBLIOGRAPHY_CANDIDATES_20260701.md` as the starting point.
 2. Render or redraw the Mermaid figure sources into polished figures.
 3. Decide whether to keep hardneg20 as the main experiment or wait for a fresh full20 MiMo rerun.
 4. Add an appendix or reproducibility note mapping paper concepts to implementation anchors.

@@ -14,6 +14,8 @@ Method prose draft: `PAPER_METHOD_SECTION_DRAFT_20260701.md`.
 
 Related work draft: `PAPER_RELATED_WORK_DRAFT_20260701.md`.
 
+Bibliography candidates: `PAPER_BIBLIOGRAPHY_CANDIDATES_20260701.md`.
+
 Figure specs: `PAPER_FIGURE_SPECS_20260701.md`.
 
 Renderable figure draft: `PAPER_FIGURES_DRAFT_20260701.md` plus `paper_figures/*.mmd`.
@@ -268,7 +270,7 @@ Current limitations:
 
 1. Polish `PAPER_CONTINUOUS_DRAFT_20260701.md` into a venue-ready manuscript draft.
 2. Render or redraw the Mermaid figure sources into polished paper figures.
-3. Replace related-work citation placeholders with verified bibliography entries.
+3. Replace related-work citation placeholders with final BibTeX entries, using `PAPER_BIBLIOGRAPHY_CANDIDATES_20260701.md` as the starting point.
 4. Improve Critique payload candidate recall so fewer verified issues come from deterministic seeds.
 5. Increase issue type diversity beyond missing ablation.
 6. Add a small oracle/reference-review analysis as an upper-bound evaluation, not as system input.

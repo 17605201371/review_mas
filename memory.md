@@ -1594,6 +1594,8 @@ Experiment-section draft: `PAPER_EXPERIMENT_SECTION_DRAFT_20260701.md`.
 
 Related-work draft: `PAPER_RELATED_WORK_DRAFT_20260701.md`.
 
+Bibliography candidates: `PAPER_BIBLIOGRAPHY_CANDIDATES_20260701.md`.
+
 Figure specs: `PAPER_FIGURE_SPECS_20260701.md`.
 
 Renderable figure draft: `PAPER_FIGURES_DRAFT_20260701.md` plus `paper_figures/*.mmd`.
@@ -1625,8 +1627,8 @@ Paper claims not allowed yet:
 
 Current writing status:
 
-- Introduction, method, experiment, related work, figure-spec, renderable-figure, manuscript-skeleton, and continuous-manuscript drafts now exist.
-- Related work currently uses citation targets/placeholders; verify exact bibliography before final manuscript use.
+- Introduction, method, experiment, related work, bibliography-candidate, figure-spec, renderable-figure, manuscript-skeleton, and continuous-manuscript drafts now exist.
+- Related work currently uses citation placeholders; `PAPER_BIBLIOGRAPHY_CANDIDATES_20260701.md` maps them to API-verified candidate references, but final BibTeX still needs venue-style verification.
 - Figure specs and Mermaid sources cover ReviewState lifecycle, two critical-content lanes, row-to-cluster-to-manual-audit funnel, and optional non-destructive recovery.
-- Next paper-writing work should focus on polishing the continuous draft, verifying bibliography entries, and rendering/redrawing polished figures.
+- Next paper-writing work should focus on polishing the continuous draft, turning bibliography candidates into final BibTeX, and rendering/redrawing polished figures.
 - MiMo full20 rerun remains blocked by `402 Insufficient account balance`; keep describing the freshest live rerun as partial16 until a full rerun completes.
