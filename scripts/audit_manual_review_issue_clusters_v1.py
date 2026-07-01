@@ -81,6 +81,90 @@ P29_20260701_AUDIT: Dict[str, Dict[str, str]] = {
 }
 
 
+P29_CLEAN_API4_192659_AUDIT: Dict[str, Dict[str, str]] = {
+    "review-issue-cluster-7dub7uxtxn-obligation-grounded-review-issue-reproducibility-gap-implementation-reproducibility-details": {
+        "manual_label": "D",
+        "reason": "The verified bundle itself quotes that hyperparameters are in the supplementary implementation section; without auditing that supplement, this is a retrieval/supplement-coverage miss rather than a confirmed paper defect.",
+    },
+    "review-issue-cluster-9zebk3e9bx-obligation-grounded-review-issue-missing-ablation-unified-scene-representation": {
+        "manual_label": "B",
+        "reason": "The unified 3D representation is central to SPOT and a reviewer could ask for a cleaner isolation; Table 5/6 task-strategy results partially address it, so this is defensible rather than strong.",
+    },
+    "review-issue-cluster-9zebk3e9bx-obligation-grounded-review-issue-evaluation-protocol-risk-split-threshold-seed-same-budget-protocol-for-spot": {
+        "manual_label": "C",
+        "reason": "The protocol target bundles split, threshold, seed, and same-budget concerns too broadly; the paper has an experimental setup, but seed-level reproducibility may still be under-specified.",
+    },
+    "review-issue-cluster-ge6iywjtsv-obligation-grounded-review-issue-reproducibility-gap-implementation-reproducibility-details": {
+        "manual_label": "B",
+        "reason": "The GrCN/ControllNet architecture is central and the visible extracted paper text lacks common training configuration, seed, learning-rate, or implementation details.",
+    },
+    "review-issue-cluster-wpxq5n8ylb-obligation-grounded-review-issue-missing-ablation-recurrent-draft-model": {
+        "manual_label": "A",
+        "reason": "The recurrent draft model is a named performance-driving mechanism; the visible text supports the component anchor but does not show an isolated recurrent-draft-model ablation.",
+    },
+    "review-issue-cluster-nnexmnithw-obligation-grounded-review-issue-missing-ablation-acceptance-prediction-head": {
+        "manual_label": "A",
+        "reason": "The acceptance prediction head is a named core mechanism for adaptive candidate length, and no visible ablation evidence isolates its contribution.",
+    },
+    "review-issue-cluster-a6sntiisgg-obligation-grounded-review-issue-missing-ablation-ional-branch": {
+        "manual_label": "C",
+        "permissive_label": "B",
+        "reason": "The intended LogoRA branch-level concern is plausible because the ablation table focuses on losses, but the extracted target is malformed ('ional branch') and should not be treated as a strong paper-facing defect.",
+    },
+    "review-issue-cluster-cklg91apgk-obligation-grounded-review-issue-missing-robustness-or-generalization-held-out-coverage-for-gcl": {
+        "manual_label": "D",
+        "reason": "The full text reports additional heterophily, large-scale, and multiple node-classification benchmarks, so the held-out coverage issue is counterevidenced.",
+    },
+    "review-issue-cluster-fgxyvmwpw6-obligation-grounded-review-issue-missing-ablation-the-total-loss": {
+        "manual_label": "D",
+        "reason": "The paper explicitly has an ablation section studying the choice of regularization loss, lambda weighting, distillation iterations, and data update steps, so the total-loss ablation target is counterevidenced.",
+    },
+    "review-issue-cluster-fgxyvmwpw6-obligation-grounded-review-issue-missing-ablation-via-aggregation-local-network": {
+        "manual_label": "D",
+        "reason": "Aggregation of local network updates is a generic federated-learning mechanism, not a paper-specific contribution mechanism that should become a verified missing-ablation issue.",
+    },
+    "review-issue-cluster-qagwfiiy4p-obligation-grounded-review-issue-reproducibility-gap-implementation-reproducibility-details": {
+        "manual_label": "B",
+        "reason": "The PST/PSRD method is central and the visible text gives limited training configuration or seed detail; this is a defensible reproducibility concern, though somewhat generic.",
+    },
+    "review-issue-cluster-tpaj63ax4y-obligation-grounded-review-issue-missing-baseline-standard-ris-segmentation-baselines-and-datasets-used-the": {
+        "manual_label": "D",
+        "reason": "The main comparison table includes zero-shot, weakly supervised, and fully supervised RIS baselines including LAVT; the issue overgeneralizes a baseline concern.",
+    },
+    "review-issue-cluster-mhv6wcbb0z-obligation-grounded-review-issue-missing-ablation-generalized-noise-regularization": {
+        "manual_label": "A",
+        "reason": "Generalized noise regularization is the paper-named central mechanism for NR-DCCA, and no visible evidence isolates its contribution.",
+    },
+    "review-issue-cluster-xue1yqegd6-obligation-grounded-review-issue-missing-ablation-only-comprises-one-head": {
+        "manual_label": "D",
+        "reason": "The target is an ordinary architecture description rather than a named contribution mechanism, and the paper already contains a component ablation section.",
+    },
+    "review-issue-cluster-xue1yqegd6-obligation-grounded-review-issue-missing-ablation-the-quadratic-motion-model-for-the-multi-segment": {
+        "manual_label": "D",
+        "reason": "Section 5.1 explicitly ablates the space-time quadratic motion model against an alternative, so this is a counterevidence miss.",
+    },
+    "review-issue-cluster-yxn76hmetm-obligation-grounded-review-issue-missing-baseline-equalal-baseline": {
+        "manual_label": "C",
+        "permissive_label": "B",
+        "reason": "EqualAL is a paper-named related method, but same-setting comparability to HALO's active domain-adaptation setup is uncertain from the verified bundle.",
+    },
+    "review-issue-cluster-yxn76hmetm-obligation-grounded-review-issue-evaluation-protocol-risk-same-budget-same-hardware-fair-comparison-protocol-": {
+        "manual_label": "D",
+        "reason": "The paper provides ADA protocol, datasets, label-budget framing, and training-protocol details; the same-budget/same-hardware target is overbroad.",
+    },
+    "review-issue-cluster-yxn76hmetm-obligation-grounded-review-issue-missing-ablation-carefully-initialize-the-hyperbolic-network": {
+        "manual_label": "D",
+        "reason": "The verified inventory points to the main ablation and HFR/initialization analysis, so the target is not a clean missing-ablation issue.",
+    },
+}
+
+
+AUDIT_PRESETS: Dict[str, Dict[str, Dict[str, str]]] = {
+    "p29_20260701": P29_20260701_AUDIT,
+    "p29_clean_api4_192659_20260701": P29_CLEAN_API4_192659_AUDIT,
+}
+
+
 def _load_cases(path: Path) -> List[Dict[str, Any]]:
     payload = json.loads(path.read_text(encoding="utf-8"))
     cases = payload.get("cases") if isinstance(payload, dict) else payload
@@ -183,7 +267,13 @@ def render_markdown(payload: Dict[str, Any], source: Path) -> str:
         f"- permissive A/B clusters: `{summary['manual_permissive_AB_cluster_count']}`",
         f"- A/B/C/D/MERGE: `{summary['manual_A_cluster_count']}` / `{summary['manual_B_cluster_count']}` / `{summary['manual_C_cluster_count']}` / `{summary['manual_D_cluster_count']}` / `{summary['manual_merge_duplicate_count']}`",
         "",
-        "Paper-facing interpretation: P29 produced 20 verifier-passing rows and 15 system clusters. Manual spot-checking supports 8 strict A/B clusters, 9 under a permissive reading, after merging one direct-quote duplicate. The remaining risky cases are mostly counterevidence misses, overbroad protocol targets, or weak same-setting baseline assumptions.",
+        "Paper-facing interpretation: "
+        f"the source run produced {summary['system_row_count']} verifier-passing rows and "
+        f"{summary['system_cluster_count']} system clusters. Manual spot-checking supports "
+        f"{summary['manual_strict_AB_cluster_count']} strict A/B clusters, "
+        f"{summary['manual_permissive_AB_cluster_count']} under a permissive reading, "
+        f"after merging {summary['manual_merge_duplicate_count']} duplicate cluster(s). "
+        "The remaining risky cases are mostly counterevidence misses, overbroad protocol targets, weak same-setting baseline assumptions, or malformed/generic missing-ablation targets.",
         "",
         "## Cluster Labels",
         "",
@@ -216,10 +306,10 @@ def main() -> int:
     parser.add_argument("--case-table-json", required=True)
     parser.add_argument("--output-json", required=True)
     parser.add_argument("--output-md", required=True)
-    parser.add_argument("--preset", choices=["p29_20260701"], default="p29_20260701")
+    parser.add_argument("--preset", choices=sorted(AUDIT_PRESETS), default="p29_20260701")
     args = parser.parse_args()
 
-    audit = P29_20260701_AUDIT
+    audit = AUDIT_PRESETS[args.preset]
     source = Path(args.case_table_json)
     payload = build_manual_audit(_load_cases(source), audit)
     Path(args.output_json).write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
