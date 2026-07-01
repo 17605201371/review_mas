@@ -1813,3 +1813,49 @@ Current writing status:
 - P29 clean API4 manual cluster audit must be used for paper-facing interpretation, not the raw verifier count. Manual first-pass labels over 18 system clusters: `A=3`, `B=3`, `C=3`, `D=9`, `MERGE=0`; strict A/B clusters = 6, permissive A/B clusters = 8. Strong A clusters are ReDrafter recurrent draft model, SpecDec++ acceptance prediction head, and NR-DCCA generalized noise regularization. Defensible B clusters are SPOT unified scene representation, Diff-Shape GrCN reproducibility, and PSRD/PST reproducibility. Risky/false-positive clusters include supplement-coverage/retrieval misses, overbroad protocol targets, counterevidenced LT-MS/HALO/FVL ablation targets, generic FL aggregation, and the RIS baseline overgeneralization.
 - Interpretation update: P29 clean API4 proves the pipeline can now run a full20 with 4 API workers, stable JSON, protection PASS, and more verifier-passing issue rows/clusters. It does **not** improve the paper-facing manual A/B result versus the earlier conservative P29/P28.6 interpretation. Do not write "18 true defects" or "P29 achieves 10+ manually valid clusters." Correct wording: "P29 clean API4 produced 22 verifier-passing obligation-grounded issue rows and 18 system clusters; a conservative manual first pass supports 6 strict A/B clusters, or 8 under a permissive reading."
 - Next technical work if quantity remains the goal: improve quality before adding more seeds. Priority fixes are stronger counterevidence matching for ablation/protocol claims, better extraction/normalization of malformed targets such as `ional_branch`, stricter rejection of generic mechanisms such as FL aggregation/local network updates and one-head architecture descriptions, and more genuine Critique-payload discovery so deterministic reviewer seeds do not dominate the result.
+
+## P30 Quality Hardening and Fresh Full20 (2026-07-01)
+
+P30 is a precision/hygiene hardening pass after the P29 clean API4 manual audit. It is not a quantity-expansion pass. The accepted diagnosis was that P29's `22` verifier-passing rows / `18` clusters contained too many D-class false positives: missed counterevidence, malformed or generic missing-ablation targets, supplement/retrieval gaps treated as reproducibility defects, and one harmful destructive recovery commit.
+
+Code changes:
+
+- Missing-ablation target quality now rejects weak/generic/malformed targets such as `it only comprises one head`, `via aggregation of local network`, `ional branch`, `carefully initialize the hyperbolic network`, generic encoder/decoder/network/module/component targets, and ordinary action fragments.
+- Semantic counterevidence was strengthened for ablation cases: total/overall loss gaps can be blocked by regularization/lambda/distillation/data-update ablations; quadratic/space-time motion model gaps can be blocked by component ablations covering the polynomial/quadratic motion model; HFR/initialization gaps can be blocked by HFR/initialization ablation or analysis.
+- Protocol/reproducibility counterevidence now treats explicit setup/settings/training protocol, dataset split, label-budget, and supplement/appendix hyperparameter/config/implementation pointers as blockers rather than verified defects.
+- Scope/robustness counterevidence now blocks stale coverage gaps when the full text contains directly relevant heterophily or large-benchmark evaluations such as OGBN benchmarks.
+- Missing-baseline specificity rejects generic/truncated blueprints such as `standard RIS/segmentation baselines and datasets used by the claim scope`.
+- Recovery now treats obligation-grounded review issues as non-destructive only. Model-generated `downgrade_claim_to_unsupported` patches citing obligation-grounded issue evidence are rebuilt into `mark_contested`; claim-status downgrades from paper-absence-audit / obligation-grounded issue evidence are blocked.
+- Dashboard protection now includes `recovery_harmful_commit_committed == 0`.
+
+Validation:
+
+- `py_compile` passed on the touched Python files.
+- Direct regression invocation passed for the new target-guard, counterevidence, supplement/protocol, scope, baseline, and recovery downgrade-to-contested tests. Full `pytest` was unavailable in the local Python environments.
+- Offline recompute on the P29 raw run (`20260701_192659`) produced `11` verified rows / `7` clusters; this confirmed the stricter guard removes many P29 D-class rows, but the old raw still has `recovery_harmful_commit_committed=1` because offline recompute cannot rewrite historical recovery logs.
+
+Authoritative P30 fresh full20 rerun:
+
+- raw/log/meta: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok1536_20260701_211251.{jsonl,log,meta}`
+- dashboard: `P30_FRESH_API4_211251_HARDNEG20_DASHBOARD.{md,json}` plus audit JSON
+- review issue case table: `P30_FRESH_API4_211251_REVIEW_ISSUE_CASE_TABLE.{md,json}`
+- recovery table: `P30_FRESH_API4_211251_RECOVERY_CASE_TABLE.{md,json}`
+- full20 completed 20/20 with MiMo API4, `max_turns=7`, `max_tokens=1536`, `api_max_workers=4`, `api_max_retries=8`, `api_timeout=600`.
+
+P30 fresh headline metrics:
+
+- Protection PASS, including the new hard line `recovery_harmful_commit_committed=0`.
+- Evidence JSON remains healthy: `evidence_json_valid_turns=67`, `evidence_json_fallback_turns=0`, `evidence_json_fallback_rate_pct=0`.
+- Direct quote-grounded negative lane remains strict and empty: `review_negative_verified_count=0`.
+- Obligation-grounded issue lane after quality guard: `verified_review_issue_count=13`, `verified_review_issue_cluster_count=12`, `duplicate_review_issue_row_count=1`.
+- Type mix: `6` missing-ablation clusters, `1` missing-baseline cluster, `2` scope/robustness clusters, and `3` protocol/reproducibility clusters.
+- Discovery remains seed-dominated: `reviewer_candidate_review_issue_critique_payload_count=0`, `reviewer_candidate_review_issue_deterministic_seed_count=13`; cluster origins are `12` deterministic seed clusters and `0` Critique-payload clusters.
+- Funnel: `review_issue_candidate_total=88`, `verified=13`, `counterevidence_rejected=44`, `missing_inventory_rejected=22`, `review_worthiness_rejected=11`, `missing_ablation_target_rejected=9`, `missing_baseline_target_rejected=7`.
+- Recovery bridge is clean and non-destructive: `mark_contested_commit_count=8`, `recovery_case_verified_review_issue_repair=8`, `turns_with_verified_review_issue_bundle_evidence=8`, `verified_issue_cluster_without_recovery_count=4`.
+
+Interpretation update:
+
+- P30 successfully fixes the most important P29 safety failure: harmful destructive recovery is gone on a fresh run, and quality guards remove many weak P29 false positives.
+- P30 does not satisfy the earlier quantity target of `20+` rows. It deliberately trades quantity for precision, ending at `13` rows / `12` clusters.
+- The paper-facing result should not be "P30 finds more defects." Correct wording: "P30 shows that stricter counterevidence and recovery hygiene preserve a clean full20 run with 13 verifier-passing obligation-grounded rows / 12 clusters and zero harmful recovery commits."
+- The remaining bottleneck is autonomous discovery quality, not verifier looseness. Critique-payload verified issues are still `0`; deterministic seeds dominate. If the next goal is more validated defects, the next pass should improve Critique candidate generation with entity-level menus and stronger observed-inventory grounding, while keeping the P30 verifier and recovery guards.

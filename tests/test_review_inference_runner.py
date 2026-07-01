@@ -9712,8 +9712,8 @@ def test_fallback_recovery_patch_marks_absence_audit_gap_contested_when_supporte
 
 def test_fallback_recovery_patch_marks_verified_review_issue_bundle_contested(monkeypatch):
     monkeypatch.setattr(review_runner_mod, "_DIAGPENDING_RECOVERY_ENABLED", True)
-    claim = "The theorem-proving model outperforms existing ATP baselines."
-    inventory_quote = "Table 2 compares our model with k-NN, Proof State Transformer, and CoqHammer."
+    claim = "LG-FL outperforms baseline FL methods such as FedAvg and FedProx on heterogeneous data."
+    inventory_quote = "Table 1 compares LG-FL with FedAvg and FedProx under heterogeneous client data."
     state = merge_review_state(
         {
             "paper_text": f"{claim}\n\n{inventory_quote}",
@@ -9740,16 +9740,16 @@ def test_fallback_recovery_patch_marks_verified_review_issue_bundle_contested(mo
                 {
                     "candidate_id": "reviewer-neg-candidate-atp-live",
                     "claim_id": "claim-1",
-                    "weakness": "The table scope omits a named ATP baseline family.",
+                    "weakness": "The FL comparison omits named heterogeneous FL baselines.",
                     "issue_type": "missing_baseline",
                     "required_evidence_type": "baseline_or_comparison",
                     "quote_grounding_mode": "table_scope_absence",
-                    "missing_or_weak_items": ["E-prover ATP baseline"],
+                    "missing_or_weak_items": ["other heterogeneous FL baselines like FedBN, Per-FedAvg, or SCAFFOLD"],
                     "observed_inventory": [
                         {
                             "quote": inventory_quote,
-                            "locator": "Table 2",
-                            "observed_items": ["k-NN", "Proof State Transformer", "CoqHammer"],
+                            "locator": "Table 1",
+                            "observed_items": ["FedAvg", "FedProx"],
                         }
                     ],
                     "source_of_expectation": "reviewer_candidate",
@@ -9768,8 +9768,8 @@ def test_fallback_recovery_patch_marks_verified_review_issue_bundle_contested(mo
             "strength": "strong",
             "evidence": inventory_quote,
             "raw_quote": inventory_quote,
-            "source_locator": "Table 2",
-            "source": "Table 2",
+            "source_locator": "Table 1",
+            "source": "Table 1",
             "support_source_bucket": "baseline_or_comparison",
             "binding_status": "bound_real_claim",
             "verified_grounding_label": "paper_grounded_exact",
@@ -9834,6 +9834,123 @@ def test_fallback_recovery_patch_marks_verified_review_issue_bundle_contested(mo
     assert new_state["_latest_patch_log"]["recovery_patch_operation"] == "mark_contested"
     assert new_state["contested_relations"][0]["claim_id"] == "claim-1"
     assert new_state["review_issues"][0]["recovery_status"] == "contested"
+
+
+def test_model_claim_downgrade_with_review_issue_bundle_rebuilds_to_contested(monkeypatch):
+    monkeypatch.setattr(review_runner_mod, "_DIAGPENDING_RECOVERY_ENABLED", True)
+    claim = "LG-FL outperforms baseline FL methods such as FedAvg and FedProx on heterogeneous data."
+    inventory_quote = "Table 1 compares LG-FL with FedAvg and FedProx under heterogeneous client data."
+    state = merge_review_state(
+        {
+            "paper_text": f"{claim}\n\n{inventory_quote}",
+            "claims": [],
+            "evidence_map": [],
+            "flaw_candidates": [],
+            "reviewer_negative_candidates": [],
+            "unresolved_questions": [],
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-1",
+                    "claim": claim,
+                    "claim_kind": "paper_extracted",
+                    "claim_type": "comparison",
+                    "coverage_tags": ["empirical", "comparison"],
+                    "importance": "high",
+                    "status": "supported",
+                    "claim_obligations": ["baseline_or_comparison"],
+                }
+            ],
+            "review_issue_candidates": [
+                {
+                    "candidate_id": "reviewer-neg-candidate-atp-live",
+                    "claim_id": "claim-1",
+                    "weakness": "The FL comparison omits named heterogeneous FL baselines.",
+                    "issue_type": "missing_baseline",
+                    "required_evidence_type": "baseline_or_comparison",
+                    "quote_grounding_mode": "table_scope_absence",
+                    "missing_or_weak_items": ["other heterogeneous FL baselines like FedBN, Per-FedAvg, or SCAFFOLD"],
+                    "observed_inventory": [
+                        {
+                            "quote": inventory_quote,
+                            "locator": "Table 1",
+                            "observed_items": ["FedAvg", "FedProx"],
+                        }
+                    ],
+                    "source_of_expectation": "reviewer_candidate",
+                    "status": "pending_absence_audit",
+                }
+            ],
+        },
+    )
+    state["claims"][0]["status"] = "supported"
+    state["claims"][0]["supporting_evidence_ids"] = ["e-support"]
+    state["evidence_map"].append(
+        {
+            "evidence_id": "e-support",
+            "claim_id": "claim-1",
+            "stance": "supports",
+            "strength": "strong",
+            "evidence": inventory_quote,
+            "raw_quote": inventory_quote,
+            "source_locator": "Table 1",
+            "source": "Table 1",
+            "support_source_bucket": "baseline_or_comparison",
+            "binding_status": "bound_real_claim",
+            "verified_grounding_label": "paper_grounded_exact",
+            "verified_quote_match_type": "exact",
+            "verified_source_span_start": len(claim) + 2,
+            "verified_source_span_end": len(claim) + 2 + len(inventory_quote) - 1,
+            "semantic_grounding_label": "semantic_support_verified",
+        }
+    )
+    issue_evidence_ids = [
+        item["evidence_id"]
+        for item in state["evidence_map"]
+        if item.get("review_issue_source") == "obligation_grounded_review_issue"
+    ]
+    assert issue_evidence_ids
+    assert not review_runner_mod._allows_claim_status_downgrade_from_recovery(
+        next(item for item in state["evidence_map"] if item["evidence_id"] == issue_evidence_ids[0])
+    )
+
+    model_patch = normalize_review_update_payload(
+        {
+            "action": "apply_recovery_patch",
+            "target_type": "claim",
+            "target_id": "claim-1",
+            "old_status": "supported",
+            "new_status": "unsupported",
+            "supporting_evidence_ids": issue_evidence_ids[:1],
+            "reason_for_change": "The verified review issue makes the claim unsupported.",
+            "resolution_expectation": "partially_resolved",
+            "recovery_patch_operation": "downgrade_claim_to_unsupported",
+        }
+    )
+
+    payload = _maybe_salvage_recovery_payload(
+        "Critique Agent",
+        model_patch,
+        state,
+        {
+            "action_type": "challenge_previous_hypothesis",
+            "effective_action_type": "challenge_previous_hypothesis",
+            "target_claim_ids": ["claim-1"],
+            "target_flaw_ids": [],
+            "target_evidence_ids": [],
+        },
+    )
+
+    assert payload["recovery_patch_operation"] == "mark_contested"
+    assert payload["mark_contested"] is True
+    assert payload["target_id"] == "claim-1"
+    assert payload["new_status"] == "supported"
+
+    new_state = merge_review_state(state, payload)
+    assert new_state["claims"][0]["status"] == "supported"
+    assert new_state["_latest_patch_log"]["recovery_patch_operation"] == "mark_contested"
+    assert not new_state["_latest_patch_log"]["negative_recovery_commit"]
 
 
 def test_claim_requirement_audit_flags_empirical_gap_without_negative_quote():

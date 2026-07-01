@@ -8037,6 +8037,10 @@ def test_missing_ablation_target_quality_rejects_generic_components_and_actions(
         "component-isolation ablation for convolutional network",
         "component-isolation ablation for predicts a textual representation",
         "component-isolation ablation for is trained with full-batch gradient",
+        "component-isolation ablation for it only comprises one head",
+        "component-isolation ablation for via aggregation of local network",
+        "component-isolation ablation for ional branch",
+        "component-isolation ablation for carefully initialize the hyperbolic network",
         "component-isolation ablation for study the square loss",
         "component-isolation ablation for fed into the trainable module",
         "component-isolation ablation for g$ and network",
@@ -12083,6 +12087,146 @@ def test_component_ablation_seed_rejects_related_work_component_anchor():
     assert hygiene["verified_review_issue_count"] == 0
 
 
+def test_review_issue_bundle_rejects_total_loss_gap_when_loss_ablation_exists():
+    claim = "FVL introduces a total loss combining classification, regularization, and distillation terms."
+    ablation_quote = (
+        "Ablation study. We study the regularization loss, the lambda weighting coefficient, "
+        "distillation iterations, and data update steps in Table 5."
+    )
+    state = {
+        "paper_text": f"{claim}\n\nSection 5 Experiments.\n{ablation_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "method",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["ablation_or_component"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-total-loss",
+                "claim_id": "claim-1",
+                "weakness": "The paper lacks an ablation isolating the total loss.",
+                "negative_type": "missing_ablation",
+                "required_evidence_type": "ablation_or_component",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["component-isolation ablation for the total loss"],
+                "observed_inventory": [{"quote": ablation_quote, "locator": "Table 5"}],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["obligation_grounded_review_issue_count"] == 0
+    assert hygiene["verified_review_issue_count"] == 0
+
+
+def test_review_issue_bundle_rejects_quadratic_motion_when_component_ablation_exists():
+    claim = "LT-MS uses a quadratic motion model for long-term motion segmentation."
+    ablation_quote = (
+        "Section 5.1 Ablation Study. We changed one component at a time and report that "
+        "the polynomial space-time quadratic motion model contributes to the final performance."
+    )
+    state = {
+        "paper_text": f"{claim}\n\n{ablation_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "method",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["ablation_or_component"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-quadratic-motion",
+                "claim_id": "claim-1",
+                "weakness": "The paper lacks an ablation isolating the quadratic motion model.",
+                "negative_type": "missing_ablation",
+                "required_evidence_type": "ablation_or_component",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": [
+                    "ablation isolating the quadratic motion model component for the K=4 multi-segment evaluation"
+                ],
+                "observed_inventory": [{"quote": ablation_quote, "locator": "Section 5.1"}],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["obligation_grounded_review_issue_count"] == 0
+    assert hygiene["verified_review_issue_count"] == 0
+
+
+def test_review_issue_bundle_rejects_hfr_initialization_when_ablation_exists():
+    claim = "RIPU improves universal domain adaptation using HFR and careful initialization."
+    ablation_quote = (
+        "Table 4: Ablation study of HFR and initialization. We compare RIPU without HFR, "
+        "different initialization strategies, and the full method."
+    )
+    state = {
+        "paper_text": f"{claim}\n\n{ablation_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "method",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["ablation_or_component"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-hfr-init",
+                "claim_id": "claim-1",
+                "weakness": "The paper lacks ablations for HFR and initialization.",
+                "negative_type": "missing_ablation",
+                "required_evidence_type": "ablation_or_component",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["component-isolation ablation for HFR initialization"],
+                "observed_inventory": [{"quote": ablation_quote, "locator": "Table 4"}],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["obligation_grounded_review_issue_count"] == 0
+    assert hygiene["verified_review_issue_count"] == 0
+
+
 def test_review_issue_bundle_rejects_whole_method_acronym_as_ablation_target():
     claim = "Ablation studies confirm the individual contributions of HALO components."
     ablation_quote = (
@@ -12393,6 +12537,95 @@ def test_review_issue_bundle_rejects_template_baseline_family_candidate():
     assert hygiene["verified_review_issue_count"] == 0
 
 
+def test_review_issue_bundle_rejects_standard_claim_scope_baseline_blueprint():
+    claim = "The framework closes the gap between weakly-supervised and fully-supervised RIS methods."
+    inventory_quote = "The full method improves upon a much stronger baseline and sets a new state-of-the-art for weakly-supervised RIS."
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "comparison",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["baseline_or_comparison"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-standard-ris-blueprint",
+                "claim_id": "claim-1",
+                "weakness": "The paper lacks standard RIS baselines and datasets.",
+                "negative_type": "missing_baseline",
+                "required_evidence_type": "baseline_or_comparison",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["standard RIS/segmentation baselines and datasets used by the claim scope"],
+                "observed_inventory": [{"quote": inventory_quote, "locator": "Comparison excerpt"}],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["obligation_grounded_review_issue_count"] == 0
+    assert hygiene["verified_review_issue_count"] == 0
+
+
+def test_review_issue_bundle_rejects_ris_baseline_when_main_table_lists_lavt():
+    claim = "The RIS method compares against zero-shot, weakly supervised, and fully supervised baselines."
+    comparison_quote = (
+        "Table 1: Referring image segmentation comparison includes zero-shot methods, weakly supervised "
+        "methods, fully supervised methods, and the LAVT baseline on RefCOCO."
+    )
+    state = {
+        "paper_text": f"{claim}\n\n{comparison_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "comparison",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["baseline_or_comparison"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-ris-baseline",
+                "claim_id": "claim-1",
+                "weakness": "The paper lacks standard RIS baselines such as LAVT.",
+                "negative_type": "missing_baseline",
+                "required_evidence_type": "baseline_or_comparison",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["same-setting comparison against LAVT RIS baseline"],
+                "observed_inventory": [{"quote": comparison_quote, "locator": "Table 1"}],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["obligation_grounded_review_issue_count"] == 0
+    assert hygiene["verified_review_issue_count"] == 0
+
+
 def test_review_issue_bundle_rejects_protocol_risk_from_generic_setting_inventory():
     claim = "SPOT learns label-efficient transferable 3D representations."
     inventory_quote = (
@@ -12423,6 +12656,149 @@ def test_review_issue_bundle_rejects_protocol_risk_from_generic_setting_inventor
                 "quote_grounding_mode": "absence_or_requirement_gap",
                 "missing_or_weak_items": ["evaluation split, threshold, seed, or same-budget protocol for SPOT"],
                 "observed_inventory": [{"quote": inventory_quote, "locator": "Abstract"}],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["obligation_grounded_review_issue_count"] == 0
+    assert hygiene["verified_review_issue_count"] == 0
+
+
+def test_review_issue_bundle_rejects_reproducibility_gap_when_supplement_has_hyperparameters():
+    claim = "The method is trained with a reproducible implementation protocol."
+    inventory_quote = "Implementation details. Hyperparameters in \\cref{supp:implementation} specify optimizer and training configuration."
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "method",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["reproducibility"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-hparams",
+                "claim_id": "claim-1",
+                "weakness": "The paper lacks implementation hyperparameters.",
+                "negative_type": "reproducibility_gap",
+                "required_evidence_type": "reproducibility",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": [
+                    "training hyperparameters, split, seed, code/config, or implementation detail for ReLU",
+                    "training hyperparameters for deep ReLU low-rank experiments",
+                    "exact network architecture for deep ReLU low-rank experiments",
+                    "dataset details for deep ReLU low-rank experiments",
+                ],
+                "observed_inventory": [{"quote": inventory_quote, "locator": "Supplement"}],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["obligation_grounded_review_issue_count"] == 0
+    assert hygiene["verified_review_issue_count"] == 0
+
+
+def test_review_issue_bundle_rejects_protocol_gap_when_training_protocol_exists():
+    claim = "RIPU evaluates under an adaptive universal domain adaptation protocol."
+    protocol_quote = (
+        "Experimental setup. We follow the ADA protocol with Office-Home datasets, label-budget "
+        "settings, source/target splits, and the full training protocol described here."
+    )
+    state = {
+        "paper_text": f"{claim}\n\n{protocol_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "empirical",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["evaluation_protocol"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-ada-protocol",
+                "claim_id": "claim-1",
+                "weakness": "The paper lacks an ADA protocol specification.",
+                "negative_type": "evaluation_protocol_risk",
+                "required_evidence_type": "evaluation_protocol",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["ADA protocol datasets label-budget and training protocol"],
+                "observed_inventory": [{"quote": protocol_quote, "locator": "Experimental setup"}],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["obligation_grounded_review_issue_count"] == 0
+    assert hygiene["verified_review_issue_count"] == 0
+
+
+def test_review_issue_bundle_rejects_gcl_coverage_gap_when_heterophily_benchmarks_exist():
+    claim = "PROP achieves competitive results over GCL methods across diverse node classification benchmarks."
+    inventory_quote = (
+        "Table 5: Test accuracy of homophily node classification benchmarks comparing PROPGCL with other baselines."
+    )
+    counterevidence = (
+        "GCL settings. Besides the previously considered benchmarks, we also evaluate the recently proposed heterophily benchmark "
+        "and large benchmarks ogbn-arxiv and ogbn-products, with results reported in Table 7."
+    )
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}\n\n{counterevidence}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "empirical",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["robustness_or_generalization"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-gcl-coverage",
+                "claim_id": "claim-1",
+                "weakness": "The paper lacks held-out GCL coverage.",
+                "negative_type": "missing_robustness_or_generalization",
+                "required_evidence_type": "robustness_or_generalization",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["held-out or coverage evaluation for GCL"],
+                "observed_inventory": [{"quote": inventory_quote, "locator": "Table 5"}],
                 "status": "pending_absence_audit",
                 "source_of_expectation": "reviewer_candidate",
             }

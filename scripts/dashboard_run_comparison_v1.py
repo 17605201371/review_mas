@@ -125,6 +125,7 @@ PROTECTION_LINES: List[Tuple[str, str, str]] = [
     ("negative_grounding_conflict_count",     "==", "0"),
     ("semantic_negative_without_review_relation_count", "==", "0"),
     ("positive_or_neutral_negative_candidate_count", "==", "0"),
+    ("recovery_harmful_commit_committed",     "==", "0"),
     # For smoke/dry-run protection, a weak-target block is a valid safe
     # recovery outcome.  Effective repair is still reported separately; the
     # defense net should not force unsafe commits just to raise commit count.

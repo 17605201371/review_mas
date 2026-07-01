@@ -1884,6 +1884,7 @@ _MISSING_ABLATION_TARGET_WEAK_ACTION_RE = re.compile(
     r"^(?:is\s+|are\s+|was\s+|were\s+)?(?:trained|training|pre[- ]?trained|"
     r"predicts?|predicting|outputs?|generates?|using|uses?|applying|applies?|"
     r"learns?|learning|optimizes?|optimizing|updates?|updated|operates?|implemented|evaluated|"
+    r"initiali[sz]es?|initiali[sz]ing|"
     r"compares?|stud(?:y|ies|ying|ied)|devises?|devised|expects?|expecting|"
     r"fed|feeds?|feeding)\b",
     re.IGNORECASE,
@@ -1938,6 +1939,12 @@ def _missing_ablation_target_is_malformed_fragment(target: str) -> bool:
     if re.match(r"^\d+(?:\.\d+)*\s+[a-z]", lowered):
         return True
     if re.search(r"\b(?:seems?\s+similar|similar\s+to\s+the|methodology\s+involves|design\s+of\s+gradient)\b", lowered):
+        return True
+    if re.match(r"^(?:via|through)\s+(?:aggregation|aggregat(?:e|ion|ing))\b", lowered):
+        return True
+    if re.match(r"^(?:it\s+)?only\s+comprises?\b", lowered):
+        return True
+    if re.fullmatch(r"(?:[a-z]{0,4}ional|[a-z]{0,4}al)\s+(?:branch|module|component|head)", lowered):
         return True
     if re.match(r"^(?:from|with|to)\s+(?:its|their|the|a|an|our)\b", lowered):
         return True
@@ -2046,6 +2053,12 @@ def _missing_ablation_target_quality(bundle: Dict[str, Any]) -> Dict[str, str]:
     if _missing_ablation_target_is_malformed_fragment(target):
         return {"quality": "reject", "reason": "missing_ablation_target_malformed_fragment"}
     if re.search(r"\b(?:seems?\s+similar|methodology\s+involves|design\s+of\s+gradient)\b", lowered):
+        return {"quality": "reject", "reason": "missing_ablation_target_malformed_fragment"}
+    if re.search(r"\b(?:only\s+comprises?|via\s+aggregation|aggregation\s+of\s+local\s+network)\b", lowered):
+        return {"quality": "reject", "reason": "missing_ablation_target_prose_fragment"}
+    if re.search(r"\bcarefully\s+initiali[sz]e\b", lowered):
+        return {"quality": "reject", "reason": "missing_ablation_target_weak_action"}
+    if re.fullmatch(r"(?:[a-z]{0,4}ional|[a-z]{0,4}al)\s+(?:branch|module|component|head)", lowered):
         return {"quality": "reject", "reason": "missing_ablation_target_malformed_fragment"}
     if re.search(r"\b(?:stochastic\s+gradient|gradient\s+descent|cross[- ]entropy\s+loss)\b", lowered) and not re.search(
         r"\b(?:orthogonal|ogl|gradient\s+matching|distillation|novel|proposed)\b",
@@ -2322,6 +2335,14 @@ def _review_issue_bundle_review_worthiness_failure(
         ):
             return "missing_ablation_target_not_contribution_bound"
 
+    if neg_type == "reproducibility_gap":
+        if re.search(r"\b(?:supplement|supplementary|appendix)\b|\\cref\{supp:|\\ref\{supp:", inventory_l) and re.search(
+            r"\b(?:hyperparameters?|implementation|configuration|config|training\s+details?|optimizer|seed|split|code)\b",
+            f"{missing_l} {inventory_l}",
+            re.IGNORECASE,
+        ):
+            return "reproducibility_detail_deferred_to_supplement_or_appendix"
+
     if neg_type == "evaluation_protocol_risk":
         if re.search(r"\btrain/?test\s+split,\s*seed,\s*threshold,\s*or\s+same[- ]budget\s+protocol\b", missing_l):
             return "evaluation_protocol_missing_item_too_template_broad"
@@ -2510,6 +2531,8 @@ def _missing_baseline_target_specificity_failure(bundle: Dict[str, Any]) -> str:
         lowered = target.lower()
         if not target:
             return "missing_baseline_target_empty"
+        if re.search(r"\bstandard\b.{0,80}\b(?:baselines?|datasets?)\b.{0,80}\bclaim\s+scope\b", lowered):
+            return "missing_baseline_target_generic_or_truncated"
         if _MISSING_BASELINE_TARGET_BROAD_OR_TRUNCATED_RE.fullmatch(lowered):
             return "missing_baseline_target_generic_or_truncated"
         if lowered.endswith("-") or re.search(r"\b(?:retur|distillatio|pre-trainin|compariso)\b", lowered):
@@ -10471,6 +10494,29 @@ def _ablation_counterevidence_window_resolves_semantic_table(window: str, missin
     ):
         return True
 
+    if (
+        re.search(r"\btotal\s+loss\b|\boverall\s+loss\b|\bloss\s+function\b", missing)
+        and re.search(r"\bablation\s+stud(?:y|ies)\b|\bsensitivity\s+analys(?:is|es)\b", text)
+        and re.search(r"\bregulari[sz]ation\s+loss\b|\blambda\b|\\lambda|\bdistillation\s+iterations?\b|\bdata\s+update\s+steps?\b", text)
+    ):
+        return True
+
+    if (
+        re.search(r"\bquadratic\s+motion\s+model\b|\bspace[- ]time\s+motion\s+model\b", missing)
+        and re.search(r"\bablation\s+stud(?:y|ies)\b", text)
+        and re.search(r"\bthree\s+main\s+components\b|\bone\s+component\s+at\s+a\s+time\b", text)
+        and re.search(r"\bpolynomial\s+space[- ]time\s+quadratic\s+motion\s+model\b|\bquadratic\s+motion\s+model\b", text)
+    ):
+        return True
+
+    if (
+        re.search(r"\bhfr\b|\binitiali[sz]ation\b", missing)
+        and re.search(r"\bablation\s+stud(?:y|ies)\b|\bcomponent\s+analysis\b|\banalys(?:is|es)\b", text)
+        and re.search(r"\bhfr\b", text)
+        and re.search(r"\binitiali[sz]ation\b", text)
+    ):
+        return True
+
     return False
 
 
@@ -10626,6 +10672,11 @@ def _window_resolves_evaluation_or_scope_missing(
                 or re.search(r"\b(?:table|result|results|benchmark|dataset|datasets)\b", text, re.I)
             )
         )
+    if re.search(r"\b(?:held[- ]out|coverage)\b", lower_missing) and re.search(r"\bgcl\b|graph\s+contrastive\s+learning", lower_missing):
+        return bool(
+            re.search(r"\b(?:heterophily|large\s+benchmarks?|large[- ]scale|ogbn[- ]arxiv|ogbn[- ]products)\b", text, re.I)
+            and re.search(r"\b(?:evaluate[sd]?|benchmark|benchmarks|table|results?)\b", text, re.I)
+        )
     if re.search(r"\b(?:sensitivity|threshold|hyperparameter|tuning|range|sweep)\b", lower_missing):
         return bool(
             re.search(r"\b(?:sensitivity|sweep|vary|varied|varying|different\s+(?:thresholds?|values?)|threshold\s*=|range)\b", text, re.I)
@@ -10637,6 +10688,10 @@ def _window_resolves_evaluation_or_scope_missing(
             and (
                 _review_issue_text_has_quantitative_measure(text)
                 or re.search(r"\b(?:mae|accuracy|f1|auc|eer|tanimoto|similarity|rank(?:ing)?\s+(?:score|metric)|score\s*=)\b", text, re.I)
+                or (
+                    re.search(r"\b(?:table|tab\.?)\s*\d?\b", text, re.I)
+                    and re.search(r"\b(?:reports?|compares?|comparison|ablation|results?)\b", text, re.I)
+                )
             )
         )
     if re.search(r"\b(?:ablation|variant|component|module)\b", lower_missing):
@@ -10670,7 +10725,13 @@ def _window_resolves_protocol_or_result_missing(
             and re.search(r"\b(?:analysis|analy[sz]e[sd]?|evaluate[sd]?|experiment|result|ablation|sensitivity)\b", text, re.I)
         )
     if re.search(r"\b(?:metric|definition|measure|measurement|protocol)\b", lower_missing):
-        return bool(re.search(r"\b(?:defined\s+as|definition|metric|measure[sd]?|computed\s+as|formula|threshold)\b", text, re.I))
+        return bool(
+            re.search(r"\b(?:defined\s+as|definition|metric|measure[sd]?|computed\s+as|formula|threshold)\b", text, re.I)
+            or (
+                re.search(r"\b(?:protocol|setup|setting|settings|configuration|training\s+protocol)\b", text, re.I)
+                and re.search(r"\b(?:follow|follows|following|describe[sd]?|dataset|datasets|split|splits|label[- ]budget|source/target|source\s+and\s+target|training)\b", text, re.I)
+            )
+        )
     if re.search(r"\b(?:split|fold|seed|random|validation|train|test)\b", lower_missing):
         return bool(re.search(r"\b(?:train(?:ing)?/?test|split|fold|seed|validation|held[- ]out|cross[- ]validation)\b", text, re.I))
     if neg_type == "result_claim_mismatch" or re.search(r"\b(?:quantitative|values?|scores?|table|mae|accuracy|f1|auc)\b", lower_missing):

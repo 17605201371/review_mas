@@ -1289,6 +1289,18 @@ def _is_verified_negative_evidence_for_recovery(item: Dict[str, Any]) -> bool:
     return True
 
 
+def _is_obligation_grounded_review_issue_for_recovery(item: Dict[str, Any]) -> bool:
+    if not isinstance(item, dict):
+        return False
+    return (
+        str(item.get("review_issue_source") or "").strip() == "obligation_grounded_review_issue"
+        or str(item.get("review_issue_verification_status") or "").strip() == "verified_review_issue"
+        or str(item.get("verified_grounding_label") or "").strip() == "paper_absence_audit_verified"
+        or str(item.get("review_negative_label") or "").strip() == "review_negative_absence_audit_verified"
+        or str(item.get("source") or "").strip() == "reviewer_absence_audit"
+    )
+
+
 def _allows_claim_status_downgrade_from_recovery(item: Dict[str, Any]) -> bool:
     """Only direct verified negative evidence can downgrade a claim.
 
@@ -1297,6 +1309,8 @@ def _allows_claim_status_downgrade_from_recovery(item: Dict[str, Any]) -> bool:
     Treat it as flaw/limitation grounding unless a future extractor marks it
     as direct claim-negative evidence.
     """
+    if _is_obligation_grounded_review_issue_for_recovery(item):
+        return False
     if not _is_verified_negative_evidence_for_recovery(item):
         return False
     source = str(item.get("source") or "").strip().lower()
@@ -5560,11 +5574,17 @@ def _claim_downgrade_patch_should_be_contested(worker_payload: Dict[str, Any], s
         for item in state.get("claims", []) or []
         if isinstance(item, dict) and item.get("claim_id")
     }
+    cited_evidence = [
+        evidence_lookup.get(str(evidence_id), {}) or {}
+        for evidence_id in worker_payload.get("supporting_evidence_ids", []) or []
+    ]
+    if any(_is_obligation_grounded_review_issue_for_recovery(item) for item in cited_evidence):
+        return True
     if not _verified_positive_support_ids_for_claim(claim_lookup.get(target_id, {}) or {}, evidence_lookup):
         return False
     return any(
-        _is_verified_negative_evidence_for_recovery(evidence_lookup.get(str(evidence_id), {}) or {})
-        for evidence_id in worker_payload.get("supporting_evidence_ids", []) or []
+        _is_verified_negative_evidence_for_recovery(item)
+        for item in cited_evidence
     )
 
 
@@ -5805,10 +5825,26 @@ def _maybe_salvage_recovery_payload(
                 return rebuilt
         if _claim_downgrade_patch_should_be_contested(worker_payload, state):
             rebuilt = _fallback_recovery_patch_payload(state, manager_payload)
-            if rebuilt.get("action") == "apply_recovery_patch" and _recovery_patch_cites_only_real_evidence(rebuilt, state):
+            if (
+                rebuilt.get("action") == "apply_recovery_patch"
+                and str(rebuilt.get("recovery_patch_operation") or "").strip() != "downgrade_claim_to_unsupported"
+                and _recovery_patch_cites_only_real_evidence(rebuilt, state)
+            ):
                 rebuilt["_recovery_patch_source"] = "claim_downgrade_contested_rebuild"
                 rebuilt["claim_downgrade_contested_rebuild_used"] = True
                 return rebuilt
+            return normalize_review_update_payload(
+                {
+                    "action": "blocked",
+                    "target_type": "claim",
+                    "target_id": str(worker_payload.get("target_id") or ""),
+                    "blocked_reason": (
+                        "Claim downgrade cited obligation-grounded review issue evidence; "
+                        "recovery must record a supported-but-contested relation instead of changing claim status."
+                    ),
+                    "missing_requirements": ["non-destructive mark_contested recovery for verified review issue"],
+                }
+            )
         blocked_route = _block_direct_route_to_limitation_if_preserved_concern(worker_payload, state)
         if blocked_route is not None:
             rebuilt = _fallback_recovery_patch_payload(state, manager_payload)
