@@ -49,6 +49,64 @@ Missing-baseline, missing-ablation, insufficient-evaluation, and reproducibility
 
 There are deliberately separate lanes. Keep them separate in code, metrics, dashboards, and paper narrative.
 
+### 2026-07-01 P29 manual cluster audit and paper-facing count
+
+Latest P29 artifacts:
+
+- source run: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260701_160531.jsonl`
+- dashboard: `P29_DISCOVERY_EXPAND_MIMO_160531_TARGETGUARD3_HARDNEG20_DASHBOARD.md/json`
+- review issue cases: `P29_DISCOVERY_EXPAND_MIMO_160531_TARGETGUARD3_REVIEW_ISSUE_CASE_TABLE.md/json`
+- recovery cases: `P29_DISCOVERY_EXPAND_MIMO_160531_TARGETGUARD3_RECOVERY_CASE_TABLE.md/json`
+- manual audit: `P29_MANUAL_CLUSTER_AUDIT_20260701.md/json`
+
+P29 system metrics:
+
+- Overall protection: PASS.
+- `verified_review_issue_count=20`
+- `verified_review_issue_cluster_count=15`
+- `quote_grounded_direct_quote_duplicate_cluster_count=1`
+- `quote_duplicate_merged_verified_review_issue_cluster_count=14`
+- `review_negative_verified_count=2`
+- `obligation_grounded_review_issue_count=18`
+- `mark_contested_commit_count=11`
+- `recovery_case_verified_review_issue_repair=8`
+- `negative_evidence_unlinked_to_flaw=0`
+- `positive_or_neutral_negative_candidate_count=0`
+- `negative_grounding_conflict_count=0`
+
+Cluster-level origin matters for the paper narrative:
+
+- `verified_review_issue_cluster_origin_critique_payload_count=1`
+- `verified_review_issue_cluster_origin_deterministic_seed_count=10`
+- `verified_review_issue_cluster_origin_claim_obligation_fallback_count=2`
+- `verified_review_issue_cluster_origin_direct_quote_count=2`
+
+Manual audit result:
+
+- System rows/clusters: 20 rows / 15 system clusters.
+- One direct-quote duplicate cluster should be manually merged, leaving 14 manual-deduplicated clusters.
+- Strict A/B clusters: 8.
+- Permissive A/B clusters: 9, counting the HALO/EqualAL same-setting baseline issue as defensible.
+- Label split: A=4, B=4, C=3, D=3, MERGE=1.
+
+Paper-facing wording:
+
+- Allowed: "P29 produced 20 verifier-passing rows and 15 system clusters. Manual spot-checking supports 8 strict A/B clusters, 9 under a permissive reading, after merging one direct-quote duplicate."
+- Not allowed: "P29 found 15 true defects" or "Critique autonomously discovered 15 issues."
+- The quantity gain is real, but most verified clusters still come from deterministic reviewer seeds rather than free-form Critique payloads.
+
+Important audit findings:
+
+- Strong A clusters: ReDrafter recurrent draft model ablation, SpecDec++ acceptance prediction head ablation, LogoRA global encoder ablation, NR-DCCA generalized noise regularization ablation.
+- Defensible B clusters: SPOT occupancy-objective comparison, Diff-Shape GrCN reproducibility, PSRD reproducibility, secure-aggregator negative result.
+- False positives/counterevidence misses: LAVT missing baseline, HALO RIPU protocol, HALO HFR missing ablation.
+- Risky C clusters: CDiffuser planning-module ablation, HALO EqualAL same-setting baseline, OGL protocol/split/seed target.
+
+Next work:
+
+- Do a clean-commit MiMo full20 rerun with `API_MAX_WORKERS=4` now that the user prefers speed over conservative workers.
+- If the clean rerun keeps strict A/B clusters below 10, improve non-ablation slots and counterevidence retrieval rather than relaxing verifier gates.
+
 ### 2026-06-30 P28.1 ClusterGuard Fix recompute on 223747
 
 Latest authoritative P28.1 artifacts are offline recomputes of the `bc56c3a` API run:

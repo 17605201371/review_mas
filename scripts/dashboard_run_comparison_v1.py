@@ -55,6 +55,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from agent_system.environments.env_package.review.state import (
     _build_support_survival_trace,
     _classify_negative_evidence_type,
+    _is_grounded_paper_negative_evidence_record,
+    _is_obligation_grounded_review_issue_evidence_record,
+    _review_negative_dedup_signature,
+    _review_issue_cluster_signature_for_record,
     build_decision_hygiene_view,
 )
 
@@ -211,6 +215,90 @@ def _paper_has_hygiene_positive(row: Dict[str, Any], key: str) -> bool:
 
 def _paper_id(row: Dict[str, Any]) -> str:
     return str(row.get("paper_id") or row.get("id") or (row.get("review_state") or {}).get("paper_id") or "")
+
+
+def _review_issue_candidate_kind(candidate_id: str, source_of_expectation: str) -> str:
+    if str(candidate_id or "").startswith("reviewer-seed"):
+        return "deterministic_seed"
+    if str(candidate_id or "").startswith("review-issue-candidate"):
+        return "critique_payload"
+    if source_of_expectation == "claim_obligation":
+        return "claim_obligation_fallback"
+    if source_of_expectation == "direct_quote":
+        return "direct_quote"
+    if candidate_id:
+        return "other_candidate"
+    return "other"
+
+
+def _review_issue_cluster_origin_metrics(rows: Iterable[Dict[str, Any]]) -> Dict[str, int]:
+    """Compute cluster-level provenance without changing verifier semantics."""
+    clusters: Dict[str, Dict[str, str]] = {}
+    direct_quote_semantic_keys: set[str] = set()
+    direct_quote_cluster_keys: set[str] = set()
+    for row in rows:
+        state = _decision_view(row)
+        paper_id = _paper_id(row)
+        for evidence in state.get("evidence_map", []) or []:
+            if not isinstance(evidence, dict):
+                continue
+            if _is_obligation_grounded_review_issue_evidence_record(evidence, state):
+                issue_type, target = _review_issue_cluster_signature_for_record(evidence)
+                key = f"{paper_id}|obligation_grounded_review_issue|{issue_type}|{target}"
+                bundle = evidence.get("review_issue_bundle") if isinstance(evidence.get("review_issue_bundle"), dict) else {}
+                candidate_id = str(
+                    evidence.get("reviewer_negative_candidate_id")
+                    or bundle.get("reviewer_negative_candidate_id")
+                    or ""
+                )
+                source = str(bundle.get("source_of_expectation") or "")
+                slot = str(bundle.get("review_issue_slot") or "")
+                kind = _review_issue_candidate_kind(candidate_id, source)
+            elif _is_grounded_paper_negative_evidence_record(evidence, state):
+                label, claim_id, issue_type, anchor = _review_negative_dedup_signature(evidence, state)
+                target = anchor.replace("quote:", "", 1)[:80] or claim_id or label or "direct_quote"
+                key = f"{paper_id}|quote_grounded_review_issue|{issue_type}|{target}"
+                direct_quote_cluster_keys.add(key)
+                direct_quote_semantic_keys.add(f"{paper_id}|quote_grounded_review_issue|{claim_id}|{anchor}")
+                source = "direct_quote"
+                slot = "direct_quote"
+                kind = "direct_quote"
+            else:
+                continue
+            clusters.setdefault(key, {"kind": kind, "source": source, "slot": slot})
+
+    origin_counts = Counter(item["kind"] for item in clusters.values())
+    source_counts = Counter(item["source"] or "unknown" for item in clusters.values())
+    slot_counts = Counter(item["slot"] or "unknown" for item in clusters.values())
+    quote_duplicate_merge_candidates = max(0, len(direct_quote_cluster_keys) - len(direct_quote_semantic_keys))
+    out = {
+        "verified_review_issue_cluster_recomputed_count": len(clusters),
+        "quote_grounded_review_issue_cluster_count": len(direct_quote_cluster_keys),
+        "quote_grounded_direct_quote_duplicate_cluster_count": quote_duplicate_merge_candidates,
+        "quote_duplicate_merged_verified_review_issue_cluster_count": max(0, len(clusters) - quote_duplicate_merge_candidates),
+    }
+    for kind in (
+        "critique_payload",
+        "deterministic_seed",
+        "claim_obligation_fallback",
+        "direct_quote",
+        "other_candidate",
+        "other",
+    ):
+        out[f"verified_review_issue_cluster_origin_{kind}_count"] = int(origin_counts.get(kind, 0))
+    for source in ("reviewer_candidate", "claim_obligation", "direct_quote"):
+        out[f"verified_review_issue_cluster_source_{source}_count"] = int(source_counts.get(source, 0))
+    for slot in (
+        "missing_baseline",
+        "missing_ablation",
+        "scope_or_robustness",
+        "protocol_or_reproducibility",
+        "efficiency_cost",
+        "result_claim_mismatch",
+        "direct_quote",
+    ):
+        out[f"verified_review_issue_cluster_slot_{slot}_count"] = int(slot_counts.get(slot, 0))
+    return out
 
 
 def _recovery_turn_delta(tl: Dict[str, Any]) -> Dict[str, Any]:
@@ -793,6 +881,7 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     out["claim_obligation_review_issue_cluster_count"] = _sum(rows, "claim_obligation_review_issue_cluster_count")
     out["verified_review_issue_cluster_count"] = _sum(rows, "verified_review_issue_cluster_count")
     out["duplicate_review_issue_row_count"] = _sum(rows, "duplicate_review_issue_row_count")
+    out.update(_review_issue_cluster_origin_metrics(rows))
     out["verified_missing_ablation_cluster_count"] = _sum(rows, "verified_missing_ablation_cluster_count")
     out["verified_issue_without_recovery_count"] = _sum(rows, "verified_issue_without_recovery_count")
     out["verified_issue_cluster_without_recovery_count"] = _sum(rows, "verified_issue_cluster_without_recovery_count")
@@ -1768,6 +1857,26 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "claim_obligation_review_issue_cluster_count",
         "verified_review_issue_cluster_count",
         "duplicate_review_issue_row_count",
+        "verified_review_issue_cluster_recomputed_count",
+        "quote_grounded_review_issue_cluster_count",
+        "quote_grounded_direct_quote_duplicate_cluster_count",
+        "quote_duplicate_merged_verified_review_issue_cluster_count",
+        "verified_review_issue_cluster_origin_critique_payload_count",
+        "verified_review_issue_cluster_origin_deterministic_seed_count",
+        "verified_review_issue_cluster_origin_claim_obligation_fallback_count",
+        "verified_review_issue_cluster_origin_direct_quote_count",
+        "verified_review_issue_cluster_origin_other_candidate_count",
+        "verified_review_issue_cluster_origin_other_count",
+        "verified_review_issue_cluster_source_reviewer_candidate_count",
+        "verified_review_issue_cluster_source_claim_obligation_count",
+        "verified_review_issue_cluster_source_direct_quote_count",
+        "verified_review_issue_cluster_slot_missing_baseline_count",
+        "verified_review_issue_cluster_slot_missing_ablation_count",
+        "verified_review_issue_cluster_slot_scope_or_robustness_count",
+        "verified_review_issue_cluster_slot_protocol_or_reproducibility_count",
+        "verified_review_issue_cluster_slot_efficiency_cost_count",
+        "verified_review_issue_cluster_slot_result_claim_mismatch_count",
+        "verified_review_issue_cluster_slot_direct_quote_count",
         "verified_missing_ablation_cluster_count",
         "verified_issue_without_recovery_count",
         "verified_issue_cluster_without_recovery_count",

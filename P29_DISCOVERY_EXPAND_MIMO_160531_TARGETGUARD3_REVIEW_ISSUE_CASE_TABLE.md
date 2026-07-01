@@ -11,6 +11,12 @@
 - deterministic-seed candidate cases: `14`
 - reviewer-candidate clusters: `11`
 - claim-obligation fallback cases: `2`
+- direct quote clusters: `2`
+- direct quote duplicate merge candidates: `1`
+- quote-duplicate-merged clusters: `14`
+- critique-payload clusters: `1`
+- deterministic-seed clusters: `10`
+- claim-obligation fallback clusters: `2`
 
 | paper_id | cluster id | cluster target | cluster size | representative | cluster claim ids | bucket | issue_type | slot | claim_id | source | discovery origin | entity source | candidate kind | candidate id | missing/mismatch | inventory count | inventory sources | inventory anchor type | ablation target quality | ablation target reason | verification basis | rejection reason | inventory/quote locator | inventory/quote | claim anchor |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |

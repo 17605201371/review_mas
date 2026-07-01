@@ -20,11 +20,25 @@
     "duplicate_review_issue_row_count": 5,
     "reviewer_candidate_review_issue_cluster_count": 11,
     "cluster_type::missing_ablation": 7,
+    "cluster_origin::deterministic_reviewer_seed": 10,
+    "cluster_source::reviewer_candidate": 11,
+    "cluster_slot::missing_ablation": 7,
+    "cluster_origin::critique_payload_candidate": 1,
     "cluster_type::reproducibility_gap": 2,
+    "cluster_slot::protocol_or_reproducibility": 4,
     "cluster_type::missing_baseline": 2,
+    "cluster_origin::claim_obligation_fallback": 2,
+    "cluster_source::claim_obligation": 2,
+    "cluster_slot::missing_baseline": 2,
     "cluster_type::evaluation_protocol_risk": 2,
     "cluster_type::result_claim_mismatch": 1,
-    "cluster_type::negative_result": 1
+    "cluster_origin::direct_quote": 2,
+    "cluster_source::direct_quote": 2,
+    "cluster_slot::direct_quote": 2,
+    "cluster_type::negative_result": 1,
+    "quote_grounded_review_issue_cluster_count": 2,
+    "quote_grounded_direct_quote_duplicate_cluster_count": 1,
+    "quote_duplicate_merged_verified_review_issue_cluster_count": 14
   },
   "cases": [
     {

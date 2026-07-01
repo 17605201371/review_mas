@@ -130,6 +130,22 @@ def _reviewer_candidate_kind(candidate_id: str, source_of_expectation: str) -> s
     return source_of_expectation or "unknown"
 
 
+def _cluster_origin_kind(cluster_cases: List[Dict[str, Any]]) -> str:
+    kinds = {str(case.get("reviewer_candidate_kind") or "") for case in cluster_cases}
+    sources = {str(case.get("source_of_expectation") or "") for case in cluster_cases}
+    if "direct_quote" in kinds or "direct_quote" in sources:
+        return "direct_quote"
+    if "critique_payload_candidate" in kinds:
+        return "critique_payload_candidate"
+    if "claim_obligation" in sources or "claim_obligation_fallback" in kinds:
+        return "claim_obligation_fallback"
+    if "deterministic_reviewer_seed" in kinds:
+        return "deterministic_reviewer_seed"
+    if any(kind and kind != "unknown" for kind in kinds):
+        return "other_reviewer_candidate"
+    return "unknown"
+
+
 def _evidence_case(row: Dict[str, Any], state: Dict[str, Any], evidence: Dict[str, Any]) -> Dict[str, Any]:
     claim_id = str(evidence.get("claim_id") or "")
     paper_id = _paper_id(row, state)
@@ -271,10 +287,35 @@ def build_review_issue_case_table(rows: Iterable[Dict[str, Any]]) -> tuple[List[
             if str(case.get("source_of_expectation") or "") == "reviewer_candidate"
         }
     )
+    direct_quote_cluster_keys: set[str] = set()
+    direct_quote_semantic_keys: set[str] = set()
     for key, cluster_cases in clusters.items():
         if not key or not cluster_cases:
             continue
-        summary[f"cluster_type::{cluster_cases[0].get('issue_type')}"] += 1
+        representative = cluster_cases[0]
+        summary[f"cluster_type::{representative.get('issue_type')}"] += 1
+        origin_kind = _cluster_origin_kind(cluster_cases)
+        summary[f"cluster_origin::{origin_kind}"] += 1
+        source = str(representative.get("source_of_expectation") or "unknown")
+        slot = str(representative.get("review_issue_slot") or "unknown")
+        summary[f"cluster_source::{source}"] += 1
+        summary[f"cluster_slot::{slot}"] += 1
+        if representative.get("bucket") == "quote_grounded_review_issue":
+            direct_quote_cluster_keys.add(key)
+            semantic_key = "|".join(
+                str(representative.get(field) or "")
+                for field in ("paper_id", "issue_cluster_claim_ids", "issue_cluster_target")
+            )
+            direct_quote_semantic_keys.add(semantic_key)
+    summary["quote_grounded_review_issue_cluster_count"] = len(direct_quote_cluster_keys)
+    summary["quote_grounded_direct_quote_duplicate_cluster_count"] = max(
+        0,
+        len(direct_quote_cluster_keys) - len(direct_quote_semantic_keys),
+    )
+    summary["quote_duplicate_merged_verified_review_issue_cluster_count"] = max(
+        0,
+        summary["verified_review_issue_cluster_count"] - summary["quote_grounded_direct_quote_duplicate_cluster_count"],
+    )
     return cases, dict(summary)
 
 
@@ -297,6 +338,12 @@ def render_markdown(input_path: Path, cases: List[Dict[str, Any]], summary: Dict
         f"- deterministic-seed candidate cases: `{summary.get('candidate_kind::deterministic_reviewer_seed', 0)}`",
         f"- reviewer-candidate clusters: `{summary.get('reviewer_candidate_review_issue_cluster_count', 0)}`",
         f"- claim-obligation fallback cases: `{summary.get('source::claim_obligation', 0)}`",
+        f"- direct quote clusters: `{summary.get('quote_grounded_review_issue_cluster_count', 0)}`",
+        f"- direct quote duplicate merge candidates: `{summary.get('quote_grounded_direct_quote_duplicate_cluster_count', 0)}`",
+        f"- quote-duplicate-merged clusters: `{summary.get('quote_duplicate_merged_verified_review_issue_cluster_count', 0)}`",
+        f"- critique-payload clusters: `{summary.get('cluster_origin::critique_payload_candidate', 0)}`",
+        f"- deterministic-seed clusters: `{summary.get('cluster_origin::deterministic_reviewer_seed', 0)}`",
+        f"- claim-obligation fallback clusters: `{summary.get('cluster_origin::claim_obligation_fallback', 0)}`",
         "",
         "| paper_id | cluster id | cluster target | cluster size | representative | cluster claim ids | bucket | issue_type | slot | claim_id | source | discovery origin | entity source | candidate kind | candidate id | missing/mismatch | inventory count | inventory sources | inventory anchor type | ablation target quality | ablation target reason | verification basis | rejection reason | inventory/quote locator | inventory/quote | claim anchor |",
         "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
