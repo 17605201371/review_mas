@@ -1047,11 +1047,63 @@ def test_quote_bank_negative_candidate_non_negative_anchor_is_safe_rejection():
     assert flaw["status"] == "downgraded"
     assert flaw["hygiene_status_reason"] in {
         "decision_view_ungrounded_or_fallback_flaw",
+        "decision_view_invalid_candidate_negative_anchor",
+        "decision_view_invalid_quote_bank_negative_anchor",
         "semantic_rejected_negative_anchor",
     }
     assert hygiene["negative_grounding_conflict_count"] == 0
     assert hygiene["invalid_negative_evidence_id_count"] == 0
     assert hygiene["negative_evidence_semantic_rejected_count"] == 1
+
+
+def test_candidate_negative_anchor_pointing_to_support_is_downgraded():
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The paper reports a component ablation.",
+                "status": "supported",
+                "claim_kind": "paper_extracted",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "e-support",
+                "claim_id": "claim-1",
+                "evidence": "Table 6 reports an ablation study.",
+                "raw_quote": "Table 6: ablation study.",
+                "source": "Table 6 caption",
+                "strength": "medium",
+                "stance": "supports",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_support_verified",
+            }
+        ],
+        "flaw_candidates": [
+            {
+                "flaw_id": "flaw-support-as-negative",
+                "title": "Misbound candidate negative",
+                "description": "The flaw incorrectly cites a support row as negative evidence.",
+                "severity": "major",
+                "status": "candidate",
+                "related_claim_ids": ["claim-1"],
+                "evidence_ids": ["e-support"],
+                "negative_evidence_ids": ["e-support"],
+            }
+        ],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    view = build_decision_hygiene_view(state)
+    flaw = view["flaw_candidates"][0]
+    hygiene = view["decision_hygiene"]
+
+    assert flaw["status"] == "downgraded"
+    assert flaw["hygiene_status_reason"] == "decision_view_invalid_candidate_negative_anchor"
+    assert hygiene["negative_grounding_conflict_count"] == 0
+    assert hygiene["invalid_negative_evidence_id_count"] == 0
 
 
 def test_stale_reviewer_absence_audit_anchor_is_safe_rejection_not_active_conflict():
@@ -3658,7 +3710,7 @@ def test_unverified_negative_flaw_stays_potential_not_grounded_weakness():
             {
                 "evidence_id": "neg-unverified",
                 "claim_id": "claim-1",
-                "evidence": "The strongest baseline allegedly has higher accuracy.",
+                "evidence": "The method performs worse than the strongest baseline.",
                 "source": "Table 3",
                 "strength": "strong",
                 "stance": "contradicts",
@@ -7989,6 +8041,12 @@ def test_missing_ablation_target_quality_rejects_generic_components_and_actions(
         "component-isolation ablation for fed into the trainable module",
         "component-isolation ablation for g$ and network",
         "component-isolation ablation for have designed a transformer-based network",
+        "component-isolation ablation for seems similar to the gradient",
+        "component-isolation ablation for with greater encoder",
+        "component-isolation ablation for 2 DESIGN OF GRADIENT",
+        "component-isolation ablation for training methodology involves stochastic gradient",
+        "component-isolation ablation for aggregated gradients from cross-entropy loss",
+        "component-isolation ablation for from its proposed time-frequency encoder",
     ]:
         assert quality(item)["quality"] == "reject"
 
@@ -8393,6 +8451,168 @@ def test_reviewer_issue_bundle_accepts_dataset_specific_ablation_coverage_gap():
     assert len(evidence) == 1
     bundle = evidence[0]["review_issue_bundle"]
     assert any("Sth-Else" in item.get("quote", "") for item in bundle["observed_inventory"])
+
+
+def test_p29_deterministic_scope_seed_verifies_named_claim_scope_gap():
+    claim = "The method generalizes to DAVIS2017 video segmentation under cross-domain settings."
+    inventory_quote = "Table 1: Evaluation results on DAVIS2016, FBMS59, and SegTrackV2 video segmentation benchmarks."
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}\n\nSection 4 reports benchmark results.",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "empirical",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["robustness_or_generalization", "empirical_result"],
+            }
+        ],
+        "evidence_map": [],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    view = build_decision_hygiene_view(copy.deepcopy(state))
+    hygiene = view["decision_hygiene"]
+    bundles = [
+        item for item in hygiene["review_issue_bundle_items"]
+        if item["issue_type"] == "missing_robustness_or_generalization"
+    ]
+
+    assert hygiene["verified_review_issue_count"] == 1
+    assert hygiene["review_issue_cluster_type_counts"]["missing_robustness_or_generalization"] == 1
+    assert bundles[0]["review_issue_slot"] == "scope_or_robustness"
+    assert bundles[0]["discovery_origin"] == "deterministic_scope_robustness_seed"
+
+
+def test_p29_deterministic_protocol_seed_requires_protocol_inventory_anchor():
+    claim = "The model reports benchmark accuracy on Benchmark-X under a fair comparison protocol."
+    inventory_quote = "Experimental setup: Table 2 reports accuracy on Benchmark-X under the evaluation setting."
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "comparison",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["evaluation_protocol", "empirical_result"],
+            }
+        ],
+        "evidence_map": [],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    view = build_decision_hygiene_view(copy.deepcopy(state))
+    hygiene = view["decision_hygiene"]
+    bundles = [
+        item for item in hygiene["review_issue_bundle_items"]
+        if item["issue_type"] == "evaluation_protocol_risk"
+    ]
+
+    assert hygiene["verified_review_issue_count"] == 1
+    assert hygiene["review_issue_cluster_type_counts"]["evaluation_protocol_risk"] == 1
+    assert bundles[0]["review_issue_slot"] == "protocol_or_reproducibility"
+    assert bundles[0]["inventory_anchor_type"]
+
+
+def test_p29_deterministic_protocol_seed_rejects_plain_empirical_claim():
+    claim = "The model outperforms baselines on Benchmark-X."
+    inventory_quote = "Experimental setup: Table 2 reports accuracy on Benchmark-X."
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "comparison",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["empirical_result", "baseline_or_comparison"],
+            }
+        ],
+        "evidence_map": [],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    view = build_decision_hygiene_view(copy.deepcopy(state))
+    hygiene = view["decision_hygiene"]
+
+    assert not [
+        item for item in hygiene["review_issue_bundle_items"]
+        if item["issue_type"] == "evaluation_protocol_risk"
+    ]
+
+
+def test_p29_candidate_funnel_reports_slot_and_origin_metrics():
+    claim = "LG-FL outperforms baseline FL methods such as FedAvg and FedProx on heterogeneous data."
+    inventory_quote = "Table 1 compares LG-FL with FedAvg and FedProx under heterogeneous client data."
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "comparison",
+                "coverage_tags": ["comparison", "empirical"],
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["baseline_or_comparison"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "review-issue-candidate-1",
+                "claim_id": "claim-1",
+                "weakness": "The FL comparison omits named heterogeneous FL baselines.",
+                "negative_type": "missing_baseline",
+                "required_evidence_type": "baseline_or_comparison",
+                "quote_grounding_mode": "table_scope_absence",
+                "review_issue_slot": "missing_baseline",
+                "discovery_origin": "critique_payload_candidate",
+                "entity_source": "paper_named_related_method",
+                "missing_or_weak_items": ["other heterogeneous FL baselines like FedBN, Per-FedAvg, or SCAFFOLD"],
+                "observed_inventory": [
+                    {
+                        "quote": inventory_quote,
+                        "locator": "Table 1",
+                        "observed_items": ["FedAvg", "FedProx"],
+                    }
+                ],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    view = build_decision_hygiene_view(copy.deepcopy(state))
+    hygiene = view["decision_hygiene"]
+    bundle = hygiene["review_issue_bundle_items"][0]
+
+    assert hygiene["review_issue_candidate_total_by_slot"]["missing_baseline"] == 1
+    assert hygiene["review_issue_candidate_verified_by_slot"]["missing_baseline"] == 1
+    assert hygiene["review_issue_candidate_critique_payload_count"] == 1
+    assert bundle["review_issue_slot"] == "missing_baseline"
+    assert bundle["entity_source"] == "paper_named_related_method"
 
 
 def test_reviewer_issue_bundle_rejects_dataset_specific_ablation_when_scope_is_covered():

@@ -2622,6 +2622,23 @@ def _review_issue_inventory_type_matches_requirement(item: Dict[str, Any], requi
     return bool(reqs)
 
 
+def _review_issue_slot_for_type(issue_type: str) -> str:
+    issue_type = str(issue_type or "").strip()
+    if issue_type in {"missing_baseline", "unfair_or_weak_baseline"}:
+        return "missing_baseline"
+    if issue_type == "missing_ablation":
+        return "missing_ablation"
+    if issue_type in {"missing_robustness_or_generalization", "scope_overclaim", "insufficient_evaluation"}:
+        return "scope_or_robustness"
+    if issue_type in {"evaluation_protocol_risk", "reproducibility_gap", "method_support_gap"}:
+        return "protocol_or_reproducibility"
+    if issue_type == "efficiency_cost_gap":
+        return "efficiency_cost"
+    if issue_type in {"result_claim_mismatch", "negative_result"}:
+        return "result_claim_mismatch"
+    return issue_type or "unknown"
+
+
 def _select_review_issue_seed_inventory(
     target: Dict[str, Any],
     requirement: str,
@@ -2811,7 +2828,7 @@ def _seed_items_from_review_issue_blueprint(target: Dict[str, Any], blueprint: D
 def _seed_review_issue_candidates_from_targets(
     state: Dict[str, Any],
     *,
-    max_candidates: int = 6,
+    max_candidates: int = 12,
 ) -> List[Dict[str, Any]]:
     try:
         targets = _hard_negative_diagnosis_targets(state or {}, claims=(state or {}).get("claims"), max_items=8)
@@ -2883,6 +2900,8 @@ def _seed_review_issue_candidates_from_targets(
                 "observed_inventory": inventory,
                 "source_of_expectation": "reviewer_candidate",
                 "source": source,
+                "review_issue_slot": _review_issue_slot_for_type(issue_type),
+                "discovery_origin": source,
                 "status": "pending_absence_audit",
                 "confidence": 0.62,
                 "rationale": (
@@ -2942,7 +2961,7 @@ def _maybe_seed_review_issue_discovery_payload(
         return worker_payload
     existing = worker_payload.get("reviewer_negative_candidates")
     existing_candidates = existing if isinstance(existing, list) else []
-    target_candidate_count = 8
+    target_candidate_count = 12
     if len(existing_candidates) >= target_candidate_count:
         return worker_payload
     seeded = _seed_review_issue_candidates_from_targets(state or {}, max_candidates=target_candidate_count)

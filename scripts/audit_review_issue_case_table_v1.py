@@ -84,6 +84,7 @@ def _bundle_inventory(bundle: Dict[str, Any]) -> Dict[str, str]:
         "quote": _clip(first.get("quote") or first.get("raw_quote") or first.get("evidence"), 220),
         "count": str(len(inventory)),
         "sources": ", ".join(sources[:4]),
+        "anchor_type": _clip(bundle.get("inventory_anchor_type") or first.get("inventory_type") or first.get("inventory_source"), 120),
     }
 
 
@@ -150,7 +151,12 @@ def _evidence_case(row: Dict[str, Any], state: Dict[str, Any], evidence: Dict[st
         verification_basis = _clip(bundle.get("review_issue_bundle_verification_basis"), 180)
         inventory_count = inventory.get("count", "0")
         inventory_sources = inventory.get("sources", "")
+        inventory_anchor_type = inventory.get("anchor_type", "")
         source_of_expectation = _clip(bundle.get("source_of_expectation"), 80)
+        review_issue_slot = _clip(bundle.get("review_issue_slot"), 80)
+        entity_source = _clip(bundle.get("entity_source"), 80)
+        discovery_origin = _clip(bundle.get("discovery_origin"), 100)
+        rejection_reason = _clip(bundle.get("review_issue_bundle_rejection_reason"), 120)
         ablation_quality_info = _missing_ablation_target_quality(bundle) if neg_type == "missing_ablation" else {}
         ablation_target_quality = _clip(bundle.get("ablation_target_quality") or ablation_quality_info.get("quality"), 40)
         ablation_target_quality_reason = _clip(
@@ -165,7 +171,12 @@ def _evidence_case(row: Dict[str, Any], state: Dict[str, Any], evidence: Dict[st
         verification_basis = _clip(evidence.get("verified_grounding_label") or evidence.get("review_negative_label"), 180)
         inventory_count = "1" if quote else "0"
         inventory_sources = _clip(evidence.get("source") or evidence.get("support_bucket"), 120)
+        inventory_anchor_type = inventory_sources
         source_of_expectation = "direct_quote"
+        review_issue_slot = "direct_quote"
+        entity_source = ""
+        discovery_origin = "direct_quote"
+        rejection_reason = ""
         ablation_target_quality = ""
         ablation_target_quality_reason = ""
         reviewer_candidate_id = ""
@@ -178,6 +189,11 @@ def _evidence_case(row: Dict[str, Any], state: Dict[str, Any], evidence: Dict[st
         "issue_type": neg_type,
         "claim_id": claim_id,
         "source_of_expectation": source_of_expectation,
+        "review_issue_slot": review_issue_slot,
+        "entity_source": entity_source,
+        "inventory_anchor_type": inventory_anchor_type,
+        "discovery_origin": discovery_origin,
+        "rejection_reason": rejection_reason,
         "reviewer_candidate_kind": reviewer_candidate_kind,
         "reviewer_candidate_id": reviewer_candidate_id,
         "missing_or_mismatch": missing,
@@ -282,8 +298,8 @@ def render_markdown(input_path: Path, cases: List[Dict[str, Any]], summary: Dict
         f"- reviewer-candidate clusters: `{summary.get('reviewer_candidate_review_issue_cluster_count', 0)}`",
         f"- claim-obligation fallback cases: `{summary.get('source::claim_obligation', 0)}`",
         "",
-        "| paper_id | cluster id | cluster target | cluster size | representative | cluster claim ids | bucket | issue_type | claim_id | source | candidate kind | candidate id | missing/mismatch | inventory count | inventory sources | ablation target quality | ablation target reason | verification basis | inventory/quote locator | inventory/quote | claim anchor |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+        "| paper_id | cluster id | cluster target | cluster size | representative | cluster claim ids | bucket | issue_type | slot | claim_id | source | discovery origin | entity source | candidate kind | candidate id | missing/mismatch | inventory count | inventory sources | inventory anchor type | ablation target quality | ablation target reason | verification basis | rejection reason | inventory/quote locator | inventory/quote | claim anchor |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for case in cases:
         lines.append(
@@ -299,16 +315,21 @@ def render_markdown(input_path: Path, cases: List[Dict[str, Any]], summary: Dict
                     "issue_cluster_claim_ids",
                     "bucket",
                     "issue_type",
+                    "review_issue_slot",
                     "claim_id",
                     "source_of_expectation",
+                    "discovery_origin",
+                    "entity_source",
                     "reviewer_candidate_kind",
                     "reviewer_candidate_id",
                     "missing_or_mismatch",
                     "inventory_count",
                     "inventory_sources",
+                    "inventory_anchor_type",
                     "ablation_target_quality",
                     "ablation_target_quality_reason",
                     "verification_basis",
+                    "rejection_reason",
                     "inventory_or_quote_locator",
                     "inventory_or_quote",
                     "claim_anchor",

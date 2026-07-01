@@ -336,13 +336,13 @@ The verifier will reject generic obligation labels. "baseline evidence", "ablati
 Fill `review_issue_slots` using these fixed slots, leaving unsafe slots empty with `candidate:null` and a short
 `no_candidate_reason`: `missing_baseline`, `missing_ablation`, `scope_or_robustness`, `protocol_or_reproducibility`,
 `efficiency_cost`, `result_claim_mismatch`.
-Return up to 10 total candidates across the slots, with at most 2 candidates per `issue_type`. Mirror every non-null
+Return up to 12 total candidates across the slots, with at most 2 candidates per `issue_type`. Mirror every non-null
 slot candidate in `review_issue_candidates`; this array is required for downstream compatibility.
 Return `evidence_map: []` and `flaw_candidates: []`.
 Do not cite `negative_evidence_ids`. Do not output recovery patches.
 Candidate recall is the primary objective in this turn. These are hypotheses for later deterministic verification,
 not final flaws. Do not require a copied negative quote before proposing an absence/coverage issue. When
-`entity_level_claim_obligations`, `issue_candidate_blueprints`, or `inventory_menu` are visible, target 4-6 candidates
+`entity_level_claim_obligations`, `issue_candidate_blueprints`, or `inventory_menu` are visible, target 6-8 candidates
 across at least 4 different slots when safe, and at least 3 different slots across distinct claims otherwise. Prefer
 concrete missing items copied or adapted from claim surface entities,
 comparison targets, named components, datasets, metrics, protocol dimensions, or related methods named by the paper.

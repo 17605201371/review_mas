@@ -1935,6 +1935,14 @@ def _missing_ablation_target_is_malformed_fragment(target: str) -> bool:
     lowered = str(target or "").strip().lower()
     if not lowered:
         return False
+    if re.match(r"^\d+(?:\.\d+)*\s+[a-z]", lowered):
+        return True
+    if re.search(r"\b(?:seems?\s+similar|similar\s+to\s+the|methodology\s+involves|design\s+of\s+gradient)\b", lowered):
+        return True
+    if re.match(r"^(?:from|with|to)\s+(?:its|their|the|a|an|our)\b", lowered):
+        return True
+    if re.match(r"^(?:with|using)\s+(?:greater|more|less|better|worse)\s+", lowered):
+        return True
     if re.search(r"\bwe\s+(?:expect|show|use|propose|train|optimi[sz]e)\b", lowered):
         return True
     if re.search(r"\b(?:function|method|model|framework)\s+(?:generates?|predicts?|outputs?|uses?)\b", lowered):
@@ -2019,6 +2027,7 @@ def _missing_ablation_target_quality(bundle: Dict[str, Any]) -> Dict[str, str]:
     target = re.sub(r"^training\s+of\s+(?:an?\s+|the\s+)?", "", target, flags=re.IGNORECASE).strip()
     target = re.sub(r"^(?:train|training)\s+(?:an?\s+|the\s+)?", "", target, flags=re.IGNORECASE).strip()
     target = re.sub(r"^(?:with|using)\s+(?:an?\s+|the\s+)?", "", target, flags=re.IGNORECASE).strip()
+    target = re.sub(r"^(?:with|using)\s+", "", target, flags=re.IGNORECASE).strip()
     target = re.sub(r"\s+", " ", target).strip(" ,.;:")
     lowered = target.lower()
     target_core = re.sub(
@@ -2036,6 +2045,20 @@ def _missing_ablation_target_quality(bundle: Dict[str, Any]) -> Dict[str, str]:
         return {"quality": "reject", "reason": "missing_ablation_target_weak_action"}
     if _missing_ablation_target_is_malformed_fragment(target):
         return {"quality": "reject", "reason": "missing_ablation_target_malformed_fragment"}
+    if re.search(r"\b(?:seems?\s+similar|methodology\s+involves|design\s+of\s+gradient)\b", lowered):
+        return {"quality": "reject", "reason": "missing_ablation_target_malformed_fragment"}
+    if re.search(r"\b(?:stochastic\s+gradient|gradient\s+descent|cross[- ]entropy\s+loss)\b", lowered) and not re.search(
+        r"\b(?:orthogonal|ogl|gradient\s+matching|distillation|novel|proposed)\b",
+        lowered,
+    ):
+        return {"quality": "reject", "reason": "missing_ablation_target_not_contribution_bound"}
+    if re.search(r"\bgradients?\b", lowered) and not re.search(
+        r"\b(?:orthogonal|ogl|matching|distillation|local[- ]global|federated\s+gradient\s+matching)\b",
+        lowered,
+    ):
+        return {"quality": "reject", "reason": "missing_ablation_target_not_contribution_bound"}
+    if re.fullmatch(r"(?:greater|more|less|better|worse)\s+(?:encoder|decoder|network|model|module|component)", lowered):
+        return {"quality": "reject", "reason": "missing_ablation_target_generic_component"}
     if re.fullmatch(
         r"(?:encoder|decoder|network|neural\s+network|deep\s+neural\s+network|"
         r"convolutional\s+network|transformer|model|module|component|fusion|alignment|gradient)",
@@ -2097,6 +2120,42 @@ def _review_issue_primary_missing_text(bundle: Dict[str, Any], *, neg_type: str 
     if _canonical_negative_evidence_type(neg_type) == "missing_ablation":
         raw = _missing_ablation_target_text(raw)
     return re.sub(r"\s+", " ", raw).strip(" ,.;:")
+
+
+def _review_issue_slot_for_type(issue_type: str) -> str:
+    issue_type = _canonical_negative_evidence_type(issue_type)
+    if issue_type in {"missing_baseline", "unfair_or_weak_baseline"}:
+        return "missing_baseline"
+    if issue_type == "missing_ablation":
+        return "missing_ablation"
+    if issue_type in {"missing_robustness_or_generalization", "scope_overclaim", "insufficient_evaluation"}:
+        return "scope_or_robustness"
+    if issue_type in {"evaluation_protocol_risk", "reproducibility_gap", "method_support_gap"}:
+        return "protocol_or_reproducibility"
+    if issue_type == "efficiency_cost_gap":
+        return "efficiency_cost"
+    if issue_type in {"result_claim_mismatch", "negative_result"}:
+        return "result_claim_mismatch"
+    return issue_type or "unknown"
+
+
+def _review_issue_inventory_anchor_type(items: Sequence[Dict[str, Any]]) -> str:
+    inventory_types: List[str] = []
+    sources: List[str] = []
+    for item in items or []:
+        if not isinstance(item, dict):
+            continue
+        inventory_type = str(item.get("inventory_type") or "").strip()
+        source = str(item.get("inventory_source") or item.get("support_bucket") or "").strip()
+        if inventory_type and inventory_type not in inventory_types:
+            inventory_types.append(inventory_type)
+        if source and source not in sources:
+            sources.append(source)
+    if inventory_types:
+        return ",".join(inventory_types[:3])
+    if sources:
+        return ",".join(sources[:3])
+    return ""
 
 
 def _review_issue_normalized_cluster_target(bundle: Dict[str, Any], neg_type: str) -> str:
@@ -2262,6 +2321,15 @@ def _review_issue_bundle_review_worthiness_failure(
             re.IGNORECASE,
         ):
             return "missing_ablation_target_not_contribution_bound"
+
+    if neg_type == "evaluation_protocol_risk":
+        if re.search(r"\btrain/?test\s+split,\s*seed,\s*threshold,\s*or\s+same[- ]budget\s+protocol\b", missing_l):
+            return "evaluation_protocol_missing_item_too_template_broad"
+        if str(bundle.get("discovery_origin") or "") == "deterministic_protocol_seed":
+            if not (_CLAIM_REQ_EVALUATION_PROTOCOL_RE.search(anchor_quote) or _PROTOCOL_SEED_EXPLICIT_CUE_RE.search(anchor_quote)):
+                return "evaluation_protocol_seed_without_explicit_claim_protocol_obligation"
+            if not _review_issue_protocol_seed_missing_item(anchor_quote, ""):
+                return "evaluation_protocol_seed_missing_specific_protocol_dimension"
 
     if neg_type == "efficiency_cost_gap":
         body = str((state or {}).get("paper_text") or "")
@@ -6949,7 +7017,8 @@ _PAPER_INVENTORY_REQUIREMENT_PATTERNS: List[Tuple[str, re.Pattern[str]]] = [
         "baseline_or_comparison",
         re.compile(
             r"\b(baseline|baselines|compare|compares|compared|comparison|state[- ]of[- ]the[- ]art|sota|"
-            r"outperform|outperforms|outperformed|against|prior methods?|existing methods?)\b",
+            r"outperform|outperforms|outperformed|against|prior methods?|existing methods?|"
+            r"related methods?|related work|competitors?)\b",
             re.IGNORECASE,
         ),
     ),
@@ -7020,7 +7089,8 @@ _PAPER_INVENTORY_TABLE_RE = re.compile(
 _PAPER_INVENTORY_SECTION_RE = re.compile(
     r"(?:^|\n)\s*(?:#{1,6}\s*)?(?:\d+(?:\.\d+)*\.?\s*)?"
     r"(?:Experiments?|Evaluation|Results?|Ablation(?: Study)?|Implementation Details?|"
-    r"Experimental Setup|Baselines?|Datasets?|Efficiency|Runtime|Reproducibility|Method|Approach)\b[^\n]{0,120}",
+    r"Experimental Setup|Baselines?|Datasets?|Efficiency|Runtime|Reproducibility|"
+    r"Related Work|Prior Work|Method|Approach)\b[^\n]{0,120}",
     re.IGNORECASE,
 )
 _PAPER_INVENTORY_THEORY_NOISE_RE = re.compile(
@@ -7105,6 +7175,7 @@ def _paper_inventory_observed_items(quote: str, *, max_items: int = 12) -> List[
     text = str(quote or "")
     items: List[str] = []
     patterns = [
+        r"\b([A-Z][A-Za-z0-9]{2,}(?:[-+][A-Za-z0-9]+)?)\s*~?\\cite[tp]?\{",
         r"\b[A-Z][A-Za-z0-9]*(?:[-_][A-Za-z0-9]+)+\b",
         r"\b[A-Z]{2,}[A-Za-z0-9-]*\b",
         r"\b(?:GPT-?4|GPT-?3(?:\.5)?|ChatGPT|Llama-?\d*|LLaMA-?\d*|BERT|RoBERTa|T5|ViT|CLIP|ResNet-?\d*)\b",
@@ -8636,6 +8707,202 @@ def _review_issue_efficiency_cost_seed_targets(
         {
             "missing_item": missing_item,
             "observed_inventory": inventory,
+            "entity_source": "resource_claim",
+        }
+    ][:max_items]
+
+
+def _review_issue_scope_or_robustness_seed_targets(
+    view: Dict[str, Any],
+    claim: Dict[str, Any],
+    *,
+    max_items: int = 1,
+) -> List[Dict[str, Any]]:
+    """Seed concrete scope/robustness coverage issues from claim entities.
+
+    The target must be a claim-named dataset/domain/setting or an explicit
+    robustness cue.  Generic "more datasets" remains unverifiable and is not
+    emitted here.
+    """
+
+    claim_id = str((claim or {}).get("claim_id") or "").strip()
+    claim_text = _normalize_text((claim or {}).get("claim") or (claim or {}).get("text"), max_length=300)
+    if not claim_id or not claim_text:
+        return []
+    claim_type = str((claim or {}).get("claim_type") or "").strip().lower()
+    has_scope_contract = bool(
+        claim_type in {"empirical", "comparison", "contribution"}
+        and (
+            _CLAIM_REQ_SCOPE_RE.search(claim_text)
+            or _CLAIM_REQ_ROBUSTNESS_RE.search(claim_text)
+            or re.search(
+                r"\b(?:generalization|generalisation|robust|cross[- ]domain|out[- ]of[- ]domain|ood|"
+                r"held[- ]out|external|domain\s+shift|under\s+different|across\s+domains?)\b",
+                claim_text,
+                re.IGNORECASE,
+            )
+        )
+    )
+    if not has_scope_contract:
+        return []
+    profile = _review_issue_claim_surface_profile(claim_text)
+    candidates: List[str] = []
+    for item in profile.get("datasets_or_benchmarks") or []:
+        if _normalize_text(item, max_length=80):
+            candidates.append(f"held-out or coverage evaluation for {item}")
+    if not candidates and _CLAIM_REQ_ROBUSTNESS_RE.search(claim_text):
+        candidates.append("out-of-domain or stress robustness evaluation under the claimed setting")
+    results: List[Dict[str, Any]] = []
+    seen: set[str] = set()
+    for missing_item in candidates:
+        missing_item = _normalize_text(missing_item, max_length=140)
+        if not missing_item or missing_item.lower() in seen:
+            continue
+        if not _review_issue_missing_items_are_concrete("missing_robustness_or_generalization", [missing_item]):
+            continue
+        inventory = _review_issue_paper_inventory_for_bundle(
+            view,
+            claim_id,
+            "empirical_result",
+            "missing_robustness_or_generalization",
+            missing_items=[missing_item],
+            max_items=2,
+        )
+        if not inventory:
+            inventory = _review_issue_paper_inventory_for_bundle(
+                view,
+                claim_id,
+                "robustness_or_generalization",
+                "missing_robustness_or_generalization",
+                missing_items=[missing_item],
+                max_items=2,
+            )
+        if not inventory:
+            continue
+        probe_bundle = {
+            "claim_anchor": {"claim_id": claim_id, "quote": claim_text},
+            "missing_or_mismatch": {"entity": missing_item, "items": [missing_item]},
+            "observed_inventory": inventory,
+        }
+        if _review_issue_full_text_counterevidence_reason(
+            probe_bundle,
+            view or {},
+            neg_type="missing_robustness_or_generalization",
+        ):
+            continue
+        seen.add(missing_item.lower())
+        results.append(
+            {
+                "missing_item": missing_item,
+                "observed_inventory": inventory,
+                "entity_source": "claim_scope",
+            }
+        )
+        if len(results) >= max_items:
+            break
+    return results
+
+
+_PROTOCOL_SEED_EXPLICIT_CUE_RE = re.compile(
+    r"\b(?:evaluation\s+protocol|experimental\s+protocol|comparison\s+protocol|"
+    r"fair\s+comparison|fairly\s+compar(?:e|ed|ing)|comparable\s+(?:budget|setting|protocol)|"
+    r"same[- ](?:budget|hardware|compute|setting)|controlled\s+(?:setting|comparison|experiment)|"
+    r"train(?:ing)?/?test\s+split|data\s+split|validation\s+(?:split|set|protocol)|"
+    r"test\s+set|held[- ]out\s+set|random\s+seed|seeds?|repeated\s+runs?|"
+    r"threshold(?:ing| selection)?|metric\s+(?:definition|computation)|"
+    r"annotation\s+budget|label(?:ing|ling)?\s+budget|hardware\s+setting|"
+    r"evaluation\s+budget)\b",
+    re.IGNORECASE,
+)
+
+
+def _review_issue_protocol_seed_missing_item(claim_text: str, primary: str) -> str:
+    claim_l = str(claim_text or "").lower()
+    target = _normalize_text(primary, max_length=80)
+    suffix = f" for {target}" if target else " for the empirical claim"
+    if re.search(r"\b(?:train(?:ing)?/?test\s+split|data\s+split|validation\s+(?:split|set|protocol)|test\s+set|held[- ]out\s+set)\b", claim_l):
+        return f"train/test or validation split protocol{suffix}"
+    if re.search(r"\b(?:random\s+seed|seeds?|repeated\s+runs?)\b", claim_l):
+        return f"random-seed or repeated-run protocol{suffix}"
+    if re.search(r"\bthreshold(?:ing| selection)?\b", claim_l):
+        return f"threshold selection protocol{suffix}"
+    if re.search(r"\b(?:metric\s+(?:definition|computation)|computed\s+as|defined\s+as)\b", claim_l):
+        return f"metric definition or computation protocol{suffix}"
+    if re.search(
+        r"\b(?:fair\s+comparison|fairly\s+compar(?:e|ed|ing)|comparable\s+(?:budget|setting|protocol)|"
+        r"same[- ](?:budget|hardware|compute|setting)|controlled\s+(?:setting|comparison|experiment)|"
+        r"annotation\s+budget|label(?:ing|ling)?\s+budget|hardware\s+setting|evaluation\s+budget)\b",
+        claim_l,
+    ):
+        return f"same-budget, same-hardware, or fair-comparison protocol{suffix}"
+    if re.search(r"\b(?:evaluation\s+protocol|experimental\s+protocol|comparison\s+protocol)\b", claim_l):
+        return f"explicit evaluation protocol details{suffix}"
+    return ""
+
+
+def _review_issue_protocol_seed_targets(
+    view: Dict[str, Any],
+    claim: Dict[str, Any],
+    *,
+    max_items: int = 1,
+) -> List[Dict[str, Any]]:
+    """Seed concrete protocol issues only from explicit protocol obligations."""
+
+    claim_id = str((claim or {}).get("claim_id") or "").strip()
+    claim_text = _normalize_text((claim or {}).get("claim") or (claim or {}).get("text"), max_length=300)
+    if not claim_id or not claim_text:
+        return []
+    if not (_CLAIM_REQ_EVALUATION_PROTOCOL_RE.search(claim_text) or _PROTOCOL_SEED_EXPLICIT_CUE_RE.search(claim_text)):
+        return []
+    profile = _review_issue_claim_surface_profile(claim_text)
+    primary = ""
+    for bucket in ("datasets_or_benchmarks", "metrics_or_protocols", "surface_entities"):
+        for item in profile.get(bucket) or []:
+            primary = _normalize_text(item, max_length=80)
+            if primary:
+                break
+        if primary:
+            break
+    missing_item = _review_issue_protocol_seed_missing_item(claim_text, primary)
+    if not missing_item:
+        return []
+    if not _review_issue_missing_items_are_concrete("evaluation_protocol_risk", [missing_item]):
+        return []
+    inventory = _review_issue_paper_inventory_for_bundle(
+        view,
+        claim_id,
+        "empirical_result",
+        "insufficient_evaluation",
+        missing_items=[missing_item],
+        max_items=2,
+    )
+    if not inventory:
+        inventory = _review_issue_paper_inventory_for_bundle(
+            view,
+            claim_id,
+            "baseline_or_comparison",
+            "missing_baseline",
+            missing_items=[missing_item],
+            max_items=2,
+        )
+    if not inventory:
+        return []
+    probe_bundle = {
+        "claim_anchor": {"claim_id": claim_id, "quote": claim_text},
+        "missing_or_mismatch": {"entity": missing_item, "items": [missing_item]},
+        "observed_inventory": inventory,
+    }
+    if _review_issue_full_text_counterevidence_reason(
+        probe_bundle,
+        view or {},
+        neg_type="evaluation_protocol_risk",
+    ):
+        return []
+    return [
+        {
+            "missing_item": missing_item,
+            "observed_inventory": inventory,
+            "entity_source": "protocol_claim",
         }
     ][:max_items]
 
@@ -8682,8 +8949,8 @@ _REPRODUCIBILITY_SEED_GENERIC_TARGET_RE = re.compile(
 _REPRODUCIBILITY_SEED_COMPLEX_METHOD_RE = re.compile(
     r"\b(?:algorithm|architecture|conversion|decomposition|distillation|"
     r"framework|graph[- ]to[- ]set|head|hyperbolic|mechanism|objective|"
-    r"pipeline|predictor|rank\s+decomposition|regulari[sz]ation|"
-    r"transformation)\b",
+    r"method|approach|system|pipeline|predictor|rank\s+decomposition|"
+    r"regulari[sz]ation|transformation)\b",
     re.IGNORECASE,
 )
 
@@ -8740,7 +9007,7 @@ def _review_issue_reproducibility_seed_entity_is_usable(term: str, claim_text: s
         rf"|\b{re.escape(value)}\b\s+(?:is|as)\s+(?:a\s+|an\s+)?(?:novel|new|proposed)\b",
         claim,
         re.IGNORECASE,
-    ):
+    ) and not re.search(rf"\([^)]*\b{re.escape(value)}\b[^)]*\)", claim):
         return False
     return bool(has_name_shape)
 
@@ -11533,6 +11800,10 @@ def _build_review_issue_bundle_from_gap(
         "source_of_expectation": source_of_expectation,
         "reviewer_negative_candidate_id": candidate_id,
         "reviewer_negative_candidate": _normalize_text(gap.get("reviewer_negative_candidate"), max_length=240),
+        "review_issue_slot": str(gap.get("review_issue_slot") or _review_issue_slot_for_type(neg_type)),
+        "discovery_origin": str(gap.get("discovery_origin") or ("critique_payload_candidate" if candidate_id and not candidate_id.startswith("reviewer-seed") else "deterministic_reviewer_seed")),
+        "entity_source": str(gap.get("entity_source") or (claim_obligation.get("entity_source") if claim_obligation else "")),
+        "inventory_anchor_type": _review_issue_inventory_anchor_type(observed_inventory),
         "verification_status": REVIEW_ISSUE_BUNDLE_STATUS,
         "not_quote_negative": True,
         "freshness_basis": "missing_requirement_current_in_claim_requirement_audit",
@@ -11888,10 +12159,29 @@ def _review_issue_candidate_funnel_metrics(
         if isinstance(record, dict) and str(record.get("reviewer_negative_candidate_id") or "").strip()
     }
     metrics = Counter()
+    total_by_slot: Counter[str] = Counter()
+    verified_by_slot: Counter[str] = Counter()
+    rejected_by_reason: Counter[str] = Counter()
+    verified_by_type: Counter[str] = Counter()
     metrics["review_issue_candidate_total"] = len(candidates)
     metrics["review_issue_candidate_verified"] = len(verified_candidate_ids)
+    for record in verified_records or []:
+        if not isinstance(record, dict):
+            continue
+        bundle = record.get("review_issue_bundle") if isinstance(record.get("review_issue_bundle"), dict) else {}
+        neg_type = _negative_evidence_type_for_record(record)
+        slot = str(bundle.get("review_issue_slot") or _review_issue_slot_for_type(neg_type))
+        if slot:
+            verified_by_slot[slot] += 1
+        if neg_type:
+            verified_by_type[neg_type] += 1
     if not candidates:
-        return dict(metrics)
+        result = dict(metrics)
+        result["review_issue_candidate_total_by_slot"] = dict(total_by_slot)
+        result["review_issue_candidate_verified_by_slot"] = dict(verified_by_slot)
+        result["review_issue_candidate_rejected_by_reason"] = dict(rejected_by_reason)
+        result["review_issue_candidate_verified_by_type"] = dict(verified_by_type)
+        return result
     try:
         audit = (view or {}).get("claim_requirement_audit")
         if not isinstance(audit, dict) or not audit.get("claim_requirement_audit"):
@@ -11907,14 +12197,30 @@ def _review_issue_candidate_funnel_metrics(
     obligation_lookup = _entity_claim_obligation_lookup(view or {}, audit if isinstance(audit, dict) else {})
     for candidate in candidates:
         candidate_id = str(candidate.get("candidate_id") or "").strip()
+        candidate_neg_type = _canonical_negative_evidence_type(
+            candidate.get("negative_type")
+            or candidate.get("issue_type")
+            or ""
+        )
+        candidate_slot = str(candidate.get("review_issue_slot") or _review_issue_slot_for_type(candidate_neg_type))
+        if candidate_slot:
+            total_by_slot[candidate_slot] += 1
+        if candidate_id.startswith("reviewer-seed"):
+            metrics["review_issue_candidate_deterministic_seed_count"] += 1
+        elif candidate_id.startswith("review-issue-candidate"):
+            metrics["review_issue_candidate_critique_payload_count"] += 1
+        elif candidate_id:
+            metrics["review_issue_candidate_other_origin_count"] += 1
         if candidate_id and candidate_id in verified_candidate_ids:
             continue
         if _review_issue_candidate_is_retrieval_gap(candidate):
             metrics["review_issue_candidate_retrieval_gap_rejected"] += 1
+            rejected_by_reason["retrieval_gap"] += 1
             continue
         claim_id = str(candidate.get("claim_id") or "").strip()
         if not claim_id or claim_id not in real_claim_ids or claim_id not in audit_by_claim:
             metrics["review_issue_candidate_off_claim_rejected"] += 1
+            rejected_by_reason["off_claim"] += 1
             continue
         obligation_id = str(candidate.get("obligation_id") or "").strip()
         obligation = obligation_lookup.get(obligation_id, {}) if obligation_id else {}
@@ -11937,6 +12243,7 @@ def _review_issue_candidate_funnel_metrics(
                 missing_items = [expected_entity] + missing_items
         if not neg_type or not any(_coverage_item_is_specific_for_type(item, neg_type) for item in missing_items):
             metrics["review_issue_candidate_generic_item_rejected"] += 1
+            rejected_by_reason["generic_item"] += 1
             continue
         requirement = _canonical_required_evidence_type(
             candidate.get("required_evidence_type")
@@ -11961,6 +12268,7 @@ def _review_issue_candidate_funnel_metrics(
         observed_inventory = candidate_inventory or paper_inventory
         if not observed_inventory:
             metrics["review_issue_candidate_missing_inventory_rejected"] += 1
+            rejected_by_reason["missing_inventory"] += 1
             continue
         bundle = {
             "claim_id": claim_id,
@@ -11982,6 +12290,7 @@ def _review_issue_candidate_funnel_metrics(
                     metrics["review_issue_candidate_missing_baseline_generic_target_rejected"] += 1
                 else:
                     metrics["review_issue_candidate_generic_item_rejected"] += 1
+                rejected_by_reason[baseline_specificity_failure] += 1
                 continue
         if neg_type == "missing_ablation":
             ablation_quality = _missing_ablation_target_quality(bundle)
@@ -11995,6 +12304,7 @@ def _review_issue_candidate_funnel_metrics(
                     metrics["review_issue_candidate_missing_ablation_generic_component_rejected"] += 1
                 else:
                     metrics["review_issue_candidate_generic_item_rejected"] += 1
+                rejected_by_reason[reason or "missing_ablation_target_rejected"] += 1
                 continue
         worthiness_reason = _review_issue_bundle_review_worthiness_failure(
             bundle,
@@ -12011,6 +12321,7 @@ def _review_issue_candidate_funnel_metrics(
                 metrics["review_issue_candidate_off_claim_rejected"] += 1
             else:
                 metrics["review_issue_candidate_counterevidence_rejected"] += 1
+            rejected_by_reason[worthiness_reason] += 1
             continue
         reason = _review_issue_full_text_counterevidence_reason(
             bundle,
@@ -12019,9 +12330,16 @@ def _review_issue_candidate_funnel_metrics(
         )
         if reason:
             metrics["review_issue_candidate_counterevidence_rejected"] += 1
+            rejected_by_reason[reason] += 1
         else:
             metrics["review_issue_candidate_missing_inventory_rejected"] += 1
-    return dict(metrics)
+            rejected_by_reason["missing_inventory_after_checks"] += 1
+    result = dict(metrics)
+    result["review_issue_candidate_total_by_slot"] = dict(total_by_slot)
+    result["review_issue_candidate_verified_by_slot"] = dict(verified_by_slot)
+    result["review_issue_candidate_rejected_by_reason"] = dict(rejected_by_reason)
+    result["review_issue_candidate_verified_by_type"] = dict(verified_by_type)
+    return result
 
 
 def _reviewer_candidate_absence_gap_items(
@@ -12267,6 +12585,9 @@ def _reviewer_candidate_absence_gap_items(
         gap["reviewer_negative_candidate"] = _normalize_text(candidate.get("weakness"), max_length=220)
         gap["reviewer_negative_candidate_missing_items"] = missing_items
         gap["reviewer_negative_candidate_observed_inventory"] = candidate_observed_inventory_items
+        gap["review_issue_slot"] = str(candidate.get("review_issue_slot") or _review_issue_slot_for_type(neg_type))
+        gap["discovery_origin"] = str(candidate.get("discovery_origin") or candidate.get("source") or "critique_payload_candidate")
+        gap["entity_source"] = str(candidate.get("entity_source") or "")
         gap["audit_basis"] = "reviewer_candidate_vs_claim_requirement_support_absence"
         gap["final_view_layer"] = "reviewer_candidate_absence_audit"
         results.append(gap)
@@ -12368,6 +12689,9 @@ def _deterministic_reviewer_seed_absence_gap_items(
                 gap["missing_negative_types"] = [neg_type]
                 gap["claim_obligation_id"] = str(obligation.get("obligation_id") or "")
                 gap["claim_obligation"] = dict(obligation)
+                gap["review_issue_slot"] = _review_issue_slot_for_type(neg_type)
+                gap["discovery_origin"] = "deterministic_entity_obligation_seed"
+                gap["entity_source"] = str(obligation.get("entity_source") or "")
                 gap["deterministic_reviewer_seed_id"] = candidate_id
                 gap["deterministic_reviewer_seed"] = (
                     f"Reviewer seed: verify whether the paper lacks {expected_entity}."
@@ -12415,6 +12739,9 @@ def _deterministic_reviewer_seed_absence_gap_items(
                 gap["candidate_obligation_relevance_basis"] = {
                     "ablation_or_component": "deterministic_component_definition_anchor"
                 }
+                gap["review_issue_slot"] = "missing_ablation"
+                gap["discovery_origin"] = "deterministic_component_ablation_seed"
+                gap["entity_source"] = "method_component"
                 gap["deterministic_reviewer_seed_id"] = seed_id
                 gap["deterministic_reviewer_seed"] = (
                     f"Reviewer seed: verify whether the paper lacks {missing_item}."
@@ -12459,6 +12786,9 @@ def _deterministic_reviewer_seed_absence_gap_items(
                 gap["candidate_obligation_relevance_basis"] = {
                     "baseline_or_comparison": "deterministic_paper_named_baseline_anchor"
                 }
+                gap["review_issue_slot"] = "missing_baseline"
+                gap["discovery_origin"] = "deterministic_paper_named_baseline_seed"
+                gap["entity_source"] = "paper_named_related_method"
                 gap["deterministic_reviewer_seed_id"] = seed_id
                 gap["deterministic_reviewer_seed"] = (
                     f"Reviewer seed: verify whether the paper lacks {missing_item}."
@@ -12473,6 +12803,102 @@ def _deterministic_reviewer_seed_absence_gap_items(
                 gap["paper_named_baseline_expectation_quote"] = target.get("expectation_quote") or ""
                 gap["paper_named_baseline_expectation_locator"] = target.get("expectation_locator") or ""
                 gap["audit_basis"] = "deterministic_paper_named_baseline_seed_vs_comparison_inventory_absence"
+                gap["final_view_layer"] = "reviewer_candidate_absence_audit"
+                results.append(gap)
+                if len(results) >= max_items:
+                    return results
+        if claim and len(results) < max_items:
+            for target in _review_issue_scope_or_robustness_seed_targets(view, claim, max_items=1):
+                missing_item = _normalize_text(target.get("missing_item"), max_length=140)
+                if not missing_item:
+                    continue
+                if not _review_issue_missing_items_are_concrete("missing_robustness_or_generalization", [missing_item]):
+                    continue
+                key = (claim_id, "missing_robustness_or_generalization", missing_item.lower())
+                if key in seen:
+                    continue
+                seen.add(key)
+                seed_id = _slugify(
+                    "reviewer-seed",
+                    f"{claim_id}-scope-robustness-{missing_item}",
+                    len(results) + 1,
+                )
+                gap = dict(audit)
+                gap["gap_id"] = _slugify(
+                    "reviewer-seed-requirement-gap",
+                    f"{claim_id}-scope-robustness-{missing_item}",
+                    len(results) + 1,
+                )
+                gap["coverage_gap_missing_requirements"] = ["robustness_or_generalization"]
+                gap["missing_requirements"] = ["robustness_or_generalization"]
+                gap["missing_negative_types"] = ["missing_robustness_or_generalization"]
+                gap["candidate_introduced_review_obligation"] = True
+                gap["candidate_obligation_relevance_basis"] = {
+                    "robustness_or_generalization": "deterministic_claim_scope_inventory_anchor"
+                }
+                gap["review_issue_slot"] = "scope_or_robustness"
+                gap["discovery_origin"] = "deterministic_scope_robustness_seed"
+                gap["entity_source"] = str(target.get("entity_source") or "claim_scope")
+                gap["deterministic_reviewer_seed_id"] = seed_id
+                gap["deterministic_reviewer_seed"] = (
+                    f"Reviewer seed: verify whether the paper lacks {missing_item}."
+                )
+                gap["reviewer_negative_candidate_id"] = seed_id
+                gap["reviewer_negative_candidate"] = (
+                    "The claim has a scope or robustness obligation, but the observed paper inventory "
+                    "may not cover the named setting."
+                )
+                gap["reviewer_negative_candidate_missing_items"] = [missing_item]
+                gap["reviewer_negative_candidate_observed_inventory"] = target.get("observed_inventory") or []
+                gap["audit_basis"] = "deterministic_scope_seed_vs_claim_inventory_absence"
+                gap["final_view_layer"] = "reviewer_candidate_absence_audit"
+                results.append(gap)
+                if len(results) >= max_items:
+                    return results
+        if claim and len(results) < max_items:
+            for target in _review_issue_protocol_seed_targets(view, claim, max_items=1):
+                missing_item = _normalize_text(target.get("missing_item"), max_length=140)
+                if not missing_item:
+                    continue
+                if not _review_issue_missing_items_are_concrete("evaluation_protocol_risk", [missing_item]):
+                    continue
+                key = (claim_id, "evaluation_protocol_risk", missing_item.lower())
+                if key in seen:
+                    continue
+                seen.add(key)
+                seed_id = _slugify(
+                    "reviewer-seed",
+                    f"{claim_id}-evaluation-protocol-{missing_item}",
+                    len(results) + 1,
+                )
+                gap = dict(audit)
+                gap["gap_id"] = _slugify(
+                    "reviewer-seed-requirement-gap",
+                    f"{claim_id}-evaluation-protocol-{missing_item}",
+                    len(results) + 1,
+                )
+                gap["coverage_gap_missing_requirements"] = ["evaluation_protocol"]
+                gap["missing_requirements"] = ["evaluation_protocol"]
+                gap["missing_negative_types"] = ["evaluation_protocol_risk"]
+                gap["candidate_introduced_review_obligation"] = True
+                gap["candidate_obligation_relevance_basis"] = {
+                    "evaluation_protocol": "deterministic_empirical_protocol_anchor"
+                }
+                gap["review_issue_slot"] = "protocol_or_reproducibility"
+                gap["discovery_origin"] = "deterministic_protocol_seed"
+                gap["entity_source"] = str(target.get("entity_source") or "protocol_claim")
+                gap["deterministic_reviewer_seed_id"] = seed_id
+                gap["deterministic_reviewer_seed"] = (
+                    f"Reviewer seed: verify whether the paper lacks {missing_item}."
+                )
+                gap["reviewer_negative_candidate_id"] = seed_id
+                gap["reviewer_negative_candidate"] = (
+                    "The claim depends on an empirical protocol, but the observed inventory may not "
+                    "specify the relevant split/seed/threshold/same-budget setting."
+                )
+                gap["reviewer_negative_candidate_missing_items"] = [missing_item]
+                gap["reviewer_negative_candidate_observed_inventory"] = target.get("observed_inventory") or []
+                gap["audit_basis"] = "deterministic_protocol_seed_vs_claim_inventory_absence"
                 gap["final_view_layer"] = "reviewer_candidate_absence_audit"
                 results.append(gap)
                 if len(results) >= max_items:
@@ -12504,6 +12930,9 @@ def _deterministic_reviewer_seed_absence_gap_items(
                 gap["candidate_obligation_relevance_basis"] = {
                     "efficiency_cost": "deterministic_efficiency_claim_resource_anchor"
                 }
+                gap["review_issue_slot"] = "efficiency_cost"
+                gap["discovery_origin"] = "deterministic_efficiency_seed"
+                gap["entity_source"] = str(target.get("entity_source") or "resource_claim")
                 gap["deterministic_reviewer_seed_id"] = seed_id
                 gap["deterministic_reviewer_seed"] = (
                     f"Reviewer seed: verify whether the paper lacks {missing_item}."
@@ -12549,6 +12978,9 @@ def _deterministic_reviewer_seed_absence_gap_items(
                 gap["candidate_obligation_relevance_basis"] = {
                     "reproducibility_detail": "deterministic_method_reproducibility_anchor"
                 }
+                gap["review_issue_slot"] = "protocol_or_reproducibility"
+                gap["discovery_origin"] = "deterministic_reproducibility_seed"
+                gap["entity_source"] = "method_component"
                 gap["deterministic_reviewer_seed_id"] = seed_id
                 gap["deterministic_reviewer_seed"] = (
                     f"Reviewer seed: verify whether the paper lacks {missing_item}."
@@ -12634,6 +13066,9 @@ def _add_reviewer_absence_audit_artifacts(
             "reviewer_negative_candidate_missing_items",
             "reviewer_negative_candidate_observed_inventory",
             "candidate_obligation_relevance_basis",
+            "review_issue_slot",
+            "discovery_origin",
+            "entity_source",
         ):
             if incoming.get(field) and not existing.get(field):
                 existing[field] = incoming.get(field)
@@ -12658,6 +13093,9 @@ def _add_reviewer_absence_audit_artifacts(
                 "reviewer_negative_candidate_observed_inventory",
                 "claim_obligation_id",
                 "claim_obligation",
+                "review_issue_slot",
+                "discovery_origin",
+                "entity_source",
             ):
                 if incoming.get(field):
                     existing[field] = incoming.get(field)
@@ -13541,6 +13979,8 @@ def _review_issue_claim_surface_profile(claim_text: str) -> Dict[str, List[str]]
         r"\b(?:baseline|baselines)\s+(?:such as|including|like|e\.g\.,?)\s+([^.;]{3,120})",
         r"\b(?:compared|compare|comparison)\s+(?:with|against|to)\s+([^.;]{3,120})",
         r"\boutperform(?:s|ing|ed)?\s+([^.;]{3,100})",
+        r"\b(?:prior|existing|related|state[- ]of[- ]the[- ]art|sota)\s+"
+        r"(?:methods?|models?|approaches?|baselines?)\s+(?:such as|including|like|e\.g\.,?)\s+([^.;]{3,140})",
     ):
         for match in re.finditer(pattern, text, re.IGNORECASE):
             add_entity_list("comparison_targets", match.group(1))
@@ -13548,6 +13988,7 @@ def _review_issue_claim_surface_profile(claim_text: str) -> Dict[str, List[str]]
     for pattern in (
         r"\b(?:on|across|over|using|evaluated on|benchmarked on)\s+([^.;]{3,120})",
         r"\b(?:dataset|datasets|benchmark|benchmarks)\s+(?:such as|including|like|e\.g\.,?)\s+([^.;]{3,120})",
+        r"\b(?:in|under)\s+([^.;]{3,120})\s+(?:domain|domains|setting|settings|scenario|scenarios)\b",
     ):
         for match in re.finditer(pattern, text, re.IGNORECASE):
             add_entity_list("datasets_or_benchmarks", match.group(1))
@@ -13589,7 +14030,9 @@ def _review_issue_claim_surface_profile(claim_text: str) -> Dict[str, List[str]]
     metric_terms = re.findall(
         r"\b(?:accuracy|acc\.?|f1|f-?score|auc|auroc|bleu|rouge|mrr|ndcg|"
         r"precision|recall|latency|runtime|throughput|memory|parameters?|flops|"
-        r"train(?:ing)?/?test split|validation split|random seed|threshold|metric)\b",
+        r"hardware|gpu|cpu|wall[- ]clock|speedup|compute|computational\s+cost|"
+        r"train(?:ing)?/?test split|validation split|random seed|repeated runs?|"
+        r"threshold|metric|protocol|preprocessing|data split|hyperparameters?)\b",
         text,
         re.IGNORECASE,
     )
@@ -16389,17 +16832,49 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
         # Earlier logic only looked at ``evidence_ids`` and downgraded flaws
         # that correctly stored anchors in ``negative_evidence_ids`` before
         # they could enter the potential-concern lifecycle.
+        valid_explicit_negative_ids = _flaw_valid_explicit_negative_evidence_ids(flaw, view)
         pre_verified_negative_ids = _verified_negative_evidence_ids_for_flaw(flaw, view)
         has_evidence = bool(flaw.get("evidence_ids") or _flaw_valid_negative_evidence_ids(flaw, view))
         evidence_conflict = _generic_lack_support_flaw_conflicts_with_support(flaw, support_counts)
         original_status = flaw.get("status", "candidate")
-        if (
+        invalid_candidate_explicit_anchor = (
+            str(original_status or "").strip() == "candidate"
+            and conflicts
+            and not valid_explicit_negative_ids
+            and all(
+                str(conflict.get("reason") or "")
+                in {"negative_evidence_id_unresolved", "negative_evidence_id_not_negative_stance"}
+                for conflict in conflicts
+            )
+        )
+        invalid_quote_bank_anchor = (
+            str(original_status or "").strip() == "candidate"
+            and str(flaw.get("source") or "").strip().lower() == "quote-bank-negative-grounding"
+            and conflicts
+            and all(
+                str(conflict.get("reason") or "")
+                in {"negative_evidence_id_unresolved", "negative_evidence_id_not_negative_stance"}
+                for conflict in conflicts
+            )
+        )
+        if invalid_quote_bank_anchor or invalid_candidate_explicit_anchor:
+            flaw["status"] = "downgraded"
+            flaw["hygiene_status_reason"] = (
+                "decision_view_invalid_quote_bank_negative_anchor"
+                if invalid_quote_bank_anchor
+                else "decision_view_invalid_candidate_negative_anchor"
+            )
+            downgraded_flaws.append(str(flaw.get("flaw_id") or ""))
+        elif (
             original_status in {"candidate", "confirmed"}
             and not pre_verified_negative_ids
             and (not has_evidence or _is_fallback_or_meta_flaw(flaw) or evidence_conflict)
         ):
             flaw["status"] = "downgraded"
-            flaw["hygiene_status_reason"] = "decision_view_evidence_aware_lack_flaw_conflict" if evidence_conflict else "decision_view_ungrounded_or_fallback_flaw"
+            if evidence_conflict:
+                flaw["hygiene_status_reason"] = "decision_view_evidence_aware_lack_flaw_conflict"
+            else:
+                flaw["hygiene_status_reason"] = "decision_view_ungrounded_or_fallback_flaw"
             downgraded_flaws.append(str(flaw.get("flaw_id") or ""))
         if (
             str(flaw.get("status") or "candidate") in {"candidate", "confirmed"}
@@ -16417,6 +16892,10 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
             and _flaw_only_cites_supports(flaw, view)
         ):
             support_only_flaws.append(str(flaw.get("flaw_id") or ""))
+            if str(flaw.get("status") or "candidate") == "candidate":
+                flaw["status"] = "downgraded"
+                flaw["hygiene_status_reason"] = "decision_view_support_only_negative_anchor"
+                downgraded_flaws.append(str(flaw.get("flaw_id") or ""))
 
         verified_negative_ids = _verified_negative_evidence_ids_for_flaw(flaw, view)
         active_flaw_for_negative_metrics = str(flaw.get("status") or "candidate") not in {"downgraded", "retracted"}
@@ -16465,9 +16944,19 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
         for conflict in negative_grounding_conflicts
         if _negative_grounding_conflict_is_semantic_rejection(conflict)
     ]
+    final_negative_grounding_conflicts: List[Dict[str, Any]] = []
+    for flaw in view.get("flaw_candidates", []) or []:
+        if not isinstance(flaw, dict):
+            continue
+        conflicts = _flaw_negative_grounding_conflicts(flaw, view)
+        if conflicts:
+            flaw["hygiene_negative_grounding_conflicts"] = conflicts
+            final_negative_grounding_conflicts.extend(conflicts)
+        else:
+            flaw.pop("hygiene_negative_grounding_conflicts", None)
     active_negative_grounding_conflicts = [
         conflict
-        for conflict in negative_grounding_conflicts
+        for conflict in final_negative_grounding_conflicts
         if not _negative_grounding_conflict_is_semantic_rejection(conflict)
     ]
 
@@ -16734,6 +17223,10 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
                 "observed_inventory_count": len(bundle.get("observed_inventory", []) or []),
                 "observed_inventory_status": str(bundle.get("observed_inventory_status") or ""),
                 "source_of_expectation": str(bundle.get("source_of_expectation") or ""),
+                "review_issue_slot": str(bundle.get("review_issue_slot") or _review_issue_slot_for_type(_negative_evidence_type_for_record(record))),
+                "discovery_origin": str(bundle.get("discovery_origin") or ""),
+                "entity_source": str(bundle.get("entity_source") or ""),
+                "inventory_anchor_type": str(bundle.get("inventory_anchor_type") or _review_issue_inventory_anchor_type(bundle.get("observed_inventory", []) or [])),
                 "ablation_target_quality": str(bundle.get("ablation_target_quality") or ablation_quality_info.get("quality") or ""),
                 "ablation_target_quality_reason": str(bundle.get("ablation_target_quality_reason") or ablation_quality_info.get("reason") or ""),
                 "issue_cluster_key": "|".join(cluster_signature),
@@ -22649,7 +23142,11 @@ def _explicit_negative_potential_false_positive_reason(record: Dict[str, Any]) -
     concrete_gap = bool(_REVIEW_NEGATIVE_CONCRETE_GAP_RE.search(quote))
     if _negative_anchor_is_prior_work_context(quote):
         return "prior_work_limitation"
-    if _REVIEW_NEGATIVE_POSITIVE_CONTEXT_RE.search(quote) and not concrete_gap:
+    if (
+        _REVIEW_NEGATIVE_POSITIVE_CONTEXT_RE.search(quote)
+        and not concrete_gap
+        and not _SEMANTIC_NEGATIVE_TERMS_RE.search(quote)
+    ):
         return "positive_or_neutral_support"
     if _REVIEW_NEGATIVE_RESOURCE_CONTEXT_RE.search(quote) and not concrete_gap:
         return "resource_or_scope_context"
@@ -22714,8 +23211,6 @@ def _classify_flaw_final_view_layer(flaw: Dict[str, Any], state: Dict[str, Any])
         return "assessment_limitation"
     if _is_fallback_or_meta_flaw(flaw):
         return "assessment_limitation"
-    if _is_system_assessment_limitation_flaw(flaw, state):
-        return "assessment_limitation"
     explicit_negative_ids = _flaw_explicit_negative_evidence_ids(flaw)
     if explicit_negative_ids:
         by_id = _evidence_records_by_id(state)
@@ -22727,6 +23222,8 @@ def _classify_flaw_final_view_layer(flaw: Dict[str, Any], state: Dict[str, Any])
             if _explicit_negative_record_can_surface_as_potential(record, state):
                 has_unverified_review_candidate = True
         return "potential_concern" if has_unverified_review_candidate else "assessment_limitation"
+    if _is_system_assessment_limitation_flaw(flaw, state):
+        return "assessment_limitation"
     return "assessment_limitation"
 
 

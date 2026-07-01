@@ -1580,6 +1580,63 @@ MiMo status: a lightweight MiMo API test reached the service but returned `402 I
 
 Current paper-facing statement: P28.6 supports the ReviewState narrative that DrMAS verifies obligation-grounded review issue bundles conservatively. On hardneg20 offline recompute it yields 9 issue clusters, with the prior TargetRefine2 manual audit judging 8/9 clusters A/B. It does not restore direct quote-grounded negative discovery (`review_negative_verified_count=0`). Phrase live recovery carefully: full20 recovery numbers are offline recompute over a completed run; the freshest live-rerun evidence is partial16.
 
+## P29 Discovery-Layer Expansion Checkpoint (2026-07-01)
+
+Purpose: increase verified review issue quantity by expanding discovery/entity/inventory inputs while keeping verifier gates strict. This is not a direct quote-negative recall push; `review_negative_verified_count` remains a separate strict lane.
+
+Implemented logic:
+
+- Critique review-issue discovery now targets up to 12 candidates and is prompted slot-by-slot across missing baseline, missing ablation, scope/robustness, protocol/reproducibility, efficiency/resource, and result-claim mismatch.
+- Deterministic reviewer seeds were expanded as top-up only. Seeds keep `review_issue_slot` and `discovery_origin` so dashboard/case tables can distinguish model payload candidates from deterministic stress targets.
+- Claim surface and normalized inventory extraction were expanded to expose paper-named baselines/methods, datasets, metrics, core mechanisms, protocol/resource details, reproducibility cues, and inventory anchor types.
+- Bundle verification remains strict: concrete entity, locatable claim anchor, locatable inventory quote/list/table anchor, no counterevidence, no retrieval/context/truncated framing, no generic missing item.
+- Missing-ablation target guard rejects generic components/action fragments and malformed extracted text; retained missing-ablation targets are labeled high/medium confidence.
+- Protocol/reproducibility seeding is guarded by explicit protocol/fairness/split/seed/threshold/same-budget/hardware cues and rejects template-only protocol gaps.
+- Dashboard now includes `negative_grounding_conflict_count == 0` as a protection line.
+- Final-view hygiene now view-only downgrades candidate flaws whose explicit `negative_evidence_ids` are unresolved or point to support evidence, including quote-bank candidate anchors and stale reviewer-absence anchors. Confirmed invalid negative bindings still surface as real hygiene conflicts.
+- Potential-only negative false-positive filtering no longer treats explicit `worse` / `underperform` wording as positive context merely because a "strongest baseline" phrase appears.
+
+Authoritative P29 fresh MiMo full20 run:
+
+- raw run: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api2_r8t600_tok1536_20260701_160531.jsonl`
+- dashboard: `P29_DISCOVERY_EXPAND_MIMO_160531_TARGETGUARD3_HARDNEG20_DASHBOARD.md/json`
+- audit: `P29_DISCOVERY_EXPAND_MIMO_160531_TARGETGUARD3_HARDNEG20_AUDIT.json`
+- review issue cases: `P29_DISCOVERY_EXPAND_MIMO_160531_TARGETGUARD3_REVIEW_ISSUE_CASE_TABLE.md/json`
+- recovery cases: `P29_DISCOVERY_EXPAND_MIMO_160531_TARGETGUARD3_RECOVERY_CASE_TABLE.md/json`
+
+P29 TARGETGUARD3 metrics:
+
+- protection: PASS
+- `paper_count=20`
+- `verified_review_issue_count=20`
+- `verified_review_issue_cluster_count=15`
+- `review_negative_verified_count=2`
+- `quote_grounded_review_issue_count=2`
+- `obligation_grounded_review_issue_count=18`
+- `reviewer_candidate_review_issue_count=16`
+- `claim_obligation_review_issue_count=2`
+- `review_issue_candidate_total=78`
+- `review_issue_candidate_verified=15`
+- `review_issue_candidate_critique_payload_count=19`
+- `review_issue_candidate_deterministic_seed_count=59`
+- `review_issue_verified_slot_missing_ablation=12`
+- `review_issue_verified_slot_missing_baseline=2`
+- `review_issue_verified_slot_protocol_or_reproducibility=4`
+- `mark_contested_commit_count=11`
+- `recovery_case_verified_review_issue_repair=8`
+- `negative_grounding_conflict_count=0`
+- `negative_semantic_anchor_conflict_count=0`
+- `negative_evidence_unlinked_to_flaw=0`
+- `positive_or_neutral_negative_candidate_count=0`
+- `semantic_negative_without_review_relation_count=0`
+
+Interpretation:
+
+- P29 meets the requested quantity target (`20` rows / `15` system clusters) on a fresh MiMo full20 run while protection lines pass.
+- Do not headline this as 15 confirmed human-equivalent defects. Paper-facing reporting should use cluster count plus manual A/B audit. Manual audit is still required; likely risk items include medium-confidence missing-ablation targets such as `Planning Module`, `Global Encoder`, protocol strictness clusters, and duplicate direct quote clusters on the secure-aggregator paper.
+- Missing-ablation still dominates (`12/20` rows, `7` clusters). The system is now stronger for quantity, but issue-type diversity remains the next research risk.
+- Recovery bridge is working but incomplete: `mark_contested_commit_count=11`, with `8` verified-review-issue repairs; `verified_issue_cluster_without_recovery_count=6` remains.
+
 ## Paper Narrative Blueprint (2026-07-01)
 
 New paper-facing blueprint: `PAPER_NARRATIVE_BLUEPRINT_20260701.md`.

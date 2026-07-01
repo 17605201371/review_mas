@@ -118,6 +118,7 @@ PROTECTION_LINES: List[Tuple[str, str, str]] = [
     ("final_report_leakage_paper_count",      "==", "0"),
     ("synthetic_marker_in_supporting_count",  "==", "0"),
     ("negative_evidence_unlinked_to_flaw",    "==", "0"),
+    ("negative_grounding_conflict_count",     "==", "0"),
     ("semantic_negative_without_review_relation_count", "==", "0"),
     ("positive_or_neutral_negative_candidate_count", "==", "0"),
     # For smoke/dry-run protection, a weak-target block is a valid safe
@@ -808,8 +809,25 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     out["review_issue_candidate_missing_ablation_generic_component_rejected"] = _sum(rows, "review_issue_candidate_missing_ablation_generic_component_rejected")
     out["review_issue_candidate_missing_baseline_target_rejected"] = _sum(rows, "review_issue_candidate_missing_baseline_target_rejected")
     out["review_issue_candidate_missing_baseline_generic_target_rejected"] = _sum(rows, "review_issue_candidate_missing_baseline_generic_target_rejected")
+    out["review_issue_candidate_critique_payload_count"] = _sum(rows, "review_issue_candidate_critique_payload_count")
+    out["review_issue_candidate_deterministic_seed_count"] = _sum(rows, "review_issue_candidate_deterministic_seed_count")
     out["verified_missing_ablation_high_confidence"] = _sum(rows, "verified_missing_ablation_high_confidence")
     out["verified_missing_ablation_medium_confidence"] = _sum(rows, "verified_missing_ablation_medium_confidence")
+    candidate_total_by_slot: Counter[str] = Counter()
+    candidate_verified_by_slot: Counter[str] = Counter()
+    for row in rows:
+        candidate_total_by_slot.update(_hygiene(row).get("review_issue_candidate_total_by_slot") or {})
+        candidate_verified_by_slot.update(_hygiene(row).get("review_issue_candidate_verified_by_slot") or {})
+    for slot in (
+        "missing_baseline",
+        "missing_ablation",
+        "scope_or_robustness",
+        "protocol_or_reproducibility",
+        "efficiency_cost",
+        "result_claim_mismatch",
+    ):
+        out[f"review_issue_candidate_slot_{slot}"] = int(candidate_total_by_slot.get(slot, 0))
+        out[f"review_issue_verified_slot_{slot}"] = int(candidate_verified_by_slot.get(slot, 0))
     review_issue_type_counts: Counter[str] = Counter()
     for row in rows:
         review_issue_type_counts.update(_hygiene(row).get("obligation_grounded_review_issue_type_counts") or {})
@@ -1766,8 +1784,22 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "review_issue_candidate_missing_ablation_generic_component_rejected",
         "review_issue_candidate_missing_baseline_target_rejected",
         "review_issue_candidate_missing_baseline_generic_target_rejected",
+        "review_issue_candidate_critique_payload_count",
+        "review_issue_candidate_deterministic_seed_count",
         "verified_missing_ablation_high_confidence",
         "verified_missing_ablation_medium_confidence",
+        "review_issue_candidate_slot_missing_baseline",
+        "review_issue_candidate_slot_missing_ablation",
+        "review_issue_candidate_slot_scope_or_robustness",
+        "review_issue_candidate_slot_protocol_or_reproducibility",
+        "review_issue_candidate_slot_efficiency_cost",
+        "review_issue_candidate_slot_result_claim_mismatch",
+        "review_issue_verified_slot_missing_baseline",
+        "review_issue_verified_slot_missing_ablation",
+        "review_issue_verified_slot_scope_or_robustness",
+        "review_issue_verified_slot_protocol_or_reproducibility",
+        "review_issue_verified_slot_efficiency_cost",
+        "review_issue_verified_slot_result_claim_mismatch",
         "review_issue_type_missing_ablation",
         "review_issue_type_missing_baseline",
         "review_issue_type_unfair_or_weak_baseline",
