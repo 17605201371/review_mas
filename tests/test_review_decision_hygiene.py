@@ -1,5 +1,6 @@
 import copy
 import re
+import agent_system.environments.env_package.review.state as review_state_mod
 from agent_system.environments.env_package.review.reward import _audit_id_leak_ratio
 from agent_system.environments.env_package.review.state import (
     _filter_decision_gaps as _r6_filter_gaps,
@@ -8021,13 +8022,328 @@ def test_review_issue_specificity_accepts_concrete_experiment_dimensions_not_gen
     assert _coverage_item_is_specific_for_type("component-isolation ablation for prediction head", "missing_ablation")
 
 
+def test_named_baseline_candidate_normalizes_multiple_bare_method_names():
+    candidate = {
+        "negative_type": "missing_baseline",
+        "missing_or_weak_items": ["FairNAS", "SNAS", "ProxylessNAS", "EWC", "GEM"],
+        "weakness": (
+            "The paper applies OGL to RandomNAS and GDAS baselines but does not compare "
+            "against other state-of-the-art one-shot NAS methods."
+        ),
+    }
+
+    items = review_state_mod._named_baseline_items_from_candidate(candidate)
+
+    assert items[:5] == [
+        "same-setting comparison against FairNAS baseline",
+        "same-setting comparison against SNAS baseline",
+        "same-setting comparison against ProxylessNAS baseline",
+        "same-setting comparison against EWC baseline",
+        "same-setting comparison against GEM baseline",
+    ]
+    assert all(_coverage_item_is_specific_for_type(item, "missing_baseline") for item in items)
+    assert review_state_mod._missing_baseline_target_specificity_failure(
+        {"missing_or_mismatch": {"entity": items[0], "items": items}}
+    ) == ""
+
+
+def test_named_baseline_candidate_does_not_normalize_single_bare_acronym():
+    candidate = {
+        "negative_type": "missing_baseline",
+        "missing_or_weak_items": ["SNAS"],
+        "weakness": "The comparison omits a NAS baseline.",
+    }
+
+    assert review_state_mod._named_baseline_items_from_candidate(candidate) == []
+
+
+def test_named_baseline_candidate_normalizes_single_acronym_with_baseline_context():
+    candidate = {
+        "negative_type": "missing_baseline",
+        "missing_or_weak_items": ["TRIS"],
+        "weakness": (
+            "The empirical comparison table does not include the supervised baseline TRIS "
+            "for a direct performance gap assessment."
+        ),
+    }
+
+    assert review_state_mod._named_baseline_items_from_candidate(candidate) == [
+        "same-setting comparison against TRIS baseline"
+    ]
+
+
+def test_named_baseline_candidate_leaves_already_specific_items_to_existing_path():
+    candidate = {
+        "negative_type": "missing_baseline",
+        "missing_or_weak_items": ["same-setting comparison against SNAS baseline"],
+        "weakness": "The comparison omits SNAS.",
+    }
+
+    assert review_state_mod._named_baseline_items_from_candidate(candidate) == []
+
+
+def test_reviewer_candidate_gap_merge_preserves_freeform_attribution_over_runner_seed():
+    claim_text = "OGL achieves superior performance compared to baseline methods."
+    inventory_quote = (
+        "In this study, we apply OGL to two popular single-path one-shot NAS baselines, "
+        "including RandomNAS and GDAS."
+    )
+    view = {
+        "paper_text": f"{claim_text}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-3",
+                "claim": claim_text,
+                "claim_kind": "paper_extracted",
+                "claim_type": "comparison",
+                "importance": "high",
+            }
+        ],
+        "evidence_map": [],
+        "flaw_candidates": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "review-issue-candidate-1",
+                "claim_id": "claim-3",
+                "weakness": (
+                    "The paper applies OGL to RandomNAS and GDAS baselines but does "
+                    "not compare against other one-shot NAS methods."
+                ),
+                "negative_type": "missing_baseline",
+                "required_evidence_type": "baseline_or_comparison",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["FairNAS", "SNAS", "ProxylessNAS", "EWC", "GEM"],
+                "status": "pending_absence_audit",
+                "source": "freeform_reviewer_negative",
+                "discovery_origin": "freeform_reviewer_negative",
+                "observed_inventory": [
+                    {
+                        "quote": inventory_quote,
+                        "locator": "Section 4.1",
+                        "observed_items": ["RandomNAS", "GDAS"],
+                    }
+                ],
+            },
+            {
+                "candidate_id": "reviewer-seed-candidate-claim-3-missing-baseline-one-shot",
+                "claim_id": "claim-3",
+                "weakness": "Runner seed: verify whether the claim lacks a one-shot baseline comparison.",
+                "negative_type": "missing_baseline",
+                "required_evidence_type": "baseline_or_comparison",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["same-setting comparison against one-shot"],
+                "status": "pending_absence_audit",
+                "source": "runner_seed_blueprint",
+                "discovery_origin": "runner_seed_blueprint",
+                "observed_inventory": [
+                    {
+                        "quote": inventory_quote,
+                        "locator": "Section 4.1",
+                        "observed_items": ["RandomNAS", "GDAS"],
+                    }
+                ],
+            },
+        ],
+    }
+    requirement_audit = {
+        "claim_requirement_audit": [
+            {
+                "gap_id": "claim-requirement-gap-claim-3-baseline",
+                "claim_id": "claim-3",
+                "claim": claim_text,
+                "claim_type": "comparison",
+                "importance": "high",
+                "required_evidence_types": ["baseline_or_comparison"],
+                "missing_requirements": ["baseline_or_comparison"],
+                "missing_negative_types": ["missing_baseline"],
+                "satisfied_requirements": [],
+                "available_support_ids": [],
+                "evidence_by_requirement": {},
+            }
+        ]
+    }
+
+    review_state_mod._add_reviewer_absence_audit_artifacts(view, requirement_audit)
+    issue_evidence = [
+        item for item in view["evidence_map"]
+        if isinstance(item, dict) and isinstance(item.get("review_issue_bundle"), dict)
+    ]
+
+    assert len(issue_evidence) == 1
+    assert issue_evidence[0]["reviewer_negative_candidate_id"] == "review-issue-candidate-1"
+    bundle = issue_evidence[0]["review_issue_bundle"]
+    assert bundle["discovery_origin"] == "freeform_reviewer_negative"
+    assert bundle["reviewer_negative_candidate_id"] == "review-issue-candidate-1"
+    assert bundle["missing_or_mismatch"]["items"] == [
+        "same-setting comparison against FairNAS baseline",
+        "same-setting comparison against SNAS baseline",
+        "same-setting comparison against ProxylessNAS baseline",
+        "same-setting comparison against EWC baseline",
+        "same-setting comparison against GEM baseline",
+    ]
+
+
+def test_external_baseline_list_countered_by_broad_sota_comparison():
+    claim_text = "OGL achieves superior performance compared to baseline methods."
+    bundle = {
+        "claim_id": "claim-3",
+        "issue_type": "missing_baseline",
+        "required_evidence_type": "baseline_or_comparison",
+        "source_of_expectation": "reviewer_candidate",
+        "discovery_origin": "freeform_reviewer_negative",
+        "reviewer_negative_candidate_id": "review-issue-candidate-1",
+        "claim_anchor": {"claim_id": "claim-3", "quote": claim_text},
+        "missing_or_mismatch": {
+            "entity": "same-setting comparison against FairNAS baseline",
+            "items": [
+                "same-setting comparison against FairNAS baseline",
+                "same-setting comparison against SNAS baseline",
+                "same-setting comparison against ProxylessNAS baseline",
+                "same-setting comparison against EWC baseline",
+                "same-setting comparison against GEM baseline",
+            ],
+            "source": "reviewer_candidate",
+        },
+        "observed_inventory": [
+            {
+                "quote": (
+                    "In this study, we apply OGL to two popular single-path one-shot NAS "
+                    "baselines, including RandomNAS and GDAS."
+                ),
+                "locator": "Section 4.1",
+            }
+        ],
+    }
+    state = {
+        "paper_text": (
+            f"{claim_text}\n"
+            "In the experiments, we compare our methods with 13 state-of-the-art "
+            "one-shot NAS competitors on CIFAR-10, CIFAR-100 and ImageNet. "
+            "The comparison includes RandomNAS and GDAS under the same settings."
+        ),
+        "claims": [
+            {
+                "claim_id": "claim-3",
+                "claim": claim_text,
+                "claim_kind": "paper_extracted",
+                "claim_type": "comparison",
+            }
+        ],
+    }
+
+    assert review_state_mod._review_issue_full_text_counterevidence_reason(
+        bundle,
+        state,
+        neg_type="missing_baseline",
+    ) == "full_text_broad_baseline_comparison_counterevidence"
+
+
+def test_scope_review_issue_basis_accepts_generalizable_cross_target_claim():
+    claim_text = "The model's performance is generalizable across different molecular classes and target shapes."
+    bundle = {
+        "claim_id": "claim-4",
+        "issue_type": "missing_robustness_or_generalization",
+        "required_evidence_type": "robustness_or_generalization",
+        "source_of_expectation": "reviewer_candidate",
+        "reviewer_negative_candidate": (
+            "The evaluation uses a randomly selected test subset and does not test diverse protein targets."
+        ),
+        "claim_anchor": {"claim_id": "claim-4", "quote": claim_text},
+        "missing_or_mismatch": {
+            "entity": "cross-target validation",
+            "items": ["cross-target validation"],
+            "source": "reviewer_candidate",
+        },
+        "observed_inventory": [
+            {
+                "quote": "The evaluation was performed on randomly selected 100 molecules from the test set.",
+                "locator": "comparison section",
+                "observed_items": ["single test set evaluation", "100 reference molecules"],
+            }
+        ],
+    }
+    state = {
+        "paper_text": (
+            f"{claim_text}\n"
+            "The evaluation was performed on randomly selected 100 molecules from the test set."
+        ),
+        "claims": [
+            {
+                "claim_id": "claim-4",
+                "claim": claim_text,
+                "claim_kind": "paper_extracted",
+                "claim_type": "empirical",
+            }
+        ],
+    }
+
+    assert review_state_mod._review_issue_structural_expectation_basis(
+        bundle,
+        state,
+        "missing_robustness_or_generalization",
+    ) == "structural_claim_scope_or_robustness_cue"
+
+
+def test_review_issue_basis_reuses_precomputed_candidate_relevance():
+    claim_text = (
+        "HALO introduces a hyperbolic neural network approach for pixel-level active learning, "
+        "using the hyperbolic radius as an indicator of epistemic uncertainty."
+    )
+    bundle = {
+        "claim_id": "claim-1",
+        "issue_type": "reproducibility_gap",
+        "required_evidence_type": "reproducibility_detail",
+        "source_of_expectation": "reviewer_candidate",
+        "candidate_obligation_relevance_basis": "missing_reproducibility_item_overlaps_claim",
+        "reviewer_negative_candidate": (
+            "The paper does not provide the hyperbolic curvature parameter or active learning round details."
+        ),
+        "claim_anchor": {"claim_id": "claim-1", "quote": claim_text},
+        "missing_or_mismatch": {
+            "entity": "hyperbolic curvature parameter",
+            "items": [
+                "hyperbolic curvature parameter",
+                "active learning round details",
+                "batch size for labeled/unlabeled data",
+            ],
+            "source": "reviewer_candidate",
+        },
+        "observed_inventory": [
+            {
+                "quote": "We introduce a hyperbolic neural network approach to pixel-level active learning.",
+                "locator": "Abstract",
+            }
+        ],
+    }
+    state = {
+        "paper_text": (
+            f"{claim_text}\n"
+            "We introduce a hyperbolic neural network approach to pixel-level active learning."
+        ),
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim_text,
+                "claim_kind": "paper_extracted",
+                "claim_type": "contribution",
+            }
+        ],
+    }
+
+    assert review_state_mod._review_issue_structural_expectation_basis(
+        bundle,
+        state,
+        "reproducibility_gap",
+    ) == "structural_missing_reproducibility_item_overlaps_claim"
+
+
 def test_missing_ablation_target_quality_rejects_generic_components_and_actions():
-    def quality(item, claim="The method improves performance."):
+    def quality(item, claim="The method improves performance.", inventory="Section 3 describes the model component."):
         return _missing_ablation_target_quality(
             {
                 "missing_or_mismatch": {"entity": item, "items": [item]},
                 "claim_anchor": {"quote": claim},
-                "observed_inventory": [{"quote": "Section 3 describes the model component.", "locator": "Method"}],
+                "observed_inventory": [{"quote": inventory, "locator": "Method"}],
             }
         )
 
@@ -8065,6 +8381,22 @@ def test_missing_ablation_target_quality_rejects_generic_components_and_actions(
     assert quality(
         "component-isolation ablation for generalized noise regularization",
         claim="Noise Regularization for DCCA prevents model collapse and improves performance.",
+    )["quality"] in {"high", "medium"}
+    assert quality(
+        "component-isolation ablation for simulated loss",
+        claim=(
+            "The loss converges to a non-zero global minimum for two-layer bias-free ReLU networks "
+            "due to restricted expressivity."
+        ),
+        inventory=(
+            "For learning dynamics, two-layer bias-free ReLU networks have the same dynamics as "
+            "linear networks when trained on symmetric datasets with square loss or logistic loss."
+        ),
+    ) == {"quality": "reject", "reason": "missing_ablation_target_theory_loss_analysis"}
+    assert quality(
+        "component-isolation ablation for sz-Softmax loss",
+        claim="The scalable 3D pre-training framework improves downstream benchmark performance.",
+        inventory="Table 4 reports downstream benchmark performance using Lovasz-Softmax loss.",
     )["quality"] in {"high", "medium"}
 
 
@@ -10859,6 +11191,84 @@ def test_evaluation_inventory_exposes_normalized_buckets_and_item_fields():
     assert inventory["evaluation_inventory"]["metrics"] or inventory["evaluation_inventory"]["resource_measurements"]
 
 
+def test_cached_paper_text_inventory_prevents_hot_path_rescan(monkeypatch):
+    state = {
+        "paper_text": "Full paper text that should not be rescanned once paper inventory is cached.",
+        "evaluation_inventory": {
+            "items": [
+                {
+                    "inventory_id": "paper-inventory-1",
+                    "quote": "Table 1 reports model accuracy on Benchmark-X.",
+                    "locator": "Table 1",
+                    "inventory_source": "paper_text_inventory",
+                    "paper_inventory_source": "full_paper_text",
+                }
+            ]
+        },
+    }
+
+    def fail_rescan(*_args, **_kwargs):
+        raise AssertionError("paper_text inventory should not be recomputed in raw-item hot path")
+
+    monkeypatch.setattr(review_state_mod, "_paper_inventory_from_text", fail_rescan)
+
+    items = review_state_mod._evaluation_inventory_raw_items(state, max_items=96)
+
+    assert [item["inventory_id"] for item in items] == ["paper-inventory-1"]
+
+
+def test_full_text_target_windows_cache_avoids_repeated_pattern_scan(monkeypatch):
+    body = (
+        "The method uses a RankHead module for ranking. "
+        "Ablation tables compare other components but not RankHead. "
+    ) * 120
+    review_state_mod._REVIEW_ISSUE_FULL_TEXT_TARGET_WINDOW_CACHE.clear()
+
+    first = review_state_mod._review_issue_full_text_target_windows(body, ["RankHead"])
+    assert first
+
+    def fail_pattern_generation(_token):
+        raise AssertionError("cached full-text target windows should avoid repeated pattern generation")
+
+    monkeypatch.setattr(review_state_mod, "_surface_marker_patterns", fail_pattern_generation)
+
+    second = review_state_mod._review_issue_full_text_target_windows(body, ["RankHead"])
+
+    assert second == first
+
+
+def test_ablation_missing_items_resolver_cache_avoids_repeated_semantic_scan(monkeypatch):
+    text = "Ablation study compares encoder variants and decoder variants in Table 3."
+    missing_items = ["RankHead"]
+    review_state_mod._ABLATION_MISSING_ITEMS_RESOLVED_CACHE.clear()
+
+    assert not review_state_mod._ablation_missing_items_resolved_by_text(text, missing_items)
+
+    def fail_semantic_scan(_text, _missing_items):
+        raise AssertionError("cached ablation resolver should not repeat semantic table scan")
+
+    monkeypatch.setattr(review_state_mod, "_ablation_counterevidence_window_resolves_semantic_table", fail_semantic_scan)
+
+    assert not review_state_mod._ablation_missing_items_resolved_by_text(text, missing_items)
+
+
+def test_paper_ablation_counterevidence_cache_avoids_repeated_full_text_scan(monkeypatch):
+    state = {
+        "paper_text": "Ablation study compares encoder variants and decoder variants in Table 3. " * 20
+    }
+    evidence = {"coverage_missing_items": ["RankHead"]}
+    review_state_mod._PAPER_ABLATION_COUNTEREVIDENCE_CACHE.clear()
+
+    assert not review_state_mod._paper_has_ablation_counterevidence_for_missing_claim(state, evidence, "")
+
+    def fail_resolver(_text, _missing_items):
+        raise AssertionError("cached paper ablation counterevidence should not rescan windows")
+
+    monkeypatch.setattr(review_state_mod, "_ablation_missing_items_resolved_by_text", fail_resolver)
+
+    assert not review_state_mod._paper_has_ablation_counterevidence_for_missing_claim(state, evidence, "")
+
+
 def test_entity_claim_obligation_gap_becomes_verified_review_issue_bundle():
     claim = "The RankHead module improves ranking accuracy on Benchmark-X."
     support_quote = "Table 1 reports RankHead module accuracy results on Benchmark-X for Ours and BERT baselines."
@@ -13125,6 +13535,1153 @@ def test_reviewer_candidate_review_issue_takes_priority_over_deterministic_gap_b
     assert hygiene["verified_review_issue_count"] >= 1
 
 
+def test_menu_bound_critique_candidate_carries_candidate_menu_metadata(monkeypatch):
+    claim = "The proposed decoder uses an acceptance prediction head to improve draft quality."
+    inventory_quote = "Table 3: Ablation study reports variants without reranking and without the draft scorer."
+    menu_id = "review-issue-menu-claim-1-missing-ablation-acceptance-prediction-head"
+    menu_item = {
+        "candidate_menu_id": menu_id,
+        "claim_id": "claim-1",
+        "issue_type": "missing_ablation",
+        "required_evidence_type": "ablation_or_component",
+        "expected_entity": "acceptance prediction head",
+        "entity_source": "method_component",
+        "observed_inventory": [
+            {
+                "inventory_id": "inv-ablation-1",
+                "quote": inventory_quote,
+                "locator": "Table 3",
+                "observed_items": ["without reranking", "without draft scorer"],
+                "inventory_type": "ablation",
+            }
+        ],
+        "counterevidence_search_terms": ["acceptance prediction head", "acceptance head", "ablation"],
+    }
+
+    def fake_menu_lookup(view, requirement_audit=None):
+        return {"items": [menu_item], "by_id": {menu_id: menu_item}}
+
+    monkeypatch.setattr(review_state_mod, "_review_issue_candidate_menu_lookup", fake_menu_lookup)
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "method",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["ablation_or_component"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "review-issue-candidate-1",
+                "candidate_menu_id": menu_id,
+                "claim_id": "claim-1",
+                "weakness": "The ablation table does not isolate the acceptance prediction head.",
+                "negative_type": "missing_ablation",
+                "required_evidence_type": "ablation_or_component",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["acceptance prediction head"],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    view = build_decision_hygiene_view(copy.deepcopy(state))
+    hygiene = view["decision_hygiene"]
+    issue_records = [
+        item for item in view["evidence_map"]
+        if item.get("review_issue_source") == "obligation_grounded_review_issue"
+    ]
+
+    assert hygiene["verified_review_issue_count"] == 1
+    assert hygiene["critique_payload_verified_count"] == 1
+    assert hygiene["critique_payload_verified_cluster_count"] == 1
+    assert hygiene["critique_payload_menu_bound_count"] == 1
+    assert hygiene["candidate_menu_item_used_count"] == 1
+    assert hygiene["candidate_menu_item_verified_count"] == 1
+    assert issue_records[0]["candidate_menu_id"] == menu_id
+    assert issue_records[0]["review_issue_bundle"]["candidate_menu_id"] == menu_id
+    assert issue_records[0]["review_issue_bundle"]["discovery_origin"] == "critique_payload_menu_bound"
+
+
+def test_selected_menu_origin_counts_as_critique_payload(monkeypatch):
+    claim = "The proposed decoder uses an acceptance prediction head to improve draft quality."
+    inventory_quote = "Table 3: Ablation study reports variants without reranking and without the draft scorer."
+    menu_id = "review-issue-menu-claim-1-missing-ablation-acceptance-prediction-head"
+    menu_item = {
+        "candidate_menu_id": menu_id,
+        "claim_id": "claim-1",
+        "issue_type": "missing_ablation",
+        "required_evidence_type": "ablation_or_component",
+        "expected_entity": "acceptance prediction head",
+        "entity_source": "method_component",
+        "observed_inventory": [
+            {
+                "inventory_id": "inv-ablation-1",
+                "quote": inventory_quote,
+                "locator": "Table 3",
+                "observed_items": ["without reranking", "without draft scorer"],
+                "inventory_type": "ablation",
+            }
+        ],
+    }
+
+    monkeypatch.setattr(
+        review_state_mod,
+        "_review_issue_candidate_menu_lookup",
+        lambda view, requirement_audit=None: {"items": [menu_item], "by_id": {menu_id: menu_item}},
+    )
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "method",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["ablation_or_component"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "review-issue-candidate-selected-menu-1",
+                "candidate_menu_id": menu_id,
+                "claim_id": "claim-1",
+                "weakness": "The ablation table does not isolate the acceptance prediction head.",
+                "negative_type": "missing_ablation",
+                "required_evidence_type": "ablation_or_component",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["acceptance prediction head"],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+                "discovery_origin": "critique_payload_menu_selected",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    view = build_decision_hygiene_view(copy.deepcopy(state))
+    hygiene = view["decision_hygiene"]
+    issue_records = [
+        item for item in view["evidence_map"]
+        if item.get("review_issue_source") == "obligation_grounded_review_issue"
+    ]
+
+    assert hygiene["verified_review_issue_count"] == 1
+    assert hygiene["critique_payload_verified_count"] == 1
+    assert hygiene["critique_payload_verified_cluster_count"] == 1
+    assert hygiene["critique_payload_menu_bound_verified_count"] == 1
+    assert issue_records[0]["review_issue_bundle"]["discovery_origin"] == "critique_payload_menu_selected"
+
+
+def test_menu_generation_omits_missing_ablation_when_inventory_already_ablates_target():
+    claim = "ReDrafter's gains are driven by the dynamic tree attention module."
+    inventory_quote = (
+        "Figure 5: Dynamic tree attention ablation reports performance with and without "
+        "dynamic tree attention under the same decoding setup."
+    )
+    item = review_state_mod._review_issue_candidate_menu_item(
+        {
+            "paper_text": f"{claim}\n\n{inventory_quote}",
+            "claims": [
+                {
+                    "claim_id": "claim-1",
+                    "claim": claim,
+                    "claim_kind": "paper_extracted",
+                    "claim_type": "method",
+                    "importance": "high",
+                }
+            ],
+        },
+        {
+            "claim_id": "claim-1",
+            "claim": claim,
+            "claim_kind": "paper_extracted",
+            "claim_type": "method",
+            "importance": "high",
+        },
+        issue_type="missing_ablation",
+        required_evidence_type="ablation_or_component",
+        expected_entity="ablation isolating dynamic tree attention module",
+        observed_inventory=[
+            {
+                "inventory_id": "inv-tree-attention",
+                "quote": inventory_quote,
+                "locator": "Figure 5",
+                "observed_items": ["dynamic tree attention"],
+                "inventory_type": "ablation",
+            }
+        ],
+        source="deterministic_component_ablation_menu",
+        entity_source="method_component",
+    )
+
+    assert item == {}
+
+
+def test_menu_used_candidate_failure_telemetry_records_generic_scope_target():
+    claim = "SPOT is a scalable pre-training method for transferable 3D representations."
+    inventory_quote = "Table 6: Ablation study on pre-training strategies across different datasets."
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "contribution",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["robustness_or_generalization"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "review-issue-candidate-1",
+                "candidate_menu_id": "rim-c1-sr-out-of-domain-or-stress-robustness-eva",
+                "claim_id": "claim-1",
+                "claim": claim,
+                "weakness": "The paper does not evaluate generic out-of-domain or stress robustness.",
+                "negative_type": "missing_robustness_or_generalization",
+                "required_evidence_type": "robustness_or_generalization",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": [
+                    "out-of-domain or stress robustness evaluation under the claimed setting"
+                ],
+                "observed_inventory": [{"quote": inventory_quote, "locator": "Table 6"}],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["verified_review_issue_count"] == 0
+    assert hygiene["candidate_menu_item_used_count"] == 1
+    assert hygiene["candidate_menu_item_failed_count"] == 1
+    assert hygiene["candidate_menu_item_failed_by_reason"]["scope_menu_generic_target"] == 1
+    failed = hygiene["failed_menu_candidate_items"][0]
+    assert failed["candidate_menu_id"] == "rim-c1-sr-out-of-domain-or-stress-robustness-eva"
+    assert failed["stop_stage"] == "menu_quality_guard"
+
+
+def test_selected_menu_candidate_filtered_from_current_menu_gets_specific_failure_reason():
+    claim = "The method improves theorem proving performance on Benchmark-X."
+    inventory_quote = "Table 2 compares the method against ABC and DEF on Benchmark-X."
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "method",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["ablation_or_component"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "review-issue-candidate-selected-menu-1",
+                "candidate_menu_id": "rim-stale-menu-id-not-generated-now",
+                "claim_id": "claim-1",
+                "weakness": "Verify whether the comparison lacks a same-setting XYZ baseline.",
+                "negative_type": "missing_baseline",
+                "required_evidence_type": "baseline_or_comparison",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["same-setting comparison against XYZ baseline"],
+                "observed_inventory": [{"quote": inventory_quote, "locator": "Table 2"}],
+                "status": "pending_absence_audit",
+                "source": "critique_selected_menu_item",
+                "discovery_origin": "critique_payload_menu_selected",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["verified_review_issue_count"] == 0
+    assert hygiene["candidate_menu_item_used_count"] == 1
+    assert hygiene["candidate_menu_item_failed_count"] == 1
+    assert hygiene["candidate_menu_item_failed_by_reason"][
+        "selected_menu_item_not_in_current_menu_or_filtered"
+    ] == 1
+    failed = hygiene["failed_menu_candidate_items"][0]
+    assert failed["stop_stage"] == "menu_lookup_or_quality_filter"
+
+
+def test_review_issue_menu_rejects_scalability_cost_without_resource_anchor():
+    item = review_state_mod._review_issue_candidate_menu_item(
+        {
+            "paper_text": (
+                "SPOT is a scalable pre-training method for transferable 3D representations.\n"
+                "Table 2 reports downstream detection accuracy."
+            )
+        },
+        {
+            "claim_id": "claim-1",
+            "claim": "SPOT is a scalable pre-training method for transferable 3D representations.",
+        },
+        issue_type="efficiency_cost_gap",
+        required_evidence_type="efficiency_cost",
+        expected_entity="runtime, memory, parameter, FLOP, hardware, or compute-cost measurement for the pre-training phase",
+        observed_inventory=[
+            {
+                "quote": "Table 2 reports downstream detection accuracy.",
+                "locator": "Table 2",
+                "inventory_type": "result_table",
+            }
+        ],
+        source="deterministic_efficiency_cost_menu",
+        entity_source="resource_claim",
+    )
+
+    assert item == {}
+
+
+def test_review_issue_menu_rejects_scope_target_already_resolved_in_full_text():
+    claim = "The model generalizes to SSv2 few-shot action recognition."
+    item = review_state_mod._review_issue_candidate_menu_item(
+        {
+            "paper_text": (
+                f"{claim}\n\n"
+                "Table 3 reports SSv2 benchmark results for five-shot action recognition, "
+                "including comparison against the strongest baselines."
+            )
+        },
+        {
+            "claim_id": "claim-1",
+            "claim": claim,
+            "claim_kind": "paper_extracted",
+            "claim_type": "empirical",
+        },
+        issue_type="scope_overclaim",
+        required_evidence_type="robustness_or_generalization",
+        expected_entity="held-out or coverage evaluation for SSv2",
+        observed_inventory=[
+            {
+                "quote": "Table 3 reports SSv2 benchmark results for five-shot action recognition.",
+                "locator": "Table 3",
+                "inventory_type": "dataset",
+                "observed_items": ["SSv2"],
+            }
+        ],
+        source="deterministic_scope_robustness_menu",
+        entity_source="claim_scope",
+    )
+
+    assert item == {}
+
+
+def test_review_issue_menu_rejects_unlocatable_claim_anchor_when_paper_text_available():
+    item = review_state_mod._review_issue_candidate_menu_item(
+        {
+            "paper_text": (
+                "Table 2 reports DAVIS2016, SegTrackV2, and FBMS59 results for LT-MS."
+            )
+        },
+        {
+            "claim_id": "claim-2",
+            "claim": "The method is evaluated on FlyingThings3D under the claimed setting.",
+            "claim_kind": "paper_extracted",
+            "claim_type": "empirical",
+        },
+        issue_type="missing_robustness_or_generalization",
+        required_evidence_type="robustness_or_generalization",
+        expected_entity="held-out or coverage evaluation for FlyingThings3D",
+        observed_inventory=[
+            {
+                "quote": "Table 2 reports DAVIS2016, SegTrackV2, and FBMS59 results for LT-MS.",
+                "locator": "Table 2",
+                "inventory_type": "dataset",
+                "observed_items": ["DAVIS2016", "SegTrackV2", "FBMS59"],
+            }
+        ],
+        source="deterministic_scope_robustness_menu",
+        entity_source="claim_scope",
+    )
+
+    assert item == {}
+
+
+def test_review_issue_menu_rejects_generic_strong_baseline_target():
+    item = review_state_mod._review_issue_candidate_menu_item(
+        {},
+        {
+            "claim_id": "claim-3",
+            "claim": "OGL improves one-shot NAS performance on CIFAR-10.",
+        },
+        issue_type="missing_baseline",
+        required_evidence_type="baseline_or_comparison",
+        expected_entity="other strong one-shot NAS baselines on CIFAR-10",
+        observed_inventory=[
+            {
+                "quote": "In the experiments, we compare our methods with RandomNAS and GDAS.",
+                "locator": "Section 4.1",
+                "inventory_type": "baseline",
+            }
+        ],
+        source="critique_payload_menu",
+        entity_source="comparison_target",
+    )
+
+    assert item == {}
+
+
+def test_missing_baseline_candidate_normalizes_named_examples_from_verification_question():
+    claim = "OGL improves the performance of one-shot NAS on CIFAR-10."
+    inventory_quote = "In the experiments, we compare our methods with RandomNAS and GDAS on CIFAR-10."
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "empirical",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["baseline_or_comparison"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "review-issue-candidate-1",
+                "candidate_menu_id": "rim-c1-mb-same-setting-baseline-comparison-for-o",
+                "claim_id": "claim-1",
+                "claim": claim,
+                "weakness": "The comparison may omit other strong one-shot NAS baselines.",
+                "negative_type": "missing_baseline",
+                "required_evidence_type": "baseline_or_comparison",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "verification_question": (
+                    "Does the comparison table include leading one-shot NAS baselines "
+                    "such as SNAS, ProxylessNAS, DARTS, FairNAS, or FBNet on CIFAR-10?"
+                ),
+                "missing_or_weak_items": ["other strong one-shot NAS baselines on CIFAR-10"],
+                "observed_inventory": [
+                    {
+                        "quote": inventory_quote,
+                        "locator": "Section 4.1",
+                        "observed_items": ["RandomNAS", "GDAS"],
+                    }
+                ],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    view = build_decision_hygiene_view(copy.deepcopy(state))
+    hygiene = view["decision_hygiene"]
+    issue_records = [
+        item for item in view["evidence_map"]
+        if item.get("review_issue_source") == "obligation_grounded_review_issue"
+    ]
+
+    assert hygiene["verified_review_issue_count"] == 1
+    bundle = issue_records[0]["review_issue_bundle"]
+    missing_items = bundle["missing_or_mismatch"]["items"]
+    assert "same-setting comparison against SNAS baseline" in missing_items
+    assert "same-setting comparison against ProxylessNAS baseline" in missing_items
+
+
+def test_menu_used_qualitative_vs_quantitative_gap_becomes_result_mismatch_issue():
+    claim = "LT-MS-K4 outperforms baselines on FBMS59 and DAVIS2017-motion."
+    qualitative_quote = "The resulting performance on DAVIS2017-motion is slightly better than ST-MS (22), and far better than MoSeg."
+    state = {
+        "paper_text": f"{claim}\n\n{qualitative_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "empirical",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["baseline_or_comparison"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "review-issue-candidate-1",
+                "candidate_menu_id": "rim-c1-mb-same-setting-baseline-comparison-for-d",
+                "claim_id": "claim-1",
+                "claim": claim,
+                "weakness": (
+                    "The paper gives a qualitative comparison but not a direct quantitative "
+                    "same-setting result table for DAVIS2017-motion."
+                ),
+                "negative_type": "missing_baseline",
+                "required_evidence_type": "baseline_or_comparison",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "verification_question": (
+                    "Is there a table or direct quantitative comparison showing LT-MS-K4 "
+                    "vs ST-MS or MoSeg on DAVIS2017-motion?"
+                ),
+                "missing_or_weak_items": ["same-setting baseline comparison for DAVIS2017-motion"],
+                "observed_inventory": [
+                    {
+                        "quote": qualitative_quote,
+                        "locator": "Section 5.1",
+                        "observed_items": ["qualitative comparison statement"],
+                    }
+                ],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    view = build_decision_hygiene_view(copy.deepcopy(state))
+    hygiene = view["decision_hygiene"]
+    issue_records = [
+        item for item in view["evidence_map"]
+        if item.get("review_issue_source") == "obligation_grounded_review_issue"
+    ]
+
+    assert hygiene["verified_review_issue_count"] == 1
+    assert hygiene["obligation_grounded_review_issue_type_counts"]["result_claim_mismatch"] == 1
+    assert hygiene["candidate_menu_item_failed_count"] == 0
+    assert issue_records[0]["negative_evidence_type"] == "result_claim_mismatch"
+    bundle = issue_records[0]["review_issue_bundle"]
+    assert bundle["required_evidence_type"] == "empirical_result"
+    assert bundle["review_issue_slot"] == "result_claim_mismatch"
+    assert bundle["candidate_menu_id"] == "rim-c1-mb-same-setting-baseline-comparison-for-d"
+    assert bundle["missing_or_mismatch"]["items"][0] == (
+        "direct quantitative same-setting result table for DAVIS2017-motion"
+    )
+
+
+def test_menu_used_qualitative_vs_quantitative_gap_blocked_by_quantitative_counterevidence():
+    claim = "LT-MS-K4 outperforms baselines on FBMS59 and DAVIS2017-motion."
+    qualitative_quote = "The resulting performance on DAVIS2017-motion is slightly better than ST-MS (22), and far better than MoSeg."
+    quantitative_quote = "Table 2 reports Jaccard scores on DAVIS2017-motion: LT-MS-K4 74.1, ST-MS 72.8, and MoSeg 58.3."
+    state = {
+        "paper_text": f"{claim}\n\n{qualitative_quote}\n\n{quantitative_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "empirical",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["baseline_or_comparison"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "review-issue-candidate-1",
+                "candidate_menu_id": "rim-c1-mb-same-setting-baseline-comparison-for-d",
+                "claim_id": "claim-1",
+                "claim": claim,
+                "weakness": (
+                    "The paper gives a qualitative comparison but not a direct quantitative "
+                    "same-setting result table for DAVIS2017-motion."
+                ),
+                "negative_type": "missing_baseline",
+                "required_evidence_type": "baseline_or_comparison",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "verification_question": (
+                    "Is there a table or direct quantitative comparison showing LT-MS-K4 "
+                    "vs ST-MS or MoSeg on DAVIS2017-motion?"
+                ),
+                "missing_or_weak_items": ["same-setting baseline comparison for DAVIS2017-motion"],
+                "observed_inventory": [
+                    {
+                        "quote": qualitative_quote,
+                        "locator": "Section 5.1",
+                        "observed_items": ["qualitative comparison statement"],
+                    }
+                ],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["verified_review_issue_count"] == 0
+    assert hygiene["candidate_menu_item_failed_count"] == 1
+    assert hygiene["candidate_menu_item_failed_by_stage"]["counterevidence"] == 1
+    assert hygiene["failed_menu_candidate_items"][0]["rejection_reason"] in {
+        "missing_entity_already_observed_in_inventory",
+        "full_text_protocol_or_result_counterevidence",
+    }
+
+
+def test_menu_used_bundle_failure_telemetry_records_counterevidence_stage():
+    claim = "OGL improves one-shot NAS performance on CIFAR-10."
+    observed_quote = "In the experiments, we compare OGL with RandomNAS and GDAS on CIFAR-10."
+    counter_quote = "Table 2 compares OGL against DARTS and SNAS on CIFAR-10 under the same search space."
+    state = {
+        "paper_text": f"{claim}\n\n{observed_quote}\n\n{counter_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "empirical",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["baseline_or_comparison"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "review-issue-candidate-1",
+                "candidate_menu_id": "rim-c1-mb-same-setting-baseline-comparison-for-o",
+                "claim_id": "claim-1",
+                "claim": claim,
+                "weakness": "The comparison may omit a same-setting DARTS baseline.",
+                "negative_type": "missing_baseline",
+                "required_evidence_type": "baseline_or_comparison",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["same-setting comparison against DARTS baseline"],
+                "observed_inventory": [
+                    {
+                        "quote": observed_quote,
+                        "locator": "Section 4.1",
+                        "observed_items": ["RandomNAS", "GDAS"],
+                    }
+                ],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["verified_review_issue_count"] == 0
+    assert hygiene["candidate_menu_item_failed_count"] == 1
+    assert hygiene["candidate_menu_item_failed_by_stage"]["counterevidence"] == 1
+    assert "not_verified_by_bundle" not in hygiene["candidate_menu_item_failed_by_reason"]
+    failed = hygiene["failed_menu_candidate_items"][0]
+    assert failed["candidate_menu_id"] == "rim-c1-mb-same-setting-baseline-comparison-for-o"
+    assert failed["stop_stage"] == "counterevidence"
+    assert failed["rejection_reason"] in {
+        "full_text_baseline_or_comparison_counterevidence",
+        "missing_entity_already_observed_in_inventory",
+    }
+    bundle_failures = hygiene["review_issue_candidate_bundle_failures"]
+    assert bundle_failures
+    assert bundle_failures[0]["stop_stage"] == "counterevidence"
+
+
+def test_missing_ablation_target_quality_rejects_already_studied_phrase():
+    quality = review_state_mod._missing_ablation_target_quality(
+        {
+            "issue_type": "missing_ablation",
+            "missing_or_mismatch": {
+                "entity": "effect of distillation steps/architecture choices has been studied module",
+                "items": ["effect of distillation steps/architecture choices has been studied module"],
+            },
+            "observed_inventory": [
+                {"quote": "Ablation studies for our method analyze local-global distillation steps."}
+            ],
+            "claim_anchor": {
+                "quote": "The effect of distillation steps/architecture choices has been studied."
+            },
+        }
+    )
+
+    assert quality["quality"] == "reject"
+    assert quality["reason"] == "missing_ablation_target_already_studied_phrase"
+
+
+def test_review_issue_worthiness_rejects_global_encoder_when_component_ablation_exists():
+    bundle = {
+        "claim_id": "claim-1",
+        "issue_type": "missing_ablation",
+        "missing_or_mismatch": {
+            "entity": "component-isolation ablation for global encoder",
+            "items": ["component-isolation ablation for global encoder"],
+        },
+        "claim_anchor": {
+            "quote": "Each component of LogoRA (local encoder, global encoder, alignment module) contributes positively to performance."
+        },
+        "observed_inventory": [
+            {
+                "quote": "Ablation studies of loss function and components show each component of our method.",
+                "locator": "Table 3",
+                "observed_items": ["global encoder", "local encoder", "alignment module"],
+            }
+        ],
+    }
+
+    reason = review_state_mod._review_issue_bundle_review_worthiness_failure(
+        bundle,
+        {"paper_text": ""},
+        neg_type="missing_ablation",
+    )
+
+    assert reason == "missing_ablation_target_already_covered_by_component_ablation"
+
+
+def test_copied_menu_id_miss_does_not_fuzzy_bind_to_different_menu_item():
+    candidate = {
+        "candidate_menu_id": "rim-c4-ma-ablation-isolating-alignment-module",
+        "claim_id": "claim-4",
+        "negative_type": "missing_ablation",
+        "missing_or_weak_items": ["ablation isolating alignment module"],
+        "weakness": "The ablation does not isolate the alignment module.",
+    }
+    lookup = {
+        "items": [
+            {
+                "candidate_menu_id": "rim-c4-ma-ablation-isolating-local-branch-module",
+                "claim_id": "claim-4",
+                "issue_type": "missing_ablation",
+                "expected_entity": "ablation isolating local branch module",
+            }
+        ],
+        "by_id": {
+            "rim-c4-ma-ablation-isolating-local-branch-module": {
+                "candidate_menu_id": "rim-c4-ma-ablation-isolating-local-branch-module",
+                "claim_id": "claim-4",
+                "issue_type": "missing_ablation",
+                "expected_entity": "ablation isolating local branch module",
+            }
+        },
+    }
+
+    assert review_state_mod._review_issue_candidate_menu_match(
+        candidate,
+        "claim-4",
+        "missing_ablation",
+        lookup,
+    ) == {}
+
+
+def test_stale_menu_id_preserves_candidate_metadata_without_recomputed_lookup(monkeypatch):
+    claim = "The proposed decoder uses an acceptance prediction head to improve draft quality."
+    inventory_quote = "Table 3: Ablation study reports variants without reranking and without the draft scorer."
+    stale_menu_id = "rim-stale-acceptance-head-menu-id"
+
+    monkeypatch.setattr(
+        review_state_mod,
+        "_review_issue_candidate_menu_lookup",
+        lambda view, requirement_audit=None: {"items": [], "by_id": {}},
+    )
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "method",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["ablation_or_component"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "review-issue-candidate-1",
+                "candidate_menu_id": stale_menu_id,
+                "obligation_id": "obligation-claim-1-missing-ablation-acceptance",
+                "claim_id": "claim-1",
+                "weakness": "The ablation table does not isolate the acceptance prediction head.",
+                "negative_type": "missing_ablation",
+                "required_evidence_type": "ablation_or_component",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["acceptance prediction head"],
+                "observed_inventory": [
+                    {
+                        "inventory_id": "inv-ablation-1",
+                        "quote": inventory_quote,
+                        "locator": "Table 3",
+                        "observed_items": ["without reranking", "without draft scorer"],
+                        "inventory_type": "ablation",
+                    }
+                ],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    view = build_decision_hygiene_view(copy.deepcopy(state))
+    hygiene = view["decision_hygiene"]
+    issue_records = [
+        item for item in view["evidence_map"]
+        if item.get("review_issue_source") == "obligation_grounded_review_issue"
+    ]
+
+    assert hygiene["verified_review_issue_count"] == 1
+    assert hygiene["candidate_menu_item_used_count"] == 1
+    assert hygiene["candidate_menu_item_verified_count"] == 1
+    assert issue_records[0]["candidate_menu_id"] == stale_menu_id
+    assert issue_records[0]["review_issue_bundle"]["candidate_menu_id"] == stale_menu_id
+    assert issue_records[0]["review_issue_bundle"]["discovery_origin"] == "critique_payload_menu_metadata"
+
+
+def test_stale_menu_id_does_not_inject_colliding_obligation_target(monkeypatch):
+    stale_menu_id = "rim-c4-ma-ablation-isolating-alignment-module"
+    colliding_obligation_id = "obligation-claim-4-missing-ablation-ablatio"
+    view = {
+        "claims": [
+            {
+                "claim_id": "claim-4",
+                "claim": "The alignment module contributes to robust performance.",
+                "claim_kind": "paper_extracted",
+                "claim_type": "method",
+                "importance": "high",
+                "status": "supported",
+            }
+        ],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "review-issue-candidate-1",
+                "candidate_menu_id": stale_menu_id,
+                "obligation_id": colliding_obligation_id,
+                "claim_id": "claim-4",
+                "weakness": "The ablation does not isolate the alignment module.",
+                "negative_type": "missing_ablation",
+                "required_evidence_type": "ablation_or_component",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["ablation isolating alignment module"],
+                "observed_inventory": [{"quote": "Table 4 reports ablation variants.", "locator": "Table 4"}],
+                "status": "pending_absence_audit",
+            }
+        ],
+    }
+    requirement_audit = {
+        "claim_requirement_audit": [
+            {
+                "claim_id": "claim-4",
+                "claim": "The alignment module contributes to robust performance.",
+                "missing_requirements": ["ablation_or_component"],
+                "satisfied_requirements": [],
+                "entity_claim_obligations": [
+                    {
+                        "obligation_id": colliding_obligation_id,
+                        "claim_id": "claim-4",
+                        "issue_type": "missing_ablation",
+                        "required_evidence_type": "ablation_or_component",
+                        "expected_entity": "ablation isolating local branch module",
+                    }
+                ],
+            }
+        ]
+    }
+    monkeypatch.setattr(
+        review_state_mod,
+        "_review_issue_candidate_menu_lookup",
+        lambda view, requirement_audit=None: {"items": [], "by_id": {}},
+    )
+
+    gaps = review_state_mod._reviewer_candidate_absence_gap_items(
+        copy.deepcopy(view),
+        copy.deepcopy(requirement_audit),
+        max_items=4,
+    )
+
+    assert len(gaps) == 1
+    assert gaps[0]["candidate_menu_id"] == stale_menu_id
+    assert gaps[0]["discovery_origin"] == "critique_payload_menu_metadata"
+    assert gaps[0]["reviewer_negative_candidate_missing_items"] == ["ablation isolating alignment module"]
+
+
+def test_selected_menu_pointer_without_current_menu_item_is_not_materialized(monkeypatch):
+    view = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The gains are driven by dynamic tree attention.",
+                "claim_kind": "paper_extracted",
+                "claim_type": "method",
+                "importance": "high",
+            }
+        ],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "review-issue-candidate-selected-menu-1",
+                "candidate_menu_id": "rim-c1-ma-ablation-isolating-dynamic-tree-attent",
+                "claim_id": "claim-1",
+                "weakness": "Verify whether dynamic tree attention lacks an ablation.",
+                "negative_type": "missing_ablation",
+                "required_evidence_type": "ablation_or_component",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["ablation isolating dynamic tree attention module"],
+                "observed_inventory": [
+                    {"quote": "Figure 4: Tree attention ablation results.", "locator": "Figure 4"}
+                ],
+                "status": "pending_absence_audit",
+                "source": "critique_selected_menu_item",
+                "discovery_origin": "critique_payload_menu_selected",
+            }
+        ],
+    }
+    requirement_audit = {
+        "claim_requirement_audit": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The gains are driven by dynamic tree attention.",
+                "missing_requirements": ["ablation_or_component"],
+                "satisfied_requirements": [],
+                "entity_claim_obligations": [],
+            }
+        ]
+    }
+    monkeypatch.setattr(
+        review_state_mod,
+        "_review_issue_candidate_menu_lookup",
+        lambda view, requirement_audit=None: {"items": [], "by_id": {}},
+    )
+
+    gaps = review_state_mod._reviewer_candidate_absence_gap_items(
+        copy.deepcopy(view),
+        copy.deepcopy(requirement_audit),
+        max_items=4,
+    )
+
+    assert gaps == []
+
+
+def test_menu_candidate_dedupe_keeps_distinct_selected_targets(monkeypatch):
+    view = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The acceptance prediction head and draft scorer improve draft quality.",
+                "claim_kind": "paper_extracted",
+                "claim_type": "method",
+                "importance": "high",
+                "status": "supported",
+            }
+        ],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "review-issue-candidate-1",
+                "candidate_menu_id": "rim-c1-ma-acceptance-prediction-head",
+                "claim_id": "claim-1",
+                "weakness": "The ablation does not isolate the acceptance prediction head.",
+                "negative_type": "missing_ablation",
+                "required_evidence_type": "ablation_or_component",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["acceptance prediction head"],
+                "observed_inventory": [{"quote": "Table 3 reports ablation variants.", "locator": "Table 3"}],
+                "status": "pending_absence_audit",
+            },
+            {
+                "candidate_id": "review-issue-candidate-2",
+                "candidate_menu_id": "rim-c1-ma-draft-scorer-head",
+                "claim_id": "claim-1",
+                "weakness": "The ablation does not isolate the draft scorer head.",
+                "negative_type": "missing_ablation",
+                "required_evidence_type": "ablation_or_component",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["draft scorer head"],
+                "observed_inventory": [{"quote": "Table 3 reports ablation variants.", "locator": "Table 3"}],
+                "status": "pending_absence_audit",
+            },
+        ],
+    }
+    requirement_audit = {
+        "claim_requirement_audit": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The acceptance prediction head and draft scorer improve draft quality.",
+                "missing_requirements": ["ablation_or_component"],
+                "satisfied_requirements": [],
+                "entity_claim_obligations": [],
+            }
+        ]
+    }
+    monkeypatch.setattr(
+        review_state_mod,
+        "_review_issue_candidate_menu_lookup",
+        lambda view, requirement_audit=None: {"items": [], "by_id": {}},
+    )
+
+    gaps = review_state_mod._reviewer_candidate_absence_gap_items(
+        copy.deepcopy(view),
+        copy.deepcopy(requirement_audit),
+        max_items=4,
+    )
+
+    assert [gap["candidate_menu_id"] for gap in gaps] == [
+        "rim-c1-ma-acceptance-prediction-head",
+        "rim-c1-ma-draft-scorer-head",
+    ]
+    assert [gap["reviewer_negative_candidate_missing_items"] for gap in gaps] == [
+        ["acceptance prediction head"],
+        ["draft scorer head"],
+    ]
+
+
+def test_review_issue_menu_filters_already_observed_result_table_items():
+    claim = {
+        "claim_id": "claim-2",
+        "claim": "HALO improves over RIPU by +2.9% mIoU with a 5% budget.",
+        "claim_kind": "paper_extracted",
+    }
+    item = review_state_mod._review_issue_candidate_menu_item(
+        {"paper_text": "Table 1 reports RIPU and HALO mIoU results."},
+        claim,
+        issue_type="insufficient_evaluation",
+        required_evidence_type="empirical_result",
+        expected_entity="quantitative result table for RIPU",
+        observed_inventory=[
+            {
+                "quote": "Table 1 reports mIoU for RIPU and HALO at a 5% budget.",
+                "locator": "Table 1",
+                "observed_items": ["RIPU", "HALO", "mIoU"],
+            }
+        ],
+        source="entity_claim_obligation_menu",
+    )
+
+    assert item == {}
+
+
+def test_review_issue_candidate_menu_selection_preserves_slot_diversity():
+    items = [
+        {
+            "candidate_menu_id": "rim-c1-mb-method-a",
+            "claim_id": "claim-1",
+            "issue_type": "missing_baseline",
+            "expected_entity": "MethodA baseline",
+            "source": "paper_named_baseline_menu",
+        },
+        {
+            "candidate_menu_id": "rim-c1-mb-method-b",
+            "claim_id": "claim-1",
+            "issue_type": "missing_baseline",
+            "expected_entity": "MethodB baseline",
+            "source": "paper_named_baseline_menu",
+        },
+        {
+            "candidate_menu_id": "rim-c1-ma-acceptance-head",
+            "claim_id": "claim-1",
+            "issue_type": "missing_ablation",
+            "expected_entity": "acceptance prediction head",
+            "target_quality_hint": "high",
+            "source": "deterministic_component_ablation_menu",
+        },
+        {
+            "candidate_menu_id": "rim-c1-pr-config",
+            "claim_id": "claim-1",
+            "issue_type": "reproducibility_gap",
+            "expected_entity": "training configuration for Graph2Tac",
+            "source": "deterministic_reproducibility_menu",
+        },
+    ]
+
+    selected = review_state_mod._select_review_issue_candidate_menu_items(
+        items,
+        max_items=3,
+        max_per_type=2,
+    )
+
+    assert [item["candidate_menu_id"] for item in selected] == [
+        "rim-c1-ma-acceptance-head",
+        "rim-c1-mb-method-a",
+        "rim-c1-pr-config",
+    ]
+    assert {
+        review_state_mod._review_issue_slot_for_type(item["issue_type"])
+        for item in selected
+    } == {"missing_ablation", "missing_baseline", "protocol_or_reproducibility"}
+
+
+def test_review_issue_menu_filters_self_reported_ablation_items():
+    claim = {
+        "claim_id": "claim-4",
+        "claim": "Ablation studies demonstrate the contribution of individual components.",
+        "claim_kind": "paper_extracted",
+    }
+    item = review_state_mod._review_issue_candidate_menu_item(
+        {"paper_text": "Ablation studies are presented in Table 4."},
+        claim,
+        issue_type="missing_ablation",
+        required_evidence_type="ablation_or_component",
+        expected_entity="ablation isolating alignment module",
+        observed_inventory=[
+            {
+                "quote": "Table 4: Ablation studies of local branch, global branch, and alignment losses.",
+                "locator": "Table 4",
+                "observed_items": ["local branch", "global branch", "alignment losses"],
+            }
+        ],
+        source="entity_claim_obligation_menu",
+    )
+
+    assert item == {}
+
+
+def test_missing_ablation_target_quality_rejects_action_analysis_phrase():
+    quality = review_state_mod._missing_ablation_target_quality(
+        {
+            "issue_type": "missing_ablation",
+            "missing_or_mismatch": {"entity": "analyze the mechanism", "items": ["analyze the mechanism"]},
+            "observed_inventory": [{"quote": "Prior work analyzes the mechanism of noise regularization."}],
+        }
+    )
+
+    assert quality["quality"] == "reject"
+    assert quality["reason"] == "missing_ablation_target_weak_action"
+
+
 def test_review_issue_specificity_accepts_protocol_validation_dimension_not_generic_baseline():
     assert _coverage_item_is_specific_for_type(
         "Validation of normalized edit distance proxy against human judgment",
@@ -13134,6 +14691,65 @@ def test_review_issue_specificity_accepts_protocol_validation_dimension_not_gene
         "stronger baselines for the claimed improvement",
         "missing_baseline",
     )
+
+
+def test_missing_ablation_specificity_accepts_orthogonality_constraint_target():
+    assert _coverage_item_is_specific_for_type(
+        "ablation on orthogonality constraint",
+        "missing_ablation",
+    )
+    assert _coverage_item_is_specific_for_type(
+        "ablation on generalized noise regularization",
+        "missing_ablation",
+    )
+    assert _missing_ablation_target_quality(
+        {
+            "issue_type": "missing_ablation",
+            "missing_or_mismatch": {
+                "items": ["ablation on orthogonality constraint"],
+            },
+            "observed_inventory": [
+                {
+                    "quote": (
+                        "The paper proposes Orthogonal Gradient Learning (OGL) "
+                        "with an orthogonality constraint."
+                    )
+                }
+            ],
+            "reviewer_negative_candidate": (
+                "The paper does not present an ablation study isolating the "
+                "contribution of the orthogonality constraint."
+            ),
+        }
+    )["quality"] in {"high", "medium"}
+
+
+def test_missing_ablation_relevance_accepts_named_mechanism_overlap():
+    basis = review_state_mod._review_issue_candidate_requirement_relevance_basis(
+        {
+            "weakness": (
+                "The paper does not present an ablation study isolating the "
+                "contribution of the orthogonal gradient constraint, the core of OGL."
+            ),
+            "missing_or_weak_items": ["ablation on orthogonality constraint"],
+            "negative_type": "missing_ablation",
+            "required_evidence_type": "ablation_or_component",
+        },
+        {
+            "claim": (
+                "OGL-augmented methods (RandomNAS-OGL, GDAS-OGL) achieve better "
+                "performance than their baseline counterparts."
+            ),
+            "claim_type": "empirical",
+            "required_evidence_types": ["empirical_result", "baseline_or_comparison"],
+            "missing_requirements": ["baseline_or_comparison"],
+            "satisfied_requirements": ["empirical_result"],
+        },
+        "ablation_or_component",
+        "missing_ablation",
+    )
+
+    assert basis == "candidate_named_mechanism_overlaps_claim"
 
 
 def test_reviewer_issue_bundle_keeps_missing_graph_tasks_when_only_node_classification_is_observed():
@@ -13959,6 +15575,73 @@ def test_ogl_with_without_results_resolve_orthogonal_gradient_ablation_gap():
     )
 
 
+def test_ogl_method_without_needing_does_not_resolve_missing_ablation_gap():
+    window = (
+        "An enhanced projection based on PCA is designed to represent the gradient space "
+        "and helps determine the orthogonal direction without needing eigendecomposition."
+    )
+
+    assert not _ablation_missing_items_resolved_by_text(
+        window,
+        ["OGL ablation study", "OGL without orthogonal projection"],
+    )
+
+
+def test_critique_missing_ablation_can_use_full_text_component_anchor():
+    claim = (
+        "The paper proposes Orthogonal Gradient Learning (OGL) to prevent multi-model "
+        "forgetting in one-shot NAS."
+    )
+    component_quote = (
+        "To overcome the issue, we propose an orthogonal gradient learning (OGL) guided "
+        "supernet training paradigm for one-shot NAS, where the novelty lies in updating "
+        "overlapped structures in the orthogonal direction to the gradient."
+    )
+    state = {
+        "paper_text": f"{claim}\n\n{component_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "contribution",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["method_detail"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "review-issue-candidate-1",
+                "claim_id": "claim-1",
+                "claim": claim,
+                "weakness": (
+                    "The paper does not present an ablation isolating the orthogonal "
+                    "gradient projection component of OGL."
+                ),
+                "negative_type": "missing_ablation",
+                "required_evidence_type": "ablation_or_component",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["OGL ablation study", "OGL without orthogonal projection"],
+                "status": "pending_absence_audit",
+                "source": "freeform_reviewer_negative",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["obligation_grounded_review_issue_count"] == 1
+    assert hygiene["verified_review_issue_count"] == 1
+    assert hygiene["critique_payload_verified_cluster_count"] == 1
+
+
 def test_regularization_ablation_resolves_regularization_missing_gap():
     window = (
         "Ablation studies for our method. We study the choice of regularization loss "
@@ -14157,6 +15840,30 @@ def test_missing_ablation_target_quality_rejects_ordinary_optimize_action():
     }
 
 
+def test_ablation_counterevidence_resolves_ablation_figure_with_target_subset():
+    window = (
+        "Figure: tree attention ablation. We fix beam length to 5, beam width to 45, "
+        "and Figure 6 reports the tree-attention-ablation results under the same setup."
+    )
+
+    assert _ablation_missing_items_resolved_by_text(
+        window,
+        ["ablation isolating dynamic tree attention module"],
+    )
+
+
+def test_ablation_counterevidence_does_not_resolve_negated_ablation_absence():
+    window = (
+        "The paper reports the main speedup table but no ablation for dynamic tree attention "
+        "is included in the experiments."
+    )
+
+    assert not _ablation_missing_items_resolved_by_text(
+        window,
+        ["ablation isolating dynamic tree attention module"],
+    )
+
+
 def test_missing_ablation_target_quality_rejects_following_empirical_loss_fragment():
     bundle = {
         "issue_type": "missing_ablation",
@@ -14264,6 +15971,154 @@ def test_missing_ablation_target_quality_rejects_bare_federated_gradient():
         "quality": "reject",
         "reason": "missing_ablation_target_not_contribution_bound",
     }
+
+
+def test_missing_ablation_target_quality_rejects_ranch_encoder_fragment():
+    bundle = {
+        "issue_type": "missing_ablation",
+        "missing_or_mismatch": {
+            "items": ["component-isolation ablation for ranch_encoder"]
+        },
+        "claim_anchor": {"quote": "The model uses a two-branch encoder architecture."},
+        "observed_inventory": [{"quote": "Table 4: Ablation study of model variants."}],
+    }
+
+    assert _missing_ablation_target_quality(bundle) == {
+        "quality": "reject",
+        "reason": "missing_ablation_target_malformed_fragment",
+    }
+
+
+def test_missing_ablation_target_quality_rejects_constrain_module_action_fragment():
+    bundle = {
+        "issue_type": "missing_ablation",
+        "missing_or_mismatch": {
+            "items": ["component-isolation ablation for constrain module"]
+        },
+        "claim_anchor": {
+            "quote": "The architecture includes a module that constrains generation."
+        },
+        "observed_inventory": [
+            {
+                "quote": "Figure 1 shows a constrain module and a 3D generation module.",
+                "observed_items": ["constrain module", "3D generation module"],
+            }
+        ],
+    }
+
+    assert _missing_ablation_target_quality(bundle) == {
+        "quality": "reject",
+        "reason": "missing_ablation_target_weak_action",
+    }
+
+
+def test_missing_ablation_target_quality_keeps_noun_constraint_module_available():
+    bundle = {
+        "issue_type": "missing_ablation",
+        "missing_or_mismatch": {
+            "items": ["component-isolation ablation for constraint module"]
+        },
+        "claim_anchor": {
+            "quote": "The proposed constraint module is a key contribution driving performance gains."
+        },
+        "observed_inventory": [
+            {
+                "quote": "The method introduces a novel constraint module for shape control.",
+                "observed_items": ["constraint module"],
+            }
+        ],
+    }
+
+    assert _missing_ablation_target_quality(bundle) == {
+        "quality": "medium",
+        "reason": "missing_ablation_target_named_or_mechanistic",
+    }
+
+
+def test_missing_ablation_target_quality_rejects_preposition_fragment():
+    bundle = {
+        "issue_type": "missing_ablation",
+        "missing_or_mismatch": {
+            "items": ["component-isolation ablation for by the dynamic tree attention"]
+        },
+        "claim_anchor": {
+            "quote": "ReDrafter's gains are driven by the dynamic tree attention module."
+        },
+        "observed_inventory": [
+            {
+                "quote": "We introduce a dynamic tree attention module for speculative decoding.",
+                "observed_items": ["dynamic tree attention"],
+            }
+        ],
+    }
+
+    assert _missing_ablation_target_quality(bundle) == {
+        "quality": "reject",
+        "reason": "missing_ablation_target_malformed_fragment",
+    }
+
+
+def test_component_ablation_seed_targets_skip_fragments_and_existing_ablation():
+    claim = {
+        "claim_id": "claim-1",
+        "claim": "ReDrafter's gains are driven by the dynamic tree attention module.",
+        "claim_type": "method",
+    }
+    component_text = (
+        "We introduce a dynamic tree attention module for speculative decoding. "
+        "The dynamic tree attention module is used by the proposed framework."
+    )
+
+    targets = review_state_mod._review_issue_component_ablation_seed_targets(
+        {"paper_text": f"{claim['claim']}\n\n{component_text}"},
+        claim,
+        max_items=3,
+    )
+
+    assert targets
+    assert all("by the dynamic tree attention" not in item["missing_item"] for item in targets)
+
+    covered_targets = review_state_mod._review_issue_component_ablation_seed_targets(
+        {
+            "paper_text": (
+                f"{claim['claim']}\n\n{component_text}\n\n"
+                "Figure 5: Dynamic tree attention ablation reports performance with and without "
+                "dynamic tree attention under the same decoding setup."
+            )
+        },
+        claim,
+        max_items=3,
+    )
+
+    assert covered_targets == []
+
+
+def test_review_issue_worthiness_rejects_generic_protocol_details_target():
+    bundle = {
+        "issue_type": "evaluation_protocol_risk",
+        "required_evidence_type": "evaluation_protocol",
+        "missing_or_mismatch": {
+            "entity": "explicit evaluation protocol details for protocol",
+            "items": ["explicit evaluation protocol details for protocol"],
+        },
+        "claim_anchor": {"quote": "The method is evaluated under a controlled protocol."},
+        "observed_inventory": [
+            {
+                "quote": "Table 1 reports the controlled evaluation results.",
+                "locator": "Table 1",
+                "observed_items": ["controlled evaluation"],
+            }
+        ],
+    }
+
+    assert (
+        _review_issue_bundle_review_worthiness_failure(
+            bundle,
+            {"paper_text": "The method is evaluated under a controlled protocol. Table 1 reports results."},
+            neg_type="evaluation_protocol_risk",
+        )
+        == "evaluation_protocol_missing_item_too_template_broad"
+    )
 
 
 def test_missing_ablation_counterevidence_detects_bare_fusion_target_table():

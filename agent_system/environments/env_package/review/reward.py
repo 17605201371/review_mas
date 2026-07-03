@@ -311,6 +311,15 @@ def _audit_id_leak_ratio(prediction: str) -> float:
 
 def _decision_hygiene_for_reward(review_state: Dict) -> Dict:
     """Return current-schema hygiene for reward scoring."""
+    if not isinstance(review_state, dict):
+        return {}
+    direct = review_state.get("decision_hygiene") or {}
+    if isinstance(direct, dict) and str(direct.get("decision_hygiene_schema_version") or "") == _CURRENT_DECISION_HYGIENE_SCHEMA_VERSION:
+        return direct
+    sa = review_state.get("state_audit") or {}
+    dh = sa.get("decision_hygiene") or {}
+    if isinstance(dh, dict) and str(dh.get("decision_hygiene_schema_version") or "") == _CURRENT_DECISION_HYGIENE_SCHEMA_VERSION:
+        return dh
     try:
         from agent_system.environments.env_package.review.state import build_decision_hygiene_view
 
@@ -322,10 +331,6 @@ def _decision_hygiene_for_reward(review_state: Dict) -> Dict:
             return recomputed
     except Exception:
         pass
-    sa = review_state.get("state_audit") or {}
-    dh = sa.get("decision_hygiene") or {}
-    if isinstance(dh, dict) and str(dh.get("decision_hygiene_schema_version") or "") == _CURRENT_DECISION_HYGIENE_SCHEMA_VERSION:
-        return dh
     return {}
 
 

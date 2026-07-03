@@ -49,6 +49,92 @@ Missing-baseline, missing-ablation, insufficient-evaluation, and reproducibility
 
 There are deliberately separate lanes. Keep them separate in code, metrics, dashboards, and paper narrative.
 
+### 2026-07-02 P31.2 Critique-as-menu-selector current-code full20
+
+Current P31.2 authoritative fresh run:
+
+- raw: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok1536_20260702_105402.jsonl`
+- dashboard: `P31_2_FRESH_API4_105402_HARDNEG20_DASHBOARD.md/json`
+- review issue cases: `P31_2_FRESH_API4_105402_REVIEW_ISSUE_CASE_TABLE.md/json`
+- recovery cases: `P31_2_FRESH_API4_105402_RECOVERY_CASE_TABLE.md/json`
+
+P31.2 facts:
+
+- full hardneg20 completed: 20/20 papers;
+- protection PASS, including `negative_evidence_unlinked_to_flaw=0`, `positive_or_neutral_negative_candidate_count=0`, `negative_grounding_conflict_count=0`, and `recovery_harmful_commit_committed=0`;
+- evidence JSON reliability is fixed for this run: `evidence_json_valid_turns=62`, `evidence_json_fallback_turns=0`, `evidence_json_fallback_rate_pct=0`;
+- prompt/runtime compaction is validated in the fresh API path: `critique_prompt_chars_median=11668`, `critique_prompt_chars_max=11673`, `critique_prompt_over_15k_turns=0`, `critique_prompt_over_30k_turns=0`;
+- review issue output is conservative: `verified_review_issue_count=12`, `verified_review_issue_cluster_count=10`, `review_negative_verified_count=1`;
+- recovery bridge remains safe but incomplete: `mark_contested_commit_count=5`, with 4 verified review issue repairs and 1 direct verified negative repair;
+- Critique-as-selector is not solved: `review_issue_candidate_critique_payload_count=19`, `candidate_menu_item_used_count=7`, but `candidate_menu_item_verified_count=0` and `critique_payload_verified_cluster_count=1`;
+- deterministic seeds still dominate verified clusters: `deterministic_seed_verified_cluster_count=8`.
+
+Initial manual cluster audit artifact:
+
+- `P31_2_FRESH_API4_105402_MANUAL_CLUSTER_AUDIT_20260702.md/json`
+- audit boundary: case-table audit, not full-paper reread;
+- system rows/clusters: 12 rows / 10 clusters;
+- manual A/B clusters: 5 (`A=2`, `B=3`);
+- manual C clusters: 3;
+- manual D clusters: 2;
+- Critique-origin clusters: 1, and it is B;
+- menu-bound verified clusters: 0.
+
+Interpretation:
+
+- P31.2 succeeded on runtime stability, prompt size, JSON reliability, and protection hygiene.
+- P31.2 did not meet the Critique-origin target (`critique_payload_verified_cluster_count >= 3`) and should not be treated as ready for P32 autonomous-discovery claims.
+- The next work is not to loosen verifier gates or chase raw issue count. It is to improve selector-menu item quality, Critique select/reject behavior, and menu-bound candidate rebinding so Critique-origin clusters can survive strict verification.
+- Two D-class lessons must become P31.3 guards: action/related-work phrases such as `analyze the mechanism` are not valid ablation targets; baseline names such as `RIPU` are not held-out coverage/scope targets.
+
+Implemented P31.2 changes:
+
+- review issue discovery targets now expose a compact `review_issue_candidate_selector_menu` in addition to the full per-claim `review_issue_candidate_menu`;
+- menu ids are shorter (`rim-*`) and intended to be copied exactly by Critique;
+- selector items include `why_review_worthy`, `expected_entity`, `inventory_anchor`, `counterevidence_aliases`, `slot`, `issue_type`, `required_evidence_type`, and `obligation_id`;
+- per-claim prompt menu is capped to top-K quality-ranked items with per-type diversity, reducing prompt clutter;
+- `REVIEW_ISSUE_DISCOVERY_PROMPT` was shortened to a menu-first discovery contract; it tells Critique to select/reject selector-menu items before free-form generation, and to copy `candidate_menu_id` exactly for selected items;
+- compact prompt state now derives a short `evaluation_inventory` from evidence/paper text when the runtime state has not persisted one, so selector menu generation does not depend on tests manually injecting inventory;
+- dashboard now reports Critique prompt length cap metrics: `critique_prompt_over_15k_turns` and `critique_prompt_over_30k_turns`;
+- verifier/recovery semantics are unchanged: menu items are non-evidence hypotheses and still require claim anchor, concrete item, locatable inventory, target-quality, and counterevidence checks;
+- runtime hot paths were budgeted so prompt construction and inventory/counterevidence scans no longer spin on full-text regex loops during hardneg20.
+
+Validation in this environment:
+
+- `py_compile` passed for touched runtime/prompt/test files;
+- focused pytest passed: 6/6 for selector exposure, long-target omission, inventory derivation without cached state inventory, prompt contract, and related review-inference checks;
+- offline prompt check on `P31_FRESH_API4_004622` raw: rows=20, selector menu present=17, long target leaks=0, empty inventory observations=0, Critique prompt median/max=10074 chars, over-15k turns=0, over-30k turns=0;
+- prompt constant length is now 5910 chars, down from roughly 15k;
+- fresh MiMo 105402 full20 validates runtime/prompt metrics and protection lines.
+
+Next implementation required: P31.3 selector-quality/rebinding fixes based on the selector failure audit. Do not claim Critique discovery is solved until fresh-run evidence shows `critique_payload_verified_cluster_count >= 3` without precision regression.
+
+P31.3 selector failure audit artifact:
+
+- `P31_3_SELECTOR_FAILURE_AUDIT_20260702.md`
+- 7 menu-used Critique candidates were audited.
+- Root cause 1: prompt-time `rim-*` menu ids are not stable at verification time because the verifier recomputes menu lookup from the later state; exact ids can disappear.
+- Root cause 2: when exact id lookup misses, fuzzy token fallback can bind the candidate to a different menu item, e.g. `a6SntIisgg` alignment-loss/module was rebound to local-branch.
+- Root cause 3: several rendered menu items ask for evidence already present in inventory (`quantitative result table for X`, explicit ablation study), so verifier correctly rejects them as already observed/counterevidenced.
+- Root cause 4: direct negative/boundary claims should not receive redundant missing-baseline menu items.
+- P31.3 fix direction: candidate metadata from the prompt should be first-class; exact `candidate_menu_id` miss must not fuzzy-bind to another id; bad/already-satisfied menu items should be filtered before rendering.
+
+P31.3 first selector-rebinding patch implemented:
+
+- exact copied `candidate_menu_id` miss no longer fuzzy-binds to a different recomputed menu item;
+- candidate copied `candidate_menu_id` is preserved into the gap/bundle path as `critique_payload_menu_metadata` when recomputed lookup misses;
+- colliding/truncated `obligation_id` no longer injects an unrelated expected entity unless non-generic target tokens overlap the candidate text;
+- partial menu-quality guards suppress already-observed result-table items when the table/result entity is visible in inventory, suppress self-reported ablation-study menu items for ablation claims, and reject action phrases such as `analyze the mechanism`;
+- reviewer-candidate dedupe now includes `candidate_menu_id` or normalized missing target for Critique payload candidates, so distinct selected menu items on the same claim/type/requirement do not shadow each other;
+- generic `insufficient_evaluation` menu items like `quantitative result table for ...` are suppressed before prompt rendering because they are usually retrieval-framed rather than obligation mismatches;
+- focused tests passed: 8 selector/rebinding/menu-quality tests + 5 P31.2 prompt/runtime tests; `py_compile` passed;
+- 105402 probes: selector remains nonempty on 15/20 papers with 48 total items; generic result-table and `analyze the mechanism` menu items are 0; `a6SntIisgg` alignment-loss/alignment-module candidates form separate gaps without local-branch injection.
+
+Still open for P31.3:
+
+- rerun MiMo full20 before claiming Critique selector improvement.
+- if the next run still has `critique_payload_verified_cluster_count <= 1`, inspect whether Critique is rejecting cleaner menu items or still producing free-form candidates without verifier-ready metadata.
+
 ### 2026-07-01 P29 manual cluster audit and paper-facing count
 
 Latest P29 artifacts:
@@ -1859,3 +1945,1018 @@ Interpretation update:
 - P30 does not satisfy the earlier quantity target of `20+` rows. It deliberately trades quantity for precision, ending at `13` rows / `12` clusters.
 - The paper-facing result should not be "P30 finds more defects." Correct wording: "P30 shows that stricter counterevidence and recovery hygiene preserve a clean full20 run with 13 verifier-passing obligation-grounded rows / 12 clusters and zero harmful recovery commits."
 - The remaining bottleneck is autonomous discovery quality, not verifier looseness. Critique-payload verified issues are still `0`; deterministic seeds dominate. If the next goal is more validated defects, the next pass should improve Critique candidate generation with entity-level menus and stronger observed-inventory grounding, while keeping the P30 verifier and recovery guards.
+
+## P31 Planning Note: Critique Payload Discovery Integration Gap (2026-07-01)
+
+P30 follow-up audit clarified that Critique payload discovery is not absent; it is failing to connect to the verifier-ready obligation/inventory path. In the P30 fresh full20 raw run, Critique produced `31` `review-issue-candidate-*` payload candidates, but `0` became verified review issues. The verified P30 issues (`13` rows / `12` clusters) were all deterministic-seed driven.
+
+Per-candidate failure attribution over the 31 Critique payload candidates:
+
+- `no_selected_requirement`: 12
+- full-text counterevidence: 10 (`baseline/comparison`, `ablation`, `protocol/result`, and `evaluation/scope` counterevidence)
+- missing-ablation target quality failures: 5 (`weak_action`, `empty`, or not bound to claim/inventory)
+- generic/truncated missing-baseline target: 2
+- missing inventory: 1
+
+Interpretation:
+
+- The main failure is not JSON reliability or MiMo's inability to propose reviewer-style concerns. Critique can propose plausible candidates, but the downstream path still treats model candidates mostly as selectors over the existing type-level claim-requirement audit.
+- `_render_critique_state_slice` exposes `review_issue_discovery_targets` by reusing `_hard_negative_diagnosis_targets`; this is a diagnosis view, not a verifier-ready candidate menu. Deterministic seeds have access to stronger structured obligation + inventory anchors internally, so they survive more often.
+- `_reviewer_candidate_absence_gap_items` requires a candidate to select a missing claim requirement or pass a narrow candidate-introduced override. Reasonable narrower review issues can die when the broad requirement is already marked satisfied by any support evidence.
+- Most counterevidence and target-quality rejections are desirable and should not be fixed by loosening the verifier.
+
+Recommended P31 direction:
+
+- Add a verifier-ready `review_issue_candidate_menu_for_claim` shown to Critique. Each menu item should expose `candidate_menu_id`, `obligation_id`, `claim_id`, `issue_type`, `required_evidence_type`, `expected_entity`, `inventory_id`, copied inventory quote/list/table anchor, locator, and target-quality hints. It must remain non-evidence.
+- Update `REVIEW_ISSUE_DISCOVERY_PROMPT` so Critique preferentially selects or lightly rewrites menu items and returns `candidate_menu_id`/`obligation_id`; free-form candidates are allowed only when they provide a concrete entity and locatable observed-inventory anchor.
+- Add candidate-to-menu rebinding in `_reviewer_candidate_absence_gap_items`: when a Critique candidate matches a verifier-ready menu item by claim/type/entity, copy the menu requirement and inventory anchor, set `discovery_origin=critique_payload_menu_bound`, and then run the same strict bundle verifier.
+- Widen the safe introduced-requirement path only for claim-bound, inventory-grounded candidates. For baseline, ablation, scope, protocol, and reproducibility issues, a Critique candidate may enter bundle verification even if the broad requirement is currently satisfied, but only when it has a locatable observed inventory anchor and an auditable paper-surface expectation. Counterevidence and worthiness gates stay unchanged.
+- Add dashboard funnel metrics split by origin: `critique_payload_rejected_by_reason`, `critique_payload_gap_count`, `critique_payload_bundle_built_count`, `critique_payload_menu_bound_count`, `critique_payload_verified_count`, and `critique_payload_verified_cluster_count`.
+- Keep deterministic seeds as fallback/verifier stress tests, not the paper-facing autonomous discovery story.
+
+Safety fixes to include with P31 if implementation proceeds:
+
+- Recovery downgrade-to-contested logic should gather cited issue/evidence ids from `supporting_evidence_ids`, `negative_evidence_ids`, and `evidence_ids`; the current code only checks `supporting_evidence_ids`, so some safe `mark_contested` opportunities are missed.
+- Reject generic protocol missing items such as `explicit evaluation protocol details for protocol`; explicit split/training-setting quotes should count as counterevidence for such generic protocol issues.
+- Reject malformed missing-ablation targets such as `ranch_encoder` and keep plain `global encoder` out of verified issues unless explicitly contribution-bound.
+
+## P31 Implementation Checkpoint: Candidate Menu Plumbing (2026-07-01)
+
+P31 first implementation batch is now in the working tree, but it is not yet a fresh-run result. The changes move Critique discovery toward verifier-ready candidate selection without relaxing the P30 verifier:
+
+- `review_issue_candidate_menu` is generated per diagnosis target from the same obligation/inventory substrate used by deterministic seeds. Menu items carry `candidate_menu_id`, `claim_id`, `obligation_id`, `issue_type`, `required_evidence_type`, `expected_entity`, entity source, observed inventory quote/list/table anchor, target-quality hint, and counterevidence search terms. Menu items remain non-evidence.
+- `REVIEW_ISSUE_DISCOVERY_PROMPT` now asks Critique to prefer selecting or lightly refining a menu item, and to copy `candidate_menu_id`, `obligation_id`, expected entity, issue type, requirement, observed inventory anchor, and counterevidence terms.
+- `normalize_review_update_payload` preserves `candidate_menu_id`, `review_issue_slot`, `entity_source`, `discovery_origin`, and `possible_counterevidence_terms` on reviewer issue candidates.
+- `_reviewer_candidate_absence_gap_items` now performs candidate-to-menu rebinding by explicit `candidate_menu_id` or claim/type/entity token match. Bound candidates copy the menu requirement, missing entity, obligation id, inventory anchor, entity source, and counterevidence terms, and are marked with `discovery_origin=critique_payload_menu_bound` before entering the unchanged strict bundle verifier.
+- Verified bundle/evidence/review-issue records now preserve `candidate_menu_id` and menu metadata so dashboard, case table, and recovery audits can distinguish menu-bound Critique issues from deterministic seeds.
+- Dashboard/case-table metrics now expose origin-split funnel fields: `critique_payload_gap_count`, `critique_payload_menu_bound_count`, `critique_payload_bundle_built_count`, `critique_payload_verified_count`, `critique_payload_menu_bound_verified_count`, `critique_payload_verified_cluster_count`, `candidate_menu_item_count`, `candidate_menu_item_used_count`, and `candidate_menu_item_verified_count`.
+- Safety fixes landed with this batch: destructive claim downgrades citing verified issue evidence are detected from `supporting_evidence_ids`, `negative_evidence_ids`, or `evidence_ids`; generic protocol targets like `explicit evaluation protocol details for protocol` are rejected; malformed ablation target `ranch_encoder` is rejected.
+
+Validation:
+
+- `py_compile` passes for touched runtime files, scripts, and tests.
+- Local Python environments do not have `pytest`; focused direct Python assertions passed for candidate-menu normalization, menu-bound Critique bundle verification, generic protocol rejection, `ranch_encoder` rejection, and recovery id-union detection.
+- Offline recompute on P30 fresh raw (`20260701_211251`) produced `P31_MENU_RECOMPUTE_211251_*` dashboard and case-table artifacts with protection PASS. Because the raw run predates the menu prompt, verified Critique/menu contribution remains `0`; however the new funnel shows Critique candidates are now auditable: `review_issue_candidate_critique_payload_count=31`, `critique_payload_gap_count=18`, `critique_payload_menu_bound_count=5`, `critique_payload_verified_count=0`, `candidate_menu_item_count=98`.
+
+Interpretation:
+
+- This checkpoint proves the P31 plumbing and metrics work on historical raw data. It does not prove autonomous Critique discovery improved yet.
+- The next necessary evidence is a fresh MiMo hardneg20 run with the P31 prompt/menu code. Acceptance should use the roadmap gates: protection PASS, `recovery_harmful_commit_committed=0`, and ideally `critique_payload_verified_cluster_count >= 3` without manual A/B quality regression.
+
+## P31 Fresh API4 Full20 and Reporting Hotspot Fix (2026-07-02)
+
+P31 fresh run attempt `20260701_234505` was terminated as a partial diagnostic run:
+
+- raw: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok1536_20260701_234505.jsonl`
+- status: partial `4/20`.
+- failure mode: the second batch stalled on `XyB4VvF01X`; MiMo API calls had completed, but the Python process stayed at ~99% CPU with no new log output. macOS `sample` showed the process dominated by Python regex/string operations.
+- diagnosis: P31 final-view/dashboard metrics were observationally useful but too heavy. They re-entered menu/gap/full-text/counterevidence computation during hygiene/report generation instead of only reading already verified runtime records.
+
+Code/reporting fixes:
+
+- `_review_issue_candidate_funnel_metrics` is now lightweight and observational. It no longer reruns candidate menu lookup, `_reviewer_candidate_absence_gap_items`, paper-inventory search, review-worthiness checks, or full-text counterevidence during final-view metric aggregation. The strict verifier remains on the real bundle verification path.
+- `scripts/dashboard_run_comparison_v1.py` now uses cached runtime hygiene from `decision_hygiene` or `state_audit.decision_hygiene` before rebuilding `build_decision_hygiene_view`.
+- Dashboard cluster-origin metrics now use cached verified bundle/direct-negative labels instead of rerunning state-level negative/review-issue verifiers over every evidence row.
+- Dashboard support trace no longer rebuilds support survival trace when no cached trace is present.
+- `scripts/audit_review_issue_case_table_v1.py` and `scripts/audit_recovery_case_table_v1.py` now use cached hygiene when present. The review issue case table additionally uses cached `review_issue_bundle_items` as the authoritative row filter, so case-table row count matches runtime dashboard count rather than current-code offline revalidation.
+- Validation: `py_compile` passed for touched runtime/report scripts. P30 fresh raw dashboard/case/recovery generation to `/tmp` completed quickly after the fixes and protection remained PASS.
+
+Authoritative P31 fresh full20 rerun:
+
+- raw/log/meta: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok1536_20260702_004622.{jsonl,log,meta}`
+- dashboard: `P31_FRESH_API4_004622_HARDNEG20_DASHBOARD.{md,json}` plus `P31_FRESH_API4_004622_HARDNEG20_AUDIT.json`
+- review issue case table: `P31_FRESH_API4_004622_REVIEW_ISSUE_CASE_TABLE.{md,json}`
+- recovery table: `P31_FRESH_API4_004622_RECOVERY_CASE_TABLE.{md,json}`
+- manual cluster audit: `P31_FRESH_API4_004622_MANUAL_CLUSTER_AUDIT_20260702.{md,json}`
+- latest pointers were updated to the P31 004622 artifacts.
+
+P31 fresh headline metrics:
+
+- Completed 20/20 with MiMo API4, `max_turns=7`, `max_tokens=1536`, `api_max_workers=4`, `api_max_retries=8`, `api_timeout=600`.
+- Protection PASS: `negative_evidence_unlinked_to_flaw=0`, `positive_or_neutral_negative_candidate_count=0`, `negative_grounding_conflict_count=0`, `recovery_harmful_commit_committed=0`.
+- Evidence JSON remains healthy: `evidence_json_fallback_rate_pct=0`.
+- Direct quote-grounded negative lane remains strict and empty: `review_negative_verified_count=0`.
+- Obligation-grounded issue lane: `verified_review_issue_count=19`, `verified_review_issue_cluster_count=14`, `duplicate_review_issue_row_count=5`.
+- Discovery origin improved but remains seed-dominated: `reviewer_candidate_review_issue_critique_payload_count=1`, `reviewer_candidate_review_issue_deterministic_seed_count=18`, `critique_payload_verified_count=1`, `critique_payload_verified_cluster_count=1`, `deterministic_seed_verified_cluster_count=13`.
+- Candidate menu metrics show a mismatch: `candidate_menu_item_count=3`, `candidate_menu_item_verified_count=3`, but `candidate_menu_item_used_count=0`. Some verified records carry menu ids, but Critique candidates still did not select menu ids directly.
+- Recovery remains clean: `mark_contested_commit_count=9`, `recovery_case_verified_review_issue_repair=8`, `turns_with_verified_review_issue_bundle_evidence=8`, `verified_issue_cluster_without_recovery_count=7`.
+
+Manual cluster audit:
+
+- Initial case-table audit over 14 runtime clusters: `A=3`, `B=5`, `C=4`, `D=1`, `MERGE=1`; strict A/B clusters = `8`.
+- A-class clusters: SpecDec++ acceptance prediction head missing ablation, NR-DCCA generalized noise regularization missing ablation, HALO/EqualAL same-setting missing baseline.
+- B-class clusters include SPOT sz-Softmax loss ablation, Diff-Shape GrCN reproducibility, ReDrafter recurrent draft model ablation, LogoRA global encoder ablation, and the single Critique-origin sparse/linear graph-transformer baseline concern.
+- D-class cluster: `7Dub7UXTXN` simulated-loss missing ablation, which appears to turn a theory/loss-analysis claim into an empirical ablation demand.
+- MERGE cluster: the two `cklg91aPGk` GCL coverage/scope clusters are same-paper/same-target duplicates and should not be counted independently.
+
+Interpretation:
+
+- P31 is a partial success. It moves Critique-origin verified clusters from `0` to `1`, while preserving protection PASS and recovery safety.
+- P31 does **not** satisfy the roadmap target `critique_payload_verified_cluster_count >= 3`. Do not claim autonomous Critique discovery is solved.
+- P31's paper-facing line should be: "P31 produced 19 runtime-counted verifier-passing rows / 14 clusters with 8 initial A/B clusters, including one Critique-origin A/B cluster, under strict protection and non-destructive recovery."
+- Remaining bottleneck: Critique does not reliably use the verifier-ready menu. Next work should make Critique a menu selector/refiner, reduce menu prompt length, and add a guard against theory/loss-analysis claims being converted into empirical missing-ablation defects.
+
+Follow-up code changes after the P31 fresh audit:
+
+- Added a missing-ablation target-quality guard for theory/loss-analysis contexts. Loss targets such as `component-isolation ablation for simulated loss` are rejected when the claim/inventory context is theorem/learning-dynamics/global-minimum/expressivity oriented and lacks empirical benchmark/performance framing.
+- Kept empirical contribution-bound loss targets valid: `sz-Softmax loss` style targets remain high/medium when tied to benchmark/performance context.
+- Strengthened `REVIEW_ISSUE_DISCOVERY_PROMPT` so menu-derived candidates must copy `candidate_menu_id` exactly; free-form candidates without a menu id must explain why no menu item fits and provide their own copied inventory anchor.
+- Added focused regression assertions in `tests/test_review_decision_hygiene.py`; direct invocation passed for target-quality and existing theory-anchor rejection tests. `py_compile` passed for touched runtime/prompt/test files.
+- No fresh MiMo rerun has been run after these follow-up code changes yet. The next fresh run should check whether `candidate_menu_item_used_count` rises above 0 and whether `critique_payload_verified_cluster_count` moves toward the P31 target of 3.
+
+## P31.3 Fresh API4 131007 Checkpoint and Manual Audit (2026-07-02)
+
+P31.3 follow-up found and addressed a runtime hotspot before the authoritative run:
+
+- Fresh attempt `20260702_124240` stalled at `8/20`; sampling showed hot CPU in Python regex/string scanning during finalization.
+- Runtime scan caps were added to `_paper_has_with_without_target_counterevidence`, `_paper_has_ablation_counterevidence_for_missing_claim`, and `_review_issue_full_text_structural_windows`.
+- This was a performance boundary only; the strict verifier semantics were not relaxed.
+
+Authoritative P31.3 rerun:
+
+- raw/log/meta: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok1536_20260702_131007.{jsonl,log,meta}`
+- dashboard: `P31_3_FRESH_API4_131007_HARDNEG20_DASHBOARD.{md,json}` plus `P31_3_FRESH_API4_131007_HARDNEG20_AUDIT.json`
+- review issue case table: `P31_3_FRESH_API4_131007_REVIEW_ISSUE_CASE_TABLE.{md,json}`
+- recovery table: `P31_3_FRESH_API4_131007_RECOVERY_CASE_TABLE.{md,json}`
+- result audit: `P31_3_FRESH_API4_131007_RESULT_AUDIT_20260702.md`
+- manual cluster audit: `P31_3_FRESH_API4_131007_MANUAL_CLUSTER_AUDIT_20260702.{md,json}`
+- selector menu failure audit: `P31_4_SELECTOR_MENU_FAILURE_AUDIT_20260702.md`
+- latest pointers now target the `131007` artifacts.
+
+P31.3 headline metrics:
+
+- Completed 20/20 with MiMo API4.
+- Protection PASS: `negative_evidence_unlinked_to_flaw=0`, `positive_or_neutral_negative_candidate_count=0`, `negative_grounding_conflict_count=0`, `recovery_harmful_commit_committed=0`.
+- Evidence JSON remained clean: `evidence_json_valid_turns=63`, `evidence_json_fallback_turns=0`, `evidence_json_fallback_rate_pct=0`.
+- Direct quote-grounded negative lane remained strict and empty: `review_negative_verified_count=0`.
+- Obligation-grounded review issues: `verified_review_issue_count=14`, `verified_review_issue_cluster_count=11`, `duplicate_review_issue_row_count=3`.
+- Critique selector improved but did not meet the target: `critique_payload_verified_cluster_count=2`, `candidate_menu_item_used_count=6`, `candidate_menu_item_verified_count=1`.
+- Discovery remained seed-dominated: `verified_review_issue_cluster_origin_critique_payload_count=2`, `verified_review_issue_cluster_origin_deterministic_seed_count=8`, `verified_review_issue_cluster_origin_claim_obligation_fallback_count=3`.
+- Recovery remained non-destructive: `mark_contested_commit_count=8`, including `recovery_case_verified_review_issue_repair=6`.
+
+Manual cluster audit over 11 verifier-passing clusters:
+
+- `A=1`, `B=4`, `C=3`, `D=3`, so initial paper-facing A/B clusters are about `5`.
+- Strongest retained cluster: `NnExMNiTHw / acceptance_prediction_head` missing ablation.
+- Critique-origin A/B clusters: `XyB4VvF01X / implementation_reproducibility_details` and `mHv6wcBb0z / non-DCCA multi-view learning baselines`.
+- D-class regression targets:
+  - `a6SntIisgg / global_encoder`: likely blocked by explicit ablation table/component evidence.
+  - `fGXyvmWpw6 / effect_distillation_steps_architecture_choices_has_been_studied`: malformed ablation target.
+  - `xUe1YqEgd6 / frame-by-frame_module`: contrast/baseline framing treated as a current-paper module.
+
+Interpretation:
+
+- P31.3 is a real progress checkpoint: runtime is fixed, protection remains clean, recovery improved, and Critique-origin verified clusters increased from 1 to 2.
+- P31.3 is not complete against the roadmap: the target `critique_payload_verified_cluster_count >= 3` was not met, and manual A/B clusters are about 5, below the validation target of 6.
+- Do not proceed to P32 reproducibility yet. P31.4 selector failure audit is now recorded in `P31_4_SELECTOR_MENU_FAILURE_AUDIT_20260702.md`. The 6 menu-used candidates produced only 1 verified case; failures mainly involve generic OOD/stress targets, scalability-to-cost inference without resource anchors, generic strong-baseline targets, theory-reproducibility targets, and one qualitative-vs-quantitative result-table gap that is not yet cleanly typed.
+- Next implementation target: add candidate-level failed-menu telemetry, then add selector/menu guards for these failure classes without relaxing the strict bundle verifier.
+
+## P31.4 Selector/Menu Precision Checkpoint 1 (2026-07-02)
+
+Implemented after `P31_4_SELECTOR_MENU_FAILURE_AUDIT_20260702.md`:
+
+- `decision_hygiene` now records candidate-level failed-menu telemetry:
+  - `candidate_menu_item_failed_count`
+  - `candidate_menu_item_failed_by_reason`
+  - `failed_menu_candidate_items`
+- Dashboard aggregation now reports `candidate_menu_item_failed_count` and main failed-menu reason counters.
+- Menu generation and candidate-to-gap paths now reject generic selected-menu targets before verifier materialization:
+  - generic OOD/stress/scope targets without concrete dataset/setting/shift;
+  - efficiency-cost targets inferred only from broad scalability/transferability wording without resource anchors;
+  - generic strong-baseline targets such as `other strong one-shot NAS baselines`;
+  - theory/loss-analysis reproducibility targets that ask for generic hyperparameters/split/seed/code without concrete empirical experiment anchors.
+- Missing-ablation target quality now rejects already-studied phrases such as `effect ... has been studied module` and contrast/baseline-as-module targets such as `frame-by-frame module`.
+- Bundle worthiness now rejects the `global_encoder` pattern when the claim/inventory already reports component ablation coverage.
+
+Validation:
+
+```text
+py_compile state.py/dashboard/tests = passed
+new P31.4 focused tests = 5 passed
+P31 selector/rebinding focused tests = 14 passed
+P31 inference prompt/runtime focused tests = 5 passed
+```
+
+Uncached current-code recompute on old `131007` raw states:
+
+```text
+papers = 20
+verified_review_issue_count = 8
+verified_review_issue_cluster_count = 6
+critique_payload_verified_cluster_count = 2
+candidate_menu_item_used_count = 6
+candidate_menu_item_verified_count = 1
+candidate_menu_item_failed_count = 5
+failed reasons = {
+  reproducibility_menu_theory_context: 1,
+  scope_menu_generic_target: 1,
+  efficiency_cost_menu_without_resource_anchor: 1,
+  missing_baseline_menu_generic_target: 2
+}
+protection counters remain 0
+```
+
+Interpretation:
+
+- This is a precision-control checkpoint, not a fresh API result.
+- The previously opaque five selected-menu failures are now explainable at candidate level.
+- The old raw run drops from 14 rows / 11 clusters to 8 rows / 6 clusters under current-code recompute, which is expected after blocking the D-class and generic menu targets.
+- Next design decision: either add a narrow `qualitative_vs_quantitative_result_gap` lane and safe named-baseline normalization, or leave those candidates diagnosis-pending with explicit failed-menu reasons. Do not proceed to P32 or a fresh rerun until that choice is made.
+
+## P31.4 Selector/Menu Precision Checkpoint 2 (2026-07-02)
+
+Implemented next:
+
+- Safe named-baseline normalization for missing-baseline reviewer candidates:
+  - only applies when the original missing item is generic;
+  - requires at least two concrete baseline names in the candidate's verification question / counterevidence terms;
+  - rewrites them into concrete items such as `same-setting comparison against SNAS baseline`;
+  - still requires observed comparison inventory and full-text counterevidence survival.
+- Qualitative-vs-quantitative result-table gaps are kept diagnosis-pending with explicit failed-menu reason `qualitative_vs_quantitative_result_gap_unsupported_type`; no new negative type was added in this batch.
+- Baseline counterevidence terms now treat task/dataset words such as `NAS`, `one-shot`, `CIFAR-10`, and `ImageNet` as generic, so a table mentioning RandomNAS/GDAS on CIFAR-10 does not automatically cover missing SNAS/DARTS/ProxylessNAS.
+- Dashboard now reports `candidate_menu_item_failed_qualitative_vs_quantitative_result_gap_unsupported_type`.
+
+Validation:
+
+```text
+py_compile state.py/dashboard/tests = passed
+P31.4 taxonomy/normalization focused tests = 5 passed
+P31 selector/rebinding focused tests = 16 passed
+P31 inference prompt/runtime focused tests = 5 passed
+```
+
+Uncached current-code recompute on old `131007` raw states:
+
+```text
+papers = 20
+verified_review_issue_count = 8
+verified_review_issue_cluster_count = 6
+critique_payload_verified_cluster_count = 2
+candidate_menu_item_used_count = 6
+candidate_menu_item_verified_count = 1
+candidate_menu_item_failed_count = 5
+failed reasons = {
+  reproducibility_menu_theory_context: 1,
+  scope_menu_generic_target: 1,
+  efficiency_cost_menu_without_resource_anchor: 1,
+  qualitative_vs_quantitative_result_gap_unsupported_type: 1,
+  not_verified_by_bundle: 1
+}
+protection counters remain 0
+```
+
+Interpretation:
+
+- The qualitative-vs-quantitative case is now explicitly classified instead of hidden under generic baseline failure.
+- Safe named-baseline normalization is implemented and tested, but old `KOUAayk5Kx` still remains `not_verified_by_bundle`; this should not be forced through by loosening the baseline verifier.
+- Next useful step is deeper per-candidate bundle stop-stage telemetry for selected menu candidates that reach `not_verified_by_bundle`, so the remaining blockage can be attributed precisely.
+
+## P31.4 Selector/Menu Precision Checkpoint 3 (2026-07-02)
+
+Implemented deeper stop-stage telemetry for menu-bound reviewer candidates:
+
+- `_build_review_issue_bundle_from_gap` now records bundle rejection reason/stage on the gap before returning `None`.
+- `_add_reviewer_absence_audit_artifacts` collects these records into `review_issue_candidate_bundle_failures`.
+- `decision_hygiene.failed_menu_candidate_items` now uses the true bundle failure detail when a selected-menu candidate would otherwise be reported as `not_verified_by_bundle`.
+- Dashboard now reports `candidate_menu_item_failed_by_stage` plus fixed counters for menu-quality, counterevidence, and `missing_entity_already_observed_in_inventory`.
+- Added a regression test for a menu-bound missing-baseline candidate blocked by paper-side counterevidence; it must report `stop_stage=counterevidence`.
+
+Validation:
+
+```text
+py_compile state.py/dashboard/tests = passed
+P31.4 bundle-stop focused tests = 4 passed
+P31 selector/rebinding focused tests = 17 passed
+P31 inference prompt/runtime focused tests = 5 passed
+```
+
+Uncached current-code recompute on old `131007` raw states:
+
+```text
+artifacts = P31_4_BUNDLESTOP_RECOMPUTE_131007_*
+papers = 20
+verified_review_issue_count = 8
+verified_review_issue_cluster_count = 6
+critique_payload_verified_cluster_count = 2
+candidate_menu_item_used_count = 6
+candidate_menu_item_verified_count = 1
+candidate_menu_item_failed_count = 5
+candidate_menu_item_failed_by_reason = {
+  reproducibility_menu_theory_context: 1,
+  scope_menu_generic_target: 1,
+  efficiency_cost_menu_without_resource_anchor: 1,
+  qualitative_vs_quantitative_result_gap_unsupported_type: 1,
+  missing_entity_already_observed_in_inventory: 1
+}
+candidate_menu_item_failed_by_stage = {
+  menu_quality_guard: 4,
+  counterevidence: 1
+}
+candidate_menu_item_failed_not_verified_by_bundle = 0
+negative_evidence_unlinked_to_flaw = 0
+positive_or_neutral_negative_candidate_count = 0
+negative_grounding_conflict_count = 0
+```
+
+Interpretation:
+
+- The remaining selected-menu failures are now explainable: four are selector/menu target-quality problems; one is correctly blocked because the supposedly missing baseline/entity is already observed in paper inventory.
+- This checkpoint improves observability and precision; it is not a fresh API result and does not increase verified issue quantity.
+- Next P31 work should improve menu generation/selection quality and decide whether to add a narrow qualitative-vs-quantitative result-table issue type. Do not relax bundle verification to recover these cases.
+
+## P31.4 Selector/Menu Precision Checkpoint 4-5 (2026-07-02)
+
+Implemented two follow-up changes after bundle stop-stage telemetry:
+
+1. Narrow qualitative-vs-quantitative result-gap handling:
+   - Added a narrow remap for Critique/menu candidates that ask for a direct quantitative same-setting result table after only qualitative/textual comparison evidence.
+   - Reuses existing `result_claim_mismatch`; no broad new negative type was added.
+   - Requires a concrete target and still runs claim-anchor, inventory-anchor, and full-text counterevidence checks.
+   - The old `xUe1YqEgd6` DAVIS2017-motion candidate is now typed correctly but rejected correctly because the paper has Table 3 quantitative DAVIS2017-motion results.
+
+2. Selector-diverse menu input:
+   - `_select_review_issue_candidate_menu_items` now first selects the best item from distinct review slots, then tops up by the existing rank under per-type caps.
+   - Critique-visible selector menu budget increased from 4 to 6.
+   - This is intended to improve the next fresh run's Critique selector input; it cannot change old raw model outputs.
+
+Validation:
+
+```text
+py_compile state.py/dashboard/tests = passed
+qualitative-vs-quantitative focused tests = 2 passed
+menu/selector focused tests = 10 passed
+P31 selector/rebinding focused tests = 18 passed
+P31 inference prompt/runtime focused tests = 5 passed
+dashboard recompute on old raw = protection PASS
+```
+
+Old-raw recompute facts:
+
+```text
+P31_4_QUALRESULT_RECOMPUTE_131007_*:
+  verified_review_issue_count = 8
+  verified_review_issue_cluster_count = 6
+  critique_payload_verified_cluster_count = 2
+  candidate_menu_item_failed_full_text_protocol_or_result_counterevidence = 1
+  protection counters = 0
+
+P31_4_SELECTORDIVERSE_RECOMPUTE_131007_*:
+  verified_review_issue_count = 8
+  verified_review_issue_cluster_count = 6
+  critique_payload_verified_cluster_count = 2
+  candidate_menu_item_used_count = 6
+  candidate_menu_item_verified_count = 1
+  candidate_menu_item_failed_count = 5
+  protection counters = 0
+```
+
+Interpretation:
+
+- P31.4 is now a precision/observability and selector-input checkpoint, not a quantity checkpoint.
+- The next meaningful evidence is a fresh API run with the selector-diverse prompt; success target remains `critique_payload_verified_cluster_count >= 3` without protection regressions and without lowering bundle verifier standards.
+
+## P31.4 Selector/Menu Decision Checkpoint 6 (2026-07-02)
+
+Implemented a lightweight selected-menu decision path so Critique does not have to copy a full candidate object for every menu selection:
+
+- `REVIEW_ISSUE_DISCOVERY_PROMPT` now allows `selected_menu_items` and `rejected_menu_items`.
+- `normalize_review_update_payload` preserves selected/rejected menu decisions.
+- `review_runner` expands selected visible selector-menu ids into pending verifier-ready reviewer issue candidates before deterministic seed top-up.
+- Expansion is limited to current visible menu ids; hallucinated/stale menu ids are ignored.
+- Expanded items remain hypotheses (`quote_grounding_mode=absence_or_requirement_gap`, `status=pending_absence_audit`) and still run through the same strict bundle verifier; no evidence/flaws are created by selection metadata.
+- Dashboard now reports `review_issue_selected_menu_recovery_turns` and `review_issue_selected_menu_recovered_count`.
+
+Validation:
+
+```text
+py_compile state.py/review_runner.py/review_prompts.py/dashboard/tests = passed
+selected-menu recovery + prompt/parser focused tests = 8 passed
+P31 menu/rebinding focused tests = 9 passed
+dashboard recompute on old raw = protection PASS
+```
+
+Old-raw recompute:
+
+```text
+P31_4_MENUDECISION_RECOMPUTE_131007_*:
+  verified_review_issue_count = 8
+  verified_review_issue_cluster_count = 6
+  critique_payload_verified_cluster_count = 2
+  candidate_menu_item_used_count = 6
+  candidate_menu_item_verified_count = 1
+  candidate_menu_item_failed_count = 5
+  review_issue_selected_menu_recovery_turns = 0
+  review_issue_selected_menu_recovered_count = 0
+  protection counters = 0
+```
+
+Interpretation:
+
+- This checkpoint affects future Critique outputs. Old raw outputs predate `selected_menu_items`, so the new dashboard counters are 0 there.
+- Next fresh API run should check whether Critique uses this lighter channel and whether `critique_payload_verified_cluster_count` reaches the P31 target of at least 3.
+
+## P31.4 Menu-Fix Checkpoint 7 (2026-07-02)
+
+Implemented and validated a plumbing/observability fix for the selected-menu path. This does not relax the review-issue bundle verifier.
+
+Code logic now:
+
+- Critique may output full `review_issue_candidates` or lightweight `selected_menu_items`.
+- `selected_menu_items` are selection metadata only. They create no evidence/flaws and are expanded only into pending reviewer issue candidates.
+- The runner now accepts a selected menu id if it can be regenerated from the current prompt's per-claim menu, not just the compact selector top-6. Stale/hallucinated ids are still ignored.
+- Expanded candidates carry `discovery_origin=critique_payload_menu_selected`, `quote_grounding_mode=absence_or_requirement_gap`, and `status=pending_absence_audit`.
+- State/dashboard/case-table provenance now treats all `critique_payload*` origins as Critique-origin, including `critique_payload_menu_selected`.
+- Dashboard reads selected-menu recovery telemetry from `runner_trace` as a fallback because older/compact `turn_logs.worker_payloads` may only persist `{agent_id, payload}`.
+
+Validation:
+
+```text
+py_compile state.py/review_runner.py/dashboard/case-table/tests = passed
+selected-menu recovery focused tests = 5 passed
+menu/provenance hygiene focused tests = 5 passed
+P31_4_MENUFIX_RECOMPUTE_163953_* protection = PASS
+```
+
+Old-raw recompute (`163953`) now exposes the hidden selected-menu event:
+
+```text
+verified_review_issue_count = 14
+verified_review_issue_cluster_count = 12
+critique_payload_verified_cluster_count = 0
+review_issue_selected_menu_recovery_turns = 1
+review_issue_selected_menu_recovered_count = 1
+candidate_menu_item_used_count = 3
+candidate_menu_item_verified_count = 1
+mark_contested_commit_count = 5
+protection counters = 0
+```
+
+Fresh validation attempt `20260702_213525` stopped at 8/20 because MiMo returned `402 insufficient account balance` during Critique calls. This run is partial only and must not be treated as authoritative full20.
+
+Partial8 facts:
+
+```text
+artifacts = P31_4_MENUFIX_PARTIAL8_213525_*
+verified_review_issue_count = 4
+verified_review_issue_cluster_count = 4
+critique_payload_verified_cluster_count = 0
+review_issue_selected_menu_recovery_turns = 1
+review_issue_selected_menu_recovered_count = 1
+candidate_menu_item_used_count = 1
+candidate_menu_item_verified_count = 0
+mark_contested_commit_count = 2
+protection counters = 0
+```
+
+Audit conclusion:
+
+- The selected-menu path really fired: `WpXq5n8yLb` selected `rim-c2-ma-ablation-isolating-dynamic-tree-attent`, which became `review-issue-candidate-selected-menu-1` with `discovery_origin=critique_payload_menu_selected`.
+- It was rejected by strict verifier with `missing_ablation_counterevidence_in_claim_or_inventory`; another Critique candidate failed `missing_ablation_target_not_claim_or_inventory_bound`.
+- Therefore the current P31.4 bottleneck is not missing runner/normalizer plumbing. It is Critique/menu target quality and counterevidence survival.
+- Do not proceed to P32 until a complete full20 run reaches `critique_payload_verified_cluster_count >= 3`, protection remains PASS, and manual A/B quality does not regress.
+
+## P31.5 Target-Quality Checkpoint 1 (2026-07-02)
+
+Continued P31 without relaxing the review-issue bundle verifier.  This checkpoint is a selector/menu quality guard, not a quantity run.
+
+Code logic added/validated:
+
+- Menu generation now omits missing-ablation menu items when the proposed target is already resolved by claim/inventory ablation counterevidence.
+- Missing-ablation target quality now treats verb-form `constrain/constraining` targets as weak-action fragments.  This rejects malformed items such as `component-isolation ablation for constrain module` while preserving noun/mechanism targets such as `constraint module` as medium-confidence when contribution/performance context exists.
+- Component-ablation deterministic seeds now reuse the same target-quality and ablation-counterevidence checks, so malformed preposition fragments such as `component-isolation ablation for by the dynamic tree attention` and already-covered ablation targets do not consume future seed/menu budget.
+- Ablation counterevidence resolution now treats local `ablation` figure/table/study anchors as resolving a target when at least two non-generic target tokens match, while explicitly not treating `no/missing/without ablation` as counterevidence.
+- Failed selected-menu telemetry now reports stale/filtered selected ids as `selected_menu_item_not_in_current_menu_or_filtered` instead of opaque `not_verified_by_bundle`.
+- The selected-menu path remains hypothesis-only: selected items create pending candidates, not evidence; strict bundle verification still decides whether they count.
+
+Validation:
+
+```text
+py_compile state.py/review_runner.py/dashboard/case-table/tests = passed
+ablation resolver/menu failure focused tests = 4 passed
+target/menu/seed selector focused tests = 8 passed
+selected-menu recovery focused tests = 5 passed
+P31_5_TARGETQUALITY_PARTIAL8_213525_UNCACHED_* protection = PASS
+```
+
+Partial8 current-code offline recompute from `20260702_213525` after stripping persisted hygiene caches:
+
+```text
+artifacts = P31_5_TARGETQUALITY_PARTIAL8_213525_UNCACHED_*
+paper_count = 8
+verified_review_issue_count = 4
+verified_review_issue_cluster_recomputed_count = 4
+quote_duplicate_merged_verified_review_issue_cluster_count = 4
+case-table verified review issue cases/clusters = 4
+quote-grounded direct cases/clusters = 1
+obligation-grounded cases/clusters = 3
+critique_payload_verified_cluster_count = 0
+review_issue_selected_menu_recovery_turns = 1
+candidate_menu_item_used_count = 1
+candidate_menu_item_verified_count = 0
+candidate_menu_item_failed_selected_menu_item_not_in_current_menu_or_filtered = 1
+candidate_menu_item_failed_not_verified_by_bundle = 0
+mark_contested_commit_count = 2
+protection counters = 0
+```
+
+Interpretation:
+
+- Use the `UNCACHED` artifacts for P31.5 current-code audits.  The earlier cached partial8 artifacts can preserve stale `decision_hygiene` and report the old opaque `not_verified_by_bundle` reason.
+- The dynamic-tree-attention selected menu item from `WpXq5n8yLb` is now diagnosed as a selected id filtered out of the current menu, which is the expected effect of the ablation-counterevidence guard.
+- P31.5 has improved guard coverage, but it has not yet solved the main target: `critique_payload_verified_cluster_count` remains `0`.
+- `213525` remains partial only because the original API run stopped at 8/20 on MiMo `402 insufficient account balance`; do not update `.latest_hardneg20_*` or treat these artifacts as full20.
+- Next work should continue selector target-quality and menu candidate construction, then run a fresh full20 only when the API balance is available.
+
+## P31.5 Critique-Origin Full20 Checkpoint (2026-07-02)
+
+Continued P31.5 on the complete `20260702_163953` MiMo full20 raw run using an `UNCACHED` current-code recompute.  This is an offline verifier/current-code recompute, not a fresh API rerun.
+
+Artifacts:
+
+```text
+source_raw = mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok1536_20260702_163953.jsonl
+uncached_input = P31_5_TARGETQUALITY_FULL20_163953_UNCACHED.jsonl
+dashboard = P31_5_TARGETQUALITY_FULL20_163953_UNCACHED_HARDNEG20_DASHBOARD.md/json/audit.json
+review_issue_case_table = P31_5_TARGETQUALITY_FULL20_163953_UNCACHED_REVIEW_ISSUE_CASE_TABLE.md/json
+recovery_case_table = P31_5_TARGETQUALITY_FULL20_163953_UNCACHED_RECOVERY_CASE_TABLE.md/json
+```
+
+Code logic added in this checkpoint:
+
+- Freeform Critique missing-baseline candidates with multiple bare method names are normalized into verifier-ready `same-setting comparison against X baseline` items.  This fixed the KOUA OGL case where `FairNAS/SNAS/ProxylessNAS/EWC/GEM` previously died before bundle verification.
+- Single bare acronym normalization remains blocked by default, but is allowed when candidate text explicitly contextualizes the acronym as a baseline/method/comparison target, e.g. `supervised baseline TRIS`.  Full-text counterevidence still blocks stale cases.
+- Missing-baseline target specificity now allows non-generic all-caps named methods such as `EWC` and `GEM` while still rejecting generic family acronyms such as `NAS`.
+- Gap merge priority now preserves real Critique/freeform attribution over runner seed metadata.  Runner seeds can supplement metadata but cannot overwrite `review-issue-candidate*` candidate ids or `freeform_reviewer_negative` origin.
+- Scope/generalization structural cues now include `generalizable/generalizability`, `cross-target`, `target shapes/classes`, and `molecular classes`, fixing the GE6 cross-target validation false negative.
+- Bundle expectation can reuse a precomputed non-generic `candidate_obligation_relevance_basis` from the gap stage, fixing the YXn HALO reproducibility candidate without relaxing inventory/counterevidence gates.
+
+Validation:
+
+```text
+pytest tests/test_review_decision_hygiene.py focused P31.5 set = 17 passed
+pytest tests/test_review_inference_runner.py focused selector/recovery set = 5 passed
+py_compile state.py/review_runner.py/dashboard/case-table/tests = passed
+dashboard --fail-on-violation = PASS
+```
+
+Full20 current-code recompute facts:
+
+```text
+paper_count = 20
+verified_review_issue_count = 18
+verified_review_issue_cluster_recomputed_count = 16
+quote_duplicate_merged_verified_review_issue_cluster_count = 16
+quote_grounded_review_issue_cluster_count = 1
+reviewer_candidate_review_issue_count = 16
+reviewer_candidate_review_issue_critique_payload_count = 3
+critique_payload_gap_count = 14
+critique_payload_bundle_built_count = 3
+critique_payload_verified_count = 3
+critique_payload_verified_cluster_count = 3
+verified_review_issue_cluster_origin_critique_payload_count = 3
+reviewer_candidate_review_issue_deterministic_seed_count = 13
+candidate_menu_item_used_count = 3
+candidate_menu_item_verified_count = 1
+candidate_menu_item_failed_not_verified_by_bundle = 0
+negative_evidence_unlinked_to_flaw = 0
+positive_or_neutral_negative_candidate_count = 0
+negative_grounding_conflict_count = 0
+mark_contested_commit_count = 5
+protection = PASS
+```
+
+The three Critique-origin verified clusters are:
+
+```text
+GE6iywJtsV: missing_robustness_or_generalization / cross-target validation
+YXn76HMetm: reproducibility_gap / hyperbolic curvature and active-learning protocol details
+KOUAayk5Kx: missing_baseline / FairNAS, SNAS, ProxylessNAS, EWC, GEM
+```
+
+Interpretation:
+
+- P31.5's minimum quantitative target is now met on the complete full20 recompute: `critique_payload_verified_cluster_count = 3` with protection PASS.
+- This does not mean all three are paper-ready without manual audit.  The next step before P32 is to manually grade the three Critique-origin clusters and spot-check that the new YXn reproducibility inventory anchor is acceptable for the paper narrative.
+- Do not claim a fresh API full20 for this checkpoint; it is a current-code recompute over existing full20 raw state.
+
+## P31.5 Manual Audit / Precision Guard Update (2026-07-03)
+
+Manual audit file:
+
+```text
+P31_5_CRITIQUE_ORIGIN_MANUAL_AUDIT_20260703.md
+```
+
+Audit result:
+
+- `GE6iywJtsV / cross-target validation`: **B-**, keep with careful wording as limited cross-target/reference-distribution validation, not missing protein-target validation.
+- `YXn76HMetm / hyperbolic curvature reproducibility`: **B**, keep as reproducibility concern; note that the inventory anchor is method/pipeline-heavy.
+- `KOUAayk5Kx / FairNAS-SNAS-ProxylessNAS-EWC-GEM missing baseline`: **C/D**, reject from verified issue.  Full text says the paper compares with `13 state-of-the-art one-shot NAS competitors`; the named missing list is external and partly off-setting.
+
+Code precision guard added:
+
+```text
+full_text_broad_baseline_comparison_counterevidence
+```
+
+This blocks freeform reviewer external baseline lists when the paper already
+contains a broad same-setting comparison such as `13 state-of-the-art ...
+competitors` and none of the named missing baselines appear in the paper text.
+The Critique review-issue discovery prompt now carries the matching instruction:
+do not invent an external list of well-known baselines when the paper already
+reports a broad same-setting comparison set; use paper-named/menu-auditable
+baselines instead.
+
+Validation after guard:
+
+```text
+focused state pytest = 18 passed
+focused runner/prompt pytest = 6 passed
+py_compile = passed
+dashboard --fail-on-violation = PASS
+```
+
+Current full20 metrics after guard:
+
+```text
+verified_review_issue_count = 17
+verified_review_issue_cluster_recomputed_count = 15
+quote_duplicate_merged_verified_review_issue_cluster_count = 15
+reviewer_candidate_review_issue_count = 15
+reviewer_candidate_review_issue_critique_payload_count = 2
+critique_payload_verified_cluster_count = 2
+verified_review_issue_cluster_origin_critique_payload_count = 2
+negative_evidence_unlinked_to_flaw = 0
+positive_or_neutral_negative_candidate_count = 0
+negative_grounding_conflict_count = 0
+mark_contested_commit_count = 5
+protection = PASS
+```
+
+Interpretation:
+
+- The pre-audit `critique_payload_verified_cluster_count = 3` is superseded.
+- P31.5 is **not P32-ready** after quality audit because quality-preserving Critique-origin clusters are now `2`, below the `>=3` gate.
+- Continue P31.5 discovery/selector quality work; do not relax verifier or re-allow external baseline lists unless the missing baseline is paper-named or otherwise auditable from the paper.
+
+## P31.6 Critique-Origin Recovery Attempt (2026-07-03)
+
+Continued P31.5 after the manual audit rejected the KOUA external-baseline
+false positive.  The goal remains to recover at least one more A/B-quality
+Critique-origin verified cluster before entering P32, without relaxing the
+bundle verifier.
+
+Standalone status document:
+
+```text
+P31_6_CRITIQUE_ORIGIN_STATUS_20260703.md
+```
+
+Code changes:
+
+- Tightened missing-ablation counterevidence so plain method prose such as
+  `without needing eigendecomposition` no longer resolves a missing-ablation
+  issue.  `with/without` only counts as ablation counterevidence when the local
+  window has explicit comparison/result/ablation context.
+- Allowed Critique missing-ablation candidates without model-supplied
+  `observed_inventory` to reach the strict verifier when the paper text contains
+  a locatable component anchor.  The later bundle verifier, target-quality guard,
+  and full-text counterevidence checks still decide whether it counts.
+- Preserved reviewer-candidate missing targets ahead of template-derived
+  claim-obligation entities, so a coarse automatic obligation cannot replace a
+  concrete Critique target as the primary missing entity.
+- Strengthened `REVIEW_ISSUE_DISCOVERY_PROMPT`: the selector menu is now the
+  primary discovery channel; Critique is told to select 2-4 safe menu items when
+  available, always copy selected `candidate_menu_id`s into `selected_menu_items`,
+  and mirror menu-derived slot candidates there.
+
+Focused validation:
+
+```text
+tests/test_review_decision_hygiene.py P31/P31.5 focused set = 21 passed
+tests/test_review_inference_runner.py P31 prompt/recovery focused set = 6 passed
+py_compile = passed
+```
+
+Current-code offline recompute over the existing full20 raw:
+
+```text
+artifacts = P31_6_CRITORIGIN_RECOMPUTE_163953_*
+dashboard --fail-on-violation = PASS
+
+verified_review_issue_count = 19
+verified_review_issue_cluster_recomputed_count = 16
+quote_duplicate_merged_verified_review_issue_cluster_count = 16
+reviewer_candidate_review_issue_critique_payload_count = 2
+critique_payload_verified_cluster_count = 2
+verified_review_issue_cluster_origin_critique_payload_count = 2
+negative_evidence_unlinked_to_flaw = 0
+positive_or_neutral_negative_candidate_count = 0
+negative_grounding_conflict_count = 0
+mark_contested_commit_count = 5
+protection = PASS
+```
+
+Interpretation:
+
+- The old full20 raw still does **not** satisfy the P32 entry gate.  The two new
+  verified rows released by the counterevidence fix are deterministic-seed rows
+  (`ye3NrNrYOY` missing-ablation clusters), not new Critique-origin clusters.
+- KOUA OGL missing-ablation remains rejected because the paper contains Figure 5
+  with explicit `methods with or without OGL` results; keeping it rejected is the
+  safer paper-narrative choice.
+- xUe FlyingThings3D and ye3 HMDB/SSv2 candidates remain rejected for good
+  reasons: xUe confuses the training dataset with held-out evaluation, while ye3
+  is covered by full-text evaluation evidence.
+- The next required evidence is a **fresh MiMo full20** with the P31.6 prompt and
+  discovery-input changes.  P32 entry still requires
+  `critique_payload_verified_cluster_count >= 3`, protection PASS, and manual A/B
+  quality with no external-baseline/retrieval/context false positives.
+
+Fresh-run attempt:
+
+```text
+run = mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok1536_20260703_011822
+status = stopped
+jsonl_lines = 0
+reason = MiMo API returned 402 insufficient_balance before any paper completed
+```
+
+Do not use this run as a full20/partial result.  The next fresh validation still
+requires a usable MiMo account balance/key, then rerun the same P31.6 command and
+generate dashboard, review issue case table, recovery table, and manual audit.
+
+Follow-up runtime reliability fix:
+
+- `ApiReviewGenerator` now fast-fails non-retryable API errors such as
+  `402 insufficient_balance`, quota/billing errors, invalid API keys, and
+  authentication/permission failures instead of waiting through every retry.
+- This does not change model behavior or verifier semantics; it only prevents
+  failed full20 launches from spending minutes on guaranteed-failing retries.
+
+Validation:
+
+```text
+tests/test_review_inference_runner.py API/P31 prompt focused set = 8 passed
+py_compile review_runner + inference tests = passed
+```
+
+Hardneg20 launcher preflight:
+
+- `run_hardneg20_guard3.sh` now runs a one-call MiMo API preflight before
+  writing `.meta`, `.pid`, `.jsonl`, or starting the background full20 job.
+- `DRMAS_API_PREFLIGHT=0` can disable it for manual debugging, but the default
+  is on.
+- The launcher now catches preflight exceptions and prints a concise failure
+  line instead of a full Python traceback.
+- Current validation with the active `.env` key fails fast on
+  `402 insufficient_balance` in about one second and leaves existing run artifact
+  counts unchanged (`before_meta=14`, `after_meta=14`).
+
+```text
+bash -n run_hardneg20_guard3.sh = passed
+P31.6 launcher preflight with current MiMo key = fast-fail 402, no background launch
+latest retry = 20260703_014718, no new run artifacts, traceback suppressed
+latest lightweight API check = 20260703_020928, still 402 insufficient_balance, no fresh full20
+latest pipeline launch check = 20260703_021333, still 402 insufficient_balance, no run artifacts
+```
+
+P31.6 artifact script status:
+
+- Operational runbook: `P31_6_FRESH_FULL20_RUNBOOK_20260703.md`.
+- `scripts/p31_6_generate_full20_artifacts.sh` is executable and validated.
+- It generates the dashboard, review issue case table, and recovery case table
+  from a completed full20 `.jsonl`, rejects partial/empty inputs by default via
+  `--min-lines 20`, and can update `.latest_hardneg20_*` pointers with
+  `--update-latest`.
+- It now also generates a P31.6 entry-gate audit report by default.  Gate
+  failure is non-fatal for artifact generation unless `--fail-entry-gate` is
+  passed.
+- `scripts/p31_6_entry_gate_audit.py` checks the machine P32-entry requirements
+  from dashboard/case/recovery JSON and lists Critique-origin clusters for
+  manual A/B audit.  It intentionally does not replace manual quality judgment.
+- `scripts/p31_6_manual_audit.py` now provides the manual-audit half of the
+  gate:
+  `template` creates a fillable Critique-origin audit from an
+  `ENTRY_GATE_AUDIT.json`; `validate` enforces
+  `manual_A_B_clusters >= 3`, `manual_D_clusters = 0`, and
+  `unfilled_clusters = 0`.
+- `scripts/p31_6_generate_full20_artifacts.sh` now generates
+  `<LABEL>_MANUAL_AUDIT_TEMPLATE.md/json` by default after the entry-gate
+  report and `<LABEL>_READINESS_STATUS.md/json` by default after the status
+  check.  Use `--skip-manual-template` / `--skip-status-report` only when those
+  outputs are not wanted.
+  Dry-run validated the full post-processing chain:
+  dashboard -> review issue cases -> recovery cases -> entry gate -> manual
+  template -> readiness status.
+- Regression coverage added in `tests/test_p31_6_gate_scripts.py`:
+  machine gate fails when Critique-origin clusters are below threshold, manual
+  audit validation passes for three A/B clusters, and entry gate consumes a
+  passing manual validation report.  Current count: 5 passed, including status
+  report behavior and the guard that explicit fresh entry-gate reports do not
+  accidentally reuse stale default manual-validation files.
+- `scripts/p31_6_full20_pipeline.sh` wraps the standard P31.6 fresh full20
+  lifecycle.  After MiMo balance is usable, run:
+
+```bash
+scripts/p31_6_full20_pipeline.sh --launch --wait --update-latest
+```
+
+  The wrapper launches with the agreed P31.6 flags, can wait for completion,
+  and then calls the artifact generator so dashboard/cases/recovery/entry-gate
+  and manual-template outputs are produced in one path.  Dry-run validated both
+  launch and existing-run postprocess command paths.
+- `scripts/p31_6_status_report.py` now emits a consolidated readiness report:
+  latest run rows/running state, entry-gate status, manual-audit status,
+  optional MiMo API preflight, and next recommended command.  Current report:
+  `P31_6_READINESS_STATUS_20260703.md/json`.
+
+Current readiness summary:
+
+```text
+p32_entry_ready = False
+machine_gate = FAIL
+manual_gate = FAIL
+critique_payload_verified_cluster_count = 2
+manual_A_B_clusters = 2
+api_preflight = failed, 402 insufficient_balance
+latest refresh = 20260703_022822
+next_action = restore MiMo balance/key, then run scripts/p31_6_full20_pipeline.sh --launch --wait --update-latest
+```
+- Validation on `P31_5_TARGETQUALITY_FULL20_163953_UNCACHED.jsonl`:
+  `bash -n` passed, dry-run passed, and real generation reproduced the current
+  authoritative P31.6 metrics exactly:
+
+```text
+verified_review_issue_count = 19
+verified_review_issue_cluster_recomputed_count = 16
+quote_duplicate_merged_verified_review_issue_cluster_count = 16
+critique_payload_verified_cluster_count = 2
+verified_review_issue_cluster_origin_critique_payload_count = 2
+negative_evidence_unlinked_to_flaw = 0
+positive_or_neutral_negative_candidate_count = 0
+negative_grounding_conflict_count = 0
+mark_contested_commit_count = 5
+protection = PASS
+```
+
+- The temporary `P31_6_SCRIPT_CHECK_163953_*` validation artifacts were removed
+  after comparison.  The dashboard recomputation step took about 8 minutes 20
+  seconds on full20, so future validations should use a long enough timeout.
+- Current old-raw entry gate artifact:
+  `P31_6_CRITORIGIN_RECOMPUTE_163953_ENTRY_GATE_AUDIT.md/json`.
+  Machine gate fails only because Critique-origin cluster count is still 2:
+
+```text
+critique_payload_verified_cluster_count = 2 < 3
+case_table_critique_origin_cluster_count = 2 < 3
+protection = PASS
+lexical red flags = 0
+manual gate = REQUIRED
+```
+
+- Current old-raw structured manual audit artifacts:
+
+```text
+P31_6_CRITORIGIN_RECOMPUTE_163953_MANUAL_AUDIT_TEMPLATE.md/json
+P31_6_CRITORIGIN_RECOMPUTE_163953_MANUAL_AUDIT.json
+P31_6_CRITORIGIN_RECOMPUTE_163953_MANUAL_AUDIT_VALIDATION.md/json
+P31_6_CRITORIGIN_RECOMPUTE_163953_ENTRY_GATE_WITH_MANUAL_AUDIT.md/json
+```
+
+Structured manual audit result:
+
+```text
+manual_A_clusters = 0
+manual_B_clusters = 2
+manual_A_B_clusters = 2
+manual_D_clusters = 0
+unfilled_clusters = 0
+manual_status = FAIL
+reason = manual_A_B_clusters = 2 < 3
+```
+
+Interpretation: the two current Critique-origin clusters are still defensible
+B-level concerns, but the old raw remains below the P32 entry threshold.
+
+- P32 remains gated on a fresh full20 with
+  `critique_payload_verified_cluster_count >= 3` and manual A/B quality; the
+  current old-raw recompute is still only 2 Critique-origin clusters.
+
+## P31.6 fresh full20 with updated MiMo credentials (2026-07-03)
+
+The local MiMo credentials in `.env` were updated and an API preflight passed
+against `https://api.xiaomimimo.com/v1`.  A fresh P31.6 full20 was then run with
+`api_max_workers=4`, `max_turns=7`, and `max_tokens=1536`.
+
+Fresh run:
+
+```text
+mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok1536_20260703_082133.jsonl
+```
+
+Generated artifacts:
+
+```text
+P31_6_FRESH_20260703_082133_HARDNEG20_DASHBOARD.md/json/audit.json
+P31_6_FRESH_20260703_082133_REVIEW_ISSUE_CASE_TABLE.md/json
+P31_6_FRESH_20260703_082133_RECOVERY_CASE_TABLE.md/json
+P31_6_FRESH_20260703_082133_ENTRY_GATE_AUDIT.md/json
+P31_6_FRESH_20260703_082133_MANUAL_AUDIT_TEMPLATE.md/json
+P31_6_FRESH_20260703_082133_READINESS_STATUS.md/json
+```
+
+Fresh metrics:
+
+```text
+full20 completed = 20/20
+protection = PASS
+evidence_json_valid_turns = 78
+evidence_json_fallback_turns = 0
+evidence_json_fallback_rate_pct = 0
+verified_review_issue_count = 14
+verified_review_issue_cluster_count = 12
+quote_duplicate_merged_verified_review_issue_cluster_count = 12
+obligation_grounded_review_issue_count = 14
+review_negative_verified_count = 0
+reviewer_candidate_review_issue_count = 13
+reviewer_candidate_review_issue_critique_payload_count = 1
+reviewer_candidate_review_issue_deterministic_seed_count = 12
+critique_payload_verified_cluster_count = 1
+verified_review_issue_cluster_origin_critique_payload_count = 1
+verified_review_issue_cluster_origin_deterministic_seed_count = 10
+verified_review_issue_cluster_origin_claim_obligation_fallback_count = 1
+mark_contested_commit_count = 4
+verified_review_issue_repair = 3
+negative_evidence_unlinked_to_flaw = 0
+positive_or_neutral_negative_candidate_count = 0
+negative_grounding_conflict_count = 0
+```
+
+Entry gate:
+
+```text
+machine_gate = FAIL
+manual_gate = REQUIRED
+critique_payload_verified_cluster_count = 1 < 3
+case_table_critique_origin_cluster_count = 1 < 3
+```
+
+Interpretation:
+
+- This fresh full20 is operationally clean: no JSON fallback, no protection
+  violations, no verified negative linkage conflict.
+- It is not P32-ready because Critique-origin discovery remains too weak.  The
+  fresh run regressed below the old-raw/current-code recompute, which had 2
+  Critique-origin clusters.
+- The only fresh Critique-origin cluster listed for manual audit is
+  `GE6iywJtsV / reproducibility_gap / implementation_reproducibility_details`.
+- Verified issue quantity is still mostly deterministic-seed driven, especially
+  missing-ablation clusters.  Do not describe this as autonomous Critique
+  discovery success.
+
+Next work before P32:
+
+```text
+Audit Critique payload uptake in fresh execution: selected-menu construction,
+why only one critique_payload bundle verifies, candidate-menu failed cases,
+and whether deterministic seed top-up is hiding low Critique recall.  Keep the
+bundle verifier strict; do not relax author-limitation, retrieval-gap,
+target-quality, or counterevidence gates.
+```
+
+Follow-up audit after the fresh P31.6 failure:
+
+```text
+YXn76HMetm: Claim Agent produced claim-paper-context fallback claims after an
+empty/malformed claim extraction.  Manager never set review_issue_discovery_required,
+so no review issue menu or reviewer_negative_candidates were produced.  The old
+YXn Critique-origin B cluster disappeared because real-claim extraction/discovery
+did not fire, not because the verifier rejected it.
+
+KOUAayk5Kx: Critique produced an OGL missing-ablation candidate.  Code now
+recognizes "ablation on orthogonality constraint" / generalized regularization
+targets as concrete missing-ablation targets and gives paper-specific mechanism
+overlap (e.g. OGL in claim + candidate) a candidate relevance basis.  Uncached
+recompute shows the candidate then fails correctly at observed_inventory_missing:
+the only supplied anchor is a qualitative Figure 3 cell diagram, not an
+ablation/variant/removal/list/table inventory anchor.  Do not force it through.
+
+GE6iywJtsV: two menu ids were selected; only the reproducibility menu item
+verified.  The protocol item remains not_verified_by_bundle.
+
+Prompt hygiene: fresh Critique sometimes selected rim-evidence ids as if they
+were review-issue menu ids.  The prompt and runtime selector rules now state
+that selected_menu_items must copy review-issue candidate menu ids, normally
+rim-c*, and must never use rim-evidence ids, quote ids, evidence ids, claim ids,
+or invented ids.
+```
+
+Validation after this follow-up:
+
+```text
+tests/test_review_decision_hygiene.py focused P31.6/OGL tests = 5 passed
+tests/test_review_inference_runner.py focused prompt/menu tests = 3 passed
+P31_6_ORTHOFIX_UNCACHED_082133 and P31_6_MECHREL_UNCACHED_082133 still fail
+the P31.6 machine gate with critique_payload_verified_cluster_count = 1.
+```

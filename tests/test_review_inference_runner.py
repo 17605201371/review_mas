@@ -1,10 +1,12 @@
 import json
 import sys
+import time
 import types
 
 import agent_system.review_prompts as review_prompts_mod
 import agent_system.inference.review_runner as review_runner_mod
 import agent_system.environments.env_package.review.state as review_state_mod
+import agent_system.environments.env_package.review.reward as review_reward_mod
 import agent_system.review_manager_policy as review_manager_policy_mod
 
 from agent_system.inference.review_runner import (
@@ -49,6 +51,7 @@ from agent_system.environments.env_package.review.state import (
     _render_evidence_context_with_meta,
     build_decision_hygiene_view,
     build_turn_log,
+    build_user_report_and_state_audit,
     claim_coverage_summary,
     merge_review_state,
     normalize_review_update_payload,
@@ -108,6 +111,44 @@ def test_api_response_format_probe_does_not_treat_connection_error_as_rejection(
     assert ApiReviewGenerator._looks_like_response_format_rejection(
         BadRequest("Invalid parameter: response_format is not supported")
     )
+
+
+def test_api_non_retryable_balance_error_fails_fast(monkeypatch):
+    class BalanceError(Exception):
+        status_code = 402
+
+    class DummyCompletions:
+        calls = 0
+
+        def create(self, **kwargs):
+            DummyCompletions.calls += 1
+            raise BalanceError("Error code: 402 - insufficient_balance")
+
+    class DummyChat:
+        completions = DummyCompletions()
+
+    class DummyOpenAI:
+        def __init__(self, **kwargs):
+            self.chat = DummyChat()
+
+    monkeypatch.setitem(sys.modules, "openai", types.SimpleNamespace(OpenAI=DummyOpenAI))
+    generator = ApiReviewGenerator(
+        model="mimo-v2.5",
+        api_key="test-key",
+        base_url="https://api.xiaomimimo.com/v1",
+        provider="mimo",
+        max_retries=8,
+        retry_delay=0.01,
+    )
+
+    try:
+        generator._call_api("Review Manager Agent", "Return JSON.")
+    except RuntimeError as exc:
+        assert "Non-retryable API error" in str(exc)
+    else:
+        raise AssertionError("Expected non-retryable API error")
+
+    assert DummyCompletions.calls == 1
 
 
 def test_evidence_context_uses_latex_sections_for_results_and_tables():
@@ -255,6 +296,125 @@ def test_context_claim_fallback_uses_real_paper_claim_ids():
     assert all(item["claim_id"].startswith("claim-paper-context") for item in claims)
     assert all(item["claim_kind"] == "paper_extracted" for item in claims)
     assert all(item["claim_origin_kind"] == "context_synthesized" for item in claims)
+
+
+def test_paper_text_claim_salvage_prefers_complete_claim_sentences_over_fragments():
+    prompt = """# Claim-Relevant Paper Excerpt
+    Hyperbolic Active Learning for Semantic Segmentation under Domain Shift.
+    We introduce a hyperbolic neural network approach to pixel-level active learning for semantic segmentation.
+    Analysis of the data statistics leads to a novel interpretation of the hyperbolic radius as an indicator of ...
+    as a baseline for comparison with our method.
+    HALO improves over RIPU by +2.9% mIoU with a 5% budget, reaffirming the effectiveness of our approach on a novel dataset, as shown in Table c.
+    results} In this section, we describe the benchmarks and we perform a comparative evaluation against the SOTA (Sec.
+    # Claim State Slice
+    """
+    paper_text = (
+        "We introduce a hyperbolic neural network approach to pixel-level active learning for semantic segmentation. "
+        "Analysis of the data statistics leads to a novel interpretation of the hyperbolic radius as an indicator of data scarcity. "
+        "HALO improves over RIPU by +2.9% mIoU with a 5% budget, reaffirming the effectiveness of our approach on a novel dataset, as shown in Table c."
+    )
+
+    claims = review_runner_mod._fallback_paper_claim_items_from_context(
+        prompt,
+        {"claims": [], "paper_text": paper_text},
+        max_claims=3,
+    )
+    normalized = review_state_mod.normalize_review_update_payload({"claims": claims})["claims"]
+    state = {"claims": normalized, "evidence_map": [], "flaw_candidates": [], "unresolved_questions": [], "evidence_gaps": []}
+    targets = review_state_mod._hard_negative_diagnosis_targets(state, claims=normalized, max_items=4)
+
+    assert any("We introduce a hyperbolic neural network" in item["claim"] for item in normalized)
+    assert any("hyperbolic radius as an indicator of data scarcity" in item["claim"] for item in normalized)
+    assert any("HALO improves over RIPU" in item["claim"] for item in normalized)
+    assert all("..." not in item["claim"] and "results}" not in item["claim"] for item in normalized)
+    assert all(item["claim_id"].startswith("claim-") for item in normalized)
+    assert all(not item["claim_id"].startswith("claim-paper-context") for item in normalized)
+    assert all(item["claim_origin_kind"] == "paper_text_extracted_fallback" for item in normalized)
+    assert {target["claim_id"] for target in targets}
+    assert all(review_manager_policy_mod._claim_item_is_strict_hard_negative_target(item, require_claim_text=True) for item in normalized)
+
+
+def test_truncated_paper_claim_completion_is_bounded_on_long_paper_text():
+    prefix = "Analysis of the data statistics leads to a novel interpretation of the hyperbolic radius as an indicator of ..."
+    paper_text = (
+        ("\\section{Method} Generic background text without the target sentence. " * 600)
+        + "Analysis of the data statistics leads to a novel interpretation of the hyperbolic radius as an indicator of data scarcity. "
+        + ("\\section{Appendix} Additional filler text. " * 600)
+    )
+
+    started = time.perf_counter()
+    completed = review_runner_mod._complete_truncated_claim_sentence_from_paper(prefix, paper_text)
+    duration = time.perf_counter() - started
+
+    assert "hyperbolic radius as an indicator of data scarcity" in completed
+    assert "..." not in completed
+    assert duration < 0.5
+
+
+def test_claim_agent_fallback_uses_paper_text_salvage_before_context_scaffold():
+    prompt = """# Claim-Relevant Paper Excerpt
+    We introduce a hyperbolic neural network approach to pixel-level active learning for semantic segmentation.
+    HALO improves over RIPU by +2.9% mIoU with a 5% budget, reaffirming the effectiveness of our approach on a novel dataset.
+    results} In this section, we describe the benchmarks and we perform a comparative evaluation against the SOTA (Sec.
+    # Claim State Slice
+    """
+    raw = '{"claim_coverage_status":"thin","claims":[]}'
+    paper_text = (
+        "We introduce a hyperbolic neural network approach to pixel-level active learning for semantic segmentation. "
+        "HALO improves over RIPU by +2.9% mIoU with a 5% budget, reaffirming the effectiveness of our approach on a novel dataset."
+    )
+
+    payload = _fallback_worker_payload(
+        "Claim Agent",
+        raw,
+        {"claims": [], "paper_text": paper_text},
+        manager_payload={"action_type": "extract_claims"},
+        prompt_text=prompt,
+    )
+    claims = payload["claims"]
+
+    assert claims
+    assert all(item["claim_origin_kind"] == "paper_text_extracted_fallback" for item in claims)
+    assert all(not item["claim_id"].startswith("claim-paper-context") for item in claims)
+    assert any(review_manager_policy_mod._claim_item_is_strict_hard_negative_target(item, require_claim_text=True) for item in claims)
+
+
+def test_claim_context_coverage_augmentation_uses_paper_text_salvage():
+    prompt = """# Claim-Relevant Paper Excerpt
+    The framework uses a contrastive objective and retrieval-augmented encoder for evidence ranking.
+    The method improves F1 over BM25 by 12.4% on BenchX.
+    # Claim State Slice
+    """
+    paper_text = (
+        "The framework uses a contrastive objective and retrieval-augmented encoder for evidence ranking. "
+        "The method improves F1 over BM25 by 12.4% on BenchX."
+    )
+    payload = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The paper proposes a retrieval reranking framework.",
+                "claim_type": "contribution",
+                "coverage_tags": ["contribution"],
+                "claim_kind": "paper_extracted",
+            }
+        ],
+        "dialogue_summary": "",
+    }
+
+    updated = review_runner_mod._maybe_augment_claim_payload_with_context_coverage(
+        "Claim Agent",
+        payload,
+        {"claims": [], "paper_text": paper_text},
+        manager_payload={"action_type": "extract_claims"},
+        prompt_text=prompt,
+    )
+    added = updated["claims"][1:]
+
+    assert "Context coverage augmentation added missing claim roles" in updated["dialogue_summary"]
+    assert added
+    assert all(item["claim_origin_kind"] == "paper_text_extracted_fallback" for item in added)
+    assert all(not item["claim_id"].startswith("claim-paper-context") for item in added)
 
 
 def test_small_model_quote_bank_augmentation_adds_conservative_support():
@@ -2334,6 +2494,59 @@ def _review_issue_seed_sample_state():
     }
 
 
+def _review_issue_selected_menu_sample_state():
+    claim = (
+        "Graph2Tac uses a hierarchical tactic predictor head and graph encoder architecture, "
+        "outperforms BERT on Benchmark-X, and reports complete training hyperparameters for reproducibility."
+    )
+    table_quote = "Table 1 reports accuracy for Graph2Tac and BERT on Benchmark-X."
+    return {
+        "paper_text": (
+            "We introduce Graph2Tac, a graph neural network architecture. "
+            "Our method uses a hierarchical tactic predictor head and trainable graph encoder component. "
+            f"{table_quote} "
+            "The tactic predictor head is trained with cross entropy loss."
+        ),
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "method",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": [
+                    "baseline_or_comparison",
+                    "ablation_or_component",
+                    "reproducibility_detail",
+                ],
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "evidence-1",
+                "claim_id": "claim-1",
+                "evidence": table_quote,
+                "raw_quote": table_quote,
+                "source": "Table 1",
+                "source_locator": "Table 1",
+                "stance": "supports",
+                "strength": "strong",
+                "binding_status": "bound_real_claim",
+                "semantic_grounding_label": "semantic_support_verified",
+                "verified_grounding_label": "paper_grounded_exact",
+                "verified_quote_match_type": "quote_bank_id_canonical",
+                "support_source_bucket": "table_or_figure",
+            }
+        ],
+        "flaw_candidates": [],
+        "reviewer_negative_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+
 def test_review_issue_seed_candidates_from_targets_are_candidates_only():
     seeds = _seed_review_issue_candidates_from_targets(_review_issue_seed_sample_state(), max_candidates=4)
 
@@ -2343,6 +2556,139 @@ def test_review_issue_seed_candidates_from_targets_are_candidates_only():
     assert all(seed["status"] == "pending_absence_audit" for seed in seeds)
     assert not any("evidence_id" in seed for seed in seeds)
     assert not any("flaw_id" in seed for seed in seeds)
+
+
+def test_review_issue_menu_decisions_are_preserved_by_normalizer():
+    payload = normalize_review_update_payload(
+        {
+            "selected_menu_items": [
+                {
+                    "candidate_menu_id": "rim-c1-ma-tactic-predictor-head",
+                    "decision": "selected",
+                    "rationale": "paper-specific component target",
+                }
+            ],
+            "rejected_menu_items": ["rim-c1-sr-generic-ood"],
+        }
+    )
+
+    assert payload["selected_menu_items"][0]["candidate_menu_id"] == "rim-c1-ma-tactic-predictor-head"
+    assert payload["selected_menu_items"][0]["decision"] == "selected"
+    assert payload["rejected_menu_items"][0]["candidate_menu_id"] == "rim-c1-sr-generic-ood"
+
+
+def test_review_issue_discovery_recovers_selected_menu_items_before_seed_topup():
+    state = _review_issue_selected_menu_sample_state()
+    targets = _hard_negative_diagnosis_targets(state, claims=state["claims"], max_items=8)
+    menu_items = [
+        item
+        for target in targets
+        for item in target.get("review_issue_candidate_menu", [])
+        if item.get("candidate_menu_id")
+    ]
+    assert menu_items
+    selected_id = menu_items[0]["candidate_menu_id"]
+    payload = normalize_review_update_payload(
+        {
+            "evidence_map": [],
+            "flaw_candidates": [],
+            "selected_menu_items": [
+                {
+                    "candidate_menu_id": selected_id,
+                    "decision": "selected",
+                    "rationale": "worth checking",
+                }
+            ],
+        }
+    )
+    trace = {}
+
+    updated = _maybe_seed_review_issue_discovery_payload(
+        "Critique Agent",
+        payload,
+        state,
+        {"review_issue_discovery_required": True},
+        trace_worker=trace,
+    )
+
+    recovered = [
+        item for item in updated["reviewer_negative_candidates"]
+        if item.get("candidate_menu_id") == selected_id
+    ]
+    assert recovered
+    assert recovered[0]["candidate_id"].startswith("review-issue-candidate-selected-menu")
+    assert recovered[0]["quote_grounding_mode"] == "absence_or_requirement_gap"
+    assert recovered[0]["status"] == "pending_absence_audit"
+    assert recovered[0]["observed_inventory"]
+    assert trace["review_issue_selected_menu_recovery_used"] is True
+    assert selected_id in trace["review_issue_selected_menu_ids"]
+    assert updated["evidence_map"] == []
+    assert updated["flaw_candidates"] == []
+
+
+def test_review_issue_discovery_recovers_selected_per_claim_menu_item_outside_selector(monkeypatch):
+    menu_items = [
+        {
+            "candidate_menu_id": f"rim-c1-ma-target-{idx}",
+            "claim_id": "claim-1",
+            "issue_type": "missing_ablation",
+            "required_evidence_type": "ablation_or_component",
+            "expected_entity": f"paper-specific mechanism {idx}",
+            "review_issue_slot": "missing_ablation",
+            "observed_inventory": [
+                {
+                    "inventory_id": "inv-ablation",
+                    "quote": "Table 3 reports ablation variants for the proposed model.",
+                    "locator": "Table 3",
+                    "observed_items": ["variant A"],
+                    "inventory_type": "ablation",
+                }
+            ],
+        }
+        for idx in range(7)
+    ]
+
+    monkeypatch.setattr(
+        review_runner_mod,
+        "_hard_negative_diagnosis_targets",
+        lambda state, claims=None, max_items=8: [{"review_issue_candidate_menu": menu_items}],
+    )
+    monkeypatch.setattr(
+        review_runner_mod,
+        "_review_issue_candidate_selector_menu",
+        lambda targets, max_items=6, max_per_claim=2: menu_items[:6],
+    )
+    payload = normalize_review_update_payload(
+        {
+            "evidence_map": [],
+            "flaw_candidates": [],
+            "selected_menu_items": [
+                {
+                    "candidate_menu_id": "rim-c1-ma-target-6",
+                    "decision": "selected",
+                    "rationale": "visible in the per-claim menu",
+                }
+            ],
+        }
+    )
+    trace = {}
+
+    updated = _maybe_seed_review_issue_discovery_payload(
+        "Critique Agent",
+        payload,
+        {"claims": []},
+        {"review_issue_discovery_required": True},
+        trace_worker=trace,
+    )
+
+    recovered = [
+        item for item in updated["reviewer_negative_candidates"]
+        if item.get("candidate_menu_id") == "rim-c1-ma-target-6"
+    ]
+    assert recovered
+    assert recovered[0]["discovery_origin"] == "critique_payload_menu_selected"
+    assert trace["review_issue_selected_menu_recovery_used"] is True
+    assert trace["review_issue_selected_menu_recovered_count"] == 1
 
 
 def test_review_issue_discovery_seed_topup_when_critique_returns_no_candidates():
@@ -2454,27 +2800,37 @@ def test_review_issue_discovery_slice_is_separate_from_hardneg_gate(monkeypatch)
     slice_on = _render_critique_state_slice(state, review_issue_discovery_required=True)
 
     assert "hard_negative_diagnosis_targets" not in slice_on
-    assert "review_issue_discovery_targets" in slice_on
+    assert "review_issue_discovery_targets" not in slice_on
+    assert "review_issue_discovery_target_summary" in slice_on
+    assert slice_on["review_issue_discovery_targets_omitted_for_prompt_compaction"] is True
     assert "review_issue_discovery_rule" in slice_on
-    target_ids = {item["claim_id"] for item in slice_on["review_issue_discovery_targets"]}
+    target_ids = {item["claim_id"] for item in slice_on["review_issue_discovery_target_summary"]}
     assert "claim-1" in target_ids
 
 
 def test_review_issue_discovery_targets_include_concrete_issue_blueprints(monkeypatch):
     monkeypatch.setattr(review_state_mod, "_REVIEW_ISSUE_BUNDLE_ENABLED", True)
     state = {
+        "paper_text": (
+            "We introduce Graph2Tac, a graph neural network architecture. "
+            "Our method uses a hierarchical tactic predictor head and trainable graph encoder component. "
+            "Table 1 reports accuracy for Graph2Tac and BERT on Benchmark-X. "
+            "The tactic predictor head is trained with cross entropy loss."
+        ),
         "claims": [
             {
                 "claim_id": "claim-1",
                 "claim": (
-                    "The method is reproducible and outperforms strong baselines under the same "
-                    "benchmark protocol with complete training hyperparameters."
+                    "Graph2Tac uses a hierarchical tactic predictor head and graph encoder architecture, "
+                    "outperforms BERT on Benchmark-X, and reports complete training hyperparameters "
+                    "for reproducibility."
                 ),
-                "claim_type": "comparison",
+                "claim_type": "method",
                 "importance": "high",
                 "claim_kind": "paper_extracted",
                 "claim_obligations": [
                     "baseline_or_comparison",
+                    "ablation_or_component",
                     "evaluation_protocol",
                     "reproducibility_detail",
                 ],
@@ -2502,10 +2858,22 @@ def test_review_issue_discovery_targets_include_concrete_issue_blueprints(monkey
         "revision_summary": [],
     }
 
-    slice_on = _render_critique_state_slice(state, review_issue_discovery_required=True)
-    targets = slice_on["review_issue_discovery_targets"]
+    targets = _hard_negative_diagnosis_targets(state, claims=state["claims"], max_items=8)
     assert len(targets) == 1
     blueprints = targets[0]["issue_candidate_blueprints"]
+    assert "review_issue_candidate_menu" in targets[0]
+    slice_on = _render_critique_state_slice(state, review_issue_discovery_required=True)
+    selector_menu = slice_on["review_issue_candidate_selector_menu"]
+    target_menu_ids = {
+        item["candidate_menu_id"]
+        for item in targets[0]["review_issue_candidate_menu"]
+    }
+    assert selector_menu
+    assert selector_menu[0]["candidate_menu_id"].startswith("rim-")
+    assert selector_menu[0]["candidate_menu_id"] in target_menu_ids
+    assert selector_menu[0]["why_review_worthy"]
+    assert selector_menu[0]["inventory_anchor"]["quote"]
+    assert selector_menu[0]["counterevidence_aliases"]
     blueprint_keys = {
         (item["required_evidence_type"], item["issue_type"])
         for item in blueprints
@@ -2550,8 +2918,7 @@ def test_review_issue_discovery_targets_include_claim_surface_profile_hints(monk
         "revision_summary": [],
     }
 
-    slice_on = _render_critique_state_slice(state, review_issue_discovery_required=True)
-    target = slice_on["review_issue_discovery_targets"][0]
+    target = _hard_negative_diagnosis_targets(state, claims=state["claims"], max_items=8)[0]
     profile = target["claim_surface_profile"]
     blueprints = target["issue_candidate_blueprints"]
     examples = " ".join(
@@ -2574,11 +2941,203 @@ def test_review_issue_discovery_targets_include_claim_surface_profile_hints(monk
     assert ("empirical_result", "insufficient_evaluation") in blueprint_keys
 
 
+def test_review_issue_selector_menu_omits_long_targets_from_critique_observation(monkeypatch):
+    monkeypatch.setattr(review_state_mod, "_REVIEW_ISSUE_BUNDLE_ENABLED", True)
+    state = {
+        "paper_id": "paper-1",
+        "turn_id": 1,
+        "paper_text": (
+            "The acceptance prediction head improves draft quality and adaptive candidate length. "
+            "Table 3 reports ablation variants without reranking and without the draft scorer."
+        ),
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": (
+                    "The acceptance prediction head improves draft quality and adaptive candidate length."
+                ),
+                "claim_type": "method",
+                "importance": "high",
+                "claim_kind": "paper_extracted",
+                "claim_obligations": [
+                    "ablation_or_component",
+                ],
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "evidence-1",
+                "claim_id": "claim-1",
+                "raw_quote": "Table 3 reports ablation variants without reranking and without the draft scorer.",
+                "source_locator": "Table 3",
+                "strength": "strong",
+                "stance": "supports",
+                "binding_status": "bound_real_claim",
+                "verified_grounding_label": "paper_grounded_exact",
+                "verified_quote_match_type": "quote_bank_id_canonical",
+                "semantic_grounding_label": "semantic_support_verified",
+                "support_source_bucket": "ablation",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_summary": [],
+        "revision_summary": [],
+    }
+    state["evaluation_inventory"] = review_state_mod._evaluation_inventory_from_evidence(state)
+    task = {
+        "paper_id": "paper-1",
+        "mode": "s4",
+        "max_turns": 7,
+        "user_goal": "Review the paper.",
+        "paper_text": state["paper_text"],
+        "review_state": state,
+        "turn_logs": [],
+    }
+
+    observation = render_critique_observation(
+        task,
+        {"action_type": "analyze_flaws", "review_issue_discovery_required": True},
+    )
+
+    assert "# Review Issue Candidate Selector Menu" in observation
+    assert "# Review Issue Discovery Target Summary" in observation
+    assert "# Review Issue Discovery Targets\n" not in observation
+    assert '"review_issue_discovery_targets":' not in observation
+    assert "review_issue_discovery_targets_omitted_for_prompt_compaction" in observation
+
+
+def test_review_issue_selector_menu_derives_inventory_without_cached_state_inventory(monkeypatch):
+    monkeypatch.setattr(review_state_mod, "_REVIEW_ISSUE_BUNDLE_ENABLED", True)
+    state = {
+        "paper_id": "paper-1",
+        "turn_id": 1,
+        "paper_text": (
+            "The acceptance prediction head improves draft quality and adaptive candidate length. "
+            "Table 3 reports ablation variants without reranking and without the draft scorer."
+        ),
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": (
+                    "The acceptance prediction head improves draft quality and adaptive candidate length."
+                ),
+                "claim_type": "method",
+                "importance": "high",
+                "claim_kind": "paper_extracted",
+                "claim_obligations": [
+                    "ablation_or_component",
+                ],
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "evidence-1",
+                "claim_id": "claim-1",
+                "raw_quote": "Table 3 reports ablation variants without reranking and without the draft scorer.",
+                "source_locator": "Table 3",
+                "strength": "strong",
+                "stance": "supports",
+                "binding_status": "bound_real_claim",
+                "verified_grounding_label": "paper_grounded_exact",
+                "verified_quote_match_type": "quote_bank_id_canonical",
+                "semantic_grounding_label": "semantic_support_verified",
+                "support_source_bucket": "ablation",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_summary": [],
+        "revision_summary": [],
+    }
+    assert "evaluation_inventory" not in state
+    task = {
+        "paper_id": "paper-1",
+        "mode": "s4",
+        "max_turns": 7,
+        "user_goal": "Review the paper.",
+        "paper_text": state["paper_text"],
+        "review_state": state,
+        "turn_logs": [],
+    }
+
+    observation = render_critique_observation(
+        task,
+        {"action_type": "analyze_flaws", "review_issue_discovery_required": True},
+    )
+
+    assert "# Review Issue Candidate Selector Menu" in observation
+    assert '"candidate_menu_id": "rim-' in observation
+    assert "Table 3 reports ablation variants without reranking and without the draft scorer." in observation
+
+
 def test_review_issue_discovery_uses_critique_prompt():
     payload = {"review_issue_discovery_required": True}
 
     assert _resolve_prompt_template("Critique Agent", payload) == review_prompts_mod.REVIEW_ISSUE_DISCOVERY_PROMPT
     assert _resolve_prompt_template("Evidence Agent", payload) != review_prompts_mod.REVIEW_ISSUE_DISCOVERY_PROMPT
+    assert "review_issue_candidate_selector_menu" in review_prompts_mod.REVIEW_ISSUE_DISCOVERY_PROMPT
+    assert "copy `candidate_menu_id` exactly" in review_prompts_mod.REVIEW_ISSUE_DISCOVERY_PROMPT
+    assert "Treat it as the primary selector" in review_prompts_mod.REVIEW_ISSUE_DISCOVERY_PROMPT
+    assert "Always list every selected menu id in `selected_menu_items`" in review_prompts_mod.REVIEW_ISSUE_DISCOVERY_PROMPT
+    assert "Never put `rim-evidence-*`" in review_prompts_mod.REVIEW_ISSUE_DISCOVERY_PROMPT
+    assert "Do not invent an external list of well-known baselines" in review_prompts_mod.REVIEW_ISSUE_DISCOVERY_PROMPT
+
+
+def test_worker_prompt_char_counts_survive_turn_action_normalization():
+    action = review_state_mod.build_turn_action(
+        manager_payload={
+            "decision": "continue",
+            "action_type": "analyze_flaws",
+            "selected_agents": ["Critique Agent"],
+            "worker_prompt_char_counts": {"Critique Agent": 12345},
+        },
+        worker_payloads=[],
+        mode="s4",
+        turn_id=1,
+    )
+
+    parsed = parse_turn_action(action)
+    assert parsed["manager"]["worker_prompt_char_counts"]["Critique Agent"] == 12345
+    turn_log = build_turn_log(
+        1,
+        parsed["manager"],
+        [],
+        {"claims": [], "evidence_map": [], "flaw_candidates": []},
+    )
+    assert turn_log["critique_prompt_chars"] == 12345
+
+
+def test_reward_uses_cached_decision_hygiene_schema(monkeypatch):
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The method improves benchmark accuracy.",
+                "claim_kind": "paper_extracted",
+                "status": "supported",
+            }
+        ],
+        "evidence_map": [],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "conflict_notes": [],
+    }
+    report, audit = build_user_report_and_state_audit(state, {})
+    state["state_audit"] = audit
+    state["decision_hygiene"] = audit["decision_hygiene"]
+
+    def _fail_recompute(_state):
+        raise AssertionError("reward should use cached decision_hygiene")
+
+    monkeypatch.setattr(review_state_mod, "build_decision_hygiene_view", _fail_recompute)
+    hygiene = review_reward_mod._decision_hygiene_for_reward(state)
+
+    assert hygiene is state["decision_hygiene"]
+    assert hygiene["decision_hygiene_schema_version"] == "review_negative_final_view_v2"
+    assert report
 
 
 def test_review_issue_candidates_normalize_into_reviewer_negative_candidates():
@@ -2587,6 +3146,7 @@ def test_review_issue_candidates_normalize_into_reviewer_negative_candidates():
             "review_issue_candidates": [
                 {
                     "candidate_id": "review-issue-candidate-1",
+                    "candidate_menu_id": "review-issue-menu-claim-1-missing-baseline-gpt-4",
                     "claim_id": "claim-1",
                     "claim": "The method outperforms strong baselines.",
                     "weakness": "The comparison claim lacks a GPT-4 baseline check.",
@@ -2594,6 +3154,7 @@ def test_review_issue_candidates_normalize_into_reviewer_negative_candidates():
                     "required_evidence_type": "baseline_or_comparison",
                     "quote_grounding_mode": "review_issue_bundle",
                     "missing_or_weak_items": ["GPT-4 baseline"],
+                    "possible_counterevidence_terms": ["GPT-4", "GPT4", "baseline"],
                     "status": "pending_issue_bundle_verification",
                     "source_of_expectation": "claim_obligation",
                 }
@@ -2606,6 +3167,8 @@ def test_review_issue_candidates_normalize_into_reviewer_negative_candidates():
     assert candidates[0]["candidate_id"] == "review-issue-candidate-1"
     assert candidates[0]["negative_type"] == "missing_baseline"
     assert candidates[0]["required_evidence_type"] == "baseline_or_comparison"
+    assert candidates[0]["candidate_menu_id"] == "review-issue-menu-claim-1-missing-baseline-gpt-4"
+    assert candidates[0]["possible_counterevidence_terms"] == ["GPT-4", "GPT4", "baseline"]
     assert candidates[0]["quote_grounding_mode"] == "absence_or_requirement_gap"
     assert candidates[0]["status"] == "pending_absence_audit"
     assert candidates[0]["source_of_expectation"] == "claim_obligation"
@@ -9915,37 +10478,37 @@ def test_model_claim_downgrade_with_review_issue_bundle_rebuilds_to_contested(mo
         next(item for item in state["evidence_map"] if item["evidence_id"] == issue_evidence_ids[0])
     )
 
-    model_patch = normalize_review_update_payload(
-        {
+    for cited_field in ("supporting_evidence_ids", "negative_evidence_ids", "evidence_ids"):
+        model_patch_payload = {
             "action": "apply_recovery_patch",
             "target_type": "claim",
             "target_id": "claim-1",
             "old_status": "supported",
             "new_status": "unsupported",
-            "supporting_evidence_ids": issue_evidence_ids[:1],
+            cited_field: issue_evidence_ids[:1],
             "reason_for_change": "The verified review issue makes the claim unsupported.",
             "resolution_expectation": "partially_resolved",
             "recovery_patch_operation": "downgrade_claim_to_unsupported",
         }
-    )
+        model_patch = normalize_review_update_payload(model_patch_payload)
 
-    payload = _maybe_salvage_recovery_payload(
-        "Critique Agent",
-        model_patch,
-        state,
-        {
-            "action_type": "challenge_previous_hypothesis",
-            "effective_action_type": "challenge_previous_hypothesis",
-            "target_claim_ids": ["claim-1"],
-            "target_flaw_ids": [],
-            "target_evidence_ids": [],
-        },
-    )
+        payload = _maybe_salvage_recovery_payload(
+            "Critique Agent",
+            model_patch,
+            state,
+            {
+                "action_type": "challenge_previous_hypothesis",
+                "effective_action_type": "challenge_previous_hypothesis",
+                "target_claim_ids": ["claim-1"],
+                "target_flaw_ids": [],
+                "target_evidence_ids": [],
+            },
+        )
 
-    assert payload["recovery_patch_operation"] == "mark_contested"
-    assert payload["mark_contested"] is True
-    assert payload["target_id"] == "claim-1"
-    assert payload["new_status"] == "supported"
+        assert payload["recovery_patch_operation"] == "mark_contested"
+        assert payload["mark_contested"] is True
+        assert payload["target_id"] == "claim-1"
+        assert payload["new_status"] == "supported"
 
     new_state = merge_review_state(state, payload)
     assert new_state["claims"][0]["status"] == "supported"

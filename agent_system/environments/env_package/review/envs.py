@@ -18,6 +18,7 @@ from agent_system.environments.env_package.review.state import (
     build_review_task,
     build_state_audit,
     build_turn_log,
+    build_user_report_and_state_audit,
     infer_final_decision,
     maybe_write_turn_log,
     merge_review_state,
@@ -186,10 +187,12 @@ class ReviewEnv:
             # recommendation labels, binary decision health checks, and hygiene
             # counters live in ``state_audit`` so paper-facing reports cannot be
             # mistaken for an automatic accept/reject judgement.
-            final_report = render_user_report(state, manager_payload)
+            final_report, state_audit = build_user_report_and_state_audit(state, manager_payload)
             state["final_report"] = final_report
             state["user_report"] = final_report
-            state["state_audit"] = build_state_audit(state, manager_payload)
+            state["state_audit"] = state_audit
+            if isinstance(state_audit.get("decision_hygiene"), dict):
+                state["decision_hygiene"] = copy.deepcopy(state_audit["decision_hygiene"])
             reward, reward_breakdown = compute_review_reward(
                 prediction=final_report,
                 ground_truth=self.task["ground_truth_decision"],

@@ -81,6 +81,7 @@ API_MAX_WORKERS="${API_MAX_WORKERS:-4}"
 API_MAX_RETRIES="${API_MAX_RETRIES:-5}"
 API_TIMEOUT="${API_TIMEOUT:-600}"
 MAX_TOKENS="${MAX_TOKENS:-768}"
+API_PREFLIGHT="${DRMAS_API_PREFLIGHT:-1}"
 
 # P27 review-issue bundle pipeline.  These flags keep direct quote-grounded
 # negative evidence strict while letting obligation-grounded reviewer issues
@@ -122,6 +123,35 @@ echo "Log:     ${LOG_FILE}"
 
 PYTHON_BIN="${PYTHON_BIN:-/opt/miniconda3/envs/DrMAS/bin/python}"
 PYTHONPATH_VALUE="${PYTHONPATH_VALUE:-/opt/miniconda3/envs/agent/lib/python3.12/site-packages:.}"
+
+if [[ "${API_PREFLIGHT}" != "0" && "${API_PREFLIGHT}" != "false" && "${API_PREFLIGHT}" != "off" && "${API_PREFLIGHT}" != "no" ]]; then
+  echo "API preflight: checking MiMo endpoint/key before background launch..."
+  NO_PROXY="*" no_proxy="*" HTTPS_PROXY="" HTTP_PROXY="" https_proxy="" http_proxy="" ALL_PROXY="" all_proxy="" PYTHONPATH="${PYTHONPATH_VALUE}" "${PYTHON_BIN}" - <<'PY'
+import sys
+
+from agent_system.inference.review_runner import ApiReviewGenerator
+
+generator = ApiReviewGenerator(
+    model="mimo-v2.5",
+    provider="mimo",
+    temperature=0.0,
+    top_p=1.0,
+    max_tokens=32,
+    max_workers=1,
+    timeout=30,
+    max_retries=1,
+)
+try:
+    text = generator("Review Manager Agent", '<json>{"ping":true}</json>')
+    if not str(text or "").strip():
+        raise RuntimeError("API preflight returned an empty response")
+except Exception as exc:
+    print(f"API preflight: FAILED ({exc})", file=sys.stderr)
+    raise SystemExit(1)
+print("API preflight: OK")
+PY
+fi
+
 CODE_COMMIT="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
 CODE_DIRTY="unknown"
 if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
@@ -137,9 +167,10 @@ run_base=${RUN_TAG}
 start_time=$(date '+%Y-%m-%d %H:%M:%S %Z')
 params=max_turns=7 manager_batch_size=4 api_max_workers=${API_MAX_WORKERS} api_max_retries=${API_MAX_RETRIES} api_timeout=${API_TIMEOUT} dataset=${DATASET} mode=s4 model=mimo-v2.5 max_tokens=${MAX_TOKENS} temperature=1.0 top_p=0.95 model_adapter_mode=small_model code_commit=${CODE_COMMIT} code_dirty=${CODE_DIRTY} neg_discovery_mode=${NEG_MODE} neg_reclassify=${NEG_RECLASSIFY:-off} neg_quote_hygiene=${NEG_QUOTE_HYGIENE:-off} negative_pass_mode=${NEGATIVE_PASS_MODE} hardneg_diagnosis=${HARDNEG_DIAGNOSIS:-off} targeted_negative_search=${TARGETED_NEGATIVE_SEARCH:-off} freeform_reviewer_negative=${FREEFORM_REVIEWER_NEGATIVE:-off} review_issue_bundle=${REVIEW_ISSUE_BUNDLE:-default_on}
 launch_mode=background
+api_preflight=${API_PREFLIGHT}
 EOF
 
-NO_PROXY="*" HTTPS_PROXY="" HTTP_PROXY="" PYTHONPATH="${PYTHONPATH_VALUE}" nohup "${PYTHON_BIN}" -u agent_system/inference/review_runner.py \
+NO_PROXY="*" no_proxy="*" HTTPS_PROXY="" HTTP_PROXY="" https_proxy="" http_proxy="" ALL_PROXY="" all_proxy="" PYTHONPATH="${PYTHONPATH_VALUE}" nohup "${PYTHON_BIN}" -u agent_system/inference/review_runner.py \
   --backend api \
   --api-provider mimo \
   --api-model mimo-v2.5 \

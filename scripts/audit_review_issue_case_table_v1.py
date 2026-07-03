@@ -47,6 +47,15 @@ def _state_without_cached_hygiene(state: Dict[str, Any]) -> Dict[str, Any]:
     return clean
 
 
+def _state_for_case_table(state: Dict[str, Any]) -> Dict[str, Any]:
+    if isinstance(state, dict) and isinstance(state.get("decision_hygiene"), dict):
+        return state
+    state_audit = state.get("state_audit") if isinstance(state, dict) else {}
+    if isinstance(state, dict) and isinstance(state_audit, dict) and isinstance(state_audit.get("decision_hygiene"), dict):
+        return state
+    return build_decision_hygiene_view(_state_without_cached_hygiene(state))
+
+
 def _clip(value: Any, limit: int = 180) -> str:
     text = " ".join(str(value or "").split())
     return text if len(text) <= limit else text[: limit - 3] + "..."
@@ -116,7 +125,9 @@ def _case_cluster_fields(paper_id: str, bucket: str, evidence: Dict[str, Any], s
     }
 
 
-def _reviewer_candidate_kind(candidate_id: str, source_of_expectation: str) -> str:
+def _reviewer_candidate_kind(candidate_id: str, source_of_expectation: str, discovery_origin: str = "") -> str:
+    if str(discovery_origin or "").startswith("critique_payload"):
+        return "critique_payload_candidate"
     if str(candidate_id or "").startswith("reviewer-seed"):
         return "deterministic_reviewer_seed"
     if str(candidate_id or "").startswith("review-issue-candidate"):
@@ -183,6 +194,7 @@ def _evidence_case(row: Dict[str, Any], state: Dict[str, Any], evidence: Dict[st
             evidence.get("reviewer_negative_candidate_id") or bundle.get("reviewer_negative_candidate_id"),
             100,
         )
+        candidate_menu_id = _clip(evidence.get("candidate_menu_id") or bundle.get("candidate_menu_id"), 120)
     else:
         verification_basis = _clip(evidence.get("verified_grounding_label") or evidence.get("review_negative_label"), 180)
         inventory_count = "1" if quote else "0"
@@ -196,9 +208,10 @@ def _evidence_case(row: Dict[str, Any], state: Dict[str, Any], evidence: Dict[st
         ablation_target_quality = ""
         ablation_target_quality_reason = ""
         reviewer_candidate_id = ""
+        candidate_menu_id = ""
 
     cluster_fields = _case_cluster_fields(paper_id, bucket, evidence, state)
-    reviewer_candidate_kind = _reviewer_candidate_kind(reviewer_candidate_id, source_of_expectation)
+    reviewer_candidate_kind = _reviewer_candidate_kind(reviewer_candidate_id, source_of_expectation, discovery_origin)
     return {
         "paper_id": paper_id,
         "bucket": bucket,
@@ -212,6 +225,7 @@ def _evidence_case(row: Dict[str, Any], state: Dict[str, Any], evidence: Dict[st
         "rejection_reason": rejection_reason,
         "reviewer_candidate_kind": reviewer_candidate_kind,
         "reviewer_candidate_id": reviewer_candidate_id,
+        "candidate_menu_id": candidate_menu_id,
         "missing_or_mismatch": missing,
         "inventory_or_quote_locator": locator,
         "inventory_or_quote": quote,
@@ -234,11 +248,29 @@ def build_review_issue_case_table(rows: Iterable[Dict[str, Any]]) -> tuple[List[
         raw_state = row.get("review_state") if isinstance(row, dict) else {}
         if not isinstance(raw_state, dict):
             continue
-        state = build_decision_hygiene_view(_state_without_cached_hygiene(raw_state))
+        state = _state_for_case_table(raw_state)
+        state_audit = state.get("state_audit") if isinstance(state, dict) else {}
+        hygiene = state.get("decision_hygiene") if isinstance(state.get("decision_hygiene"), dict) else {}
+        if not hygiene and isinstance(state_audit, dict):
+            hygiene = state_audit.get("decision_hygiene") if isinstance(state_audit.get("decision_hygiene"), dict) else {}
+        use_cached_issue_filter = isinstance(hygiene, dict) and "review_issue_bundle_items" in hygiene
+        cached_issue_evidence_ids = {
+            str(item.get("evidence_id") or "").strip()
+            for item in (hygiene.get("review_issue_bundle_items") or [])
+            if isinstance(item, dict) and str(item.get("evidence_id") or "").strip()
+        }
         for evidence in state.get("evidence_map", []) or []:
             if not isinstance(evidence, dict):
                 continue
-            if _is_obligation_grounded_review_issue_evidence_record(evidence, state):
+            evidence_id = str(evidence.get("evidence_id") or "").strip()
+            if use_cached_issue_filter:
+                if evidence_id in cached_issue_evidence_ids:
+                    bucket = "obligation_grounded_review_issue"
+                elif str(evidence.get("review_negative_label") or "") == "review_negative_verified":
+                    bucket = "quote_grounded_review_issue"
+                else:
+                    continue
+            elif _is_obligation_grounded_review_issue_evidence_record(evidence, state):
                 bucket = "obligation_grounded_review_issue"
             elif _is_grounded_paper_negative_evidence_record(evidence, state):
                 bucket = "quote_grounded_review_issue"
@@ -269,6 +301,8 @@ def build_review_issue_case_table(rows: Iterable[Dict[str, Any]]) -> tuple[List[
                 summary[f"source::{case.get('source_of_expectation')}"] += 1
             if case.get("reviewer_candidate_kind"):
                 summary[f"candidate_kind::{case.get('reviewer_candidate_kind')}"] += 1
+            if case.get("candidate_menu_id"):
+                summary["candidate_menu_bound_cases"] += 1
     clusters: Dict[str, List[Dict[str, Any]]] = {}
     for case in cases:
         clusters.setdefault(str(case.get("issue_cluster_key") or ""), []).append(case)
@@ -300,6 +334,8 @@ def build_review_issue_case_table(rows: Iterable[Dict[str, Any]]) -> tuple[List[
         slot = str(representative.get("review_issue_slot") or "unknown")
         summary[f"cluster_source::{source}"] += 1
         summary[f"cluster_slot::{slot}"] += 1
+        if any(case.get("candidate_menu_id") for case in cluster_cases):
+            summary["candidate_menu_bound_clusters"] += 1
         if representative.get("bucket") == "quote_grounded_review_issue":
             direct_quote_cluster_keys.add(key)
             semantic_key = "|".join(
@@ -336,6 +372,8 @@ def render_markdown(input_path: Path, cases: List[Dict[str, Any]], summary: Dict
         f"- reviewer-candidate cases: `{summary.get('source::reviewer_candidate', 0)}`",
         f"- critique-payload candidate cases: `{summary.get('candidate_kind::critique_payload_candidate', 0)}`",
         f"- deterministic-seed candidate cases: `{summary.get('candidate_kind::deterministic_reviewer_seed', 0)}`",
+        f"- candidate-menu-bound cases: `{summary.get('candidate_menu_bound_cases', 0)}`",
+        f"- candidate-menu-bound clusters: `{summary.get('candidate_menu_bound_clusters', 0)}`",
         f"- reviewer-candidate clusters: `{summary.get('reviewer_candidate_review_issue_cluster_count', 0)}`",
         f"- claim-obligation fallback cases: `{summary.get('source::claim_obligation', 0)}`",
         f"- direct quote clusters: `{summary.get('quote_grounded_review_issue_cluster_count', 0)}`",
@@ -345,8 +383,8 @@ def render_markdown(input_path: Path, cases: List[Dict[str, Any]], summary: Dict
         f"- deterministic-seed clusters: `{summary.get('cluster_origin::deterministic_reviewer_seed', 0)}`",
         f"- claim-obligation fallback clusters: `{summary.get('cluster_origin::claim_obligation_fallback', 0)}`",
         "",
-        "| paper_id | cluster id | cluster target | cluster size | representative | cluster claim ids | bucket | issue_type | slot | claim_id | source | discovery origin | entity source | candidate kind | candidate id | missing/mismatch | inventory count | inventory sources | inventory anchor type | ablation target quality | ablation target reason | verification basis | rejection reason | inventory/quote locator | inventory/quote | claim anchor |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+        "| paper_id | cluster id | cluster target | cluster size | representative | cluster claim ids | bucket | issue_type | slot | claim_id | source | discovery origin | entity source | candidate kind | candidate id | candidate menu id | missing/mismatch | inventory count | inventory sources | inventory anchor type | ablation target quality | ablation target reason | verification basis | rejection reason | inventory/quote locator | inventory/quote | claim anchor |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for case in cases:
         lines.append(
@@ -369,6 +407,7 @@ def render_markdown(input_path: Path, cases: List[Dict[str, Any]], summary: Dict
                     "entity_source",
                     "reviewer_candidate_kind",
                     "reviewer_candidate_id",
+                    "candidate_menu_id",
                     "missing_or_mismatch",
                     "inventory_count",
                     "inventory_sources",

@@ -158,6 +158,13 @@ def _decision_view(row: Dict[str, Any]) -> Dict[str, Any]:
     if isinstance(cached, dict):
         return cached
     state = row.get("review_state") or {}
+    if isinstance(state, dict) and isinstance(state.get("decision_hygiene"), dict):
+        row[_DASHBOARD_VIEW_CACHE_KEY] = state
+        return state
+    state_audit = state.get("state_audit") if isinstance(state, dict) else {}
+    if isinstance(state, dict) and isinstance(state_audit, dict) and isinstance(state_audit.get("decision_hygiene"), dict):
+        row[_DASHBOARD_VIEW_CACHE_KEY] = state
+        return state
     if isinstance(state, dict):
         try:
             state_for_view = copy.deepcopy(state)
@@ -188,12 +195,18 @@ def _support_trace(row: Dict[str, Any]) -> List[Dict[str, Any]]:
     cached = row.get(_DASHBOARD_SUPPORT_TRACE_CACHE_KEY)
     if isinstance(cached, list):
         return cached
-    try:
-        trace = _build_support_survival_trace(_decision_view(row))
-        row[_DASHBOARD_SUPPORT_TRACE_CACHE_KEY] = trace
-        return trace
-    except Exception:
-        return []
+    state = _decision_view(row)
+    hygiene = state.get("decision_hygiene") if isinstance(state, dict) else {}
+    if not isinstance(hygiene, dict) or not hygiene:
+        state_audit = state.get("state_audit") if isinstance(state, dict) else {}
+        hygiene = state_audit.get("decision_hygiene") if isinstance(state_audit, dict) else {}
+    for key in ("support_survival_trace", "support_trace", "final_support_trace"):
+        trace = hygiene.get(key) if isinstance(hygiene, dict) else None
+        if isinstance(trace, list):
+            row[_DASHBOARD_SUPPORT_TRACE_CACHE_KEY] = trace
+            return trace
+    row[_DASHBOARD_SUPPORT_TRACE_CACHE_KEY] = []
+    return []
 
 
 def _sum(rows: Iterable[Dict[str, Any]], key: str) -> int:
@@ -218,7 +231,9 @@ def _paper_id(row: Dict[str, Any]) -> str:
     return str(row.get("paper_id") or row.get("id") or (row.get("review_state") or {}).get("paper_id") or "")
 
 
-def _review_issue_candidate_kind(candidate_id: str, source_of_expectation: str) -> str:
+def _review_issue_candidate_kind(candidate_id: str, source_of_expectation: str, discovery_origin: str = "") -> str:
+    if str(discovery_origin or "").startswith("critique_payload"):
+        return "critique_payload"
     if str(candidate_id or "").startswith("reviewer-seed"):
         return "deterministic_seed"
     if str(candidate_id or "").startswith("review-issue-candidate"):
@@ -233,7 +248,13 @@ def _review_issue_candidate_kind(candidate_id: str, source_of_expectation: str) 
 
 
 def _review_issue_cluster_origin_metrics(rows: Iterable[Dict[str, Any]]) -> Dict[str, int]:
-    """Compute cluster-level provenance without changing verifier semantics."""
+    """Compute cluster-level provenance from cached verification fields.
+
+    Dashboard generation should be observational.  Calling the state-level
+    verifier here repeats full-text grounding checks for every evidence row and
+    can dominate runtime on P31 runs.  The run artifact already carries the
+    verified issue bundle and direct-negative labels produced during inference.
+    """
     clusters: Dict[str, Dict[str, str]] = {}
     direct_quote_semantic_keys: set[str] = set()
     direct_quote_cluster_keys: set[str] = set()
@@ -243,10 +264,14 @@ def _review_issue_cluster_origin_metrics(rows: Iterable[Dict[str, Any]]) -> Dict
         for evidence in state.get("evidence_map", []) or []:
             if not isinstance(evidence, dict):
                 continue
-            if _is_obligation_grounded_review_issue_evidence_record(evidence, state):
+            bundle = evidence.get("review_issue_bundle") if isinstance(evidence.get("review_issue_bundle"), dict) else {}
+            if (
+                bundle
+                and str(evidence.get("review_issue_verification_status") or bundle.get("verification_status") or "")
+                == "verified_review_issue"
+            ):
                 issue_type, target = _review_issue_cluster_signature_for_record(evidence)
                 key = f"{paper_id}|obligation_grounded_review_issue|{issue_type}|{target}"
-                bundle = evidence.get("review_issue_bundle") if isinstance(evidence.get("review_issue_bundle"), dict) else {}
                 candidate_id = str(
                     evidence.get("reviewer_negative_candidate_id")
                     or bundle.get("reviewer_negative_candidate_id")
@@ -254,10 +279,13 @@ def _review_issue_cluster_origin_metrics(rows: Iterable[Dict[str, Any]]) -> Dict
                 )
                 source = str(bundle.get("source_of_expectation") or "")
                 slot = str(bundle.get("review_issue_slot") or "")
-                kind = _review_issue_candidate_kind(candidate_id, source)
-            elif _is_grounded_paper_negative_evidence_record(evidence, state):
-                label, claim_id, issue_type, anchor = _review_negative_dedup_signature(evidence, state)
-                target = anchor.replace("quote:", "", 1)[:80] or claim_id or label or "direct_quote"
+                kind = _review_issue_candidate_kind(candidate_id, source, str(bundle.get("discovery_origin") or ""))
+            elif str(evidence.get("review_negative_label") or "") == "review_negative_verified":
+                claim_id = str(evidence.get("claim_id") or "")
+                issue_type = str(evidence.get("negative_evidence_type") or evidence.get("review_issue_type") or "direct_quote_negative")
+                raw_quote = " ".join(str(evidence.get("raw_quote") or evidence.get("quote") or "").split()).lower()
+                anchor = f"quote:{raw_quote[:160]}" if raw_quote else str(evidence.get("evidence_id") or "direct_quote")
+                target = anchor.replace("quote:", "", 1)[:80] or claim_id or "direct_quote"
                 key = f"{paper_id}|quote_grounded_review_issue|{issue_type}|{target}"
                 direct_quote_cluster_keys.add(key)
                 direct_quote_semantic_keys.add(f"{paper_id}|quote_grounded_review_issue|{claim_id}|{anchor}")
@@ -901,6 +929,52 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     out["review_issue_candidate_missing_baseline_generic_target_rejected"] = _sum(rows, "review_issue_candidate_missing_baseline_generic_target_rejected")
     out["review_issue_candidate_critique_payload_count"] = _sum(rows, "review_issue_candidate_critique_payload_count")
     out["review_issue_candidate_deterministic_seed_count"] = _sum(rows, "review_issue_candidate_deterministic_seed_count")
+    out["critique_payload_gap_count"] = _sum(rows, "critique_payload_gap_count")
+    out["critique_payload_menu_bound_count"] = _sum(rows, "critique_payload_menu_bound_count")
+    out["critique_payload_menu_candidate_count"] = _sum(rows, "critique_payload_menu_candidate_count")
+    out["critique_payload_bundle_built_count"] = _sum(rows, "critique_payload_bundle_built_count")
+    out["critique_payload_verified_count"] = _sum(rows, "critique_payload_verified_count")
+    out["critique_payload_menu_bound_verified_count"] = _sum(rows, "critique_payload_menu_bound_verified_count")
+    out["critique_payload_verified_cluster_count"] = _sum(rows, "critique_payload_verified_cluster_count")
+    out["deterministic_seed_verified_cluster_count"] = _sum(rows, "deterministic_seed_verified_cluster_count")
+    out["candidate_menu_item_count"] = _sum(rows, "candidate_menu_item_count")
+    out["candidate_menu_item_used_count"] = _sum(rows, "candidate_menu_item_used_count")
+    out["candidate_menu_item_verified_count"] = _sum(rows, "candidate_menu_item_verified_count")
+    out["candidate_menu_item_failed_count"] = _sum(rows, "candidate_menu_item_failed_count")
+    candidate_menu_failed_by_reason: Counter[str] = Counter()
+    candidate_menu_failed_by_stage: Counter[str] = Counter()
+    for row in rows:
+        candidate_menu_failed_by_reason.update(_hygiene(row).get("candidate_menu_item_failed_by_reason") or {})
+        candidate_menu_failed_by_stage.update(_hygiene(row).get("candidate_menu_item_failed_by_stage") or {})
+    out["candidate_menu_item_failed_by_reason"] = dict(candidate_menu_failed_by_reason)
+    out["candidate_menu_item_failed_by_stage"] = dict(candidate_menu_failed_by_stage)
+    for reason in (
+        "scope_menu_generic_target",
+        "efficiency_cost_menu_without_resource_anchor",
+        "missing_baseline_menu_generic_target",
+        "qualitative_vs_quantitative_result_gap_unsupported_type",
+        "reproducibility_menu_theory_context",
+        "full_text_baseline_or_comparison_counterevidence",
+        "full_text_protocol_or_result_counterevidence",
+        "missing_entity_already_observed_in_inventory",
+        "observed_inventory_irrelevant_to_issue_type",
+        "reviewer_candidate_expectation_not_auditable_in_paper",
+        "selected_menu_item_not_in_current_menu_or_filtered",
+        "not_verified_by_bundle",
+    ):
+        out[f"candidate_menu_item_failed_{reason}"] = int(candidate_menu_failed_by_reason.get(reason, 0))
+    for stage in (
+        "menu_quality_guard",
+        "concrete_item_check",
+        "expectation_basis",
+        "inventory_anchor",
+        "inventory_relevance",
+        "menu_lookup_or_quality_filter",
+        "counterevidence",
+        "review_worthiness",
+        "bundle_verification",
+    ):
+        out[f"candidate_menu_item_failed_stage_{stage}"] = int(candidate_menu_failed_by_stage.get(stage, 0))
     out["verified_missing_ablation_high_confidence"] = _sum(rows, "verified_missing_ablation_high_confidence")
     out["verified_missing_ablation_medium_confidence"] = _sum(rows, "verified_missing_ablation_medium_confidence")
     candidate_total_by_slot: Counter[str] = Counter()
@@ -1138,12 +1212,47 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     evidence_json_failure_counts: Counter = Counter()
     evidence_json_prompt_chars: List[int] = []
     evidence_json_raw_chars: List[int] = []
-    for r in rows:
-        for tl in r.get("turn_logs") or []:
+    critique_worker_turns = 0
+    critique_prompt_chars: List[int] = []
+    review_issue_selected_menu_recovery_turns = 0
+    review_issue_selected_menu_recovered_count = 0
+    selected_menu_recovery_event_keys: set[Tuple[int, int, int]] = set()
+
+    def _record_selected_menu_recovery(worker: Dict[str, Any], event_key: Tuple[int, int, int]) -> None:
+        nonlocal review_issue_selected_menu_recovery_turns, review_issue_selected_menu_recovered_count
+        if not isinstance(worker, dict) or worker.get("agent_id") != "Critique Agent":
+            return
+        if not worker.get("review_issue_selected_menu_recovery_used"):
+            return
+        if event_key in selected_menu_recovery_event_keys:
+            return
+        selected_menu_recovery_event_keys.add(event_key)
+        review_issue_selected_menu_recovery_turns += 1
+        try:
+            review_issue_selected_menu_recovered_count += max(
+                0,
+                int(worker.get("review_issue_selected_menu_recovered_count") or 0),
+            )
+        except (TypeError, ValueError):
+            pass
+
+    for row_index, r in enumerate(rows):
+        for turn_list_index, tl in enumerate(r.get("turn_logs") or []):
             if not isinstance(tl, dict):
                 continue
+            turn_index = int(tl.get("turn") or tl.get("turn_id") or turn_list_index)
             selected = tl.get("selected_agents") or []
             worker_payloads = tl.get("worker_payloads") or []
+            try:
+                critique_chars = int(tl.get("critique_prompt_chars") or 0)
+            except (TypeError, ValueError):
+                critique_chars = 0
+            if "Critique Agent" in selected or critique_chars > 0:
+                critique_worker_turns += 1
+                if critique_chars > 0:
+                    critique_prompt_chars.append(critique_chars)
+            for worker_index, worker in enumerate(worker_payloads):
+                _record_selected_menu_recovery(worker, (row_index, turn_index, worker_index))
             evidence_payloads = [
                 item.get("payload") or {}
                 for item in worker_payloads
@@ -1215,6 +1324,16 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
                 evidence_agent_nonempty_payload_turns += 1
             if turn_evidence_count == 0 and turn_unresolved_count > 0:
                 evidence_agent_question_only_turns += 1
+        for trace_index, trace_item in enumerate(r.get("runner_trace") or []):
+            if not isinstance(trace_item, dict):
+                continue
+            for worker_index, worker in enumerate(trace_item.get("worker_calls") or []):
+                # Older raw artifacts stored selected-menu recovery telemetry
+                # only in runner_trace, while turn_logs.worker_payloads held
+                # just {agent_id, payload}.  Keep reading runner_trace as a
+                # backwards-compatible fallback; future raw rows also copy the
+                # same flags to worker_payloads and are de-duplicated above.
+                _record_selected_menu_recovery(worker, (row_index, trace_index, worker_index))
     out["evidence_agent_worker_turns"] = evidence_agent_worker_turns
     out["quote_bank_nonzero_turns"] = quote_bank_nonzero_turns
     out["payload_evidence_item_total"] = payload_evidence_item_total
@@ -1225,6 +1344,16 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     out["model_adapter_strength_downgrade_count"] = model_adapter_strength_downgrade_count
     out["small_model_quote_bank_augmentation_count"] = small_model_quote_bank_augmentation_count
     out["evidence_formation_dead_loop_count"] = 1 if quote_bank_nonzero_turns > 0 and payload_evidence_item_total == 0 else 0
+    out["critique_worker_turns"] = critique_worker_turns
+    out["review_issue_selected_menu_recovery_turns"] = review_issue_selected_menu_recovery_turns
+    out["review_issue_selected_menu_recovered_count"] = review_issue_selected_menu_recovered_count
+    out["critique_prompt_chars_max"] = max(critique_prompt_chars) if critique_prompt_chars else 0
+    out["critique_prompt_chars_median"] = (
+        int(round(sorted(critique_prompt_chars)[len(critique_prompt_chars) // 2]))
+        if critique_prompt_chars else 0
+    )
+    out["critique_prompt_over_15k_turns"] = sum(1 for value in critique_prompt_chars if value > 15000)
+    out["critique_prompt_over_30k_turns"] = sum(1 for value in critique_prompt_chars if value > 30000)
     evidence_json_valid_turns = int(evidence_json_status_counts.get("json_valid", 0))
     evidence_json_partial_recovered_turns = int(evidence_json_status_counts.get("partial_recovered", 0))
     evidence_json_fallback_turns = sum(
@@ -1770,6 +1899,13 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "evidence_json_truncated_turns",
         "evidence_json_prompt_chars_median",
         "evidence_json_raw_chars_median",
+        "critique_worker_turns",
+        "review_issue_selected_menu_recovery_turns",
+        "review_issue_selected_menu_recovered_count",
+        "critique_prompt_chars_median",
+        "critique_prompt_chars_max",
+        "critique_prompt_over_15k_turns",
+        "critique_prompt_over_30k_turns",
         "quote_bank_nonzero_turns",
         "payload_evidence_item_total",
         "evidence_agent_nonempty_payload_turns",
@@ -1896,6 +2032,39 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "review_issue_candidate_missing_baseline_generic_target_rejected",
         "review_issue_candidate_critique_payload_count",
         "review_issue_candidate_deterministic_seed_count",
+        "critique_payload_gap_count",
+        "critique_payload_menu_bound_count",
+        "critique_payload_menu_candidate_count",
+        "critique_payload_bundle_built_count",
+        "critique_payload_verified_count",
+        "critique_payload_menu_bound_verified_count",
+        "critique_payload_verified_cluster_count",
+        "deterministic_seed_verified_cluster_count",
+        "candidate_menu_item_count",
+        "candidate_menu_item_used_count",
+        "candidate_menu_item_verified_count",
+        "candidate_menu_item_failed_count",
+        "candidate_menu_item_failed_scope_menu_generic_target",
+        "candidate_menu_item_failed_efficiency_cost_menu_without_resource_anchor",
+        "candidate_menu_item_failed_missing_baseline_menu_generic_target",
+        "candidate_menu_item_failed_qualitative_vs_quantitative_result_gap_unsupported_type",
+        "candidate_menu_item_failed_reproducibility_menu_theory_context",
+        "candidate_menu_item_failed_full_text_baseline_or_comparison_counterevidence",
+        "candidate_menu_item_failed_full_text_protocol_or_result_counterevidence",
+        "candidate_menu_item_failed_missing_entity_already_observed_in_inventory",
+        "candidate_menu_item_failed_observed_inventory_irrelevant_to_issue_type",
+        "candidate_menu_item_failed_reviewer_candidate_expectation_not_auditable_in_paper",
+        "candidate_menu_item_failed_selected_menu_item_not_in_current_menu_or_filtered",
+        "candidate_menu_item_failed_not_verified_by_bundle",
+        "candidate_menu_item_failed_stage_menu_quality_guard",
+        "candidate_menu_item_failed_stage_concrete_item_check",
+        "candidate_menu_item_failed_stage_expectation_basis",
+        "candidate_menu_item_failed_stage_inventory_anchor",
+        "candidate_menu_item_failed_stage_inventory_relevance",
+        "candidate_menu_item_failed_stage_menu_lookup_or_quality_filter",
+        "candidate_menu_item_failed_stage_counterevidence",
+        "candidate_menu_item_failed_stage_review_worthiness",
+        "candidate_menu_item_failed_stage_bundle_verification",
         "verified_missing_ablation_high_confidence",
         "verified_missing_ablation_medium_confidence",
         "review_issue_candidate_slot_missing_baseline",

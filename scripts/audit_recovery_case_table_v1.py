@@ -49,6 +49,15 @@ def _state_without_cached_hygiene(state: Dict[str, Any]) -> Dict[str, Any]:
     return clean
 
 
+def _state_for_recovery_table(state: Dict[str, Any]) -> Dict[str, Any]:
+    if isinstance(state, dict) and isinstance(state.get("decision_hygiene"), dict):
+        return state
+    state_audit = state.get("state_audit") if isinstance(state, dict) else {}
+    if isinstance(state, dict) and isinstance(state_audit, dict) and isinstance(state_audit.get("decision_hygiene"), dict):
+        return state
+    return build_decision_hygiene_view(_state_without_cached_hygiene(state))
+
+
 def _clip(value: Any, limit: int = 180) -> str:
     text = " ".join(str(value or "").split())
     return text if len(text) <= limit else text[: limit - 3] + "..."
@@ -216,7 +225,7 @@ def build_recovery_case_table(rows: Iterable[Dict[str, Any]]) -> Tuple[List[Dict
             summary["invalid_state_rows"] += 1
             continue
         try:
-            state = build_decision_hygiene_view(_state_without_cached_hygiene(raw_state))
+            state = _state_for_recovery_table(raw_state)
         except Exception as exc:  # pragma: no cover - defensive for old artifacts
             summary["decision_hygiene_errors"] += 1
             cases.append(

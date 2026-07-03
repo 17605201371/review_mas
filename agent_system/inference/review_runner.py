@@ -30,6 +30,7 @@ from agent_system.environments.env_package.review.state import (
     _classify_negative_evidence_type,
     _hard_negative_diagnosis_targets,
     _missing_ablation_target_quality,
+    _review_issue_candidate_selector_menu,
     build_turn_action,
     build_decision_hygiene_view,
     infer_final_decision,
@@ -2959,6 +2960,155 @@ def _seed_review_issue_candidates_from_targets(
     return candidates[:max_candidates]
 
 
+def _selector_menu_lookup_from_state(state: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    targets = _hard_negative_diagnosis_targets(state or {}, claims=(state or {}).get("claims", []), max_items=8)
+    visible_menu = _review_issue_candidate_selector_menu(
+        targets,
+        max_items=6,
+        max_per_claim=2,
+    )
+    # The Critique prompt renders both the compact selector menu and each
+    # target's short per-claim menu.  A selected id is safe to recover if it is
+    # present in either rendered menu; arbitrary stale/hallucinated ids remain
+    # ignored because they are not regenerated from the current state.
+    full_by_id: Dict[str, Dict[str, Any]] = {}
+    for target in targets or []:
+        if not isinstance(target, dict):
+            continue
+        for item in target.get("review_issue_candidate_menu") or []:
+            if not isinstance(item, dict):
+                continue
+            menu_id = str(item.get("candidate_menu_id") or "").strip()
+            if menu_id:
+                full_by_id[menu_id] = item
+    for item in visible_menu or []:
+        if not isinstance(item, dict):
+            continue
+        menu_id = str(item.get("candidate_menu_id") or "").strip()
+        if menu_id and menu_id not in full_by_id:
+            full_by_id[menu_id] = item
+    return full_by_id
+
+
+def _candidate_from_selected_menu_item(
+    menu_item: Dict[str, Any],
+    selection: Dict[str, Any],
+    index: int,
+) -> Dict[str, Any]:
+    menu_id = str(menu_item.get("candidate_menu_id") or selection.get("candidate_menu_id") or "").strip()
+    expected = _candidate_text(menu_item.get("expected_entity"), 160)
+    observed_inventory = menu_item.get("observed_inventory")
+    if not isinstance(observed_inventory, list) or not observed_inventory:
+        anchor = menu_item.get("inventory_anchor") if isinstance(menu_item.get("inventory_anchor"), dict) else {}
+        observed_inventory = [
+            {
+                "inventory_id": str(anchor.get("inventory_id") or menu_item.get("inventory_id") or ""),
+                "quote": _candidate_text(anchor.get("quote") or menu_item.get("inventory_quote"), 260),
+                "locator": _candidate_text(anchor.get("locator") or menu_item.get("inventory_locator"), 120),
+                "observed_items": list(anchor.get("observed_items") or []),
+                "inventory_type": str(anchor.get("inventory_type") or menu_item.get("inventory_type") or ""),
+            }
+        ]
+    issue_type = str(menu_item.get("issue_type") or "")
+    rationale = _candidate_text(selection.get("rationale") or menu_item.get("why_review_worthy"), 220)
+    return {
+        "candidate_id": f"review-issue-candidate-selected-menu-{index}",
+        "candidate_menu_id": menu_id,
+        "obligation_id": str(menu_item.get("obligation_id") or ""),
+        "claim_id": str(menu_item.get("claim_id") or ""),
+        "claim": "",
+        "weakness": (
+            f"Verify whether the paper leaves the review issue target uncovered: {expected}."
+            if expected
+            else "Verify the selected review issue menu target."
+        ),
+        "issue_type": issue_type,
+        "negative_type": issue_type,
+        "required_evidence_type": str(menu_item.get("required_evidence_type") or ""),
+        "quote_grounding_mode": "absence_or_requirement_gap",
+        "missing_or_weak_items": [expected] if expected else [],
+        "observed_inventory": observed_inventory,
+        "possible_counterevidence_terms": list(
+            menu_item.get("counterevidence_search_terms")
+            or menu_item.get("counterevidence_aliases")
+            or []
+        )[:8],
+        "source_of_expectation": "reviewer_candidate",
+        "source": "critique_selected_menu_item",
+        "discovery_origin": "critique_payload_menu_selected",
+        "review_issue_slot": str(menu_item.get("review_issue_slot") or menu_item.get("slot") or ""),
+        "entity_source": str(menu_item.get("entity_source") or ""),
+        "rationale": rationale,
+        "confidence": selection.get("confidence", 0.5),
+        "status": "pending_absence_audit",
+    }
+
+
+def _maybe_recover_selected_review_issue_menu_items(
+    worker_payload: Dict[str, Any],
+    state: Dict[str, Any],
+    *,
+    trace_worker: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    selections = worker_payload.get("selected_menu_items") if isinstance(worker_payload, dict) else []
+    if not isinstance(selections, list) or not selections:
+        return worker_payload
+    menu_by_id = _selector_menu_lookup_from_state(state or {})
+    if not menu_by_id:
+        return worker_payload
+    existing_candidates = worker_payload.get("reviewer_negative_candidates")
+    if not isinstance(existing_candidates, list):
+        existing_candidates = []
+    existing_menu_ids = {
+        str(item.get("candidate_menu_id") or "").strip()
+        for item in existing_candidates
+        if isinstance(item, dict) and str(item.get("candidate_menu_id") or "").strip()
+    }
+    recovered: List[Dict[str, Any]] = []
+    for selection in selections:
+        if not isinstance(selection, dict):
+            continue
+        decision = str(selection.get("decision") or "selected").strip().lower()
+        if decision in {"reject", "rejected", "skip", "skipped", "no"}:
+            continue
+        menu_id = str(selection.get("candidate_menu_id") or "").strip()
+        if not menu_id or menu_id in existing_menu_ids:
+            continue
+        menu_item = menu_by_id.get(menu_id)
+        if not menu_item:
+            continue
+        recovered.append(
+            _candidate_from_selected_menu_item(
+                menu_item,
+                selection,
+                len(existing_candidates) + len(recovered) + 1,
+            )
+        )
+        existing_menu_ids.add(menu_id)
+        if len(existing_candidates) + len(recovered) >= 12:
+            break
+    if not recovered:
+        return worker_payload
+    normalized = normalize_review_update_payload({"reviewer_negative_candidates": recovered})
+    recovered_candidates = normalized.get("reviewer_negative_candidates", [])
+    if not recovered_candidates:
+        return worker_payload
+    updated = copy.deepcopy(worker_payload)
+    updated["reviewer_negative_candidates"] = (list(existing_candidates) + recovered_candidates)[:12]
+    summary = _candidate_text(updated.get("dialogue_summary"), 800)
+    updated["dialogue_summary"] = (
+        (summary + " " if summary else "")
+        + f"Recovered {len(recovered_candidates)} selected review issue menu items into verifier-ready candidates."
+    )
+    if trace_worker is not None:
+        trace_worker["review_issue_selected_menu_recovery_used"] = True
+        trace_worker["review_issue_selected_menu_recovered_count"] = len(recovered_candidates)
+        trace_worker["review_issue_selected_menu_ids"] = [
+            str(item.get("candidate_menu_id") or "") for item in recovered_candidates
+        ]
+    return updated
+
+
 def _maybe_seed_review_issue_discovery_payload(
     worker_id: str,
     worker_payload: Dict[str, Any],
@@ -2973,6 +3123,11 @@ def _maybe_seed_review_issue_discovery_payload(
         return worker_payload
     if not isinstance(worker_payload, dict):
         return worker_payload
+    worker_payload = _maybe_recover_selected_review_issue_menu_items(
+        worker_payload,
+        state or {},
+        trace_worker=trace_worker,
+    )
     existing = worker_payload.get("reviewer_negative_candidates")
     existing_candidates = existing if isinstance(existing, list) else []
     target_candidate_count = 12
@@ -3025,6 +3180,21 @@ def _maybe_seed_review_issue_discovery_payload(
             str(item.get("candidate_id") or "") for item in top_up
         ]
     return updated
+
+
+def _worker_payload_trace_flags(trace_worker: Dict[str, Any]) -> Dict[str, Any]:
+    """Copy lightweight recovery telemetry onto persisted turn worker rows."""
+    if not isinstance(trace_worker, dict):
+        return {}
+    keys = (
+        "review_issue_selected_menu_recovery_used",
+        "review_issue_selected_menu_recovered_count",
+        "review_issue_selected_menu_ids",
+        "review_issue_seed_fallback_used",
+        "review_issue_seed_candidate_count",
+        "review_issue_seed_candidate_ids",
+    )
+    return {key: trace_worker[key] for key in keys if key in trace_worker}
 
 
 def parse_agent_payload(
@@ -5574,9 +5744,16 @@ def _claim_downgrade_patch_should_be_contested(worker_payload: Dict[str, Any], s
         for item in state.get("claims", []) or []
         if isinstance(item, dict) and item.get("claim_id")
     }
+    cited_ids: List[str] = []
+    for key in ("supporting_evidence_ids", "negative_evidence_ids", "evidence_ids"):
+        value = worker_payload.get(key)
+        if isinstance(value, list):
+            cited_ids.extend(str(evidence_id or "").strip() for evidence_id in value if str(evidence_id or "").strip())
+        elif isinstance(value, str) and value.strip():
+            cited_ids.append(value.strip())
     cited_evidence = [
-        evidence_lookup.get(str(evidence_id), {}) or {}
-        for evidence_id in worker_payload.get("supporting_evidence_ids", []) or []
+        evidence_lookup.get(evidence_id, {}) or {}
+        for evidence_id in dict.fromkeys(cited_ids)
     ]
     if any(_is_obligation_grounded_review_issue_for_recovery(item) for item in cited_evidence):
         return True
@@ -6175,6 +6352,57 @@ _CLAIM_CONTEXT_PATTERN = re.compile(
     r"\b(propose|proposes|present|presents|introduce|introduces|comprise|comprises|use|uses|utilize|utilizes|train|trains|evaluate|evaluates|experiment|experiments|benchmark|benchmarks|result|results|demonstrate|demonstrates|outperform|improve|improves|limitation|limited|only|scope|trade[- ]?off)\b",
     re.IGNORECASE,
 )
+_BROKEN_PAPER_TEXT_CLAIM_RE = re.compile(
+    r"(?:\.\.\.|\[truncated\]|\{|\}|^\\?\)|^and\s+\.?$|^as\s+a\s+baseline\b|"
+    r"\bSec\.\s*$|"
+    r"^(?:abstract|introduction|related\s+work|method|results?|experiments?|ablation\s+study)\.?$)",
+    re.IGNORECASE,
+)
+_PAPER_TEXT_SALVAGE_STOPWORDS = {
+    "this",
+    "that",
+    "with",
+    "from",
+    "into",
+    "paper",
+    "method",
+    "methods",
+    "results",
+    "result",
+    "using",
+    "used",
+    "proposed",
+}
+_PAPER_TEXT_SALVAGE_VERBS = {
+    "introduce",
+    "introduces",
+    "propose",
+    "proposes",
+    "present",
+    "presents",
+    "develop",
+    "develops",
+    "use",
+    "uses",
+    "achieve",
+    "achieves",
+    "improve",
+    "improves",
+    "outperform",
+    "outperforms",
+    "demonstrate",
+    "demonstrates",
+    "conduct",
+    "conducts",
+    "evaluate",
+    "evaluates",
+    "compare",
+    "compares",
+    "provide",
+    "provides",
+    "show",
+    "shows",
+}
 _STRUCTURED_RAW_CLAIM_META_RE = re.compile(
     r"\b(claim agent|evidence agent|review task|provided excerpt|json|schema|prompt|think block|cannot verify|need to extract)\b"
     r"|\b(?:the\s+)?user\s+(?:asks?|asked|provided|requested|wants|message|goal)\b",
@@ -6437,11 +6665,215 @@ def _claim_metadata_from_context(candidate: str) -> Dict[str, Any]:
         return {"claim_type": "limitation_or_boundary", "coverage_tags": ["limitation", "scope"], "evidence_need": "scope or limitation evidence"}
     if re.search(r"\b(experiment|experiments|evaluate|evaluates|evaluated|evaluation|benchmark|benchmarks|result|results|outperform|outperforms|outperformed|outperforming|performance|metric|accuracy|f1|auc)\b", low):
         return {"claim_type": "empirical", "coverage_tags": ["empirical"], "evidence_need": "result/table/benchmark evidence"}
-    if re.search(r"\b(method|framework|stage|stages|use|uses|used|using|training|trained|modeling|algorithm|architecture|objective|loss|contrastive|dataset construction|instruction tuning)\b", low):
+    if re.search(r"\b(method|framework|stage|stages|use|uses|used|using|training|trained|modeling|algorithm|architecture|objective|loss|contrastive|dataset construction|instruction tuning|analysis|indicator|interpretation)\b", low):
         return {"claim_type": "method", "coverage_tags": ["method"], "evidence_need": "method or implementation evidence"}
     if re.search(r"\b(propose|proposes|present|presents|introduce|introduces|contribution|new|first)\b", low):
         return {"claim_type": "contribution", "coverage_tags": ["contribution"], "evidence_need": "paper contribution evidence"}
     return {"claim_type": "other", "coverage_tags": [], "evidence_need": "paper evidence"}
+
+
+def _paper_text_salvage_tokens(value: str) -> List[str]:
+    return [
+        token.lower()
+        for token in re.findall(r"[A-Za-z][A-Za-z0-9_-]{3,}", str(value or "")[:720])
+        if token.lower() not in _PAPER_TEXT_SALVAGE_STOPWORDS
+    ]
+
+
+def _paper_text_salvage_looks_like_claim(text: str) -> bool:
+    value = " ".join(str(text or "").split())
+    if not value:
+        return False
+    low = value.lower()
+    words = re.findall(r"[A-Za-z][A-Za-z0-9_-]*", value[:220])
+    if len(words) >= 2 and words[1].lower() in _PAPER_TEXT_SALVAGE_VERBS:
+        subject = words[0]
+        if subject in {"We", "we"} or subject[:1].isupper():
+            return True
+    for subject in (
+        "we",
+        "this paper",
+        "the paper",
+        "the method",
+        "the framework",
+        "the model",
+        "the approach",
+        "our method",
+        "our approach",
+        "our framework",
+        "our model",
+        "our system",
+    ):
+        prefix = f"{subject} "
+        if low.startswith(prefix):
+            tail = low[len(prefix):].split(" ", 1)[0].strip(".,:;()[]{}")
+            if tail in _PAPER_TEXT_SALVAGE_VERBS:
+                return True
+    if "analysis" in low and ("leads to" in low or "lead to" in low):
+        return "novel interpretation" in low or "indicator" in low
+    return False
+
+
+def _local_sentence_from_paper_prefix(prefix: str, paper_text: str) -> str:
+    needle_base = " ".join(str(prefix or "").split())
+    if len(needle_base) < 40:
+        return ""
+    flat = " ".join(str(paper_text or "").replace("\r", " ").replace("\n", " ").split())
+    if not flat:
+        return ""
+    flat_low = flat.lower()
+    needle_low = needle_base.lower()
+    for width in (180, 140, 110, 80, 60, 45):
+        needle = needle_low[:width].strip()
+        if len(needle) < 35:
+            continue
+        pos = flat_low.find(needle)
+        if pos < 0:
+            continue
+        left_marks = [flat.rfind(mark, 0, pos) for mark in (".", "?", "!")]
+        left = max(left_marks)
+        start = left + 1 if left >= 0 and pos - left <= 260 else max(0, pos - 80)
+        right_candidates = [
+            idx for idx in (flat.find(mark, pos + len(needle)) for mark in (".", "?", "!"))
+            if idx >= 0
+        ]
+        right = min(right_candidates) if right_candidates else min(len(flat), pos + len(needle) + 420)
+        if right - start > 520:
+            right = start + 520
+        sentence = _clean_fallback_claim_text(flat[start:right + 1])
+        if sentence and len(sentence.split()) >= 8 and "..." not in sentence:
+            return sentence[:360]
+    return ""
+
+
+def _complete_truncated_claim_sentence_from_paper(candidate: str, paper_text: str = "") -> str:
+    text = " ".join(str(candidate or "").split())
+    paper = str(paper_text or "")
+    if "..." not in text or not paper.strip():
+        return text
+    prefix = text.split("...", 1)[0].strip()
+    prefix_tokens = _paper_text_salvage_tokens(prefix)
+    if len(prefix_tokens) < 5:
+        return text
+    local_sentence = _local_sentence_from_paper_prefix(prefix, paper)
+    if local_sentence:
+        return local_sentence
+    # Fallback only inspects a bounded prefix of the paper and cleans individual
+    # sentence candidates, avoiding repeated full-paper regex passes.
+    flat_paper = " ".join(paper.replace("\r", " ").replace("\n", " ").split())[:80000]
+    prefix_norm = re.sub(r"\W+", " ", prefix.lower()).strip()
+    best_sentence = ""
+    best_overlap = 0.0
+    for sentence in re.split(r"(?<=[.!?])\s+", flat_paper):
+        sentence_clean = _clean_fallback_claim_text(sentence)
+        if not sentence_clean or "..." in sentence_clean or len(sentence_clean.split()) < len(prefix_tokens):
+            continue
+        sentence_norm = re.sub(r"\W+", " ", sentence_clean.lower()).strip()
+        if prefix_norm and prefix_norm in sentence_norm:
+            return sentence_clean[:360]
+        sentence_tokens = set(_paper_text_salvage_tokens(sentence_norm))
+        unique_prefix_tokens = list(dict.fromkeys(prefix_tokens))
+        overlap = sum(1 for token in unique_prefix_tokens if token in sentence_tokens) / max(1, len(unique_prefix_tokens))
+        if overlap > best_overlap:
+            best_overlap = overlap
+            best_sentence = sentence_clean
+    if best_overlap >= 0.75 and best_sentence:
+        return best_sentence[:360]
+    return text
+
+
+def _paper_text_salvage_claim_quality(candidate: str, paper_text: str = "") -> int:
+    text = " ".join(str(candidate or "").split())
+    if not text or len(text.split()) < 8:
+        return -100
+    if len(text) > 360:
+        return -100
+    if _META_CLAIM_RE.search(text) or _BROKEN_PAPER_TEXT_CLAIM_RE.search(text):
+        return -100
+    if not _paper_text_salvage_looks_like_claim(text):
+        return -100
+    first = text[:1]
+    if first and first.islower():
+        return -100
+    normalized_paper = str(paper_text or "").lower()
+    if normalized_paper:
+        tokens = _paper_text_salvage_tokens(text)
+        if tokens:
+            hit_count = sum(1 for token in dict.fromkeys(tokens) if token in normalized_paper)
+            if hit_count / max(1, len(dict.fromkeys(tokens))) < 0.6:
+                return -100
+    score = 0
+    if re.search(r"\b(?:we|this\s+paper)\s+(?:introduce|propose|present|develop)\b", text, re.IGNORECASE):
+        score += 8
+    low = text.lower()
+    if "analysis" in low and ("leads to" in low or "lead to" in low) and ("novel interpretation" in low or "indicator" in low):
+        score += 7
+    if re.search(r"\b(?:improve|improves|outperform|outperforms|achieve|achieves|mIoU|accuracy|F1|AUC)\b", text, re.IGNORECASE):
+        score += 7
+    if re.search(r"\b(?:ablation|baseline|comparison|SOTA|state[- ]of[- ]the[- ]art|benchmark|dataset|evaluation)\b", text, re.IGNORECASE):
+        score += 4
+    if re.search(r"\b(?:model|framework|approach|method|network|algorithm|training|selection|criteria|component)\b", text, re.IGNORECASE):
+        score += 3
+    score += min(5, len(text.split()) // 8)
+    return score
+
+
+def _fallback_paper_claim_items_from_context(
+    prompt_text: str,
+    state: Dict[str, Any],
+    target_claim_id: str = "",
+    max_claims: int = 4,
+) -> List[Dict[str, Any]]:
+    context = _clean_claim_context_text(_extract_claim_context_from_prompt(prompt_text))
+    if not context or max_claims <= 0:
+        return []
+    existing_ids = {str(item.get("claim_id") or "") for item in state.get("claims", []) if isinstance(item, dict)}
+    existing_texts = {
+        re.sub(r"\W+", " ", str(item.get("claim") or "").lower()).strip()
+        for item in state.get("claims", []) or []
+        if isinstance(item, dict)
+    }
+    paper_text = str((state or {}).get("paper_text") or "")
+    candidates: List[Tuple[int, int, str]] = []
+    seen_candidate_keys: set[str] = set()
+    for index, segment in enumerate(re.split(r"(?<=[.!?])\s+", context)):
+        candidate = _clean_fallback_claim_text(segment)
+        candidate = _complete_truncated_claim_sentence_from_paper(candidate, paper_text)
+        key = re.sub(r"\W+", " ", candidate.lower()).strip()
+        if not key or key in seen_candidate_keys or key in existing_texts:
+            continue
+        quality = _paper_text_salvage_claim_quality(candidate, paper_text=paper_text)
+        if quality < 0:
+            continue
+        seen_candidate_keys.add(key)
+        candidates.append((quality, index, candidate))
+    if not candidates:
+        return []
+    candidates.sort(key=lambda item: (-item[0], item[1]))
+    claims: List[Dict[str, Any]] = []
+    used_ids = set(existing_ids)
+    for quality, _, candidate in candidates[:max_claims]:
+        if target_claim_id and target_claim_id not in used_ids and not claims and not target_claim_id.startswith(("claim-paper-context", "claim-context", "claim-fallback")):
+            claim_id = target_claim_id
+        else:
+            claim_id = _runner_slug("claim", candidate, len(used_ids) + len(claims) + 1)
+        while claim_id in used_ids or any(item["claim_id"] == claim_id for item in claims):
+            claim_id = _runner_slug("claim", f"{candidate}-{len(used_ids) + len(claims) + 1}", len(used_ids) + len(claims) + 1)
+        metadata = _claim_metadata_from_context(candidate)
+        claims.append({
+            "claim_id": claim_id,
+            "claim": candidate,
+            "importance": "high" if not claims else "medium",
+            "status": "uncertain",
+            "claim_kind": "paper_extracted",
+            "claim_origin_kind": "paper_text_extracted_fallback",
+            "claim_origin": "claim_relevant_paper_excerpt_sentence",
+            "claim_source": "paper_text_claim_salvage",
+            "claim_extraction_quality": quality,
+            **metadata,
+        })
+        used_ids.add(claim_id)
+    return claims
 
 
 def _fallback_claim_items_from_context(
@@ -6542,7 +6974,9 @@ def _maybe_augment_claim_payload_with_context_coverage(
         return worker_payload
     temp_state = dict(state or {})
     temp_state["claims"] = list(state.get("claims", []) or []) + list(worker_payload.get("claims", []) or [])
-    candidates = _fallback_claim_items_from_context(prompt_text, temp_state)
+    candidates = _fallback_paper_claim_items_from_context(prompt_text, temp_state)
+    if not candidates:
+        candidates = _fallback_claim_items_from_context(prompt_text, temp_state)
     if not candidates:
         return worker_payload
     existing_texts = {
@@ -6651,6 +7085,13 @@ def _fallback_worker_payload(
             target_claim_id=target_claim_id,
             paper_claim_salvage=True,
         )
+        if not claims:
+            claims = _fallback_paper_claim_items_from_context(
+                prompt_text,
+                state,
+                target_claim_id=target_claim_id,
+                max_claims=3,
+            )
         if not claims:
             claims = _fallback_claim_items_from_context(prompt_text, state, target_claim_id=target_claim_id, max_claims=2)
         if not claims:
@@ -7064,6 +7505,7 @@ def run_review_episode(
                         step,
                         manager_payload=manager_payload,
                     )
+                    manager_payload.setdefault("worker_prompt_char_counts", {})[worker_id] = len(str(worker_prompt or ""))
                     worker_raw = generate_fn(worker_id, worker_prompt)
                     trace_worker = {
                         "agent_id": worker_id,
@@ -7190,7 +7632,9 @@ def run_review_episode(
                         worker_raw,
                         worker_payload=worker_payload,
                     )
-                    worker_payloads.append({"agent_id": worker_id, "payload": worker_payload})
+                    worker_row = {"agent_id": worker_id, "payload": worker_payload}
+                    worker_row.update(_worker_payload_trace_flags(trace_worker))
+                    worker_payloads.append(worker_row)
                     trace_worker["payload"] = worker_payload
                     trace_item["worker_calls"].append(trace_worker)
                     team_context = append_team_context(
@@ -7469,6 +7913,7 @@ def run_review_batch(
                         step,
                         manager_payload=manager_payload,
                     )
+                    manager_payload.setdefault("worker_prompt_char_counts", {})[worker_id] = len(str(worker_prompt or ""))
                     grouped_calls.setdefault(worker_id, []).append({
                         "task": task,
                         "agent_id": worker_id,
@@ -7610,7 +8055,9 @@ def run_review_batch(
                             worker_raw,
                             worker_payload=worker_payload,
                         )
-                        task["_worker_payloads"].append({"agent_id": worker_id, "payload": worker_payload})
+                        worker_row = {"agent_id": worker_id, "payload": worker_payload}
+                        worker_row.update(_worker_payload_trace_flags(trace_worker))
+                        task["_worker_payloads"].append(worker_row)
                         trace_worker["payload"] = worker_payload
                         task["_trace_item"]["worker_calls"].append(trace_worker)
                         task["_team_context"] = append_team_context(
@@ -8047,6 +8494,20 @@ class ApiReviewGenerator:
             )
         )
 
+    @staticmethod
+    def _is_non_retryable_api_error(exc: Exception) -> bool:
+        text = str(exc or "").lower()
+        status_code = getattr(exc, "status_code", None) or getattr(exc, "status", None)
+        if status_code in {401, 402, 403}:
+            return True
+        return bool(
+            re.search(
+                r"\b(?:insufficient[_ -]?balance|quota[_ -]?exceeded|billing|payment|required|"
+                r"invalid[_ -]?api[_ -]?key|authentication|unauthorized|forbidden|permission denied)\b",
+                text,
+            )
+        )
+
     def _call_api_once(self, prompt: str) -> str:
         kwargs = self._completion_kwargs(prompt)
         try:
@@ -8110,6 +8571,13 @@ class ApiReviewGenerator:
                     f"attempt={attempt + 1}/{self.max_retries} elapsed={elapsed:.1f}s error={e}",
                     flush=True,
                 )
+                if self._is_non_retryable_api_error(e):
+                    print(
+                        f"[{_timestamp()}] [API] non-retryable error agent={agent_id}; "
+                        f"aborting retries after attempt={attempt + 1}/{self.max_retries}",
+                        flush=True,
+                    )
+                    raise RuntimeError(f"Non-retryable API error for {agent_id}: {e}") from e
             if attempt < self.max_retries - 1:
                 wait = min(self.retry_delay * (2 ** attempt), 30.0)
                 print(
