@@ -283,10 +283,67 @@ def build_report(args: argparse.Namespace) -> Tuple[Dict[str, Any], int]:
         _as_int(metrics.get("critique_payload_verified_cluster_count")) >= args.min_critique_clusters,
     )
     add_check(
+        "candidate_menu_item_verified_count",
+        _as_int(metrics.get("candidate_menu_item_verified_count")),
+        f">= {args.min_candidate_menu_verified}",
+        _as_int(metrics.get("candidate_menu_item_verified_count")) >= args.min_candidate_menu_verified,
+    )
+    add_check(
         "case_table_critique_origin_cluster_count",
         len(critique_clusters),
         f">= {args.min_critique_clusters}",
         len(critique_clusters) >= args.min_critique_clusters,
+    )
+    case_summary = case_table.get("summary") if isinstance(case_table.get("summary"), dict) else {}
+    case_cluster_count = _as_int(case_summary.get("verified_review_issue_cluster_count"), len(clusters))
+    case_row_count = _as_int(case_summary.get("verified_review_issue_cases"), len(cases))
+    case_duplicate_count = _as_int(case_summary.get("duplicate_review_issue_row_count"), max(0, case_row_count - case_cluster_count))
+    dashboard_cluster_count = _as_int(metrics.get("verified_review_issue_cluster_count"))
+    dashboard_recomputed_count = _as_int(metrics.get("verified_review_issue_cluster_recomputed_count"), dashboard_cluster_count)
+    dashboard_quote_merged_count = _as_int(
+        metrics.get("quote_duplicate_merged_verified_review_issue_cluster_count"),
+        dashboard_cluster_count,
+    )
+    origin_cluster_sum = sum(
+        _as_int(metrics.get(key))
+        for key in (
+            "verified_review_issue_cluster_origin_critique_payload_count",
+            "verified_review_issue_cluster_origin_deterministic_seed_count",
+            "verified_review_issue_cluster_origin_claim_obligation_fallback_count",
+            "verified_review_issue_cluster_origin_direct_quote_count",
+            "verified_review_issue_cluster_origin_other_candidate_count",
+            "verified_review_issue_cluster_origin_other_count",
+        )
+    )
+    add_check(
+        "case_table_cluster_count_matches_rows_minus_duplicates",
+        case_row_count - case_duplicate_count,
+        case_cluster_count,
+        case_row_count - case_duplicate_count == case_cluster_count,
+    )
+    add_check(
+        "dashboard_case_cluster_count_match",
+        dashboard_cluster_count,
+        case_cluster_count,
+        dashboard_cluster_count == case_cluster_count,
+    )
+    add_check(
+        "dashboard_recomputed_cluster_count_match",
+        dashboard_recomputed_count,
+        case_cluster_count,
+        dashboard_recomputed_count == case_cluster_count,
+    )
+    add_check(
+        "dashboard_quote_merged_cluster_count_not_above_system",
+        dashboard_quote_merged_count,
+        f"<= {dashboard_cluster_count}",
+        dashboard_quote_merged_count <= dashboard_cluster_count,
+    )
+    add_check(
+        "dashboard_origin_cluster_counts_sum",
+        origin_cluster_sum,
+        dashboard_cluster_count,
+        origin_cluster_sum == dashboard_cluster_count,
     )
     for name in PROTECTION_ZERO_METRICS:
         add_check(name, _as_int(metrics.get(name)), 0, _as_int(metrics.get(name)) == 0)
@@ -305,9 +362,9 @@ def build_report(args: argparse.Namespace) -> Tuple[Dict[str, Any], int]:
         add_check("manual_audit_status", manual_status or "MISSING", "PASS", manual_status == "PASS")
         add_check(
             "manual_critique_origin_A_B_clusters",
-            _as_int(manual_summary.get("manual_A_B_clusters")),
+            _as_int(manual_summary.get("critique_origin_manual_A_B_clusters") or manual_summary.get("manual_A_B_clusters")),
             f">= {args.min_critique_clusters}",
-            _as_int(manual_summary.get("manual_A_B_clusters")) >= args.min_critique_clusters,
+            _as_int(manual_summary.get("critique_origin_manual_A_B_clusters") or manual_summary.get("manual_A_B_clusters")) >= args.min_critique_clusters,
         )
         add_check(
             "manual_D_clusters",
@@ -357,8 +414,9 @@ def build_report(args: argparse.Namespace) -> Tuple[Dict[str, Any], int]:
             "verified_review_issue_cluster_origin_critique_payload_count": _as_int(metrics.get("verified_review_issue_cluster_origin_critique_payload_count")),
             "mark_contested_commit_count": _as_int(metrics.get("mark_contested_commit_count")),
             "verified_issue_cluster_without_recovery_count": _as_int(metrics.get("verified_issue_cluster_without_recovery_count")),
+            "candidate_menu_item_verified_count": _as_int(metrics.get("candidate_menu_item_verified_count")),
         },
-        "case_summary": case_table.get("summary") or {},
+        "case_summary": case_summary,
         "recovery_summary": recovery_summary,
         "manual_audit_summary": manual_summary,
         "reviewer_candidate_kind_counts": dict(origin_counter),
@@ -382,6 +440,7 @@ def main() -> int:
     parser.add_argument("--output-json", default="", help="Write machine-readable report.")
     parser.add_argument("--output-md", default="", help="Write markdown report.")
     parser.add_argument("--min-critique-clusters", type=int, default=3)
+    parser.add_argument("--min-candidate-menu-verified", type=int, default=2)
     parser.add_argument("--fail-on-red-flags", action="store_true")
     parser.add_argument("--require-manual-audit", action="store_true")
     args = parser.parse_args()

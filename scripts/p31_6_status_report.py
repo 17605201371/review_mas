@@ -242,6 +242,9 @@ def _render_md(report: Dict[str, Any]) -> str:
         "verified_review_issue_cluster_recomputed_count",
         "quote_duplicate_merged_verified_review_issue_cluster_count",
         "critique_payload_verified_cluster_count",
+        "candidate_menu_item_verified_count",
+        "candidate_menu_item_any_origin_verified_count",
+        "critique_only_verified_cluster_count",
         "verified_review_issue_cluster_origin_critique_payload_count",
         "mark_contested_commit_count",
     ):

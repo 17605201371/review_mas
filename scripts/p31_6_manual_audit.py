@@ -10,7 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from collections import Counter
+from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
@@ -33,37 +33,120 @@ def _clip(value: Any, limit: int = 180) -> str:
     return text if len(text) <= limit else text[: limit - 3] + "..."
 
 
+def _cluster_origin(cases: List[Dict[str, Any]]) -> str:
+    kinds = {str(case.get("reviewer_candidate_kind") or "") for case in cases}
+    origins = {str(case.get("discovery_origin") or "") for case in cases}
+    sources = {str(case.get("source_of_expectation") or "") for case in cases}
+    if "direct_quote" in kinds or "direct_quote" in sources:
+        return "quote_grounded"
+    if "critique_payload_candidate" in kinds or any(origin.startswith("critique_payload") for origin in origins):
+        return "critique_payload"
+    if "claim_obligation_fallback" in kinds or "claim_obligation" in sources:
+        return "claim_obligation"
+    if "deterministic_reviewer_seed" in kinds:
+        return "deterministic_seed"
+    return next(iter(kinds - {""}), "") or next(iter(origins - {""}), "") or "unknown"
+
+
+def _clusters_from_case_table(case_table: Dict[str, Any], *, critique_origin_only: bool = False) -> List[Dict[str, Any]]:
+    cases = case_table.get("cases") or []
+    if not isinstance(cases, list):
+        raise ValueError("case JSON must contain a cases list")
+    grouped: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+    for case in cases:
+        if not isinstance(case, dict):
+            continue
+        key = str(case.get("issue_cluster_key") or case.get("issue_cluster_id") or case.get("evidence_id") or "")
+        if key:
+            grouped[key].append(case)
+    clusters: List[Dict[str, Any]] = []
+    for key, cluster_cases in sorted(grouped.items(), key=lambda item: item[0]):
+        first = cluster_cases[0]
+        origin = _cluster_origin(cluster_cases)
+        if critique_origin_only and origin != "critique_payload":
+            continue
+        claim_ids = sorted({str(case.get("claim_id") or "") for case in cluster_cases if str(case.get("claim_id") or "")})
+        clusters.append(
+            {
+                "issue_cluster_key": key,
+                "paper_id": first.get("paper_id") or "",
+                "issue_type": first.get("issue_type") or "",
+                "issue_cluster_target": first.get("issue_cluster_target") or "",
+                "case_count": len(cluster_cases),
+                "claim_ids": claim_ids,
+                "missing_or_mismatch": first.get("missing_or_mismatch") or "",
+                "claim_anchor": first.get("claim_anchor") or "",
+                "inventory_or_quote_locator": first.get("inventory_or_quote_locator") or "",
+                "inventory_or_quote": first.get("inventory_or_quote") or "",
+                "review_issue_slot": first.get("review_issue_slot") or "",
+                "discovery_origin": first.get("discovery_origin") or "",
+                "reviewer_candidate_kind": first.get("reviewer_candidate_kind") or "",
+                "origin": origin,
+            }
+        )
+    return clusters
+
+
 def _cluster_template(cluster: Dict[str, Any]) -> Dict[str, Any]:
+    origin = cluster.get("origin") or cluster.get("discovery_origin") or cluster.get("reviewer_candidate_kind") or ""
     return {
         "label": "TODO",
         "paper_id": cluster.get("paper_id") or "",
         "issue_type": cluster.get("issue_type") or "",
-        "cluster_target": cluster.get("issue_cluster_target") or "",
+        "target_entity": cluster.get("issue_cluster_target") or cluster.get("target_entity") or "",
+        "cluster_target": cluster.get("issue_cluster_target") or cluster.get("target_entity") or "",
         "issue_cluster_key": cluster.get("issue_cluster_key") or "",
-        "origin": cluster.get("discovery_origin") or cluster.get("reviewer_candidate_kind") or "",
+        "origin": origin,
         "claim_ids": cluster.get("claim_ids") or [],
         "missing_or_mismatch": cluster.get("missing_or_mismatch") or "",
         "claim_anchor": cluster.get("claim_anchor") or "",
         "inventory_or_quote_locator": cluster.get("inventory_or_quote_locator") or "",
         "inventory_or_quote": cluster.get("inventory_or_quote") or "",
         "manual_decision": "TODO",
+        "manual_merge_target": "",
+        "raw_paper_evidence_checked": "TODO",
+        "counterevidence_checked": "TODO",
+        "paper_facing_usable": "TODO",
         "false_positive_categories": [],
         "wording_caution": "",
+        "downgrade_reason": "",
         "reason": "TODO",
     }
 
 
 def _build_template(args: argparse.Namespace) -> Dict[str, Any]:
-    entry_gate = _load_json(Path(args.entry_gate_json))
-    clusters = entry_gate.get("critique_origin_clusters") or []
+    source = ""
+    audit_scope = "Critique-origin verified review-issue clusters"
+    if getattr(args, "case_json", ""):
+        case_table = _load_json(Path(args.case_json))
+        clusters = _clusters_from_case_table(
+            case_table,
+            critique_origin_only=bool(getattr(args, "critique_origin_only", False)),
+        )
+        source = args.case_json
+        if getattr(args, "critique_origin_only", False):
+            audit_scope = "Critique-origin verified review-issue clusters"
+        else:
+            audit_scope = "All verifier-passing system review-issue clusters"
+    else:
+        entry_gate = _load_json(Path(args.entry_gate_json))
+        clusters = entry_gate.get("critique_origin_clusters") or []
+        clusters = [
+            {**cluster, "origin": "critique_payload"}
+            if isinstance(cluster, dict) and not cluster.get("origin")
+            else cluster
+            for cluster in clusters
+        ]
+        source = args.entry_gate_json
     if not isinstance(clusters, list):
-        raise ValueError("entry-gate JSON must contain a critique_origin_clusters list")
+        raise ValueError("manual audit source must contain a clusters list")
     return {
-        "run_label": args.run_label or Path(args.entry_gate_json).stem.replace("_ENTRY_GATE_AUDIT", ""),
+        "run_label": args.run_label or Path(source).stem.replace("_ENTRY_GATE_AUDIT", "").replace("_REVIEW_ISSUE_CASE_TABLE", ""),
         "audit_date": args.audit_date,
-        "source_entry_gate": args.entry_gate_json,
+        "source_entry_gate": args.entry_gate_json or "",
+        "source_case_table": getattr(args, "case_json", "") or "",
         "audit_boundary": (
-            "Manual audit of Critique-origin verified review-issue clusters. "
+            f"Manual audit of {audit_scope}. "
             "Labels are cluster-level paper-readiness judgments from case-table evidence; "
             "final paper claims should still be spot-checked against the original paper text."
         ),
@@ -76,11 +159,13 @@ def _build_template(args: argparse.Namespace) -> Dict[str, Any]:
         },
         "thresholds": {
             "min_critique_origin_A_B_clusters": args.min_critique_ab_clusters,
+            "min_all_A_B_clusters": getattr(args, "min_all_ab_clusters", 0),
             "manual_D_clusters_allowed": 0,
             "unfilled_clusters_allowed": 0,
         },
         "summary": {
-            "critique_origin_clusters": len(clusters),
+            "system_clusters": len(clusters),
+            "critique_origin_clusters": sum(1 for cluster in clusters if _cluster_template(cluster).get("origin") == "critique_payload"),
             "manual_A_clusters": 0,
             "manual_B_clusters": 0,
             "manual_A_B_clusters": 0,
@@ -127,8 +212,11 @@ def _validate_audit(args: argparse.Namespace) -> Tuple[Dict[str, Any], int]:
             counts["unfilled"] += 1
             continue
         label = _normalize_label(cluster.get("label"))
-        reason = str(cluster.get("reason") or "").strip()
+        reason = str(cluster.get("reason") or cluster.get("downgrade_reason") or "").strip()
         decision = str(cluster.get("manual_decision") or "").strip()
+        raw_checked = str(cluster.get("raw_paper_evidence_checked") or "").strip()
+        counter_checked = str(cluster.get("counterevidence_checked") or "").strip()
+        paper_usable = str(cluster.get("paper_facing_usable") or "").strip()
         cluster_unfilled = False
         if label not in VALID_LABELS:
             cluster_unfilled = True
@@ -147,6 +235,16 @@ def _validate_audit(args: argparse.Namespace) -> Tuple[Dict[str, Any], int]:
             findings.append(
                 f"{cluster.get('paper_id','')} / {cluster.get('cluster_target','')}: manual_decision is unfilled"
             )
+        for field_name, field_value in (
+            ("raw_paper_evidence_checked", raw_checked),
+            ("counterevidence_checked", counter_checked),
+            ("paper_facing_usable", paper_usable),
+        ):
+            if _is_todo(field_value):
+                cluster_unfilled = True
+                findings.append(
+                    f"{cluster.get('paper_id','')} / {cluster.get('cluster_target','')}: {field_name} is unfilled"
+                )
         if cluster_unfilled:
             counts["unfilled"] += 1
         false_categories = cluster.get("false_positive_categories") or []
@@ -157,6 +255,17 @@ def _validate_audit(args: argparse.Namespace) -> Tuple[Dict[str, Any], int]:
         normalized_clusters.append({**cluster, "label": label})
 
     manual_ab = counts["A"] + counts["B"]
+    normalized_origin_counts: Counter[str] = Counter()
+    origin_ab_counts: Counter[str] = Counter()
+    origin_d_counts: Counter[str] = Counter()
+    for cluster in normalized_clusters:
+        origin = str(cluster.get("origin") or "unknown")
+        label = str(cluster.get("label") or "")
+        normalized_origin_counts[origin] += 1
+        if label in PASS_LABELS:
+            origin_ab_counts[origin] += 1
+        if label == "D":
+            origin_d_counts[origin] += 1
     status = "PASS"
     blocking: List[str] = []
     if counts["unfilled"] > 0:
@@ -165,14 +274,20 @@ def _validate_audit(args: argparse.Namespace) -> Tuple[Dict[str, Any], int]:
     if not args.allow_d and counts["D"] > 0:
         status = "FAIL"
         blocking.append(f"manual_D_clusters = {counts['D']}")
-    if manual_ab < args.min_critique_ab_clusters:
+    critique_ab = origin_ab_counts.get("critique_payload", 0)
+    if critique_ab < args.min_critique_ab_clusters:
         status = "FAIL"
         blocking.append(
-            f"manual_A_B_clusters = {manual_ab}, required >= {args.min_critique_ab_clusters}"
+            f"critique_origin_manual_A_B_clusters = {critique_ab}, required >= {args.min_critique_ab_clusters}"
         )
+    min_all = int(getattr(args, "min_all_ab_clusters", 0) or 0)
+    if min_all and manual_ab < min_all:
+        status = "FAIL"
+        blocking.append(f"manual_A_B_clusters = {manual_ab}, required >= {min_all}")
 
     summary = {
-        "critique_origin_clusters": len(clusters),
+        "system_clusters": len(clusters),
+        "critique_origin_clusters": normalized_origin_counts.get("critique_payload", 0),
         "manual_A_clusters": counts["A"],
         "manual_B_clusters": counts["B"],
         "manual_A_B_clusters": manual_ab,
@@ -180,6 +295,12 @@ def _validate_audit(args: argparse.Namespace) -> Tuple[Dict[str, Any], int]:
         "manual_D_clusters": counts["D"],
         "manual_MERGE_clusters": counts["MERGE"],
         "unfilled_clusters": counts["unfilled"],
+        "manual_A_B_clusters_by_origin": dict(sorted(origin_ab_counts.items())),
+        "manual_D_clusters_by_origin": dict(sorted(origin_d_counts.items())),
+        "cluster_count_by_origin": dict(sorted(normalized_origin_counts.items())),
+        "critique_origin_manual_A_B_clusters": origin_ab_counts.get("critique_payload", 0),
+        "deterministic_seed_manual_A_B_clusters": origin_ab_counts.get("deterministic_seed", 0),
+        "critique_origin_D_clusters": origin_d_counts.get("critique_payload", 0),
         "status": status,
         "blocking_issues": blocking,
     }
@@ -204,6 +325,8 @@ def _render_template_md(audit: Dict[str, Any]) -> str:
     lines.append(f"# P31.6 Manual Critique-Origin Audit: {audit.get('run_label','')}")
     lines.append("")
     lines.append(f"- source entry gate: `{audit.get('source_entry_gate','')}`")
+    if audit.get("source_case_table"):
+        lines.append(f"- source case table: `{audit.get('source_case_table','')}`")
     lines.append(f"- audit date: `{audit.get('audit_date','')}`")
     lines.append(f"- status: **{audit.get('summary',{}).get('status','TODO')}**")
     lines.append("")
@@ -219,12 +342,12 @@ def _render_template_md(audit: Dict[str, Any]) -> str:
         lines.append("")
         lines.append("```text")
         lines.append(f"issue_type = {cluster.get('issue_type','')}")
+        lines.append(f"origin = {cluster.get('origin','')}")
         lines.append(f"claim_ids = {', '.join(cluster.get('claim_ids') or [])}")
         lines.append(f"missing = {cluster.get('missing_or_mismatch','')}")
         lines.append(f"claim_anchor = {_clip(cluster.get('claim_anchor'), 320)}")
         lines.append(f"inventory_locator = {cluster.get('inventory_or_quote_locator','')}")
         lines.append(f"inventory = {_clip(cluster.get('inventory_or_quote'), 320)}")
-        lines.append(f"origin = {cluster.get('origin','')}")
         lines.append("```")
         lines.append("")
         lines.append("Manual label: **TODO**")
@@ -259,6 +382,9 @@ def _render_validation_md(report: Dict[str, Any]) -> str:
         "manual_D_clusters",
         "manual_MERGE_clusters",
         "unfilled_clusters",
+        "critique_origin_manual_A_B_clusters",
+        "deterministic_seed_manual_A_B_clusters",
+        "critique_origin_D_clusters",
     ):
         lines.append(f"| `{key}` | {summary.get(key, 0)} |")
     lines.append("")
@@ -302,18 +428,22 @@ def main() -> int:
     sub = parser.add_subparsers(dest="command", required=True)
 
     template = sub.add_parser("template", help="Generate a manual audit template from an entry-gate JSON.")
-    template.add_argument("--entry-gate-json", required=True)
+    template.add_argument("--entry-gate-json", default="")
+    template.add_argument("--case-json", default="", help="Review issue case-table JSON. When set, audit all system clusters by default.")
+    template.add_argument("--critique-origin-only", action="store_true", help="With --case-json, audit only Critique-origin clusters.")
     template.add_argument("--output-json", required=True)
     template.add_argument("--output-md", default="")
     template.add_argument("--run-label", default="")
     template.add_argument("--audit-date", default="")
     template.add_argument("--min-critique-ab-clusters", type=int, default=3)
+    template.add_argument("--min-all-ab-clusters", type=int, default=0)
 
     validate = sub.add_parser("validate", help="Validate a filled manual audit JSON.")
     validate.add_argument("--audit-json", required=True)
     validate.add_argument("--output-json", default="")
     validate.add_argument("--output-md", default="")
     validate.add_argument("--min-critique-ab-clusters", type=int, default=3)
+    validate.add_argument("--min-all-ab-clusters", type=int, default=0)
     validate.add_argument("--allow-d", action="store_true", help="Do not fail when D clusters are present.")
 
     args = parser.parse_args()

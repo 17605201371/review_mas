@@ -2656,7 +2656,7 @@ def test_review_issue_discovery_recovers_selected_per_claim_menu_item_outside_se
     monkeypatch.setattr(
         review_runner_mod,
         "_review_issue_candidate_selector_menu",
-        lambda targets, max_items=6, max_per_claim=2: menu_items[:6],
+        lambda targets, max_items=12, max_per_claim=2, max_per_type=3: menu_items[:6],
     )
     payload = normalize_review_update_payload(
         {
@@ -2708,6 +2708,26 @@ def test_review_issue_discovery_seed_topup_when_critique_returns_no_candidates()
     assert trace["review_issue_seed_fallback_used"] is True
     assert seeded["evidence_map"] == []
     assert seeded["flaw_candidates"] == []
+
+
+def test_review_issue_discovery_critique_only_eval_skips_seed_topup(monkeypatch):
+    monkeypatch.setenv("DRMAS_CRITIQUE_ONLY_DISCOVERY_EVAL", "1")
+    state = _review_issue_seed_sample_state()
+    empty_payload = normalize_review_update_payload({"evidence_map": [], "flaw_candidates": []})
+    trace = {}
+
+    updated = _maybe_seed_review_issue_discovery_payload(
+        "Critique Agent",
+        empty_payload,
+        state,
+        {"review_issue_discovery_required": True},
+        trace_worker=trace,
+    )
+
+    assert updated.get("critique_only_discovery_eval") is True
+    assert updated.get("reviewer_negative_candidates", []) == []
+    assert trace["review_issue_seed_fallback_skipped_for_critique_only_eval"] is True
+    assert "review_issue_seed_fallback_used" not in trace
 
 
 def test_review_issue_discovery_seed_topup_preserves_model_candidates():

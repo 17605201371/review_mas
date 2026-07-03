@@ -10,6 +10,77 @@ Goal:
 - Improve Critique payload integration without relaxing the verifier.
 - Keep direct quote-grounded negative evidence strict; optimize obligation-grounded verified review issue bundles and safe `mark_contested` recovery.
 
+## Current P31.7 Checkpoint 2026-07-03
+
+P31.7A audit-fix is implemented: manual audit is cluster-level, dashboard/case
+cluster counts are current-code recomputed and consistent, seed menu ids no
+longer count as Critique-selected menu success, and high-risk false-positive
+guards remain strict.
+
+Current authoritative fresh run:
+
+```text
+raw = mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok1536_20260703_231747.jsonl
+dashboard = P31_6_FRESH_20260703_231747_HARDNEG20_DASHBOARD.md/json
+case table = P31_6_FRESH_20260703_231747_REVIEW_ISSUE_CASE_TABLE.md/json
+recovery table = P31_6_FRESH_20260703_231747_RECOVERY_CASE_TABLE.md/json
+entry gate = P31_6_FRESH_20260703_231747_ENTRY_GATE_AUDIT.md/json
+manual audit template = P31_6_FRESH_20260703_231747_MANUAL_AUDIT_TEMPLATE.md/json
+readiness = P31_6_FRESH_20260703_231747_READINESS_STATUS.md/json
+```
+
+Fresh P31.7 facts:
+
+```text
+full20 completed = 20/20
+api_success = 271
+api_errors = 0
+protection = PASS
+verified_review_issue_count = 16
+verified_review_issue_cluster_count = 11
+duplicate_review_issue_row_count = 5
+critique_payload_verified_cluster_count = 0
+candidate_menu_item_verified_count = 0
+candidate_menu_item_any_origin_verified_count = 0
+review_issue_candidate_critique_payload_count = 3
+review_issue_candidate_deterministic_seed_count = 56
+seed_topup_after_critique_failure_count = 7
+mark_contested_commit_count = 9
+negative_evidence_unlinked_to_flaw = 0
+positive_or_neutral_negative_candidate_count = 0
+negative_grounding_conflict_count = 0
+```
+
+Entry gate:
+
+```text
+machine_gate = FAIL
+manual_gate = REQUIRED
+blocking = critique_payload_verified_cluster_count 0 < 3
+blocking = candidate_menu_item_verified_count 0 < 2
+blocking = case_table_critique_origin_cluster_count 0 < 3
+cluster_count_consistency = PASS
+protection = PASS
+```
+
+Interpretation:
+
+- P31.7A succeeded as an audit/metric/protection cleanup.
+- P31.7B first implementation did not solve autonomous Critique discovery.
+  Simplifying the prompt to selected-menu primary made Critique more conservative
+  and reduced total verified issue clusters from the prior fresh attempt's 20 to
+  11.
+- P32 remains blocked.  Do not treat deterministic-seed verified issue quantity
+  as autonomous Critique discovery.
+
+Next step:
+
+```text
+Design a second Critique autonomy pass around candidate-menu salience and
+selection supervision.  The current model rarely selects menu ids and still
+falls back to weak free-form candidates; do not loosen verifier gates.
+```
+
 ## Current P31.6 Fresh Full20 Checkpoint 2026-07-03
 
 Fresh MiMo full20 completed with API workers set to 4 after updating the local

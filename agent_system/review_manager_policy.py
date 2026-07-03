@@ -3241,9 +3241,9 @@ def apply_manager_policy_fallback(
                     payload["freeform_reviewer_negative_enabled"] = True
                     payload["freeform_reviewer_negative_stage"] = "candidate_discovery"
                     payload["focus"] = (
-                        "Act like a peer reviewer and propose likely paper review issues for the strongest real claims. "
-                        "Do not create verified negative evidence in this turn; output review_issue_candidates "
-                        "that a later Evidence/State pass can verify as quote-grounded evidence or obligation-grounded issue bundles."
+                        "Act like a peer reviewer and select likely paper review issues from the visible review_issue_candidate_selector_menu. "
+                        "Do not create verified negative evidence in this turn. Prefer selected_menu_items with copied candidate_menu_id values; "
+                        "write full review_issue_candidates only as a free-form fallback when no menu item fits."
                     )
                 else:
                     # Target generator path: keep formation in the Evidence Agent. The worker receives

@@ -158,17 +158,13 @@ def _decision_view(row: Dict[str, Any]) -> Dict[str, Any]:
     if isinstance(cached, dict):
         return cached
     state = row.get("review_state") or {}
-    if isinstance(state, dict) and isinstance(state.get("decision_hygiene"), dict):
-        row[_DASHBOARD_VIEW_CACHE_KEY] = state
-        return state
-    state_audit = state.get("state_audit") if isinstance(state, dict) else {}
-    if isinstance(state, dict) and isinstance(state_audit, dict) and isinstance(state_audit.get("decision_hygiene"), dict):
-        row[_DASHBOARD_VIEW_CACHE_KEY] = state
-        return state
     if isinstance(state, dict):
         try:
             state_for_view = copy.deepcopy(state)
             state_for_view.pop("decision_hygiene", None)
+            state_audit = state_for_view.get("state_audit")
+            if isinstance(state_audit, dict):
+                state_audit.pop("decision_hygiene", None)
             view = build_decision_hygiene_view(state_for_view)
             if isinstance(view, dict):
                 row[_DASHBOARD_VIEW_CACHE_KEY] = view
@@ -260,16 +256,30 @@ def _review_issue_cluster_origin_metrics(rows: Iterable[Dict[str, Any]]) -> Dict
     direct_quote_cluster_keys: set[str] = set()
     for row in rows:
         state = _decision_view(row)
+        hygiene = state.get("decision_hygiene") if isinstance(state.get("decision_hygiene"), dict) else {}
+        state_audit = state.get("state_audit") if isinstance(state.get("state_audit"), dict) else {}
+        if not hygiene and isinstance(state_audit.get("decision_hygiene"), dict):
+            hygiene = state_audit.get("decision_hygiene") or {}
+        use_cached_issue_filter = isinstance(hygiene, dict) and "review_issue_bundle_items" in hygiene
+        cached_issue_evidence_ids = {
+            str(item.get("evidence_id") or "").strip()
+            for item in (hygiene.get("review_issue_bundle_items") or [])
+            if isinstance(item, dict) and str(item.get("evidence_id") or "").strip()
+        }
         paper_id = _paper_id(row)
         for evidence in state.get("evidence_map", []) or []:
             if not isinstance(evidence, dict):
                 continue
+            evidence_id = str(evidence.get("evidence_id") or "").strip()
             bundle = evidence.get("review_issue_bundle") if isinstance(evidence.get("review_issue_bundle"), dict) else {}
             if (
                 bundle
                 and str(evidence.get("review_issue_verification_status") or bundle.get("verification_status") or "")
                 == "verified_review_issue"
+                and _is_obligation_grounded_review_issue_evidence_record(evidence, state)
             ):
+                if use_cached_issue_filter and evidence_id not in cached_issue_evidence_ids:
+                    continue
                 issue_type, target = _review_issue_cluster_signature_for_record(evidence)
                 key = f"{paper_id}|obligation_grounded_review_issue|{issue_type}|{target}"
                 candidate_id = str(
@@ -280,7 +290,7 @@ def _review_issue_cluster_origin_metrics(rows: Iterable[Dict[str, Any]]) -> Dict
                 source = str(bundle.get("source_of_expectation") or "")
                 slot = str(bundle.get("review_issue_slot") or "")
                 kind = _review_issue_candidate_kind(candidate_id, source, str(bundle.get("discovery_origin") or ""))
-            elif str(evidence.get("review_negative_label") or "") == "review_negative_verified":
+            elif _is_grounded_paper_negative_evidence_record(evidence, state):
                 claim_id = str(evidence.get("claim_id") or "")
                 issue_type = str(evidence.get("negative_evidence_type") or evidence.get("review_issue_type") or "direct_quote_negative")
                 raw_quote = " ".join(str(evidence.get("raw_quote") or evidence.get("quote") or "").split()).lower()
@@ -940,6 +950,7 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     out["candidate_menu_item_count"] = _sum(rows, "candidate_menu_item_count")
     out["candidate_menu_item_used_count"] = _sum(rows, "candidate_menu_item_used_count")
     out["candidate_menu_item_verified_count"] = _sum(rows, "candidate_menu_item_verified_count")
+    out["candidate_menu_item_any_origin_verified_count"] = _sum(rows, "candidate_menu_item_any_origin_verified_count")
     out["candidate_menu_item_failed_count"] = _sum(rows, "candidate_menu_item_failed_count")
     candidate_menu_failed_by_reason: Counter[str] = Counter()
     candidate_menu_failed_by_stage: Counter[str] = Counter()
@@ -1216,7 +1227,12 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     critique_prompt_chars: List[int] = []
     review_issue_selected_menu_recovery_turns = 0
     review_issue_selected_menu_recovered_count = 0
+    review_issue_seed_topup_turns = 0
+    review_issue_seed_topup_candidate_count = 0
+    seed_topup_after_critique_failure_count = 0
+    critique_only_seed_skipped_turns = 0
     selected_menu_recovery_event_keys: set[Tuple[int, int, int]] = set()
+    seed_topup_event_keys: set[Tuple[int, int, int]] = set()
 
     def _record_selected_menu_recovery(worker: Dict[str, Any], event_key: Tuple[int, int, int]) -> None:
         nonlocal review_issue_selected_menu_recovery_turns, review_issue_selected_menu_recovered_count
@@ -1236,6 +1252,31 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
         except (TypeError, ValueError):
             pass
 
+    def _record_review_issue_seed_flags(worker: Dict[str, Any], event_key: Tuple[int, int, int]) -> None:
+        nonlocal review_issue_seed_topup_turns, review_issue_seed_topup_candidate_count
+        nonlocal seed_topup_after_critique_failure_count, critique_only_seed_skipped_turns
+        if not isinstance(worker, dict) or worker.get("agent_id") != "Critique Agent":
+            return
+        if event_key in seed_topup_event_keys:
+            return
+        seed_topup_event_keys.add(event_key)
+        if worker.get("review_issue_seed_fallback_used"):
+            review_issue_seed_topup_turns += 1
+            try:
+                count = max(0, int(worker.get("review_issue_seed_candidate_count") or 0))
+            except (TypeError, ValueError):
+                count = 0
+            review_issue_seed_topup_candidate_count += count
+            try:
+                seed_topup_after_critique_failure_count += max(
+                    0,
+                    int(worker.get("seed_topup_after_critique_failure_count") or 0),
+                )
+            except (TypeError, ValueError):
+                pass
+        if worker.get("review_issue_seed_fallback_skipped_for_critique_only_eval"):
+            critique_only_seed_skipped_turns += 1
+
     for row_index, r in enumerate(rows):
         for turn_list_index, tl in enumerate(r.get("turn_logs") or []):
             if not isinstance(tl, dict):
@@ -1253,6 +1294,7 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
                     critique_prompt_chars.append(critique_chars)
             for worker_index, worker in enumerate(worker_payloads):
                 _record_selected_menu_recovery(worker, (row_index, turn_index, worker_index))
+                _record_review_issue_seed_flags(worker, (row_index, turn_index, worker_index))
             evidence_payloads = [
                 item.get("payload") or {}
                 for item in worker_payloads
@@ -1334,6 +1376,7 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
                 # backwards-compatible fallback; future raw rows also copy the
                 # same flags to worker_payloads and are de-duplicated above.
                 _record_selected_menu_recovery(worker, (row_index, trace_index, worker_index))
+                _record_review_issue_seed_flags(worker, (row_index, trace_index, worker_index))
     out["evidence_agent_worker_turns"] = evidence_agent_worker_turns
     out["quote_bank_nonzero_turns"] = quote_bank_nonzero_turns
     out["payload_evidence_item_total"] = payload_evidence_item_total
@@ -1347,6 +1390,10 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     out["critique_worker_turns"] = critique_worker_turns
     out["review_issue_selected_menu_recovery_turns"] = review_issue_selected_menu_recovery_turns
     out["review_issue_selected_menu_recovered_count"] = review_issue_selected_menu_recovered_count
+    out["review_issue_seed_topup_turns"] = review_issue_seed_topup_turns
+    out["review_issue_seed_topup_candidate_count"] = review_issue_seed_topup_candidate_count
+    out["seed_topup_after_critique_failure_count"] = seed_topup_after_critique_failure_count
+    out["critique_only_seed_skipped_turns"] = critique_only_seed_skipped_turns
     out["critique_prompt_chars_max"] = max(critique_prompt_chars) if critique_prompt_chars else 0
     out["critique_prompt_chars_median"] = (
         int(round(sorted(critique_prompt_chars)[len(critique_prompt_chars) // 2]))
@@ -1902,6 +1949,10 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "critique_worker_turns",
         "review_issue_selected_menu_recovery_turns",
         "review_issue_selected_menu_recovered_count",
+        "review_issue_seed_topup_turns",
+        "review_issue_seed_topup_candidate_count",
+        "seed_topup_after_critique_failure_count",
+        "critique_only_seed_skipped_turns",
         "critique_prompt_chars_median",
         "critique_prompt_chars_max",
         "critique_prompt_over_15k_turns",
@@ -2039,10 +2090,15 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "critique_payload_verified_count",
         "critique_payload_menu_bound_verified_count",
         "critique_payload_verified_cluster_count",
+        "critique_only_candidate_count",
+        "critique_only_selected_menu_count",
+        "critique_only_verified_count",
+        "critique_only_verified_cluster_count",
         "deterministic_seed_verified_cluster_count",
         "candidate_menu_item_count",
         "candidate_menu_item_used_count",
         "candidate_menu_item_verified_count",
+        "candidate_menu_item_any_origin_verified_count",
         "candidate_menu_item_failed_count",
         "candidate_menu_item_failed_scope_menu_generic_target",
         "candidate_menu_item_failed_efficiency_cost_menu_without_resource_anchor",

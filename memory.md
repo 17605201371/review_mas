@@ -2960,3 +2960,136 @@ tests/test_review_inference_runner.py focused prompt/menu tests = 3 passed
 P31_6_ORTHOFIX_UNCACHED_082133 and P31_6_MECHREL_UNCACHED_082133 still fail
 the P31.6 machine gate with critique_payload_verified_cluster_count = 1.
 ```
+
+## P31.7 audit-fix + Critique selector simplification (2026-07-03)
+
+P31.7 was implemented as a quality closure rather than a quantity push.  The
+authoritative plan file is now
+`P31_7_CRITIQUE_AUTONOMOUS_DISCOVERY_PLAN_ZH_20260703.md`; the older long-term
+plan file `P31_P34_REVIEWSTATE_LONG_TERM_PLAN_ZH_20260702.md` was removed.
+
+Code changes:
+
+```text
+scripts/dashboard_run_comparison_v1.py
+- current-code dashboard recompute now rebuilds decision_hygiene instead of
+  trusting stale cached run hygiene.
+- displayed verified_review_issue_cluster_count now matches current verifier /
+  case table cluster count.
+- added candidate_menu_item_any_origin_verified_count so seed-carried menu ids
+  can be audited without counting as Critique-selected success.
+
+scripts/audit_review_issue_case_table_v1.py
+- case table uses current verifier checks for both obligation-grounded issues
+  and direct quote negatives; stale cached issue ids only act as a stale filter.
+
+scripts/p31_6_manual_audit.py
+- manual audit template can be generated from case table clusters, not just
+  Critique-origin gate entries.
+- validation now requires per-cluster manual_label, raw_paper_evidence_checked,
+  counterevidence_checked, paper_facing_usable, and downgrade_reason/decision.
+- manual A/B gate is origin-aware: critique_origin_manual_A_B_clusters is used
+  for P32 readiness.
+
+scripts/p31_6_entry_gate_audit.py
+- checks case/dashboard cluster consistency, origin-count sum, selected-menu
+  verified count, and manual Critique-origin A/B counts.
+
+agent_system/environments/env_package/review/state.py
+- selector menu expanded to slot-balanced 10-12 items with per-claim/per-type
+  caps.
+- high-risk guards reject theory/resource and theory/robustness overreach,
+  generic graph held-out coverage when graph benchmark coverage exists,
+  malformed missing-ablation targets, and generic LoRA/transformer/network
+  targets unless contribution-bound.
+- Critique-visible state slice now exposes short menu failure lessons and
+  selected_menu_items as the primary channel.
+- candidate_menu_item_verified_count now counts only Critique payload/menu
+  selected verified ids; deterministic/runner seeds with menu ids are only
+  counted in candidate_menu_item_any_origin_verified_count.
+
+agent_system/inference/review_runner.py
+- selected-menu recovery happens before deterministic seed top-up.
+- DRMAS_CRITIQUE_ONLY_DISCOVERY_EVAL isolates Critique-origin metrics from seed
+  top-up.
+- seed_topup_after_critique_failure_count and selected-menu traces are carried
+  into dashboard metrics.
+
+agent_system/review_manager_policy.py + agent_system/review_prompts.py
+- Review issue discovery focus was changed from "fill review_issue_candidates"
+  to "select 1-3 copied candidate_menu_id values"; full candidates are only a
+  free-form fallback when no menu item fits.
+```
+
+Regression validation:
+
+```text
+py_compile state/runner/policy/prompts/dashboard/case/gate/manual/status = pass
+focused P31.7 tests = 18 passed
+```
+
+Offline recompute over the prior P31.6 fresh raw:
+
+```text
+raw = 20260703_212637 full20
+artifacts = P31_7_AUDITFIX_RECOMPUTE_212637_*
+verified_review_issue_count = 20
+verified_review_issue_cluster_count = 13
+duplicate_review_issue_row_count = 7
+critique_payload_verified_cluster_count = 0
+candidate_menu_item_verified_count = 0
+review_issue_candidate_critique_payload_count = 10
+review_issue_candidate_deterministic_seed_count = 68
+mark_contested_commit_count = 8
+protection = PASS
+cluster_count_consistency = PASS
+machine_gate = FAIL
+```
+
+Fresh full20 with the final P31.7 selector prompt:
+
+```text
+raw = mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok1536_20260703_231747.jsonl
+artifacts = P31_6_FRESH_20260703_231747_*
+full20 completed = 20/20
+api_success = 271
+api_errors = 0
+verified_review_issue_count = 16
+verified_review_issue_cluster_count = 11
+duplicate_review_issue_row_count = 5
+critique_payload_verified_cluster_count = 0
+candidate_menu_item_verified_count = 0
+candidate_menu_item_any_origin_verified_count = 0
+review_issue_candidate_critique_payload_count = 3
+review_issue_candidate_deterministic_seed_count = 56
+seed_topup_after_critique_failure_count = 7
+mark_contested_commit_count = 9
+negative_evidence_unlinked_to_flaw = 0
+positive_or_neutral_negative_candidate_count = 0
+negative_grounding_conflict_count = 0
+protection = PASS
+cluster_count_consistency = PASS
+machine_gate = FAIL
+manual_gate = REQUIRED
+```
+
+Interpretation:
+
+- P31.7A succeeded: audit artifacts are cluster-level, stale hygiene inflation
+  is removed, case/dashboard cluster counts match, and protection lines remain
+  clean.
+- P31.7B did not meet the autonomous Critique discovery target.  The simplified
+  selector prompt made MiMo more conservative: total verified clusters dropped
+  to 11 and Critique-origin verified clusters stayed at 0.
+- P32 remains blocked.  Do not claim autonomous Critique discovery.  Current
+  stable capability is strict verifier + deterministic/entity seed coverage +
+  non-destructive recovery, not Critique autonomous issue discovery.
+
+Next technical direction:
+
+```text
+Do not loosen verifier gates.  The next pass should improve candidate-menu
+salience and selection supervision: fewer but higher-salience menu items,
+paper-facing rationale per menu item, stronger examples of copied menu ids,
+and a Critique-only small eval before another full20.
+```

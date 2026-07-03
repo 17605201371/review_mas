@@ -57,6 +57,17 @@ def _freeform_reviewer_negative_enabled() -> bool:
         "on",
         "yes",
     }
+
+
+def _critique_only_discovery_eval_enabled() -> bool:
+    return os.environ.get("DRMAS_CRITIQUE_ONLY_DISCOVERY_EVAL", "").strip().lower() in {
+        "1",
+        "true",
+        "on",
+        "yes",
+    }
+
+
 GenerateFn = Callable[[str, str], str]
 
 
@@ -2537,7 +2548,7 @@ def _extract_review_issue_candidate_objects(raw_text: str) -> List[Dict[str, Any
     raw = str(raw_text or "")
     objects: List[Dict[str, Any]] = []
     seen: set[str] = set()
-    for array_key in ("review_issue_candidates", "reviewer_negative_candidates"):
+    for array_key in ("review_issue_candidates", "reviewer_negative_candidates", "freeform_review_issue_candidates"):
         for item in _extract_complete_json_objects_from_array(raw, array_key):
             key = json.dumps(item, sort_keys=True, ensure_ascii=False)
             if key not in seen:
@@ -2964,8 +2975,9 @@ def _selector_menu_lookup_from_state(state: Dict[str, Any]) -> Dict[str, Dict[st
     targets = _hard_negative_diagnosis_targets(state or {}, claims=(state or {}).get("claims", []), max_items=8)
     visible_menu = _review_issue_candidate_selector_menu(
         targets,
-        max_items=6,
+        max_items=12,
         max_per_claim=2,
+        max_per_type=3,
     )
     # The Critique prompt renders both the compact selector menu and each
     # target's short per-claim menu.  A selected id is safe to recover if it is
@@ -3130,6 +3142,14 @@ def _maybe_seed_review_issue_discovery_payload(
     )
     existing = worker_payload.get("reviewer_negative_candidates")
     existing_candidates = existing if isinstance(existing, list) else []
+    if _critique_only_discovery_eval_enabled():
+        updated = copy.deepcopy(worker_payload)
+        updated["critique_only_discovery_eval"] = True
+        if trace_worker is not None:
+            trace_worker["critique_only_discovery_eval"] = True
+            trace_worker["review_issue_seed_fallback_skipped_for_critique_only_eval"] = True
+            trace_worker["seed_topup_after_critique_failure_count"] = 0
+        return updated
     target_candidate_count = 12
     if len(existing_candidates) >= target_candidate_count:
         return worker_payload
@@ -3176,6 +3196,8 @@ def _maybe_seed_review_issue_discovery_payload(
     if trace_worker is not None:
         trace_worker["review_issue_seed_fallback_used"] = True
         trace_worker["review_issue_seed_candidate_count"] = len(top_up)
+        if existing_candidates:
+            trace_worker["seed_topup_after_critique_failure_count"] = len(top_up)
         trace_worker["review_issue_seed_candidate_ids"] = [
             str(item.get("candidate_id") or "") for item in top_up
         ]
@@ -3193,6 +3215,9 @@ def _worker_payload_trace_flags(trace_worker: Dict[str, Any]) -> Dict[str, Any]:
         "review_issue_seed_fallback_used",
         "review_issue_seed_candidate_count",
         "review_issue_seed_candidate_ids",
+        "review_issue_seed_fallback_skipped_for_critique_only_eval",
+        "critique_only_discovery_eval",
+        "seed_topup_after_critique_failure_count",
     )
     return {key: trace_worker[key] for key in keys if key in trace_worker}
 
@@ -3647,11 +3672,11 @@ def build_worker_observation(task: Dict[str, Any], manager_payload: Dict[str, An
         review_issue_discovery_block = (
             "# Review Issue Discovery Mode\n"
             "review_issue_discovery_required=true\n"
-            "Primary task: act like a peer reviewer and fill review_issue_slots for later verification. "
-            "Mirror every non-null slot candidate in review_issue_candidates. "
+            "Primary task: act like a peer reviewer and select 1-3 safe items from review_issue_candidate_selector_menu. "
+            "Output selected_menu_items with copied candidate_menu_id values; the runner expands valid ids for later verification. "
             "Do not output verified evidence, claim status changes, or recovery patches. "
-            "Absence/coverage issues must name the concrete missing/mismatch item and point to a claim obligation. "
-            "Do not replace candidate discovery with unresolved questions unless every slot is unsafe.\n\n"
+            "Only output full review_issue_candidates as a fallback when no menu item fits and the free-form issue has a real claim, concrete target, copied inventory anchor, and counterevidence terms. "
+            "Reject generic, already-covered, retrieval/context, author-limitation, or stale menu items briefly.\n\n"
         )
     routing = (
         f"{mode_block}"

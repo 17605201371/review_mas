@@ -32,10 +32,18 @@ def _dashboard(path, critique_clusters=3, protection_passed=True):
             "candidate": {
                 "metrics": {
                     "verified_review_issue_count": critique_clusters,
+                    "verified_review_issue_cluster_count": critique_clusters,
+                    "duplicate_review_issue_row_count": 0,
                     "verified_review_issue_cluster_recomputed_count": critique_clusters,
                     "quote_duplicate_merged_verified_review_issue_cluster_count": critique_clusters,
                     "critique_payload_verified_cluster_count": critique_clusters,
+                    "candidate_menu_item_verified_count": critique_clusters,
                     "verified_review_issue_cluster_origin_critique_payload_count": critique_clusters,
+                    "verified_review_issue_cluster_origin_deterministic_seed_count": 0,
+                    "verified_review_issue_cluster_origin_claim_obligation_fallback_count": 0,
+                    "verified_review_issue_cluster_origin_direct_quote_count": 0,
+                    "verified_review_issue_cluster_origin_other_candidate_count": 0,
+                    "verified_review_issue_cluster_origin_other_count": 0,
                     "negative_evidence_unlinked_to_flaw": 0,
                     "positive_or_neutral_negative_candidate_count": 0,
                     "negative_grounding_conflict_count": 0,
@@ -69,7 +77,17 @@ def _case_table(path, cluster_count=3):
                 "issue_cluster_target": target,
             }
         )
-    return _write_json(path, {"summary": {"verified_review_issue_cases": len(cases)}, "cases": cases})
+    return _write_json(
+        path,
+        {
+            "summary": {
+                "verified_review_issue_cases": len(cases),
+                "verified_review_issue_cluster_count": cluster_count,
+                "duplicate_review_issue_row_count": 0,
+            },
+            "cases": cases,
+        },
+    )
 
 
 def _recovery_table(path):
@@ -90,6 +108,7 @@ def test_entry_gate_fails_when_critique_origin_cluster_count_below_threshold(tmp
             output_json="",
             output_md="",
             min_critique_clusters=3,
+            min_candidate_menu_verified=2,
             fail_on_red_flags=False,
             require_manual_audit=False,
         )
@@ -137,6 +156,9 @@ def test_manual_audit_template_and_validation_pass_for_three_ab_clusters(tmp_pat
     for idx, cluster in enumerate(template["clusters"]):
         cluster["label"] = "A" if idx == 0 else "B"
         cluster["manual_decision"] = "keep"
+        cluster["raw_paper_evidence_checked"] = "yes"
+        cluster["counterevidence_checked"] = "yes"
+        cluster["paper_facing_usable"] = "yes"
         cluster["reason"] = "Defensible claim/inventory/missing relation."
 
     audit_path = _write_json(tmp_path / "manual_audit.json", template)
@@ -146,6 +168,7 @@ def test_manual_audit_template_and_validation_pass_for_three_ab_clusters(tmp_pat
             output_json="",
             output_md="",
             min_critique_ab_clusters=3,
+            min_all_ab_clusters=0,
             allow_d=False,
         )
     )
@@ -155,6 +178,41 @@ def test_manual_audit_template_and_validation_pass_for_three_ab_clusters(tmp_pat
     assert report["summary"]["manual_A_B_clusters"] == 3
     assert report["summary"]["manual_D_clusters"] == 0
     assert report["summary"]["unfilled_clusters"] == 0
+
+
+def test_manual_audit_template_from_case_table_includes_all_system_clusters(tmp_path):
+    case_table = _case_table(tmp_path / "cases.json", cluster_count=3)
+    payload = json.loads(case_table.read_text(encoding="utf-8"))
+    payload["cases"].append(
+        {
+            **payload["cases"][0],
+            "paper_id": "paper-seed",
+            "reviewer_candidate_kind": "deterministic_reviewer_seed",
+            "discovery_origin": "deterministic_component_ablation_seed",
+            "issue_cluster_key": "paper-seed|obligation_grounded_review_issue|missing_ablation|seed-target",
+            "issue_cluster_target": "seed-target",
+            "missing_or_mismatch": "seed-target",
+        }
+    )
+    case_table.write_text(json.dumps(payload), encoding="utf-8")
+
+    template = p31_manual._build_template(
+        argparse.Namespace(
+            entry_gate_json="",
+            case_json=str(case_table),
+            critique_origin_only=False,
+            run_label="TEST",
+            audit_date="2026-07-03",
+            min_critique_ab_clusters=3,
+            min_all_ab_clusters=0,
+        )
+    )
+
+    assert len(template["clusters"]) == 4
+    origins = {cluster["origin"] for cluster in template["clusters"]}
+    assert {"critique_payload", "deterministic_seed"} <= origins
+    assert template["summary"]["system_clusters"] == 4
+    assert template["summary"]["critique_origin_clusters"] == 3
 
 
 def test_entry_gate_consumes_manual_validation_report(tmp_path):
@@ -182,6 +240,7 @@ def test_entry_gate_consumes_manual_validation_report(tmp_path):
             output_json="",
             output_md="",
             min_critique_clusters=3,
+            min_candidate_menu_verified=2,
             fail_on_red_flags=False,
             require_manual_audit=True,
         )

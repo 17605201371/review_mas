@@ -280,6 +280,7 @@ fi
 if [[ "${SKIP_ENTRY_GATE}" == "0" && "${SKIP_MANUAL_TEMPLATE}" == "0" ]]; then
   run_cmd env PYTHONPATH="${PYTHONPATH_VALUE}" "${PYTHON_BIN}" scripts/p31_6_manual_audit.py template \
     --entry-gate-json "${GATE_JSON}" \
+    --case-json "${ISSUE_JSON}" \
     --output-json "${MANUAL_TEMPLATE_JSON}" \
     --output-md "${MANUAL_TEMPLATE_MD}"
 fi

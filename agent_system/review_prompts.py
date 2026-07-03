@@ -252,7 +252,7 @@ No prose, no reasoning, no markdown, no labels, no schema explanation, and no co
 {team_context}
 
 # Your Role
-You are the "Critique Agent". Act like a peer reviewer and propose concrete paper-review issues for verification.
+You are the "Critique Agent". Act like a peer reviewer and select concrete paper-review issues for verification.
 This is issue hypothesis discovery only. Do not output verified evidence, claim status changes, or final decisions.
 
 # Review-Issue Semantics
@@ -262,24 +262,21 @@ Do not relax this by using model judgment. Direct quote-grounded negatives and o
 
 # Candidate Sources
 1. Prefer `review_issue_candidate_selector_menu` when present. Treat it as the primary selector, not background text:
-   inspect every visible menu item, select 2-4 safe paper-auditable items when available, and reject unsafe items briefly.
+   inspect every visible menu item, select 1-3 safe paper-auditable items when available, and reject unsafe items briefly.
    Select only `candidate_menu_id` values copied from `review_issue_candidate_selector_menu` / `review_issue_candidate_menu`;
    they normally start with `rim-c`. Never put `rim-evidence-*`, quote ids, evidence ids, claim ids, or invented ids in
    `selected_menu_items`.
-   For a selected item, copy `candidate_menu_id` exactly, copy `obligation_id`, `claim_id`, `issue_type`,
-   `required_evidence_type`, put `expected_entity` in `missing_or_weak_items`, and copy `inventory_anchor` into
-   `observed_inventory`.
-   Always list every selected menu id in `selected_menu_items`, even when you also output the full slot candidate.
-   If output budget is tight, selected ids alone are acceptable; the runner may expand visible menu ids
-   back into pending candidates, but they still must pass the strict verifier.
+   For a selected item, only `candidate_menu_id`, `decision="selected"`, `rationale`, and `confidence` are required.
+   The runner expands visible menu ids back into pending candidates using current state; selected ids still must pass
+   the strict verifier.
 2. If the full `review_issue_candidate_menu`, `entity_level_claim_obligations`, `issue_candidate_blueprints`,
    `claim_surface_profile`, `review_issue_contrast_hints`, or `inventory_menu` are present, use them only as
    hypothesis/anchor hints. They are not evidence.
 3. Free-form candidates are allowed only when they name a paper-specific entity and include a copied inventory anchor
    from `paper_evaluation_inventory`, `inventory_menu`, or the visible paper excerpt.
 
-# What To Propose
-Fill only these slots: `missing_baseline`, `missing_ablation`, `scope_or_robustness`,
+# What To Consider
+Consider only these issue types: `missing_baseline`, `missing_ablation`, `scope_or_robustness`,
 `protocol_or_reproducibility`, `efficiency_cost`, `result_claim_mismatch`.
 Prefer paper-named baselines, related methods, contribution mechanisms, datasets/settings, metrics, protocol details,
 hyperparameters/splits/seeds, runtime/memory/FLOPs/latency/hardware, or exact result dimensions.
@@ -301,11 +298,10 @@ For protocol/reproducibility and efficiency, name the exact missing split/seed/c
 
 # Output Rules
 Return `evidence_map: []` and `flaw_candidates: []`. Do not cite `negative_evidence_ids`. Do not output recovery patches.
-Return up to 8 candidates total, at most 2 per issue type. Mirror every non-null slot candidate in
-`review_issue_candidates`.
-Also return `selected_menu_items` / `rejected_menu_items` for menu decisions. These are selection metadata, not
-evidence.
-If a slot candidate uses a `candidate_menu_id`, the same id must appear in `selected_menu_items`.
+Return `selected_menu_items` / `rejected_menu_items` for menu decisions. These are selection metadata, not evidence.
+When a selector menu is visible, selected ids are the primary output and full slot candidates are optional.
+Only output `review_issue_candidates` when no menu item fits and the free-form candidate has a real claim,
+paper-specific target, copied inventory anchor, and counterevidence terms.
 Use `quote_grounding_mode="absence_or_requirement_gap"` or `"table_scope_absence"` and
 `status="pending_absence_audit"` for obligation/inventory issues. Use `pending_quote_verification` only for direct
 quote-groundable contradictions.
@@ -313,7 +309,7 @@ Each candidate should include `possible_counterevidence_terms` so the verifier c
 Keep field values short; do not copy long prompt text into JSON fields.
 
 Required shape:
-<json>{"evidence_map":[],"flaw_candidates":[],"selected_menu_items":[{"candidate_menu_id":"rim-... if selected","decision":"selected","rationale":"why worth checking"}],"rejected_menu_items":[{"candidate_menu_id":"rim-... if rejected","decision":"rejected","rationale":"generic/already-covered/not claim-bound"}],"review_issue_slots":{"missing_baseline":{"candidate":{"candidate_id":"review-issue-candidate-1","candidate_menu_id":"rim-... if selected","claim_id":"claim-1","obligation_id":"obligation id if known","claim":"short claim","weakness":"paper-side reviewer issue to verify","issue_type":"missing_baseline|unfair_or_weak_baseline|missing_ablation|missing_robustness_or_generalization|evaluation_protocol_risk|efficiency_cost_gap|result_claim_mismatch|reproducibility_gap","required_evidence_type":"baseline_or_comparison|ablation_or_component|robustness_or_generalization|evaluation_protocol|efficiency_cost|empirical_result|reproducibility_detail","quote_grounding_mode":"absence_or_requirement_gap|table_scope_absence|quote_groundable_internal_negative","verification_question":"what inventory or quote would verify this issue?","missing_or_weak_items":["specific named entity"],"observed_inventory":[{"inventory_id":"inventory id if available","quote":"copied paper inventory quote","locator":"Table/Section","observed_items":["what the paper evaluated"]}],"possible_counterevidence_terms":["entity alias"],"candidate_raw_quote":"","quote_id":"","source_locator":"Table/Section if visible","source_of_expectation":"reviewer_candidate","rationale":"short reason this is review-worthy and not covered by inventory","confidence":0.75,"status":"pending_absence_audit"},"no_candidate_reason":""},"missing_ablation":{"candidate":null,"no_candidate_reason":""},"scope_or_robustness":{"candidate":null,"no_candidate_reason":""},"protocol_or_reproducibility":{"candidate":null,"no_candidate_reason":""},"efficiency_cost":{"candidate":null,"no_candidate_reason":""},"result_claim_mismatch":{"candidate":null,"no_candidate_reason":""}},"review_issue_candidates":[],"conflict_notes":[],"unresolved_questions":[],"dialogue_summary":"brief review-issue discovery summary","recommendation":"undecided"}</json>
+<json>{"evidence_map":[],"flaw_candidates":[],"selected_menu_items":[{"candidate_menu_id":"rim-c...","decision":"selected","rationale":"why worth checking","confidence":0.75}],"rejected_menu_items":[{"candidate_menu_id":"rim-c...","decision":"rejected","rationale":"generic/already-covered/not claim-bound"}],"review_issue_candidates":[],"conflict_notes":[],"unresolved_questions":[],"dialogue_summary":"brief review-issue selection summary","recommendation":"undecided"}</json>
 """
 
 

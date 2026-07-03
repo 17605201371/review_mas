@@ -8367,6 +8367,11 @@ def test_missing_ablation_target_quality_rejects_generic_components_and_actions(
         "component-isolation ablation for training methodology involves stochastic gradient",
         "component-isolation ablation for aggregated gradients from cross-entropy loss",
         "component-isolation ablation for from its proposed time-frequency encoder",
+        "component-isolation ablation for data with the latest network",
+        "component-isolation ablation for aspects of the causal mechanism",
+        "component-isolation ablation for domain causal representation",
+        "component-isolation ablation for transformer-based network",
+        "component-isolation ablation for layer incorporating a LoRA module",
     ]:
         assert quality(item)["quality"] == "reject"
 
@@ -10015,6 +10020,135 @@ def test_reviewer_issue_bundle_rejects_efficiency_gap_with_theory_time_homogeneo
                 "quote_grounding_mode": "absence_or_requirement_gap",
                 "missing_or_weak_items": ["latency and hardware cost breakdown"],
                 "observed_inventory": [{"quote": theory_quote, "locator": "Theorem 1"}],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["obligation_grounded_review_issue_count"] == 0
+    assert hygiene["verified_review_issue_count"] == 0
+
+
+def test_reviewer_issue_bundle_rejects_efficiency_gap_without_resource_claim():
+    claim = "The paper proves closed-form learning dynamics for bias-free ReLU networks."
+    inventory_quote = "Theorem 1 gives a closed-form characterization of the loss landscape."
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "method",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["efficiency_cost"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-neg-candidate-theory-resource",
+                "claim_id": "claim-1",
+                "weakness": "The theory claim lacks runtime and memory evidence.",
+                "negative_type": "efficiency_cost_gap",
+                "required_evidence_type": "efficiency_cost",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["runtime, memory, parameter, FLOP, hardware, or compute-cost measurement"],
+                "observed_inventory": [{"quote": inventory_quote, "locator": "Theorem 1"}],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["obligation_grounded_review_issue_count"] == 0
+    assert hygiene["verified_review_issue_count"] == 0
+
+
+def test_reviewer_issue_bundle_rejects_theory_claim_learning_rate_robustness_gap():
+    claim = "Under symmetry conditions, bias-free ReLU networks have the same learning dynamics as linear networks."
+    inventory_quote = "Theorem 2 analyzes the closed-form learning dynamics under the symmetry condition."
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "method",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["robustness_or_generalization"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "review-issue-candidate-theory-robustness",
+                "claim_id": "claim-1",
+                "weakness": "The theory claim lacks robustness to learning rate and network width.",
+                "negative_type": "missing_robustness_or_generalization",
+                "required_evidence_type": "robustness_or_generalization",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["robustness to learning rate", "robustness to network width"],
+                "observed_inventory": [{"quote": inventory_quote, "locator": "Theorem 2"}],
+                "status": "pending_absence_audit",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["obligation_grounded_review_issue_count"] == 0
+    assert hygiene["verified_review_issue_count"] == 0
+
+
+def test_reviewer_issue_bundle_rejects_gcl_heldout_gap_when_graph_coverage_exists():
+    claim = "PROP-GCL is competitive across diverse node classification benchmarks."
+    inventory_quote = "Experiments include Cora, Citeseer, Pubmed, heterophily datasets, and large-scale ogbn-arxiv node classification benchmarks."
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "empirical",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["robustness_or_generalization"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-seed-candidate-gcl-heldout",
+                "claim_id": "claim-1",
+                "weakness": "The paper lacks held-out coverage evaluation for GCL.",
+                "negative_type": "missing_robustness_or_generalization",
+                "required_evidence_type": "robustness_or_generalization",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["coverage or held-out evaluation for GCL"],
+                "observed_inventory": [{"quote": inventory_quote, "locator": "Experiments"}],
                 "status": "pending_absence_audit",
                 "source_of_expectation": "reviewer_candidate",
             }
@@ -13609,6 +13743,7 @@ def test_menu_bound_critique_candidate_carries_candidate_menu_metadata(monkeypat
     assert hygiene["critique_payload_menu_bound_count"] == 1
     assert hygiene["candidate_menu_item_used_count"] == 1
     assert hygiene["candidate_menu_item_verified_count"] == 1
+    assert hygiene["candidate_menu_item_any_origin_verified_count"] == 1
     assert issue_records[0]["candidate_menu_id"] == menu_id
     assert issue_records[0]["review_issue_bundle"]["candidate_menu_id"] == menu_id
     assert issue_records[0]["review_issue_bundle"]["discovery_origin"] == "critique_payload_menu_bound"
@@ -13687,7 +13822,37 @@ def test_selected_menu_origin_counts_as_critique_payload(monkeypatch):
     assert hygiene["critique_payload_verified_count"] == 1
     assert hygiene["critique_payload_verified_cluster_count"] == 1
     assert hygiene["critique_payload_menu_bound_verified_count"] == 1
+    assert hygiene["candidate_menu_item_verified_count"] == 1
+    assert hygiene["candidate_menu_item_any_origin_verified_count"] == 1
     assert issue_records[0]["review_issue_bundle"]["discovery_origin"] == "critique_payload_menu_selected"
+
+
+def test_candidate_menu_verified_count_excludes_seed_menu_ids():
+    metrics = review_state_mod._review_issue_candidate_funnel_metrics(
+        {
+            "reviewer_negative_candidates": [
+                {
+                    "candidate_id": "runner-seed-1",
+                    "candidate_menu_id": "rim-c1-sr-held-out",
+                    "claim_id": "claim-1",
+                }
+            ]
+        },
+        [
+            {
+                "reviewer_negative_candidate_id": "runner-seed-1",
+                "review_issue_type": "scope_overclaim",
+                "review_issue_bundle": {
+                    "candidate_menu_id": "rim-c1-sr-held-out",
+                    "discovery_origin": "runner_seed_entity_obligation",
+                    "review_issue_slot": "scope_or_robustness",
+                },
+            }
+        ],
+    )
+
+    assert metrics["candidate_menu_item_any_origin_verified_count"] == 1
+    assert metrics["candidate_menu_item_verified_count"] == 0
 
 
 def test_menu_generation_omits_missing_ablation_when_inventory_already_ablates_target():

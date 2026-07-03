@@ -263,16 +263,11 @@ def build_review_issue_case_table(rows: Iterable[Dict[str, Any]]) -> tuple[List[
             if not isinstance(evidence, dict):
                 continue
             evidence_id = str(evidence.get("evidence_id") or "").strip()
-            if use_cached_issue_filter:
-                if evidence_id in cached_issue_evidence_ids:
-                    bucket = "obligation_grounded_review_issue"
-                elif str(evidence.get("review_negative_label") or "") == "review_negative_verified":
-                    bucket = "quote_grounded_review_issue"
-                else:
-                    continue
-            elif _is_obligation_grounded_review_issue_evidence_record(evidence, state):
+            current_obligation_issue = _is_obligation_grounded_review_issue_evidence_record(evidence, state)
+            current_direct_quote = _is_grounded_paper_negative_evidence_record(evidence, state)
+            if current_obligation_issue and (not use_cached_issue_filter or evidence_id in cached_issue_evidence_ids):
                 bucket = "obligation_grounded_review_issue"
-            elif _is_grounded_paper_negative_evidence_record(evidence, state):
+            elif current_direct_quote:
                 bucket = "quote_grounded_review_issue"
             else:
                 continue
