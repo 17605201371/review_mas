@@ -91,6 +91,8 @@ def _case_text(case: Dict[str, Any]) -> str:
 
 
 def _is_critique_origin(case: Dict[str, Any]) -> bool:
+    if bool(case.get("critique_selected_menu_verified")):
+        return True
     kind = str(case.get("reviewer_candidate_kind") or "")
     origin = str(case.get("discovery_origin") or "")
     candidate_id = str(case.get("reviewer_candidate_id") or "")

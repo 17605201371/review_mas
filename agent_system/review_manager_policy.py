@@ -7,9 +7,11 @@ from agent_system.environments.env_package.review.state import (
     ACTIONABLE_NEGATIVE_EVIDENCE_TYPES,
     MANAGER_ACTION_TYPES,
     _flaw_valid_negative_evidence_ids,
+    _hard_negative_diagnosis_targets,
     _is_grounded_paper_negative_evidence_record,
     _is_paper_negative_evidence_record,
     _open_evidence_gaps,
+    _review_issue_candidate_selector_menu,
     build_decision_hygiene_view,
     claim_coverage_summary,
     infer_final_decision,
@@ -87,6 +89,32 @@ _FREEFORM_REVIEWER_NEGATIVE_ENABLED = (
 )
 _FREEFORM_REVIEWER_NEGATIVE_DISCOVERY_SOURCE = "freeform_reviewer_negative_discovery_override"
 _REVIEW_ISSUE_DISCOVERY_SOURCE = "review_issue_discovery_override"
+_REVIEW_ISSUE_DISCOVERY_COMPATIBLE_ACTIONS = frozenset(
+    {
+        "verify_evidence",
+        "request_evidence_recheck",
+        "analyze_flaws",
+        "summarize_progress",
+        "finalize",
+        "challenge_previous_hypothesis",
+        "ask_user_clarification",
+    }
+)
+_CRITIQUE_ONLY_DISCOVERY_EVAL_ENABLED = os.environ.get("DRMAS_CRITIQUE_ONLY_DISCOVERY_EVAL", "").strip().lower() in {
+    "1",
+    "true",
+    "on",
+    "yes",
+}
+_CRITIQUE_DISCOVERY_FIRST_ENABLED = (
+    _CRITIQUE_ONLY_DISCOVERY_EVAL_ENABLED
+    or os.environ.get("DRMAS_CRITIQUE_DISCOVERY_FIRST", "").strip().lower() in {
+        "1",
+        "true",
+        "on",
+        "yes",
+    }
+)
 _TARGETED_REVIEWER_NEGATIVE_MAX_ATTEMPTS = 2
 _NEGATIVE_FORMATION_POLICY_SOURCES = frozenset(
     {
@@ -568,11 +596,92 @@ def _has_pending_reviewer_negative_candidates(state: Dict[str, Any]) -> bool:
         if not isinstance(item, dict):
             continue
         status = str(item.get("status") or "pending_quote_verification").strip().lower()
-        if status in {"pending_quote_verification", "open", "not_assessable"}:
+        if status in {"pending_quote_verification", "pending_absence_audit", "pending_issue_bundle_verification", "open", "not_assessable"}:
             claim_id = str(item.get("claim_id") or "").strip()
             if claim_id and _claim_is_recovery_usable(state, claim_id):
                 return True
     return False
+
+
+def _review_issue_selector_menu_available(state: Dict[str, Any]) -> bool:
+    try:
+        targets = _hard_negative_diagnosis_targets(state or {}, claims=(state or {}).get("claims", []), max_items=8)
+        selector_menu = _review_issue_candidate_selector_menu(
+            targets,
+            max_items=6,
+            max_per_claim=2,
+            max_per_type=2,
+        )
+    except Exception:
+        return False
+    return bool(selector_menu)
+
+
+def _review_issue_discovery_first_needed(
+    *,
+    mode: str,
+    state: Dict[str, Any],
+    counts: Dict[str, int],
+    recent_turn_logs: Sequence[Dict[str, Any]],
+    allowed_actions: set[str],
+    action_type: str,
+    policy_source: str,
+    payload: Dict[str, Any],
+) -> bool:
+    return bool(
+        mode == "s4"
+        and _CRITIQUE_DISCOVERY_FIRST_ENABLED
+        and _TARGETED_NEGATIVE_SEARCH_ENABLED
+        and _FREEFORM_REVIEWER_NEGATIVE_ENABLED
+        and _REVIEW_ISSUE_BUNDLE_ENABLED
+        and policy_source in _HARD_NEGATIVE_DISCOVERY_ELIGIBLE_SOURCES.union({"manager_model"})
+        and counts.get("claims", 0) > 0
+        and counts.get("evidence_map", 0) > 0
+        and _review_issue_selector_menu_available(state)
+        and "analyze_flaws" in allowed_actions
+        and action_type in _REVIEW_ISSUE_DISCOVERY_COMPATIBLE_ACTIONS
+        and str(payload.get("phase") or state.get("phase") or "").strip().lower() != "recovery"
+        and not _has_pending_reviewer_negative_candidates(state)
+        and not _has_recent_freeform_reviewer_negative_discovery(recent_turn_logs)
+    )
+
+
+def _configure_review_issue_discovery_turn(
+    payload: Dict[str, Any],
+    *,
+    target_claim_ids: Sequence[str],
+) -> Dict[str, Any]:
+    updated = dict(payload)
+    updated["decision"] = "continue"
+    updated["final_decision"] = "undecided"
+    updated["final_report"] = ""
+    updated["action_type"] = "analyze_flaws"
+    updated["effective_action_type"] = "analyze_flaws"
+    updated["negative_evidence_formation_required"] = False
+    updated["targeted_negative_search_required"] = False
+    updated["negative_evidence_binding_retry_required"] = False
+    updated["compact_negative_pass_required"] = False
+    updated["hard_negative_diagnosis_required"] = False
+    updated["targeted_negative_search_active_tasks"] = []
+    updated["review_issue_discovery_required"] = True
+    updated["freeform_reviewer_negative_discovery_required"] = True
+    updated["freeform_reviewer_negative_enabled"] = True
+    updated["freeform_reviewer_negative_stage"] = "candidate_discovery"
+    clean_target_claim_ids = [
+        str(claim_id or "").strip()
+        for claim_id in target_claim_ids
+        if str(claim_id or "").strip()
+    ][:_NEGATIVE_TARGET_CLAIM_LIMIT]
+    if clean_target_claim_ids:
+        updated["target_claim_ids"] = clean_target_claim_ids
+    updated["target_flaw_ids"] = []
+    updated["target_evidence_ids"] = []
+    updated["focus"] = (
+        "Act like a peer reviewer and select likely paper review issues from the visible review_issue_candidate_selector_menu. "
+        "Do not create verified negative evidence in this turn. Prefer selected_menu_items with copied candidate_menu_id values; "
+        "write full review_issue_candidates only as a free-form fallback when no menu item fits."
+    )
+    return updated
 
 
 def _has_prior_compact_negative_pass(recent_turn_logs: Sequence[Dict[str, Any]]) -> bool:
@@ -2953,6 +3062,37 @@ def apply_manager_policy_fallback(
         hard_negative_discovery_claim_ids = list(salvaged_hard_negative_claim_ids)
         hard_negative_uses_salvaged_targets = bool(hard_negative_discovery_claim_ids)
     compact_negative_claim_ids = _compact_negative_checkpoint_claim_ids(state, limit=2)
+    review_issue_discovery_target_claim_ids = list(
+        dict.fromkeys(
+            list(raw_target_claim_ids)
+            + list(hard_negative_discovery_claim_ids)
+            + list(compact_negative_claim_ids)
+            + _claim_ids_by_status(
+                state.get("claims", []),
+                exclude=_INACTIVE_CLAIM_STATUSES,
+                limit=_NEGATIVE_TARGET_CLAIM_LIMIT,
+            )
+        )
+    )[:_NEGATIVE_TARGET_CLAIM_LIMIT]
+    if _review_issue_discovery_first_needed(
+        mode=mode,
+        state=state,
+        counts=counts,
+        recent_turn_logs=recent_turn_logs,
+        allowed_actions=allowed_actions,
+        action_type=action_type,
+        policy_source=policy_source,
+        payload=payload,
+    ):
+        policy_source = _REVIEW_ISSUE_DISCOVERY_SOURCE
+        policy_notes.append(
+            "S4 reserves an explicit Critique review-issue selector turn before binding retry, negative formation, or recovery."
+        )
+        payload = _configure_review_issue_discovery_turn(
+            payload,
+            target_claim_ids=review_issue_discovery_target_claim_ids,
+        )
+        action_type = "analyze_flaws"
     if (
         mode == "s4"
         and policy_source == "manager_model"
@@ -2968,6 +3108,7 @@ def apply_manager_policy_fallback(
     if (
         mode == "s4"
         and negative_retry_targets["target_evidence_ids"]
+        and not payload.get("review_issue_discovery_required")
         and "analyze_flaws" in allowed_actions
         and action_type in {"ask_user_clarification", "verify_evidence", "request_evidence_recheck", "summarize_progress", "finalize", "analyze_flaws"}
     ):
@@ -2986,6 +3127,7 @@ def apply_manager_policy_fallback(
         and policy_source in _HARD_NEGATIVE_DISCOVERY_ELIGIBLE_SOURCES.union({"manager_model"})
         and action_type in {"challenge_previous_hypothesis", "verify_evidence", "request_evidence_recheck", "summarize_progress", "finalize"}
         and verified_negative_flaw_review_targets["target_flaw_ids"]
+        and not payload.get("review_issue_discovery_required")
         and "analyze_flaws" in allowed_actions
     ):
         policy_source = "negative_evidence_binding_retry_override"
@@ -2999,10 +3141,31 @@ def apply_manager_policy_fallback(
         payload["target_evidence_ids"] = verified_negative_flaw_review_targets["target_evidence_ids"]
         payload["negative_evidence_binding_retry_required"] = True
 
+    if _review_issue_discovery_first_needed(
+        mode=mode,
+        state=state,
+        counts=counts,
+        recent_turn_logs=recent_turn_logs,
+        allowed_actions=allowed_actions,
+        action_type=action_type,
+        policy_source=policy_source,
+        payload=payload,
+    ):
+        policy_source = _REVIEW_ISSUE_DISCOVERY_SOURCE
+        policy_notes.append(
+            "S4 runs a Critique review-issue selector pass before negative-evidence formation or recovery."
+        )
+        payload = _configure_review_issue_discovery_turn(
+            payload,
+            target_claim_ids=review_issue_discovery_target_claim_ids,
+        )
+        action_type = "analyze_flaws"
+
     negative_formation_targets = _unverified_flaw_negative_evidence_targets(state, recent_turn_logs)
     if (
         mode == "s4"
         and negative_formation_targets["target_flaw_ids"]
+        and not payload.get("review_issue_discovery_required")
         and not (_NEGATIVE_PASS_COMPACT and compact_pass_already_done)
         and ("request_evidence_recheck" in allowed_actions or (_NEGATIVE_PASS_COMPACT and "analyze_flaws" in allowed_actions))
         and action_type in {"ask_user_clarification", "verify_evidence", "request_evidence_recheck", "challenge_previous_hypothesis", "analyze_flaws", "summarize_progress", "finalize"}
@@ -3083,6 +3246,13 @@ def apply_manager_policy_fallback(
         policy_source = "flaw_progress_override"
         policy_notes.append("Evidence already exists, so the policy moved beyond evidence verification to grounded flaw analysis or recheck.")
         action_type = inferred_action
+    review_issue_discovery_untried = bool(
+        _TARGETED_NEGATIVE_SEARCH_ENABLED
+        and _FREEFORM_REVIEWER_NEGATIVE_ENABLED
+        and _REVIEW_ISSUE_BUNDLE_ENABLED
+        and not _has_pending_reviewer_negative_candidates(state)
+        and not _has_recent_freeform_reviewer_negative_discovery(recent_turn_logs)
+    )
     verified_issue_recovery_claim_ids = _absence_audit_contested_recovery_claim_ids(state, limit=_NEGATIVE_TARGET_CLAIM_LIMIT)
     if (
         mode == "s4"
@@ -3090,6 +3260,7 @@ def apply_manager_policy_fallback(
         and "challenge_previous_hypothesis" in allowed_actions
         and action_type in {"verify_evidence", "request_evidence_recheck", "analyze_flaws", "summarize_progress", "finalize"}
         and str(payload.get("phase") or state.get("phase") or "").strip().lower() != "recovery"
+        and not review_issue_discovery_untried
     ):
         policy_source = "s4_verified_review_issue_recovery_bridge"
         policy_notes.append(
@@ -3324,6 +3495,7 @@ def apply_manager_policy_fallback(
         and conflict_count > 0
         and counts["flaw_candidates"] > 0
         and not _has_prior_recovery_action(recent_turn_logs)
+        and not payload.get("review_issue_discovery_required")
     ):
         recovery_action = _choose_recovery_action(state)
         if recovery_action in allowed_actions:
@@ -3340,6 +3512,7 @@ def apply_manager_policy_fallback(
             not _has_prior_recovery_action(recent_turn_logs)
             or bool(_absence_audit_contested_recovery_claim_ids(state, limit=1))
         )
+        and not payload.get("review_issue_discovery_required")
     ):
         recovery_action = _choose_blocking_recovery_action(state)
         if recovery_action in allowed_actions:
@@ -3348,7 +3521,7 @@ def apply_manager_policy_fallback(
                 f"S4 redirects to {recovery_action} because recovery-relevant evidence gaps or active repair signals remain."
             )
             action_type = recovery_action
-    if mode == "s4" and ENABLE_STICKY_RECOVERY_BIAS:
+    if mode == "s4" and ENABLE_STICKY_RECOVERY_BIAS and not payload.get("review_issue_discovery_required"):
         biased_action, sticky_notes = _sticky_recovery_bias(state, recent_turn_logs, action_type, allowed_actions)
         if biased_action != action_type:
             policy_source = "sticky_recovery_bias"
@@ -3358,7 +3531,7 @@ def apply_manager_policy_fallback(
     payload["support_formation_pass_reason"] = ""
     payload["support_formation_pass_from_action"] = ""
     support_reason = _support_formation_pass_reason(state, action_type, allowed_actions, recent_turn_logs)
-    if mode == "s4" and support_reason:
+    if mode == "s4" and support_reason and not payload.get("review_issue_discovery_required"):
         previous_recovery_action = action_type
         policy_source = "support_formation_override"
         policy_notes.append(
@@ -3464,10 +3637,16 @@ def apply_manager_policy_fallback(
         payload["rationale"] = inferred.get("rationale", "Fallback manager policy selected the next review action.")
         if policy_source != "manager_model":
             policy_notes.append("Rationale was filled from inferred policy context.")
-    payload["target_claim_ids"] = payload.get("target_claim_ids") or inferred.get("target_claim_ids", [])
-    payload["target_flaw_ids"] = payload.get("target_flaw_ids") or inferred.get("target_flaw_ids", [])
-    payload["target_evidence_ids"] = payload.get("target_evidence_ids") or inferred.get("target_evidence_ids", [])
-    payload["target_hypotheses"] = payload.get("target_hypotheses") or inferred.get("target_hypotheses", [])
+    if payload.get("review_issue_discovery_required"):
+        payload["target_claim_ids"] = payload.get("target_claim_ids") or inferred.get("target_claim_ids", [])
+        payload["target_flaw_ids"] = []
+        payload["target_evidence_ids"] = []
+        payload["target_hypotheses"] = []
+    else:
+        payload["target_claim_ids"] = payload.get("target_claim_ids") or inferred.get("target_claim_ids", [])
+        payload["target_flaw_ids"] = payload.get("target_flaw_ids") or inferred.get("target_flaw_ids", [])
+        payload["target_evidence_ids"] = payload.get("target_evidence_ids") or inferred.get("target_evidence_ids", [])
+        payload["target_hypotheses"] = payload.get("target_hypotheses") or inferred.get("target_hypotheses", [])
     post_fallback_target_claim_ids = _normalize_target_claim_ids(payload.get("target_claim_ids", []))
     payload["post_fallback_target_claim_ids"] = list(post_fallback_target_claim_ids)
     payload["post_fallback_target_count"] = len(post_fallback_target_claim_ids)

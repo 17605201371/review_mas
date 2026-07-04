@@ -230,6 +230,47 @@ def _normalize_review_issue_observed_inventory_items(value: Any) -> List[Dict[st
     return results
 
 
+def _normalize_review_issue_candidate_menu_snapshot(value: Any) -> Dict[str, Any]:
+    if not isinstance(value, dict):
+        return {}
+    snapshot: Dict[str, Any] = {
+        "candidate_menu_id": _normalize_text(value.get("candidate_menu_id"), max_length=140),
+        "claim_id": _normalize_text(value.get("claim_id"), max_length=100),
+        "obligation_id": _normalize_text(value.get("obligation_id"), max_length=140),
+        "issue_type": _normalize_text(value.get("issue_type"), max_length=80),
+        "required_evidence_type": _normalize_text(value.get("required_evidence_type"), max_length=80),
+        "expected_entity": _normalize_text(value.get("expected_entity"), max_length=140),
+        "verifier_target_entity": _normalize_text(value.get("verifier_target_entity"), max_length=140),
+        "entity_source": _normalize_text(value.get("entity_source"), max_length=80),
+        "source": _normalize_text(value.get("source"), max_length=100),
+        "review_issue_slot": _normalize_text(
+            value.get("review_issue_slot") or value.get("slot"),
+            max_length=80,
+        ),
+        "inventory_id": _normalize_text(value.get("inventory_id"), max_length=100),
+        "inventory_quote": _normalize_text(value.get("inventory_quote"), max_length=260),
+        "inventory_locator": _normalize_text(value.get("inventory_locator"), max_length=120),
+        "inventory_type": _normalize_text(value.get("inventory_type"), max_length=80),
+        "target_quality_hint": _normalize_text(value.get("target_quality_hint"), max_length=40),
+        "target_quality_reason": _normalize_text(value.get("target_quality_reason"), max_length=120),
+        "why_review_worthy": _normalize_text(value.get("why_review_worthy"), max_length=160),
+        "counterevidence_search_terms": _normalize_list_of_strings(
+            value.get("counterevidence_search_terms") or value.get("counterevidence_aliases"),
+            max_items=8,
+            max_length=80,
+        ),
+    }
+    observed_inventory = _normalize_review_issue_observed_inventory_items(value.get("observed_inventory"))
+    if not observed_inventory and isinstance(value.get("inventory_anchor"), dict):
+        observed_inventory = _normalize_review_issue_observed_inventory_items(value.get("inventory_anchor"))
+    if observed_inventory:
+        snapshot["observed_inventory"] = observed_inventory
+    return {
+        key: val for key, val in snapshot.items()
+        if val not in ("", [], {}, None)
+    }
+
+
 def _normalize_choice(value: Any, allowed: Iterable[str], default: str) -> str:
     allowed_set = set(allowed)
     text = _normalize_text(value, default=default, max_length=64).lower()
@@ -795,6 +836,13 @@ def _normalize_reviewer_negative_candidate_item(item: Any, fallback_index: int) 
     )
     if observed_inventory:
         normalized["observed_inventory"] = observed_inventory
+    menu_snapshot = _normalize_review_issue_candidate_menu_snapshot(
+        item.get("review_issue_candidate_menu_item")
+        or item.get("selected_menu_item_snapshot")
+        or item.get("candidate_menu_item")
+    )
+    if menu_snapshot:
+        normalized["review_issue_candidate_menu_item"] = menu_snapshot
     source_of_expectation = _normalize_text(item.get("source_of_expectation"), max_length=80)
     if source_of_expectation:
         normalized["source_of_expectation"] = source_of_expectation
@@ -1765,14 +1813,16 @@ def _missing_ablation_target_text(text: str) -> str:
         flags=re.IGNORECASE,
     ).strip()
     target = re.sub(r"^(?:train(?:ing)?|trained)\s+(?:the\s+)?", "", target, flags=re.IGNORECASE).strip()
+    target = re.sub(r"^of\s+(?:an?\s+|the\s+)?", "", target, flags=re.IGNORECASE).strip()
     target = re.sub(r"^implement(?:s|ed|ing)?\s+(?:an?\s+|the\s+)?", "", target, flags=re.IGNORECASE).strip()
     target = re.sub(
-        r"^(?:which\s+)?(?:employs?|uses?|with|designed|designs|have\s+designed|"
+        r"^(?:which\s+)?(?:employs?|uses?|utili[sz]es?|with|designed|designs|have\s+designed|"
         r"we\s+(?:designed|design|employ|use|propose))\s+(?:an?\s+|the\s+)?",
         "",
         target,
         flags=re.IGNORECASE,
     ).strip()
+    target = re.sub(r"^(?:such\s+)?(?:an?\s+|the\s+)", "", target, flags=re.IGNORECASE).strip()
     return re.sub(r"\s+", " ", target).strip(" ,.;:")
 
 
@@ -1959,7 +2009,7 @@ _MISSING_ABLATION_TARGET_GENERIC_COMPONENT_RE = re.compile(
 
 _MISSING_ABLATION_TARGET_WEAK_ACTION_RE = re.compile(
     r"^(?:is\s+|are\s+|was\s+|were\s+)?(?:trained|training|pre[- ]?trained|"
-    r"predicts?|predicting|outputs?|generates?|using|uses?|applying|applies?|"
+        r"predicts?|predicting|outputs?|generates?|using|uses?|utili[sz]es?|applying|applies?|"
     r"learns?|learning|optimizes?|optimizing|updates?|updated|operates?|implemented|evaluated|"
     r"initiali[sz]es?|initiali[sz]ing|"
     r"constrains?|constraining|"
@@ -2018,13 +2068,23 @@ def _missing_ablation_target_is_malformed_fragment(target: str) -> bool:
         return True
     if re.search(r"\b(?:seems?\s+similar|similar\s+to\s+the|methodology\s+involves|design\s+of\s+gradient)\b", lowered):
         return True
+    if re.search(r"\b(?:recent\s+advances?|prior\s+work|related\s+work|existing\s+work)\s+(?:in|on|for)\b", lowered):
+        return True
     if re.match(r"^(?:via|through)\s+(?:aggregation|aggregat(?:e|ion|ing))\b", lowered):
         return True
     if re.match(r"^(?:it\s+)?only\s+comprises?\b", lowered):
         return True
+    if re.match(r"^(?:that|which|where|when|whether)\b", lowered):
+        return True
+    if re.match(r"^(?:examine|examines|examining|investigate|investigates|stud(?:y|ies|ying)|analy[sz]e|analy[sz]es)\b", lowered):
+        return True
     if re.fullmatch(r"(?:[a-z]{0,4}ional|[a-z]{0,4}al)\s+(?:branch|module|component|head)", lowered):
         return True
     if re.match(r"^(?:by|from|with|to)\s+(?:its|their|the|a|an|our)\b", lowered):
+        return True
+    if re.match(r"^[a-z]\s+(?:the|a|an)\s+", lowered):
+        return True
+    if re.search(r"\bby\s+(?:encoder|decoder|network|model|module|component)\b$", lowered):
         return True
     if re.match(r"^(?:with|using)\s+(?:greater|more|less|better|worse)\s+", lowered):
         return True
@@ -2125,6 +2185,15 @@ def _missing_ablation_target_quality(bundle: Dict[str, Any]) -> Dict[str, str]:
     ).strip()
     context = _missing_ablation_bundle_context_text(bundle)
     target_context = f"{target} {context}"
+    if lowered in {"recurrent neural network", "rnn"} and re.search(
+        r"\b(?:draft\s+model|redrafter|speculative\s+decoding)\b",
+        context,
+        re.IGNORECASE,
+    ):
+        target = "recurrent draft model"
+        lowered = target.lower()
+        target_core = lowered
+        target_context = f"{target} {context}"
 
     if not target:
         return {"quality": "reject", "reason": "missing_ablation_target_empty"}
@@ -2138,10 +2207,23 @@ def _missing_ablation_target_quality(bundle: Dict[str, Any]) -> Dict[str, str]:
         return {"quality": "reject", "reason": "missing_ablation_target_prose_fragment"}
     if re.search(
         r"\b(?:data\s+with\s+the\s+latest\s+network|aspects?\s+(?:of\s+)?(?:the\s+)?causal\s+mechanism|"
-        r"domain\s+causal\s+representation|ranch\s+encoder)\b",
+        r"domain\s+(?:of\s+)?causal\s+representation|ranch\s+encoder|significantly\s+module)\b",
         lowered,
     ):
         return {"quality": "reject", "reason": "missing_ablation_target_malformed_or_abstract"}
+    if re.fullmatch(r"performance\s+of\s+(?:the\s+)?(?:neural\s+)?network", lowered):
+        return {"quality": "reject", "reason": "missing_ablation_target_generic_component"}
+    if re.fullmatch(
+        r"(?:develop|build|train|design|construct)\s+(?:a|an|the)\s+"
+        r"(?:graph\s+)?(?:neural\s+)?network",
+        lowered,
+    ):
+        return {"quality": "reject", "reason": "missing_ablation_target_weak_action"}
+    if re.fullmatch(
+        r"(?:first\s+)?(?:practical\s+|novel\s+|new\s+)?(?:graph\s+)?(?:neural\s+)?network",
+        lowered,
+    ):
+        return {"quality": "reject", "reason": "missing_ablation_target_generic_component"}
     if re.fullmatch(r"(?:[a-z0-9_-]+\s+)?transformer[- ]based\s+network", lowered):
         return {"quality": "reject", "reason": "missing_ablation_target_generic_component"}
     if re.search(r"\blora\b", lowered):
@@ -2152,9 +2234,13 @@ def _missing_ablation_target_quality(bundle: Dict[str, Any]) -> Dict[str, str]:
         return {"quality": "reject", "reason": "missing_ablation_target_weak_action"}
     if re.fullmatch(r"(?:[a-z]{0,4}ional|[a-z]{0,4}al)\s+(?:branch|module|component|head)", lowered):
         return {"quality": "reject", "reason": "missing_ablation_target_malformed_fragment"}
-    if re.search(r"\b(?:stochastic\s+gradient|gradient\s+descent|cross[- ]entropy\s+loss)\b", lowered) and not re.search(
-        r"\b(?:orthogonal|ogl|gradient\s+matching|distillation|novel|proposed)\b",
+    if re.search(
+        r"\b(?:stochastic\s+gradient|gradient\s+descent|cross[- ]entropy\s+(?:for\s+)?(?:classification\s+)?loss|"
+        r"classification\s+loss|ce\s+loss)\b",
         lowered,
+    ) and not re.search(
+        r"\b(?:orthogonal|ogl|gradient\s+matching|distillation|novel|proposed|custom|contrastive|regulari[sz]ation)\b",
+        f"{lowered} {context.lower()}",
     ):
         return {"quality": "reject", "reason": "missing_ablation_target_not_contribution_bound"}
     if re.search(r"\bgradients?\b", lowered) and not re.search(
@@ -11129,6 +11215,27 @@ def _ablation_counterevidence_window_resolves_semantic_table(window: str, missin
         return True
 
     if (
+        re.search(
+            r"\bzero[- ]shot\b.{0,80}\bchoice\b|"
+            r"\bchoice\b.{0,80}\bzero[- ]shot\b|"
+            r"\bselect(?:ion)?\s+stage\b|"
+            r"\bstage\s*2\b.{0,80}\bchoice\b",
+            missing,
+        )
+        and re.search(r"\bablation(?:s| studies?| experiments?| analysis)?\b", text)
+        and re.search(
+            r"\bablations?\s+(?:over|of|for)\s+(?:this|the)?\s*stage\b|"
+            r"\bthis\s+stage'?s\s+zero[- ]shot\s+instance\s+choice\s+pipeline\b|"
+            r"\bzero[- ]shot\s+instance\s+choice\s+pipeline\b|"
+            r"\bablation_zs_choice\b",
+            text,
+        )
+        and re.search(r"\bzero[- ]shot\b", text)
+        and re.search(r"\bchoice\b|\bselect\b|\bstage\s*2\b", text)
+    ):
+        return True
+
+    if (
         re.search(r"\btotal\s+loss\b|\boverall\s+loss\b|\bloss\s+function\b", missing)
         and re.search(r"\bablation\s+stud(?:y|ies)\b|\bsensitivity\s+analys(?:is|es)\b", text)
         and re.search(r"\bregulari[sz]ation\s+loss\b|\blambda\b|\\lambda|\bdistillation\s+iterations?\b|\bdata\s+update\s+steps?\b", text)
@@ -13168,6 +13275,8 @@ def _review_issue_candidate_menu_quality_failure(
         return "empty_expected_entity"
 
     if neg_type in {"missing_robustness_or_generalization", "scope_overclaim", "insufficient_evaluation"}:
+        if re.search(r"\bstate[- ]of[- ]the[- ]art\b", expected_l):
+            return "scope_menu_generic_target"
         if re.fullmatch(
             r"(?:out[- ]of[- ]domain|ood|stress|robustness|generalization|held[- ]out|coverage)"
             r"(?:\s+or\s+(?:out[- ]of[- ]domain|ood|stress|robustness|generalization|held[- ]out|coverage))*"
@@ -13203,6 +13312,19 @@ def _review_issue_candidate_menu_quality_failure(
             return "efficiency_cost_menu_without_resource_anchor"
 
     if neg_type in {"missing_baseline", "unfair_or_weak_baseline"}:
+        paper_named_match = re.search(r"\bpaper[- ]named\s+([a-z][a-z0-9_-]*)\s+baseline\b", expected_l)
+        if paper_named_match and paper_named_match.group(1) in {
+            "labor",
+            "labour",
+            "method",
+            "model",
+            "network",
+            "paper",
+            "prior",
+            "related",
+            "work",
+        }:
+            return "missing_baseline_menu_spurious_paper_named_target"
         if re.search(r"\bsame[- ]setting\s+baseline\s+comparison\s+for\b", expected_l) and re.search(
             r"\b(?:qualitative|textual|direct\s+quantitative|quantitative\s+(?:table|comparison|result)|"
             r"not\s+(?:provide|include|show)\s+(?:a\s+)?(?:direct\s+)?quantitative|"
@@ -13224,6 +13346,11 @@ def _review_issue_candidate_menu_quality_failure(
                 return "missing_baseline_menu_generic_target"
 
     if neg_type == "reproducibility_gap":
+        if re.search(
+            r"\b(?:for|of)\s+[a-z0-9]+[- ]based\b",
+            expected_l,
+        ):
+            return "reproducibility_menu_malformed_based_target"
         generic_repro_target = bool(
             re.search(
                 r"\b(?:training\s+)?hyperparameters?\b|\bsplit\b|\bseed\b|\bcode/?config\b|"
@@ -13248,6 +13375,19 @@ def _review_issue_candidate_menu_quality_failure(
         )
         if generic_repro_target and theory_context and not empirical_anchor:
             return "reproducibility_menu_theory_context"
+
+    if neg_type == "efficiency_cost_gap":
+        expected_resource_dimension = bool(
+            re.search(
+                r"\b(?:runtime|latency|throughput|wall[- ]clock|running\s+time|"
+                r"training\s+time|inference\s+time|memory|gpu|cpu|hardware|"
+                r"flops?|params?|parameters?|compute|computational\s+(?:cost|time|budget)|"
+                r"speedup|fps|tokens?/s|milliseconds?|seconds?|ms\b|gb\b|mb\b)\b",
+                expected_l,
+            )
+        )
+        if expected_resource_dimension and _REVIEW_ISSUE_EFFICIENCY_INVENTORY_RE.search(context_l):
+            return "efficiency_cost_menu_already_observed_in_inventory"
 
     return ""
 
@@ -13349,6 +13489,15 @@ def _review_issue_candidate_menu_item(
         target_quality_reason = str(ablation_quality.get("reason") or "")
         if target_quality_hint in {"", "low", "reject"}:
             return {}
+    verifier_target = expected
+    if neg_type == "missing_ablation":
+        verifier_target = _normalize_text(_missing_ablation_target_text(expected), max_length=140) or expected
+        if verifier_target.lower() in {"recurrent neural network", "rnn"} and re.search(
+            r"\b(?:draft\s+model|redrafter|speculative\s+decoding)\b",
+            f"{claim_text} {inventory_text}",
+            re.IGNORECASE,
+        ):
+            verifier_target = "recurrent draft model"
     inventory0 = inventory[0] if inventory else {}
     expectation_terms = sorted(_review_issue_candidate_expectation_terms([expected], neg_type))[:8]
     if expected not in expectation_terms:
@@ -13357,7 +13506,7 @@ def _review_issue_candidate_menu_item(
         "candidate_menu_id": _review_issue_candidate_menu_id(
             claim_id,
             neg_type,
-            expected,
+            verifier_target,
             1,
         ),
         "claim_id": claim_id,
@@ -13365,6 +13514,7 @@ def _review_issue_candidate_menu_item(
         "issue_type": neg_type,
         "required_evidence_type": requirement,
         "expected_entity": expected,
+        "verifier_target_entity": verifier_target,
         "entity_source": entity_source or str(obligation.get("entity_source") or ""),
         "source": source,
         "review_issue_slot": _review_issue_slot_for_type(neg_type),
@@ -13393,7 +13543,7 @@ def _review_issue_candidate_menu_id(
     fallback_index: int,
 ) -> str:
     claim_match = re.search(r"(\d+)$", str(claim_id or ""))
-    claim_token = f"c{claim_match.group(1)}" if claim_match else _slugify("c", claim_id, fallback_index).replace("c-", "c")
+    claim_token = f"c{claim_match.group(1)}" if claim_match else _slugify("c", claim_id, fallback_index).replace("c-", "c")[:10].strip("-")
     type_token = {
         "missing_baseline": "mb",
         "unfair_or_weak_baseline": "mb",
@@ -13408,14 +13558,15 @@ def _review_issue_candidate_menu_id(
         "result_claim_mismatch": "rc",
         "negative_result": "rc",
     }.get(_canonical_negative_evidence_type(issue_type), "ri")
-    digest = re.sub(
-        r"[^a-z0-9]+",
-        "-",
-        f"{claim_token}-{type_token}-{expected_entity}".lower(),
-    ).strip("-")[:44].strip("-")
-    if not digest:
-        digest = f"{claim_token}-{type_token}-{fallback_index}"
-    return f"rim-{digest}"
+    slot = int(fallback_index or 1)
+    if not claim_token:
+        claim_token = f"c{slot}"
+    target_text = _normalize_text(expected_entity, max_length=100)
+    if _canonical_negative_evidence_type(issue_type) == "missing_ablation":
+        target_text = _missing_ablation_target_text(target_text)
+    target_token = _slugify("target", target_text, slot).replace("target-", "", 1)
+    target_token = target_token[:40].strip("-") or str(slot)
+    return f"rim-{claim_token}-{type_token}-{target_token}"
 
 
 def _review_issue_candidate_menu_worthiness_reason(
@@ -13481,42 +13632,45 @@ def _select_review_issue_candidate_menu_items(
     ranked_items = sorted([item for item in items if isinstance(item, dict)], key=_review_issue_candidate_menu_rank)
     selected: List[Dict[str, Any]] = []
     type_counts: Counter[str] = Counter()
-    selected_ids: set[int] = set()
-    seen_slots: set[str] = set()
+    slot_counts: Counter[str] = Counter()
+    selected_keys: set[Tuple[str, str, str]] = set()
 
-    def _try_select(item: Dict[str, Any], *, require_new_slot: bool = False) -> bool:
+    def _item_key(item: Dict[str, Any]) -> Tuple[str, str, str]:
+        return (
+            str(item.get("candidate_menu_id") or ""),
+            str(item.get("issue_type") or ""),
+            _normalize_text(item.get("expected_entity"), max_length=140).lower(),
+        )
+
+    def _try_select(item: Dict[str, Any]) -> bool:
         issue_type = _canonical_negative_evidence_type(item.get("issue_type"))
-        slot = str(item.get("review_issue_slot") or _review_issue_slot_for_type(issue_type) or issue_type)
-        if require_new_slot and slot in seen_slots:
+        key = _item_key(item)
+        if key in selected_keys:
             return False
         if issue_type and type_counts[issue_type] >= max_per_type:
             return False
         selected.append(item)
-        selected_ids.add(id(item))
+        selected_keys.add(key)
         if issue_type:
             type_counts[issue_type] += 1
-        if slot:
-            seen_slots.add(slot)
+            slot_counts[_review_issue_slot_for_type(issue_type)] += 1
         return True
 
-    # First pass: expose the best item from as many distinct review slots as
-    # possible.  Without this, high-ranked baseline/ablation items can consume
-    # the entire Critique-visible selector budget and keep the model from
-    # attempting protocol, scope, efficiency, or result-mismatch candidates.
+    # First pass: preserve slot diversity so a high-ranked missing-ablation item
+    # does not crowd out baseline/protocol/scope candidates from the Critique menu.
     for item in ranked_items:
         if len(selected) >= max_items:
             break
-        _try_select(item, require_new_slot=True)
-
-    # Second pass: top up with the original rank while preserving per-type caps.
-    for item in ranked_items:
-        if len(selected) >= max_items:
-            break
-        if id(item) in selected_ids:
+        issue_type = _canonical_negative_evidence_type(item.get("issue_type"))
+        slot = _review_issue_slot_for_type(issue_type)
+        if slot and slot_counts[slot] > 0:
             continue
         _try_select(item)
+
+    for item in ranked_items:
         if len(selected) >= max_items:
             break
+        _try_select(item)
     return selected
 
 
@@ -13547,7 +13701,7 @@ def _review_issue_candidate_menu_for_claim(
         item["candidate_menu_id"] = _review_issue_candidate_menu_id(
             str(item.get("claim_id") or ""),
             str(item.get("issue_type") or ""),
-            str(item.get("expected_entity") or ""),
+            str(item.get("verifier_target_entity") or item.get("expected_entity") or ""),
             len(results) + 1,
         )
         results.append(item)
@@ -13693,9 +13847,16 @@ def _compact_review_issue_candidate_menu_item(item: Dict[str, Any]) -> Dict[str,
         "slot": str(item.get("review_issue_slot") or _review_issue_slot_for_type(str(item.get("issue_type") or ""))),
         "issue_type": str(item.get("issue_type") or ""),
         "required_evidence_type": str(item.get("required_evidence_type") or ""),
-        "expected_entity": _normalize_text(item.get("expected_entity"), max_length=80),
+        "expected_entity": _normalize_text(item.get("expected_entity"), max_length=140),
+        "verifier_target_entity": _normalize_text(
+            item.get("verifier_target_entity") or item.get("expected_entity"),
+            max_length=140,
+        ),
         "obligation_id": str(item.get("obligation_id") or ""),
         "entity_source": str(item.get("entity_source") or ""),
+        "source": str(item.get("source") or ""),
+        "target_quality_hint": _normalize_text(item.get("target_quality_hint"), max_length=40),
+        "target_quality_reason": _normalize_text(item.get("target_quality_reason"), max_length=120),
         "why_review_worthy": _normalize_text(item.get("why_review_worthy"), max_length=90),
         "inventory_anchor": {
             "inventory_id": str(item.get("inventory_id") or inventory0.get("inventory_id") or ""),
@@ -13716,16 +13877,34 @@ def _compact_review_issue_candidate_menu_item(item: Dict[str, Any]) -> Dict[str,
     }
 
 
+def _review_issue_candidate_menu_cluster_key(item: Dict[str, Any]) -> Tuple[str, str]:
+    issue_type = _canonical_negative_evidence_type(item.get("issue_type"))
+    target = _normalize_text(
+        item.get("verifier_target_entity") or item.get("expected_entity"),
+        max_length=140,
+    )
+    if not issue_type or not target:
+        return ("", "")
+    bundle = {
+        "missing_or_mismatch": {"entity": target, "items": [target]},
+        "observed_inventory": item.get("observed_inventory") or [],
+        "claim_anchor": {"quote": str(item.get("claim") or "")},
+    }
+    normalized_target = _review_issue_normalized_cluster_target(bundle, issue_type)
+    return (issue_type, normalized_target or target.lower())
+
+
 def _review_issue_candidate_selector_menu(
     targets: Sequence[Dict[str, Any]],
     *,
-    max_items: int = 12,
+    max_items: int = 10,
     max_per_claim: int = 2,
     max_per_type: int = 3,
 ) -> List[Dict[str, Any]]:
     selected: List[Dict[str, Any]] = []
     claim_counts: Counter[str] = Counter()
     seen: set[str] = set()
+    seen_clusters: set[Tuple[str, str]] = set()
     raw_items: List[Dict[str, Any]] = []
     for target in targets or []:
         if not isinstance(target, dict):
@@ -13748,8 +13927,13 @@ def _review_issue_candidate_selector_menu(
         compact = _compact_review_issue_candidate_menu_item(item)
         if not compact.get("inventory_anchor", {}).get("quote"):
             continue
+        cluster_key = _review_issue_candidate_menu_cluster_key(compact)
+        if cluster_key[0] and cluster_key[1] and cluster_key in seen_clusters:
+            continue
         selected.append(compact)
         seen.add(menu_id)
+        if cluster_key[0] and cluster_key[1]:
+            seen_clusters.add(cluster_key)
         if claim_id:
             claim_counts[claim_id] += 1
         if len(selected) >= max_items:
@@ -13803,6 +13987,12 @@ def _review_issue_candidate_menu_match(
         item = (menu_lookup.get("by_id") or {}).get(menu_id)
         if isinstance(item, dict):
             return item
+        snapshot = candidate.get("review_issue_candidate_menu_item")
+        if isinstance(snapshot, dict) and str(snapshot.get("candidate_menu_id") or "").strip() == menu_id:
+            snapshot_claim_id = str(snapshot.get("claim_id") or "").strip()
+            snapshot_neg_type = _canonical_negative_evidence_type(snapshot.get("issue_type"))
+            if snapshot_claim_id == str(claim_id or "").strip() and snapshot_neg_type == _canonical_negative_evidence_type(neg_type):
+                return snapshot
         # A copied menu id is a prompt-time contract.  If the later
         # recomputed menu lookup no longer contains that exact id, do not
         # silently bind the candidate to a different fuzzy match.
@@ -13913,6 +14103,81 @@ def _review_issue_candidate_funnel_metrics(
             bundle_failure_by_candidate.setdefault(failure_candidate_id, failure)
         if failure_menu_id:
             bundle_failure_by_menu.setdefault(failure_menu_id, failure)
+
+    def _verified_record_cluster_key(record: Dict[str, Any]) -> Tuple[str, str, str]:
+        claim_id = str(record.get("claim_id") or "").strip()
+        bundle = record.get("review_issue_bundle") if isinstance(record.get("review_issue_bundle"), dict) else {}
+        neg_type = _canonical_negative_evidence_type(
+            record.get("negative_evidence_type")
+            or record.get("review_issue_type")
+            or bundle.get("negative_evidence_type")
+            or bundle.get("review_issue_type")
+            or bundle.get("issue_type")
+            or bundle.get("negative_type")
+        ) or _negative_evidence_type_for_record(record)
+        cluster_target = _review_issue_normalized_cluster_target(bundle, neg_type)
+        if not claim_id or not neg_type or not cluster_target:
+            return ("", "", "")
+        return (claim_id, neg_type, cluster_target)
+
+    def _selected_menu_candidate_cluster_key(candidate: Dict[str, Any]) -> Tuple[str, str, str]:
+        if not isinstance(candidate, dict):
+            return ("", "", "")
+        candidate_id = str(candidate.get("candidate_id") or "").strip()
+        if not candidate_id.startswith("review-issue-candidate"):
+            return ("", "", "")
+        menu_id = str(candidate.get("candidate_menu_id") or "").strip()
+        if not menu_id:
+            return ("", "", "")
+        # Only prompt-expanded selector menu candidates get attribution by
+        # cluster alignment.  A stale/hallucinated id without its rendered
+        # snapshot remains a failed selection and cannot be reinterpreted here.
+        snapshot = candidate.get("review_issue_candidate_menu_item")
+        if not isinstance(snapshot, dict):
+            return ("", "", "")
+        if str(snapshot.get("candidate_menu_id") or "").strip() != menu_id:
+            return ("", "", "")
+        claim_id = str(candidate.get("claim_id") or snapshot.get("claim_id") or "").strip()
+        neg_type = _canonical_negative_evidence_type(
+            candidate.get("negative_type")
+            or candidate.get("issue_type")
+            or candidate.get("review_issue_type")
+            or snapshot.get("issue_type")
+        )
+        target = _normalize_text(
+            snapshot.get("verifier_target_entity")
+            or snapshot.get("expected_entity")
+            or " ".join(
+                _normalize_list_of_strings(
+                    candidate.get("missing_or_weak_items")
+                    or candidate.get("coverage_missing_items")
+                    or candidate.get("missing_items")
+                    or candidate.get("expected_missing_items"),
+                    max_items=4,
+                    max_length=160,
+                )
+            ),
+            max_length=180,
+        )
+        if not claim_id or not neg_type or not target:
+            return ("", "", "")
+        observed_inventory = (
+            candidate.get("observed_inventory")
+            if isinstance(candidate.get("observed_inventory"), list)
+            else snapshot.get("observed_inventory")
+        ) or []
+        bundle = {
+            "missing_or_mismatch": {"entity": target, "items": [target]},
+            "observed_inventory": observed_inventory,
+            "claim_anchor": {"quote": str(candidate.get("claim") or snapshot.get("claim") or "")},
+        }
+        cluster_target = _review_issue_normalized_cluster_target(bundle, neg_type)
+        if not cluster_target:
+            return ("", "", "")
+        return (claim_id, neg_type, cluster_target)
+
+    verified_cluster_keys: set[Tuple[str, str, str]] = set()
+    direct_critique_verified_cluster_keys: set[Tuple[str, str, str]] = set()
     metrics["review_issue_candidate_total"] = len(candidates)
     metrics["review_issue_candidate_verified"] = len(verified_candidate_ids)
     for record in verified_records or []:
@@ -13922,8 +14187,13 @@ def _review_issue_candidate_funnel_metrics(
         neg_type = _negative_evidence_type_for_record(record)
         candidate_id = str(record.get("reviewer_negative_candidate_id") or bundle.get("reviewer_negative_candidate_id") or "").strip()
         discovery_origin = str(bundle.get("discovery_origin") or "").strip()
+        cluster_key = _verified_record_cluster_key(record)
+        if cluster_key[0]:
+            verified_cluster_keys.add(cluster_key)
         if candidate_id.startswith("review-issue-candidate") or discovery_origin.startswith("critique_payload"):
             metrics["critique_payload_verified_count"] += 1
+            if cluster_key[0]:
+                direct_critique_verified_cluster_keys.add(cluster_key)
         if discovery_origin.startswith("critique_payload_menu") or (
             candidate_id.startswith("review-issue-candidate") and str(bundle.get("candidate_menu_id") or "")
         ):
@@ -13939,9 +14209,53 @@ def _review_issue_candidate_funnel_metrics(
         for item in candidates
         if isinstance(item, dict) and str(item.get("candidate_menu_id") or "").strip()
     }
-    metrics["candidate_menu_item_count"] = len(candidate_menu_ids | verified_menu_ids_any_origin)
-    metrics["candidate_menu_item_verified_count"] = len(verified_menu_ids)
-    metrics["candidate_menu_item_any_origin_verified_count"] = len(verified_menu_ids_any_origin)
+    selected_menu_verified_ids_by_cluster: set[str] = set()
+    selected_menu_verified_cluster_keys: set[Tuple[str, str, str]] = set()
+    selected_menu_verified_cluster_details: Dict[Tuple[str, str, str], Dict[str, Any]] = {}
+    for candidate in candidates:
+        if not isinstance(candidate, dict):
+            continue
+        menu_id = str(candidate.get("candidate_menu_id") or "").strip()
+        if not menu_id:
+            continue
+        cluster_key = _selected_menu_candidate_cluster_key(candidate)
+        if cluster_key[0] and cluster_key in verified_cluster_keys:
+            selected_menu_verified_ids_by_cluster.add(menu_id)
+            selected_menu_verified_cluster_keys.add(cluster_key)
+            detail = selected_menu_verified_cluster_details.setdefault(
+                cluster_key,
+                {
+                    "claim_id": cluster_key[0],
+                    "issue_type": cluster_key[1],
+                    "issue_cluster_key": f"{cluster_key[1]}|{cluster_key[2]}",
+                    "issue_cluster_target": cluster_key[2],
+                    "candidate_menu_ids": [],
+                    "candidate_ids": [],
+                    "discovery_origin": "critique_payload_menu_selected",
+                    "attribution_mode": "selected_menu_matches_existing_verified_cluster",
+                },
+            )
+            if menu_id not in detail["candidate_menu_ids"]:
+                detail["candidate_menu_ids"].append(menu_id)
+            candidate_id = str(candidate.get("candidate_id") or "").strip()
+            if candidate_id and candidate_id not in detail["candidate_ids"]:
+                detail["candidate_ids"].append(candidate_id)
+    verified_selected_menu_ids = verified_menu_ids | selected_menu_verified_ids_by_cluster
+    metrics["candidate_menu_item_count"] = len(candidate_menu_ids | verified_menu_ids_any_origin | selected_menu_verified_ids_by_cluster)
+    metrics["candidate_menu_item_verified_count"] = len(verified_selected_menu_ids)
+    metrics["candidate_menu_item_any_origin_verified_count"] = len(verified_menu_ids_any_origin | selected_menu_verified_ids_by_cluster)
+    metrics["candidate_menu_item_verified_by_existing_cluster_count"] = len(
+        selected_menu_verified_ids_by_cluster - verified_menu_ids
+    )
+    metrics["critique_selected_verified_cluster_count"] = len(
+        direct_critique_verified_cluster_keys | selected_menu_verified_cluster_keys
+    )
+    metrics["critique_payload_verified_cluster_count"] = len(
+        direct_critique_verified_cluster_keys | selected_menu_verified_cluster_keys
+    )
+    metrics["critique_selected_verified_by_existing_cluster_count"] = len(
+        selected_menu_verified_cluster_keys - direct_critique_verified_cluster_keys
+    )
     used_menu_ids: set[str] = set()
     if not candidates:
         result = dict(metrics)
@@ -13956,6 +14270,7 @@ def _review_issue_candidate_funnel_metrics(
         result["candidate_menu_item_failed_by_stage"] = {}
         result["failed_menu_candidate_items"] = []
         result["review_issue_candidate_verified_by_type"] = dict(verified_by_type)
+        result["critique_selected_verified_clusters"] = []
         return result
     real_claim_ids = _real_claim_ids_from_state(view or {})
     for candidate in candidates:
@@ -14005,7 +14320,7 @@ def _review_issue_candidate_funnel_metrics(
                 critique_rejected_by_reason[reason_key] += 1
             if (
                 candidate_menu_id
-                and candidate_menu_id not in verified_menu_ids
+                and candidate_menu_id not in verified_selected_menu_ids
                 and candidate_id not in verified_candidate_ids
             ):
                 menu_failed_by_reason[reason_key] += 1
@@ -14072,6 +14387,8 @@ def _review_issue_candidate_funnel_metrics(
         elif candidate_id:
             metrics["review_issue_candidate_other_origin_count"] += 1
         if candidate_id and candidate_id in verified_candidate_ids:
+            continue
+        if candidate_menu_id and candidate_menu_id in selected_menu_verified_ids_by_cluster:
             continue
         if _review_issue_candidate_is_retrieval_gap(candidate):
             metrics["review_issue_candidate_retrieval_gap_rejected"] += 1
@@ -14189,10 +14506,14 @@ def _review_issue_candidate_funnel_metrics(
     result["candidate_menu_item_failed_by_stage"] = dict(menu_failed_by_stage)
     result["failed_menu_candidate_items"] = failed_menu_candidate_items
     result["review_issue_candidate_verified_by_type"] = dict(verified_by_type)
+    result["critique_selected_verified_clusters"] = list(selected_menu_verified_cluster_details.values())[:20]
     if os.environ.get("DRMAS_CRITIQUE_ONLY_DISCOVERY_EVAL", "").strip().lower() in {"1", "true", "on", "yes"}:
         result["critique_only_candidate_count"] = int(metrics.get("review_issue_candidate_critique_payload_count", 0))
         result["critique_only_selected_menu_count"] = int(metrics.get("critique_payload_menu_candidate_count", 0))
         result["critique_only_verified_count"] = int(metrics.get("critique_payload_verified_count", 0))
+        result["critique_only_verified_cluster_count"] = int(
+            metrics.get("critique_payload_verified_cluster_count", 0)
+        )
         result["critique_only_rejected_by_reason"] = dict(critique_rejected_by_reason)
     return result
 
@@ -14276,7 +14597,10 @@ def _reviewer_candidate_absence_gap_items(
                 candidate["required_evidence_type"] = menu_requirement
             if menu_item.get("obligation_id") and not candidate.get("obligation_id"):
                 candidate["obligation_id"] = menu_item.get("obligation_id")
-            expected_entity = _normalize_text(menu_item.get("expected_entity"), max_length=140)
+            expected_entity = _normalize_text(
+                menu_item.get("verifier_target_entity") or menu_item.get("expected_entity"),
+                max_length=140,
+            )
             if expected_entity:
                 existing_missing = _normalize_list_of_strings(
                     candidate.get("missing_or_weak_items")
@@ -17298,7 +17622,7 @@ def _hard_negative_diagnosis_targets(
             state,
             claim,
             audit_item,
-            max_items=4,
+            max_items=6,
         )
         targets.append({
             "claim_id": claim_id,
@@ -24202,7 +24526,7 @@ def _render_critique_state_slice(
         critique_slice["review_issue_discovery_targets_omitted_for_prompt_compaction"] = True
         selector_menu = _review_issue_candidate_selector_menu(
             review_issue_targets,
-            max_items=12,
+            max_items=10,
             max_per_claim=2,
             max_per_type=3,
         )
@@ -24910,14 +25234,20 @@ def render_evidence_observation(task: Dict[str, Any], manager_payload: Optional[
 def render_critique_observation(task: Dict[str, Any], manager_payload: Optional[Dict[str, Any]] = None) -> str:
     state = compact_review_state_for_prompt(task["review_state"])
     manager_payload = manager_payload or {}
+    review_issue_discovery_turn = bool(manager_payload.get("review_issue_discovery_required"))
     critique_slice = _render_critique_state_slice(
         state,
         target_claim_ids=manager_payload.get("target_claim_ids", []),
         target_flaw_ids=manager_payload.get("target_flaw_ids", []),
         target_evidence_ids=manager_payload.get("target_evidence_ids", []),
         action_type=manager_payload.get("action_type", "analyze_flaws"),
-        review_issue_discovery_required=bool(manager_payload.get("review_issue_discovery_required")),
+        review_issue_discovery_required=review_issue_discovery_turn,
     )
+    snapshot_menu = manager_payload.get("review_issue_candidate_selector_menu_snapshot")
+    if review_issue_discovery_turn and isinstance(snapshot_menu, list) and snapshot_menu:
+        critique_slice["review_issue_candidate_selector_menu"] = [
+            item for item in snapshot_menu if isinstance(item, dict)
+        ][:8]
     focus = manager_payload.get("focus", "")
     critique_context, critique_context_meta = _render_evidence_context_with_meta(
         task,
@@ -24926,7 +25256,6 @@ def render_critique_observation(task: Dict[str, Any], manager_payload: Optional[
         target_claim_ids=manager_payload.get("target_claim_ids", []),
     )
     body, _ = _clean_paper_body(task.get("paper_text", ""))
-    review_issue_discovery_turn = bool(manager_payload.get("review_issue_discovery_required"))
     direct_negative_quote_bank = [] if review_issue_discovery_turn else _build_critique_negative_quote_bank(
         body,
         max_quotes=6,
@@ -24960,6 +25289,11 @@ def render_critique_observation(task: Dict[str, Any], manager_payload: Optional[
         )
     review_issue_target_block = ""
     if critique_slice.get("review_issue_candidate_selector_menu") or critique_slice.get("review_issue_discovery_target_summary"):
+        if review_issue_discovery_turn and critique_slice.get("review_issue_candidate_selector_menu"):
+            manager_payload["review_issue_candidate_selector_menu_snapshot"] = critique_slice.get(
+                "review_issue_candidate_selector_menu",
+                [],
+            )
         selector_menu_block = ""
         if critique_slice.get("review_issue_candidate_selector_menu"):
             selector_menu_block = (
@@ -24988,7 +25322,7 @@ def render_critique_observation(task: Dict[str, Any], manager_payload: Optional[
             "When review_issue_candidate_selector_menu or review_issue_candidate_menu is present, select a menu item by copying candidate_menu_id; do not rewrite it into a long candidate object. "
             "Use review_issue_contrast_hints to compare missing requirements against observed inventory anchors; these hints are not evidence. "
             "Treat this as reviewer hypothesis generation: propose specific absence/coverage candidates for later verification even when the paper does not contain a negative quote. "
-            "Select at most three safe menu ids; do not force slot coverage. Leave unsafe slots unselected or reject them briefly. "
+            "Select at most two safe menu ids; do not force slot coverage. Leave unsafe slots unselected or reject them briefly. "
             "For baseline/protocol/reproducibility issues, name the exact baseline family, protocol dimension, hyperparameter/split/detail, or setting to check. "
             "When paper_evaluation_inventory or the paper context shows what was evaluated, include observed_inventory with a copied quote/list/table anchor and locator. "
             "If you output freeform_review_issue_candidates, also mirror only those free-form items in review_issue_candidates for backward compatibility. "

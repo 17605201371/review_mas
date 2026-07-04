@@ -574,3 +574,142 @@ Latest lightweight MiMo API check at 20260703_020340 still returned
 Latest lightweight MiMo API check at 20260703_020928 still returned
 402 insufficient_balance, so fresh full20 remains pending.
 ```
+
+P31.7/P31.8 current status:
+
+```text
+Latest authoritative fresh full20:
+  P31_6_FRESH_20260703_231747_*
+  verified_review_issue_count = 16
+  verified_review_issue_cluster_count = 11
+  critique_payload_verified_cluster_count = 0
+  candidate_menu_item_verified_count = 0
+  review_issue_candidate_critique_payload_count = 3
+  review_issue_candidate_deterministic_seed_count = 56
+  mark_contested_commit_count = 9
+  protection = PASS
+  machine_gate = FAIL
+  manual_gate = REQUIRED
+
+P31.7 conclusion:
+  Audit/cluster consistency succeeded.
+  Critique autonomous discovery failed.
+  P32 remains blocked.
+
+P31.8 implemented local code patch:
+  - selector menu prioritizes verifier-survival rank instead of forced slot diversity
+  - visible selector menu reduced to 6 items / max 2 per issue type
+  - efficiency/resource menu items hidden when inventory already contains resource evidence
+  - selected-menu candidates carry a normalized menu snapshot for same-id/same-claim/same-type verifier recovery
+  - Critique instruction changed from select 1-3 to select 1-2 safe menu ids
+  - DRMAS_CRITIQUE_DISCOVERY_FIRST added; DRMAS_CRITIQUE_ONLY_DISCOVERY_EVAL=1 enables it
+  - pending_absence_audit / pending_issue_bundle_verification now count as pending reviewer candidates
+  - recovery/conflict/sticky/support overrides no longer overwrite an already scheduled review_issue_discovery_required turn
+  - P31_8_CRITIQUE_SELECTION_CLOSED_LOOP_PLAN_ZH_20260703.md added
+
+Validation:
+  py_compile state/runner/prompts/policy/test file = PASS
+  lightweight smoke assertions for P31.8 selector/snapshot logic = PASS
+  pytest unavailable in current Python environments because pytest is not installed
+
+Critique-only smoke results:
+  P31_8_CRITONLY1_20260704_000010:
+    rows = 1
+    verified_review_issue_count = 2
+    cluster_count = 2
+    critique_payload_verified_cluster_count = 0
+    candidate_menu_item_verified_count = 0
+    finding = discovery flag survived only inside recovery override; selector menu absent
+  P31_8_CRITONLY1_20260704_000542:
+    rows = 1
+    verified_review_issue_count = 2
+    cluster_count = 1
+    critique_payload_verified_cluster_count = 0
+    candidate_menu_item_verified_count = 0
+    finding = discovery did not fire; negative formation/recovery consumed turn budget
+  P31_8_CRITONLY1_20260704_001006:
+    rows = 1
+    verified_review_issue_count = 2
+    cluster_count = 2
+    critique_payload_verified_cluster_count = 0
+    candidate_menu_item_verified_count = 0
+    finding = discovery-first ran Critique earlier, but early binding/conflict recovery still prevented clean selector lifecycle
+
+Next action:
+  Do not run full20 or enter P32.
+  Next code pass should add an explicit review_issue_discovery phase/turn reservation so Critique gets a clean selector-discovery turn before negative binding / recovery routes can consume the budget.
+```
+
+P31.8 attribution fix update (20260704):
+
+```text
+Completed:
+  - Fixed final-view attribution for selected-menu Critique candidates that
+    match an already verified deterministic-seed review-issue cluster.
+  - The fix is read-only accounting: no verifier relaxation, no duplicate
+    evidence, and no stale/hallucinated id recovery without a prompt-time menu
+    snapshot.
+  - Dashboard and case-table scripts now surface the selected-menu attribution,
+    and entry-gate audit counts those clusters as Critique-origin for the
+    machine gate.
+
+Current full20 recompute from existing raw:
+  P31_8_ATTRFIX_FULL20_20260704_115546_*
+  verified_review_issue_count = 22
+  verified_review_issue_cluster_count = 15
+  critique_payload_verified_cluster_count = 7
+  candidate_menu_item_verified_count = 8
+  candidate_menu_item_verified_by_existing_cluster_count = 7
+  mark_contested_commit_count = 9
+  protection = PASS
+  machine gate = PASS
+  manual gate = REQUIRED
+
+Generated:
+  P31_8_ATTRFIX_FULL20_20260704_115546_HARDNEG20_DASHBOARD.md/json
+  P31_8_ATTRFIX_FULL20_20260704_115546_REVIEW_ISSUE_CASE_TABLE.md/json
+  P31_8_ATTRFIX_FULL20_20260704_115546_RECOVERY_CASE_TABLE.md/json
+  P31_8_ATTRFIX_FULL20_20260704_115546_ENTRY_GATE_AUDIT.md/json
+  P31_8_ATTRFIX_FULL20_20260704_115546_MANUAL_AUDIT_TEMPLATE.md/json
+
+Remaining blocker:
+  P32 is still blocked until the manual audit template is filled and validates
+  with enough A/B Critique-origin clusters and zero paper-facing D clusters.
+  Do not claim paper-ready Critique autonomous discovery until that manual gate
+  passes.
+
+Manual audit draft result:
+  P31_8_ATTRFIX_FULL20_20260704_115546_MANUAL_AUDIT_FILLED_DRAFT.json
+  A clusters = 3
+  B clusters = 3
+  A/B Critique-origin clusters = 6
+  D clusters = 1
+  strict validation = FAIL because manual_D_clusters = 1
+  allow-D validation = PASS only if the D cluster is excluded from paper-facing
+  reporting.
+
+Actionable next step:
+  Add a guard/counterevidence rule for TPAj63ax4Y-style missing_ablation
+  candidates where the paper explicitly states that it performs ablations over
+  the selected stage/pipeline.  Then recompute full20 and expect the D cluster
+  to disappear while preserving the 6 A/B clusters.
+
+Guard follow-up completed:
+  - Added zero-shot-choice / selected-stage ablation counterevidence guard.
+  - Recomputed:
+      P31_8_ATTRFIX_GUARD_FULL20_20260704_115546_*
+  - verified_review_issue_count = 22
+  - verified_review_issue_cluster_count = 14
+  - critique_payload_verified_cluster_count = 6
+  - candidate_menu_item_verified_count = 7
+  - protection = PASS
+  - manual_A_B_clusters = 6
+  - manual_D_clusters = 0
+  - entry gate with manual audit = PASS
+
+Next:
+  Treat P31_8_ATTRFIX_GUARD_FULL20_20260704_115546 as the current P32-entry
+  candidate, with the caveat that it is a current-code recompute over an
+  existing full20 raw run.  A fresh API full20 can be run later for final
+  confirmation, but do not reopen verifier relaxation.
+```

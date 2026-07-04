@@ -8366,12 +8366,18 @@ def test_missing_ablation_target_quality_rejects_generic_components_and_actions(
         "component-isolation ablation for 2 DESIGN OF GRADIENT",
         "component-isolation ablation for training methodology involves stochastic gradient",
         "component-isolation ablation for aggregated gradients from cross-entropy loss",
+        "component-isolation ablation for cross-entropy for classification loss",
         "component-isolation ablation for from its proposed time-frequency encoder",
         "component-isolation ablation for data with the latest network",
         "component-isolation ablation for aspects of the causal mechanism",
         "component-isolation ablation for domain causal representation",
         "component-isolation ablation for transformer-based network",
         "component-isolation ablation for layer incorporating a LoRA module",
+        "component-isolation ablation for r the NCE loss",
+        "component-isolation ablation for Action Representation Reconstruction by Decoder",
+        "component-isolation ablation for examine both the cross-entropy loss",
+        "component-isolation ablation for that balances the reconstruction loss",
+        "component-isolation ablation for recent advances in causal representation",
     ]:
         assert quality(item)["quality"] == "reject"
 
@@ -13855,6 +13861,152 @@ def test_candidate_menu_verified_count_excludes_seed_menu_ids():
     assert metrics["candidate_menu_item_verified_count"] == 0
 
 
+def test_selected_menu_candidate_matching_seed_cluster_counts_as_critique_selected():
+    menu_id = "rim-c1-ma-recurrent-draft-model"
+    metrics = review_state_mod._review_issue_candidate_funnel_metrics(
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-1",
+                    "claim": "ReDrafter uses a recurrent draft model for speculative decoding.",
+                    "claim_kind": "paper_extracted",
+                    "status": "supported",
+                }
+            ],
+            "reviewer_negative_candidates": [
+                {
+                    "candidate_id": "review-issue-candidate-selected-menu-1",
+                    "candidate_menu_id": menu_id,
+                    "review_issue_candidate_menu_item": {
+                        "candidate_menu_id": menu_id,
+                        "claim_id": "claim-1",
+                        "issue_type": "missing_ablation",
+                        "required_evidence_type": "ablation_or_component",
+                        "verifier_target_entity": "recurrent draft model",
+                        "expected_entity": "component-isolation ablation for recurrent neural network",
+                        "observed_inventory": [
+                            {
+                                "quote": "The draft head uses recurrent inputs from historical tokens.",
+                                "locator": "Method",
+                                "observed_items": ["recurrent", "draft"],
+                                "inventory_type": "component_anchor",
+                            }
+                        ],
+                    },
+                    "claim_id": "claim-1",
+                    "negative_type": "missing_ablation",
+                    "missing_or_weak_items": ["recurrent draft model"],
+                    "observed_inventory": [
+                        {
+                            "quote": "The draft head uses recurrent inputs from historical tokens.",
+                            "locator": "Method",
+                            "observed_items": ["recurrent", "draft"],
+                            "inventory_type": "component_anchor",
+                        }
+                    ],
+                    "source": "critique_selected_menu_item",
+                    "discovery_origin": "critique_payload_menu_selected",
+                }
+            ],
+        },
+        [
+            {
+                "claim_id": "claim-1",
+                "reviewer_negative_candidate_id": "reviewer-seed-claim-1-missing-ablation",
+                "negative_evidence_type": "missing_ablation",
+                "review_issue_type": "missing_ablation",
+                "review_issue_bundle": {
+                    "discovery_origin": "deterministic_component_ablation_seed",
+                    "review_issue_slot": "missing_ablation",
+                    "missing_or_mismatch": {
+                        "entity": "component-isolation ablation for recurrent neural network",
+                        "items": ["component-isolation ablation for recurrent neural network"],
+                    },
+                    "observed_inventory": [
+                        {
+                            "quote": "The draft head uses recurrent inputs from historical tokens.",
+                            "locator": "Method",
+                            "observed_items": ["recurrent", "draft"],
+                            "inventory_type": "component_anchor",
+                        }
+                    ],
+                },
+            }
+        ],
+    )
+
+    assert metrics["candidate_menu_item_verified_count"] == 1
+    assert metrics["candidate_menu_item_verified_by_existing_cluster_count"] == 1
+    assert metrics["candidate_menu_item_failed_count"] == 0
+    assert metrics["critique_payload_verified_cluster_count"] == 1
+    assert metrics["critique_selected_verified_cluster_count"] == 1
+    assert metrics["critique_selected_verified_by_existing_cluster_count"] == 1
+
+
+def test_selected_menu_candidate_without_snapshot_does_not_align_to_seed_cluster():
+    menu_id = "rim-c1-ma-recurrent-draft-model"
+    metrics = review_state_mod._review_issue_candidate_funnel_metrics(
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-1",
+                    "claim": "ReDrafter uses a recurrent draft model for speculative decoding.",
+                    "claim_kind": "paper_extracted",
+                    "status": "supported",
+                }
+            ],
+            "reviewer_negative_candidates": [
+                {
+                    "candidate_id": "review-issue-candidate-selected-menu-1",
+                    "candidate_menu_id": menu_id,
+                    "claim_id": "claim-1",
+                    "negative_type": "missing_ablation",
+                    "missing_or_weak_items": ["recurrent draft model"],
+                    "observed_inventory": [
+                        {
+                            "quote": "The draft head uses recurrent inputs from historical tokens.",
+                            "locator": "Method",
+                            "observed_items": ["recurrent", "draft"],
+                            "inventory_type": "component_anchor",
+                        }
+                    ],
+                    "source": "critique_selected_menu_item",
+                    "discovery_origin": "critique_payload_menu_selected",
+                }
+            ],
+        },
+        [
+            {
+                "claim_id": "claim-1",
+                "reviewer_negative_candidate_id": "reviewer-seed-claim-1-missing-ablation",
+                "negative_evidence_type": "missing_ablation",
+                "review_issue_type": "missing_ablation",
+                "review_issue_bundle": {
+                    "discovery_origin": "deterministic_component_ablation_seed",
+                    "review_issue_slot": "missing_ablation",
+                    "missing_or_mismatch": {
+                        "entity": "component-isolation ablation for recurrent neural network",
+                        "items": ["component-isolation ablation for recurrent neural network"],
+                    },
+                    "observed_inventory": [
+                        {
+                            "quote": "The draft head uses recurrent inputs from historical tokens.",
+                            "locator": "Method",
+                            "observed_items": ["recurrent", "draft"],
+                            "inventory_type": "component_anchor",
+                        }
+                    ],
+                },
+            }
+        ],
+    )
+
+    assert metrics["candidate_menu_item_verified_count"] == 0
+    assert metrics["candidate_menu_item_verified_by_existing_cluster_count"] == 0
+    assert metrics["critique_payload_verified_cluster_count"] == 0
+    assert metrics["candidate_menu_item_failed_count"] == 1
+
+
 def test_menu_generation_omits_missing_ablation_when_inventory_already_ablates_target():
     claim = "ReDrafter's gains are driven by the dynamic tree attention module."
     inventory_quote = (
@@ -14004,6 +14156,292 @@ def test_selected_menu_candidate_filtered_from_current_menu_gets_specific_failur
     assert failed["stop_stage"] == "menu_lookup_or_quality_filter"
 
 
+def test_selected_menu_candidate_with_snapshot_survives_current_menu_lookup_miss(monkeypatch):
+    claim = "The proposed decoder uses an acceptance prediction head to improve draft quality."
+    inventory_quote = "Table 3: Ablation study reports variants without reranking and without the draft scorer."
+    menu_id = "review-issue-menu-claim-1-missing-ablation-acceptance-prediction-head"
+    menu_snapshot = {
+        "candidate_menu_id": menu_id,
+        "claim_id": "claim-1",
+        "issue_type": "missing_ablation",
+        "required_evidence_type": "ablation_or_component",
+        "expected_entity": "acceptance prediction head",
+        "entity_source": "method_component",
+        "source": "deterministic_component_ablation_menu",
+        "review_issue_slot": "ablation_component",
+        "observed_inventory": [
+            {
+                "inventory_id": "inv-ablation-1",
+                "quote": inventory_quote,
+                "locator": "Table 3",
+                "observed_items": ["without reranking", "without draft scorer"],
+                "inventory_type": "ablation",
+            }
+        ],
+        "target_quality_hint": "high",
+        "target_quality_reason": "missing_ablation_target_named_mechanism",
+        "counterevidence_search_terms": ["acceptance prediction head", "acceptance head"],
+    }
+
+    monkeypatch.setattr(
+        review_state_mod,
+        "_review_issue_candidate_menu_lookup",
+        lambda view, requirement_audit=None: {"items": [], "by_id": {}},
+    )
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "method",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["ablation_or_component"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "review-issue-candidate-selected-menu-1",
+                "candidate_menu_id": menu_id,
+                "review_issue_candidate_menu_item": menu_snapshot,
+                "claim_id": "claim-1",
+                "weakness": "The ablation table does not isolate the acceptance prediction head.",
+                "negative_type": "missing_ablation",
+                "required_evidence_type": "ablation_or_component",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["acceptance prediction head"],
+                "status": "pending_absence_audit",
+                "source": "critique_selected_menu_item",
+                "discovery_origin": "critique_payload_menu_selected",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    view = build_decision_hygiene_view(copy.deepcopy(state))
+    hygiene = view["decision_hygiene"]
+
+    assert hygiene["verified_review_issue_count"] == 1
+    assert hygiene["critique_payload_verified_cluster_count"] == 1
+    assert hygiene["candidate_menu_item_verified_count"] == 1
+
+
+def test_review_issue_selector_menu_prioritizes_verifier_survival_over_slot_coverage():
+    items = [
+        {
+            "candidate_menu_id": "rim-c1-ec-runtime",
+            "claim_id": "claim-1",
+            "issue_type": "efficiency_cost_gap",
+            "expected_entity": "runtime measurement",
+            "review_issue_slot": "efficiency_resource",
+            "source": "deterministic_efficiency_cost_menu",
+        },
+        {
+            "candidate_menu_id": "rim-c1-ma-acceptance-head",
+            "claim_id": "claim-1",
+            "issue_type": "missing_ablation",
+            "expected_entity": "acceptance prediction head",
+            "review_issue_slot": "ablation_component",
+            "target_quality_hint": "high",
+            "source": "deterministic_component_ablation_menu",
+        },
+        {
+            "candidate_menu_id": "rim-c2-ma-generalized-noise",
+            "claim_id": "claim-2",
+            "issue_type": "missing_ablation",
+            "expected_entity": "generalized noise regularization",
+            "review_issue_slot": "ablation_component",
+            "target_quality_hint": "high",
+            "source": "deterministic_component_ablation_menu",
+        },
+    ]
+
+    selected = review_state_mod._select_review_issue_candidate_menu_items(
+        items,
+        max_items=2,
+        max_per_type=2,
+    )
+
+    assert [item["candidate_menu_id"] for item in selected] == [
+        "rim-c1-ma-acceptance-head",
+        "rim-c2-ma-generalized-noise",
+    ]
+
+
+def test_review_issue_selector_compact_preserves_long_verifier_target():
+    long_target = (
+        "training hyperparameters, split, seed, code/config, or implementation detail "
+        "for Graph2Tac benchmark evaluation"
+    )
+    item = review_state_mod._compact_review_issue_candidate_menu_item(
+        {
+            "candidate_menu_id": "rim-c3-pr-1",
+            "claim_id": "claim-3",
+            "issue_type": "reproducibility_gap",
+            "required_evidence_type": "reproducibility_detail",
+            "expected_entity": long_target,
+            "verifier_target_entity": long_target,
+            "review_issue_slot": "protocol_or_reproducibility",
+            "observed_inventory": [
+                {
+                    "quote": "Section 4 reports Graph2Tac benchmark results.",
+                    "locator": "Section 4",
+                    "inventory_type": "result_table",
+                    "observed_items": ["Graph2Tac"],
+                }
+            ],
+        }
+    )
+
+    assert item["expected_entity"].endswith("Graph2Tac benchmark evaluation")
+    assert item["verifier_target_entity"].endswith("Graph2Tac benchmark evaluation")
+
+
+def test_review_issue_selector_menu_deduplicates_normalized_clusters():
+    menu = review_state_mod._review_issue_candidate_selector_menu(
+        [
+            {
+                "review_issue_candidate_menu": [
+                    {
+                        "candidate_menu_id": "rim-c1-ma-acceptance-a",
+                        "claim_id": "claim-1",
+                        "issue_type": "missing_ablation",
+                        "required_evidence_type": "ablation_or_component",
+                        "expected_entity": "component-isolation ablation for such an acceptance prediction head",
+                        "verifier_target_entity": "such an acceptance prediction head",
+                        "target_quality_hint": "high",
+                        "observed_inventory": [
+                            {
+                                "quote": "The method uses an acceptance prediction head for candidate tokens.",
+                                "locator": "Section 3",
+                            }
+                        ],
+                    },
+                    {
+                        "candidate_menu_id": "rim-c2-ma-acceptance-b",
+                        "claim_id": "claim-2",
+                        "issue_type": "missing_ablation",
+                        "required_evidence_type": "ablation_or_component",
+                        "expected_entity": "component-isolation ablation for an acceptance prediction head",
+                        "verifier_target_entity": "an acceptance prediction head",
+                        "target_quality_hint": "high",
+                        "observed_inventory": [
+                            {
+                                "quote": "The acceptance prediction head estimates acceptance probabilities.",
+                                "locator": "Section 3",
+                            }
+                        ],
+                    },
+                ]
+            }
+        ],
+        max_items=10,
+        max_per_claim=2,
+        max_per_type=3,
+    )
+
+    assert len(menu) == 1
+    assert "acceptance prediction head" in menu[0]["verifier_target_entity"]
+
+
+def test_review_issue_candidate_menu_id_is_target_stable():
+    first = review_state_mod._review_issue_candidate_menu_id(
+        "claim-1",
+        "missing_ablation",
+        "component-isolation ablation for graph control module",
+        1,
+    )
+    later = review_state_mod._review_issue_candidate_menu_id(
+        "claim-1",
+        "missing_ablation",
+        "component-isolation ablation for graph control module",
+        5,
+    )
+
+    assert first == later == "rim-c1-ma-graph-control-module"
+
+
+def test_review_issue_menu_refines_recurrent_network_to_draft_model():
+    claim = "ReDrafter's performance gains are driven by leveraging a recurrent neural network as the draft model."
+    item = review_state_mod._review_issue_candidate_menu_item(
+        {
+            "paper_text": claim,
+            "claims": [{"claim_id": "claim-1", "claim": claim, "claim_kind": "paper_extracted"}],
+        },
+        {
+            "claim_id": "claim-1",
+            "claim": claim,
+            "claim_kind": "paper_extracted",
+            "claim_type": "method",
+        },
+        issue_type="missing_ablation",
+        required_evidence_type="ablation_or_component",
+        expected_entity="component-isolation ablation for recurrent neural network",
+        observed_inventory=[
+            {
+                "quote": "ReDrafter uses a recurrent neural network (RNN) as the draft model for speculative decoding.",
+                "locator": "Abstract",
+                "inventory_type": "component_anchor",
+                "observed_items": ["RNN", "draft model"],
+            }
+        ],
+        source="deterministic_component_ablation_menu",
+        entity_source="method_component",
+    )
+
+    assert item["verifier_target_entity"] == "recurrent draft model"
+    assert item["candidate_menu_id"] == "rim-c1-ma-recurrent-draft-model"
+    assert item["target_quality_hint"] in {"high", "medium"}
+
+
+def test_review_issue_menu_rejects_efficiency_target_already_observed_in_inventory():
+    claim = "The method is efficient and reduces inference latency."
+    inventory_quote = "Table 4 reports inference latency, GPU memory, and throughput for all compared methods."
+    item = review_state_mod._review_issue_candidate_menu_item(
+        {
+            "paper_text": f"{claim}\n\n{inventory_quote}",
+            "claims": [
+                {
+                    "claim_id": "claim-1",
+                    "claim": claim,
+                    "claim_kind": "paper_extracted",
+                    "claim_type": "empirical",
+                    "importance": "high",
+                }
+            ],
+        },
+        {
+            "claim_id": "claim-1",
+            "claim": claim,
+            "claim_kind": "paper_extracted",
+            "claim_type": "empirical",
+            "importance": "high",
+        },
+        issue_type="efficiency_cost_gap",
+        required_evidence_type="efficiency_cost",
+        expected_entity="runtime, memory, FLOP, hardware, or latency measurement",
+        observed_inventory=[
+            {
+                "quote": inventory_quote,
+                "locator": "Table 4",
+                "inventory_type": "runtime",
+                "observed_items": ["inference latency", "GPU memory", "throughput"],
+            }
+        ],
+        source="deterministic_efficiency_cost_menu",
+        entity_source="resource_claim",
+    )
+
+    assert item == {}
+
+
 def test_review_issue_menu_rejects_scalability_cost_without_resource_anchor():
     item = review_state_mod._review_issue_candidate_menu_item(
         {
@@ -14067,6 +14505,58 @@ def test_review_issue_menu_rejects_scope_target_already_resolved_in_full_text():
     assert item == {}
 
 
+def test_review_issue_menu_rejects_state_of_art_scope_placeholder():
+    item = review_state_mod._review_issue_candidate_menu_item(
+        {},
+        {
+            "claim_id": "claim-1",
+            "claim": "The method achieves state-of-the-art results across the benchmark suite.",
+            "claim_kind": "paper_extracted",
+            "claim_type": "empirical",
+        },
+        issue_type="scope_overclaim",
+        required_evidence_type="robustness_or_generalization",
+        expected_entity="held-out or coverage evaluation for state-of-the-art",
+        observed_inventory=[
+            {
+                "quote": "Table 1 reports benchmark accuracy for the proposed method.",
+                "locator": "Table 1",
+                "inventory_type": "dataset",
+            }
+        ],
+        source="entity_claim_obligation_menu",
+        entity_source="claim_scope",
+    )
+
+    assert item == {}
+
+
+def test_review_issue_menu_rejects_malformed_based_reproducibility_target():
+    item = review_state_mod._review_issue_candidate_menu_item(
+        {},
+        {
+            "claim_id": "claim-1",
+            "claim": "The method introduces a DCCA-based training framework.",
+            "claim_kind": "paper_extracted",
+            "claim_type": "method",
+        },
+        issue_type="reproducibility_gap",
+        required_evidence_type="reproducibility_detail",
+        expected_entity="training hyperparameters, split, seed, code/config, or implementation detail for DCCA-based",
+        observed_inventory=[
+            {
+                "quote": "The method section describes the DCCA-based framework.",
+                "locator": "Section 3",
+                "inventory_type": "method",
+            }
+        ],
+        source="entity_claim_obligation_menu",
+        entity_source="claim_surface",
+    )
+
+    assert item == {}
+
+
 def test_review_issue_menu_rejects_unlocatable_claim_anchor_when_paper_text_available():
     item = review_state_mod._review_issue_candidate_menu_item(
         {
@@ -14120,6 +14610,73 @@ def test_review_issue_menu_rejects_generic_strong_baseline_target():
     )
 
     assert item == {}
+
+
+def test_review_issue_menu_rejects_spurious_paper_named_baseline_word():
+    item = review_state_mod._review_issue_candidate_menu_item(
+        {},
+        {
+            "claim_id": "claim-3",
+            "claim": "The proposed method outperforms prior baselines on the target task.",
+        },
+        issue_type="missing_baseline",
+        required_evidence_type="baseline_or_comparison",
+        expected_entity="same-setting comparison against paper-named Labor baseline",
+        observed_inventory=[
+            {
+                "quote": "Table 2 compares our method against the main reported baselines.",
+                "locator": "Table 2",
+                "inventory_type": "baseline",
+            }
+        ],
+        source="deterministic_paper_named_baseline_menu",
+        entity_source="paper_named_related_method",
+    )
+
+    assert item == {}
+
+
+def test_missing_ablation_target_quality_rejects_residual_menu_fragments():
+    def quality(target: str) -> dict:
+        return _missing_ablation_target_quality(
+            {
+                "issue_type": "missing_ablation",
+                "claim_anchor": {
+                    "quote": (
+                        "The paper proposes a new method and reports improved performance "
+                        "using the described architecture."
+                    )
+                },
+                "observed_inventory": [
+                    {
+                        "quote": "The method section describes the proposed architecture.",
+                        "locator": "Section 3",
+                    }
+                ],
+                "missing_or_mismatch": {"entity": target, "items": [target]},
+            }
+        )
+
+    assert quality("domain of causal representation") == {
+        "quality": "reject",
+        "reason": "missing_ablation_target_malformed_or_abstract",
+    }
+    assert quality("develop a graph neural network") == {
+        "quality": "reject",
+        "reason": "missing_ablation_target_weak_action",
+    }
+    assert quality("first practical neural network") == {
+        "quality": "reject",
+        "reason": "missing_ablation_target_generic_component",
+    }
+    assert quality("significantly module") == {
+        "quality": "reject",
+        "reason": "missing_ablation_target_malformed_or_abstract",
+    }
+    assert quality("performance of the neural network") == {
+        "quality": "reject",
+        "reason": "missing_ablation_target_generic_component",
+    }
 
 
 def test_missing_baseline_candidate_normalizes_named_examples_from_verification_question():
@@ -15816,6 +16373,22 @@ def test_regularization_ablation_resolves_regularization_missing_gap():
     assert _ablation_missing_items_resolved_by_text(
         window,
         ["component-isolation ablation for local virtual data with regularization"],
+    )
+
+
+def test_zero_shot_choice_stage_ablation_resolves_selected_stage_missing_gap():
+    window = (
+        "As a result of these steps, we construct the pseudo-mask set used in "
+        "Stages 2 and 3. In Section ablation_zs_choice we perform ablations over "
+        "this stage's zero-shot instance choice pipeline."
+    )
+
+    assert _ablation_missing_items_resolved_by_text(
+        window,
+        [
+            "ablation isolating uses a zero-shot choice mechanism module",
+            "ablation isolating selection stage module",
+        ],
     )
 
 

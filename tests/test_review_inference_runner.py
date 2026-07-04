@@ -6981,6 +6981,7 @@ def test_review_issue_bundle_routes_candidate_discovery_to_critique(monkeypatch)
     monkeypatch.setattr(review_manager_policy_mod, "_TARGETED_NEGATIVE_SEARCH_ENABLED", True)
     monkeypatch.setattr(review_manager_policy_mod, "_FREEFORM_REVIEWER_NEGATIVE_ENABLED", True)
     monkeypatch.setattr(review_manager_policy_mod, "_REVIEW_ISSUE_BUNDLE_ENABLED", True)
+    monkeypatch.setattr(review_manager_policy_mod, "_review_issue_selector_menu_available", lambda state: True)
     monkeypatch.setattr(
         review_manager_policy_mod,
         "_claim_coverage_expansion_plan",
@@ -7036,6 +7037,247 @@ def test_review_issue_bundle_routes_candidate_discovery_to_critique(monkeypatch)
     assert normalized["review_issue_discovery_required"] is True
     assert normalized["freeform_reviewer_negative_stage"] == "candidate_discovery"
     assert normalized["targeted_negative_search_required"] is False
+
+
+def test_review_issue_discovery_first_preempts_negative_binding_retry(monkeypatch):
+    monkeypatch.setattr(review_manager_policy_mod, "_TARGETED_NEGATIVE_SEARCH_ENABLED", True)
+    monkeypatch.setattr(review_manager_policy_mod, "_FREEFORM_REVIEWER_NEGATIVE_ENABLED", True)
+    monkeypatch.setattr(review_manager_policy_mod, "_REVIEW_ISSUE_BUNDLE_ENABLED", True)
+    monkeypatch.setattr(review_manager_policy_mod, "_CRITIQUE_DISCOVERY_FIRST_ENABLED", True)
+    monkeypatch.setattr(review_manager_policy_mod, "_review_issue_selector_menu_available", lambda state: True)
+    monkeypatch.setattr(
+        review_manager_policy_mod,
+        "_claim_coverage_expansion_plan",
+        lambda state, recent_turn_logs: {"required": False, "missing_tags": [], "coverage": {}},
+    )
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The method improves benchmark accuracy with a routing head.",
+                "status": "supported",
+                "claim_kind": "paper_extracted",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "evidence-support-1",
+                "claim_id": "claim-1",
+                "evidence": "Table 1 reports benchmark accuracy.",
+                "raw_quote": "Table 1 reports benchmark accuracy.",
+                "source_locator": "Table 1",
+                "stance": "supports",
+                "strength": "strong",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_support_verified",
+            },
+            {
+                "evidence_id": "evidence-negative-1",
+                "claim_id": "claim-1",
+                "evidence": "Ablation is missing for the routing head.",
+                "raw_quote": "No ablation study is provided for the routing head.",
+                "source_locator": "Section 4 Experiments",
+                "stance": "missing",
+                "strength": "missing",
+                "negative_evidence_type": "missing_ablation",
+                "negative_evidence_actionability": "actionable_candidate",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_negative_verified",
+                "review_negative_label": "review_negative_verified",
+                "verified_quote_match_type": "quote_bank_raw_canonical",
+                "verified_source_span_start": 10,
+                "verified_source_span_end": 58,
+            },
+        ],
+        "flaw_candidates": [],
+        "evidence_gaps": [],
+        "unresolved_questions": [],
+        "risk_profile": {"readiness": "not_ready"},
+    }
+
+    assert review_manager_policy_mod._negative_evidence_binding_retry_targets(state, [])["target_evidence_ids"] == [
+        "evidence-negative-1"
+    ]
+
+    normalized = _apply_manager_policy_fallback(
+        manager_payload={
+            "decision": "continue",
+            "action_type": "summarize_progress",
+            "selected_agents": [],
+            "focus": "Summarize current review.",
+            "rationale": "Manager attempted to summarize.",
+        },
+        state=state,
+        mode="s4",
+        worker_ids=["Claim Agent", "Evidence Agent", "Critique Agent"],
+        worker_limit=1,
+        recent_turn_logs=[],
+    )
+
+    assert normalized["policy_source"] == "review_issue_discovery_override"
+    assert normalized["action_type"] == "analyze_flaws"
+    assert normalized["selected_agents"] == ["Critique Agent"]
+    assert normalized["review_issue_discovery_required"] is True
+    assert normalized["freeform_reviewer_negative_stage"] == "candidate_discovery"
+    assert normalized["negative_evidence_binding_retry_required"] is False
+    assert normalized["target_evidence_ids"] == []
+
+
+def test_recovery_phase_protocol_preserves_review_issue_discovery_turn(monkeypatch):
+    monkeypatch.setattr(review_manager_policy_mod, "_TARGETED_NEGATIVE_SEARCH_ENABLED", True)
+    monkeypatch.setattr(review_manager_policy_mod, "_FREEFORM_REVIEWER_NEGATIVE_ENABLED", True)
+    monkeypatch.setattr(review_manager_policy_mod, "_REVIEW_ISSUE_BUNDLE_ENABLED", True)
+    monkeypatch.setattr(review_manager_policy_mod, "_CRITIQUE_DISCOVERY_FIRST_ENABLED", True)
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The method improves benchmark accuracy with a routing head.",
+                "status": "supported",
+                "claim_kind": "paper_extracted",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "evidence-support-1",
+                "claim_id": "claim-1",
+                "evidence": "Table 1 reports benchmark accuracy.",
+                "raw_quote": "Table 1 reports benchmark accuracy.",
+                "source_locator": "Table 1",
+                "stance": "supports",
+                "strength": "strong",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_support_verified",
+            }
+        ],
+        "flaw_candidates": [],
+        "evidence_gaps": [],
+        "unresolved_questions": [],
+        "risk_profile": {"readiness": "not_ready"},
+    }
+
+    payload = review_runner_mod._apply_recovery_phase_protocol(
+        manager_payload={
+            "decision": "continue",
+            "action_type": "analyze_flaws",
+            "effective_action_type": "analyze_flaws",
+            "selected_agents": ["Critique Agent"],
+            "policy_source": "review_issue_discovery_override",
+            "review_issue_discovery_required": True,
+            "freeform_reviewer_negative_discovery_required": True,
+            "freeform_reviewer_negative_stage": "candidate_discovery",
+            "negative_evidence_binding_retry_required": True,
+            "target_claim_ids": ["claim-1"],
+            "target_evidence_ids": ["evidence-reviewer-absence-claim-1"],
+            "target_flaw_ids": ["flaw-reviewer-absence-claim-1"],
+        },
+        state=state,
+        mode="s4",
+        worker_ids=["Claim Agent", "Evidence Agent", "Critique Agent"],
+        worker_limit=2,
+        recent_turn_logs=[],
+    )
+
+    assert payload["policy_source"] == "review_issue_discovery_override"
+    assert payload["action_type"] == "analyze_flaws"
+    assert payload["review_issue_discovery_required"] is True
+    assert payload["phase"] == "normal_review"
+    assert payload["turn_mode"] == "normal_evidence"
+    assert payload["negative_evidence_binding_retry_required"] is False
+    assert payload["target_evidence_ids"] == []
+    assert payload["target_flaw_ids"] == []
+    assert payload["selected_agents"] == ["Critique Agent"]
+
+
+def test_selected_menu_items_expand_from_prompt_snapshot():
+    worker_payload = {
+        "selected_menu_items": [
+            {
+                "candidate_menu_id": "rim-c1-ma-routing-head",
+                "decision": "selected",
+                "rationale": "The routing head is claimed as a useful component and should have an isolation check.",
+                "confidence": 0.8,
+            }
+        ],
+        "reviewer_negative_candidates": [],
+    }
+    manager_payload = {
+        "review_issue_discovery_required": True,
+        "review_issue_candidate_selector_menu_snapshot": [
+            {
+                "candidate_menu_id": "rim-c1-ma-routing-head",
+                "claim_id": "claim-1",
+                "issue_type": "missing_ablation",
+                "required_evidence_type": "ablation_or_component",
+                "expected_entity": "component-isolation ablation for routing head",
+                "verifier_target_entity": "routing head",
+                "inventory_anchor": {
+                    "quote": "Table 2 reports the full model and baseline.",
+                    "locator": "Table 2",
+                    "observed_items": ["full model"],
+                    "inventory_type": "ablation",
+                },
+            }
+        ],
+    }
+    trace = {}
+
+    updated = review_runner_mod._maybe_seed_review_issue_discovery_payload(
+        "Critique Agent",
+        worker_payload,
+        {"claims": [{"claim_id": "claim-1", "claim": "The routing head improves accuracy.", "status": "supported"}]},
+        manager_payload,
+        trace_worker=trace,
+    )
+
+    candidates = updated.get("reviewer_negative_candidates") or []
+    assert len(candidates) == 1
+    assert candidates[0]["candidate_menu_id"] == "rim-c1-ma-routing-head"
+    assert candidates[0]["discovery_origin"] == "critique_payload_menu_selected"
+    assert candidates[0]["negative_type"] == "missing_ablation"
+    assert candidates[0]["missing_or_weak_items"] == ["routing head"]
+    assert "component-isolation ablation for" not in candidates[0]["weakness"]
+    assert trace["review_issue_selected_menu_recovery_used"] is True
+    assert trace["review_issue_selected_menu_ids"] == ["rim-c1-ma-routing-head"]
+
+
+def test_selected_menu_items_reject_stale_or_hallucinated_id():
+    worker_payload = {
+        "selected_menu_items": [
+            {
+                "candidate_menu_id": "rim-c9-invented",
+                "decision": "selected",
+                "rationale": "Invented menu id.",
+                "confidence": 0.8,
+            }
+        ],
+        "reviewer_negative_candidates": [],
+    }
+    manager_payload = {
+        "review_issue_discovery_required": True,
+        "review_issue_candidate_selector_menu_snapshot": [
+            {
+                "candidate_menu_id": "rim-c1-ma-routing-head",
+                "claim_id": "claim-1",
+                "issue_type": "missing_ablation",
+                "required_evidence_type": "ablation_or_component",
+                "expected_entity": "routing head",
+            }
+        ],
+    }
+    trace = {}
+
+    updated = review_runner_mod._maybe_seed_review_issue_discovery_payload(
+        "Critique Agent",
+        worker_payload,
+        {"claims": [{"claim_id": "claim-1", "claim": "The routing head improves accuracy.", "status": "supported"}]},
+        manager_payload,
+        trace_worker=trace,
+    )
+
+    assert updated.get("reviewer_negative_candidates") == []
+    assert trace["review_issue_selected_menu_recovery_used"] is False
+    assert trace["review_issue_selected_menu_missing_ids"] == ["rim-c9-invented"]
 
 
 def test_run_review_episode_supports_clarification_placeholder():

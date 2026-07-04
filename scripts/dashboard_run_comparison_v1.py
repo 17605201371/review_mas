@@ -946,11 +946,18 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     out["critique_payload_verified_count"] = _sum(rows, "critique_payload_verified_count")
     out["critique_payload_menu_bound_verified_count"] = _sum(rows, "critique_payload_menu_bound_verified_count")
     out["critique_payload_verified_cluster_count"] = _sum(rows, "critique_payload_verified_cluster_count")
+    out["critique_selected_verified_cluster_count"] = _sum(rows, "critique_selected_verified_cluster_count")
+    out["critique_selected_verified_by_existing_cluster_count"] = _sum(
+        rows, "critique_selected_verified_by_existing_cluster_count"
+    )
     out["deterministic_seed_verified_cluster_count"] = _sum(rows, "deterministic_seed_verified_cluster_count")
     out["candidate_menu_item_count"] = _sum(rows, "candidate_menu_item_count")
     out["candidate_menu_item_used_count"] = _sum(rows, "candidate_menu_item_used_count")
     out["candidate_menu_item_verified_count"] = _sum(rows, "candidate_menu_item_verified_count")
     out["candidate_menu_item_any_origin_verified_count"] = _sum(rows, "candidate_menu_item_any_origin_verified_count")
+    out["candidate_menu_item_verified_by_existing_cluster_count"] = _sum(
+        rows, "candidate_menu_item_verified_by_existing_cluster_count"
+    )
     out["candidate_menu_item_failed_count"] = _sum(rows, "candidate_menu_item_failed_count")
     candidate_menu_failed_by_reason: Counter[str] = Counter()
     candidate_menu_failed_by_stage: Counter[str] = Counter()
@@ -2090,6 +2097,8 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "critique_payload_verified_count",
         "critique_payload_menu_bound_verified_count",
         "critique_payload_verified_cluster_count",
+        "critique_selected_verified_cluster_count",
+        "critique_selected_verified_by_existing_cluster_count",
         "critique_only_candidate_count",
         "critique_only_selected_menu_count",
         "critique_only_verified_count",
@@ -2099,6 +2108,7 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "candidate_menu_item_used_count",
         "candidate_menu_item_verified_count",
         "candidate_menu_item_any_origin_verified_count",
+        "candidate_menu_item_verified_by_existing_cluster_count",
         "candidate_menu_item_failed_count",
         "candidate_menu_item_failed_scope_menu_generic_target",
         "candidate_menu_item_failed_efficiency_cost_menu_without_resource_anchor",

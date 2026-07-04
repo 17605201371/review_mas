@@ -262,7 +262,7 @@ Do not relax this by using model judgment. Direct quote-grounded negatives and o
 
 # Candidate Sources
 1. Prefer `review_issue_candidate_selector_menu` when present. Treat it as the primary selector, not background text:
-   inspect every visible menu item, select 1-3 safe paper-auditable items when available, and reject unsafe items briefly.
+   inspect every visible menu item, select 1-2 safe paper-auditable items when available, and reject unsafe items briefly.
    Select only `candidate_menu_id` values copied from `review_issue_candidate_selector_menu` / `review_issue_candidate_menu`;
    they normally start with `rim-c`. Never put `rim-evidence-*`, quote ids, evidence ids, claim ids, or invented ids in
    `selected_menu_items`.

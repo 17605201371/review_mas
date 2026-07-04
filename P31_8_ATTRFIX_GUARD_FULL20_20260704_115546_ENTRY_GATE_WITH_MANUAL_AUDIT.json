@@ -1,0 +1,345 @@
+{
+  "inputs": {
+    "dashboard_json": "P31_8_ATTRFIX_GUARD_FULL20_20260704_115546_HARDNEG20_DASHBOARD.json",
+    "case_json": "P31_8_ATTRFIX_GUARD_FULL20_20260704_115546_REVIEW_ISSUE_CASE_TABLE.json",
+    "recovery_json": "P31_8_ATTRFIX_GUARD_FULL20_20260704_115546_RECOVERY_CASE_TABLE.json",
+    "manual_audit_validation_json": "P31_8_ATTRFIX_GUARD_FULL20_20260704_115546_MANUAL_AUDIT_VALIDATION.json"
+  },
+  "thresholds": {
+    "min_critique_clusters": 3,
+    "fail_on_red_flags": false,
+    "require_manual_audit": false
+  },
+  "machine_gate_status": "PASS",
+  "manual_gate_status": "PASS",
+  "checks": [
+    {
+      "name": "dashboard_protection_passed",
+      "actual": true,
+      "required": true,
+      "status": "PASS"
+    },
+    {
+      "name": "critique_payload_verified_cluster_count",
+      "actual": 6,
+      "required": ">= 3",
+      "status": "PASS"
+    },
+    {
+      "name": "candidate_menu_item_verified_count",
+      "actual": 7,
+      "required": ">= 2",
+      "status": "PASS"
+    },
+    {
+      "name": "case_table_critique_origin_cluster_count",
+      "actual": 6,
+      "required": ">= 3",
+      "status": "PASS"
+    },
+    {
+      "name": "case_table_cluster_count_matches_rows_minus_duplicates",
+      "actual": 14,
+      "required": 14,
+      "status": "PASS"
+    },
+    {
+      "name": "dashboard_case_cluster_count_match",
+      "actual": 14,
+      "required": 14,
+      "status": "PASS"
+    },
+    {
+      "name": "dashboard_recomputed_cluster_count_match",
+      "actual": 14,
+      "required": 14,
+      "status": "PASS"
+    },
+    {
+      "name": "dashboard_quote_merged_cluster_count_not_above_system",
+      "actual": 14,
+      "required": "<= 14",
+      "status": "PASS"
+    },
+    {
+      "name": "dashboard_origin_cluster_counts_sum",
+      "actual": 14,
+      "required": 14,
+      "status": "PASS"
+    },
+    {
+      "name": "negative_evidence_unlinked_to_flaw",
+      "actual": 0,
+      "required": 0,
+      "status": "PASS"
+    },
+    {
+      "name": "positive_or_neutral_negative_candidate_count",
+      "actual": 0,
+      "required": 0,
+      "status": "PASS"
+    },
+    {
+      "name": "negative_grounding_conflict_count",
+      "actual": 0,
+      "required": 0,
+      "status": "PASS"
+    },
+    {
+      "name": "manual_audit_status",
+      "actual": "PASS",
+      "required": "PASS",
+      "status": "PASS"
+    },
+    {
+      "name": "manual_critique_origin_A_B_clusters",
+      "actual": 6,
+      "required": ">= 3",
+      "status": "PASS"
+    },
+    {
+      "name": "manual_D_clusters",
+      "actual": 0,
+      "required": 0,
+      "status": "PASS"
+    },
+    {
+      "name": "manual_unfilled_clusters",
+      "actual": 0,
+      "required": 0,
+      "status": "PASS"
+    }
+  ],
+  "blocking_issues": [],
+  "headline_metrics": {
+    "verified_review_issue_count": 22,
+    "verified_review_issue_cluster_recomputed_count": 14,
+    "quote_duplicate_merged_verified_review_issue_cluster_count": 14,
+    "critique_payload_verified_cluster_count": 6,
+    "verified_review_issue_cluster_origin_critique_payload_count": 0,
+    "mark_contested_commit_count": 9,
+    "verified_issue_cluster_without_recovery_count": 8,
+    "candidate_menu_item_verified_count": 7
+  },
+  "case_summary": {
+    "verified_review_issue_cases": 21,
+    "bucket::obligation_grounded_review_issue": 20,
+    "type::missing_ablation": 14,
+    "source::reviewer_candidate": 18,
+    "candidate_kind::deterministic_reviewer_seed": 18,
+    "critique_selected_menu_verified_cases": 11,
+    "type::efficiency_cost_gap": 3,
+    "type::missing_baseline": 3,
+    "source::claim_obligation": 2,
+    "candidate_kind::claim_obligation_fallback": 2,
+    "bucket::quote_grounded_review_issue": 1,
+    "type::negative_result": 1,
+    "source::direct_quote": 1,
+    "candidate_kind::direct_quote": 1,
+    "verified_review_issue_cluster_count": 14,
+    "duplicate_review_issue_row_count": 7,
+    "reviewer_candidate_review_issue_cluster_count": 12,
+    "cluster_type::missing_ablation": 10,
+    "cluster_origin::deterministic_reviewer_seed": 6,
+    "cluster_source::reviewer_candidate": 12,
+    "cluster_slot::missing_ablation": 10,
+    "cluster_origin::critique_payload_candidate": 6,
+    "critique_selected_verified_cluster_count": 6,
+    "cluster_type::efficiency_cost_gap": 1,
+    "cluster_slot::efficiency_cost": 1,
+    "cluster_type::missing_baseline": 2,
+    "cluster_origin::claim_obligation_fallback": 1,
+    "cluster_source::claim_obligation": 1,
+    "cluster_slot::missing_baseline": 2,
+    "cluster_type::negative_result": 1,
+    "cluster_origin::direct_quote": 1,
+    "cluster_source::direct_quote": 1,
+    "cluster_slot::direct_quote": 1,
+    "quote_grounded_review_issue_cluster_count": 1,
+    "quote_grounded_direct_quote_duplicate_cluster_count": 0,
+    "quote_duplicate_merged_verified_review_issue_cluster_count": 14
+  },
+  "recovery_summary": {
+    "bucket::effective_repair_without_verified_negative": 3,
+    "operation::mark_contested": 9,
+    "effective_repair_turns": 9,
+    "effective_repair_not_verified_negative_repair": 9,
+    "evidence_bucket::stale_reviewer_absence_audit": 4,
+    "bucket::attempted_not_committed": 7,
+    "bucket::verified_review_issue_repair": 6,
+    "turns_with_verified_review_issue_bundle_evidence": 6,
+    "evidence_bucket::obligation_grounded_review_issue": 6,
+    "operation::reject_patch": 5,
+    "bucket::committed_not_effective": 2,
+    "operation::record_diagnosis_pending_concern": 2,
+    "turns_with_verified_review_negative_evidence": 1,
+    "evidence_bucket::verified_review_negative": 1,
+    "case_rows": 18
+  },
+  "manual_audit_summary": {
+    "system_clusters": 6,
+    "critique_origin_clusters": 6,
+    "manual_A_clusters": 3,
+    "manual_B_clusters": 3,
+    "manual_A_B_clusters": 6,
+    "manual_C_clusters": 0,
+    "manual_D_clusters": 0,
+    "manual_MERGE_clusters": 0,
+    "unfilled_clusters": 0,
+    "manual_A_B_clusters_by_origin": {
+      "critique_payload": 6
+    },
+    "manual_D_clusters_by_origin": {},
+    "cluster_count_by_origin": {
+      "critique_payload": 6
+    },
+    "critique_origin_manual_A_B_clusters": 6,
+    "deterministic_seed_manual_A_B_clusters": 0,
+    "critique_origin_D_clusters": 0,
+    "status": "PASS",
+    "blocking_issues": []
+  },
+  "reviewer_candidate_kind_counts": {
+    "deterministic_reviewer_seed": 18,
+    "claim_obligation_fallback": 2,
+    "direct_quote": 1
+  },
+  "critique_origin_clusters": [
+    {
+      "issue_cluster_key": "GE6iywJtsV|obligation_grounded_review_issue|missing_ablation|graph_control_module",
+      "paper_id": "GE6iywJtsV",
+      "issue_type": "missing_ablation",
+      "issue_cluster_target": "graph_control_module",
+      "case_count": 3,
+      "claim_ids": [
+        "claim-1",
+        "claim-2",
+        "claim-4"
+      ],
+      "evidence_ids": [
+        "evidence-reviewer-absence-claim-1-ablation-or-component-mi",
+        "evidence-reviewer-absence-claim-2-ablation-or-component-mi",
+        "evidence-reviewer-absence-claim-4-ablation-or-component-mi"
+      ],
+      "missing_or_mismatch": "component-isolation ablation for graph control module",
+      "claim_anchor": "Diff-Shape is built upon the Graph ControllNet (GrCN) architecture, which combines an unconditioned diffusion model (MIDI) with a graph control module for 3D shape conditioning.",
+      "inventory_or_quote_locator": "paper component inventory #1",
+      "inventory_or_quote": "This approach allowed ControlNet to learn a diverse range of conditional models.(Zhang et al., 2023) Inspired by ControlNet, we introduce a novel diffusion model called Diff-Shape, which combines a pre-trained uncondi...",
+      "review_issue_slot": "missing_ablation",
+      "discovery_origin": "deterministic_component_ablation_seed",
+      "reviewer_candidate_kind": "deterministic_reviewer_seed"
+    },
+    {
+      "issue_cluster_key": "NnExMNiTHw|obligation_grounded_review_issue|missing_ablation|acceptance_prediction_head",
+      "paper_id": "NnExMNiTHw",
+      "issue_type": "missing_ablation",
+      "issue_cluster_target": "acceptance_prediction_head",
+      "case_count": 2,
+      "claim_ids": [
+        "claim-1",
+        "claim-2"
+      ],
+      "evidence_ids": [
+        "evidence-reviewer-absence-claim-1-ablation-or-component-mi",
+        "evidence-reviewer-absence-claim-2-ablation-or-component-mi"
+      ],
+      "missing_or_mismatch": "component-isolation ablation for train an acceptance prediction head",
+      "claim_anchor": "SpecDec++ proposes an adaptive candidate length mechanism for speculative decoding, where the number of candidate tokens generated per speculation round is dynamically adjusted based on a learned acceptance probabilit...",
+      "inventory_or_quote_locator": "paper component inventory #1",
+      "inventory_or_quote": "We augment the draft model with a trained acceptance prediction head to predict the conditional acceptance probability of the candidate tokens.",
+      "review_issue_slot": "missing_ablation",
+      "discovery_origin": "deterministic_component_ablation_seed",
+      "reviewer_candidate_kind": "deterministic_reviewer_seed"
+    },
+    {
+      "issue_cluster_key": "WpXq5n8yLb|obligation_grounded_review_issue|missing_ablation|recurrent_draft_model",
+      "paper_id": "WpXq5n8yLb",
+      "issue_type": "missing_ablation",
+      "issue_cluster_target": "recurrent_draft_model",
+      "case_count": 1,
+      "claim_ids": [
+        "claim-1"
+      ],
+      "evidence_ids": [
+        "evidence-reviewer-absence-claim-1-ablation-or-component-mi"
+      ],
+      "missing_or_mismatch": "component-isolation ablation for recurrent neural network",
+      "claim_anchor": "ReDrafter is an advanced speculative decoding approach that achieves state-of-the-art speedup for LLM inference.",
+      "inventory_or_quote_locator": "paper component inventory #1",
+      "inventory_or_quote": "Additionally, we incorporate the embeddings of historical tokens as recurrent inputs to the draft head.",
+      "review_issue_slot": "missing_ablation",
+      "discovery_origin": "deterministic_component_ablation_seed",
+      "reviewer_candidate_kind": "deterministic_reviewer_seed"
+    },
+    {
+      "issue_cluster_key": "a6SntIisgg|obligation_grounded_review_issue|missing_ablation|global_encoder",
+      "paper_id": "a6SntIisgg",
+      "issue_type": "missing_ablation",
+      "issue_cluster_target": "global_encoder",
+      "case_count": 1,
+      "claim_ids": [
+        "claim-1"
+      ],
+      "evidence_ids": [
+        "evidence-reviewer-absence-claim-1-ablation-or-component-mi"
+      ],
+      "missing_or_mismatch": "component-isolation ablation for Global Encoder",
+      "claim_anchor": "LogoRA is a novel local-global representation alignment framework for robust unsupervised domain adaptation (UDA) of time series.",
+      "inventory_or_quote_locator": "paper component inventory #1",
+      "inventory_or_quote": "To address this issue, we propose the \\textbf{Lo}cal-\\textbf{G}l\\textbf{o}bal \\textbf{R}epresentation \\textbf{A}lignment framework (\\abbr), which employs a two-branch encoder—comprising a multi-scale convolutional bra...",
+      "review_issue_slot": "missing_ablation",
+      "discovery_origin": "deterministic_component_ablation_seed",
+      "reviewer_candidate_kind": "deterministic_reviewer_seed"
+    },
+    {
+      "issue_cluster_key": "fGXyvmWpw6|obligation_grounded_review_issue|efficiency_cost_gap|efficiency_resource_measurement",
+      "paper_id": "fGXyvmWpw6",
+      "issue_type": "efficiency_cost_gap",
+      "issue_cluster_target": "efficiency_resource_measurement",
+      "case_count": 3,
+      "claim_ids": [
+        "claim-1",
+        "claim-2",
+        "claim-3"
+      ],
+      "evidence_ids": [
+        "evidence-reviewer-absence-claim-1-efficiency-cost-efficien",
+        "evidence-reviewer-absence-claim-2-efficiency-cost-efficien",
+        "evidence-reviewer-absence-claim-3-efficiency-cost-efficien"
+      ],
+      "missing_or_mismatch": "runtime, memory, parameter, FLOP, hardware, or compute-cost measurement for the efficiency claim",
+      "claim_anchor": "The method is computationally efficient, requiring only a few hundred local distillation steps, and is more efficient than other bi-level dataset distillation methods.",
+      "inventory_or_quote_locator": "paper inventory #1",
+      "inventory_or_quote": "Despite Federated Learning (FL)'s trend for learning machine learning models in a distributed manner, it is susceptible to performance drops when training on heterogeneous data.",
+      "review_issue_slot": "efficiency_cost",
+      "discovery_origin": "deterministic_efficiency_seed",
+      "reviewer_candidate_kind": "deterministic_reviewer_seed"
+    },
+    {
+      "issue_cluster_key": "mHv6wcBb0z|obligation_grounded_review_issue|missing_ablation|generalized_noise_regularization",
+      "paper_id": "mHv6wcBb0z",
+      "issue_type": "missing_ablation",
+      "issue_cluster_target": "generalized_noise_regularization",
+      "case_count": 1,
+      "claim_ids": [
+        "claim-2"
+      ],
+      "evidence_ids": [
+        "evidence-reviewer-absence-claim-2-ablation-or-component-mi"
+      ],
+      "missing_or_mismatch": "component-isolation ablation for with a generalized noise regularization",
+      "claim_anchor": "The proposed NR-DCCA method introduces a noise regularization mechanism to prevent model collapse in DCCA.",
+      "inventory_or_quote_locator": "paper component inventory #1",
+      "inventory_or_quote": "Therefore, this paper develops NR-DCCA, a DCCA-based method equipped with a generalized noise regularization (NR) approach.",
+      "review_issue_slot": "missing_ablation",
+      "discovery_origin": "deterministic_component_ablation_seed",
+      "reviewer_candidate_kind": "deterministic_reviewer_seed"
+    }
+  ],
+  "red_flags": [],
+  "notes": [
+    "Machine PASS is not paper-ready approval; manual A/B audit of the listed Critique-origin clusters is still required.",
+    "The red-flag scan is lexical only and should be treated as triage, not a verifier.",
+    "P32 entry remains blocked if the machine gate fails or manual audit finds external-baseline, retrieval/context, author-limitation, or other false positives."
+  ]
+}

@@ -3093,3 +3093,298 @@ salience and selection supervision: fewer but higher-salience menu items,
 paper-facing rationale per menu item, stronger examples of copied menu ids,
 and a Critique-only small eval before another full20.
 ```
+
+### P31.8 Critique selection closed-loop patch
+
+P31.8 keeps the P31.7 conclusion: P32 remains blocked because autonomous
+Critique discovery has not produced verified clusters.  This pass changes the
+selector/runner interface without relaxing any verifier gate.
+
+Code changes:
+
+```text
+agent_system/environments/env_package/review/state.py
+- _select_review_issue_candidate_menu_items no longer forces slot diversity
+  before rank.  The visible menu now prioritizes candidates most likely to
+  survive strict bundle verification.
+- review_issue_candidate_selector_menu default budget is reduced to 6 items
+  with max 2 per issue type.
+- efficiency_cost_gap menu items are hidden when the inventory anchor already
+  reports runtime / latency / memory / FLOP / hardware/resource evidence.
+- selected menu candidates may carry a normalized
+  review_issue_candidate_menu_item snapshot.  If current menu lookup no longer
+  renders the id, the verifier can recover the same-id/same-claim/same-type
+  snapshot and still run the original strict claim/inventory/counterevidence
+  checks.
+
+agent_system/inference/review_runner.py
+- selected_menu_items expanded by the runner now include the prompt-time menu
+  item snapshot.
+- selector lookup uses the same 6-item / max-2-per-type visible budget.
+
+agent_system/review_manager_policy.py
+- pending_absence_audit / pending_issue_bundle_verification reviewer candidates
+  now count as pending, so discovery does not repeat over already selected
+  absence/bundle candidates.
+- Added DRMAS_CRITIQUE_DISCOVERY_FIRST, automatically enabled by
+  DRMAS_CRITIQUE_ONLY_DISCOVERY_EVAL=1.  It attempts to schedule one Critique
+  selector discovery pass before negative-evidence formation or recovery when
+  claims/evidence exist and no recent reviewer discovery has happened.
+- Recovery/conflict/sticky/support overrides now avoid overwriting an already
+  scheduled review_issue_discovery_required turn.
+
+agent_system/review_prompts.py + runner routing text
+- Critique selection instruction changed from selecting 1-3 items to selecting
+  1-2 safe menu items.
+
+tests/test_review_decision_hygiene.py
+- Added P31.8 regressions for verifier-survival menu ranking, already-covered
+  efficiency/resource menu suppression, and selected-menu snapshot recovery.
+
+P31_8_CRITIQUE_SELECTION_CLOSED_LOOP_PLAN_ZH_20260703.md
+- Added as the authoritative P31.8 plan.
+```
+
+Validation:
+
+```text
+py_compile:
+  state.py / review_runner.py / review_prompts.py / review_manager_policy.py
+  tests/test_review_decision_hygiene.py
+  PASS
+
+lightweight smoke assertions:
+  selector prioritizes high-quality missing_ablation over low-survival slot coverage
+  efficiency/resource menu item is hidden when inventory already reports resource measures
+  selected-menu snapshot survives current menu lookup miss and verifies through strict bundle path
+  PASS
+
+pytest:
+  not runnable in the current system Python or bundled Python because pytest is
+  not installed; no dependency installation was performed.
+```
+
+Next step:
+
+```text
+Run a small Critique-only eval with DRMAS_CRITIQUE_ONLY_DISCOVERY_EVAL=1 before
+any fresh full20.  If Critique-only verified clusters remain 0, continue fixing
+menu construction/salience rather than loosening verifier or entering P32.
+```
+
+P31.8 attribution fix (20260704):
+
+```text
+Problem found after P31.8 stable-id smoke:
+  Critique sometimes selected a valid selector-menu issue, but deterministic
+  seed evidence verified the same issue cluster first.  Final-view evidence
+  dedupe then kept only the seed-origin record, so Critique metrics stayed at
+  0 even when the selected menu item matched a verified cluster.
+
+Code fix:
+  agent_system/environments/env_package/review/state.py
+    - _review_issue_candidate_funnel_metrics now builds a verified cluster
+      lookup and performs read-only attribution for selected-menu candidates.
+    - A selected menu candidate counts as Critique-selected verified only when
+      it carries the prompt-time review_issue_candidate_menu_item snapshot and
+      its (claim_id, issue_type, normalized target) matches an already verified
+      review-issue cluster.
+    - No new evidence is created; verifier output is unchanged; stale /
+      hallucinated menu ids without a snapshot still fail.
+    - New metrics/details:
+        candidate_menu_item_verified_by_existing_cluster_count
+        critique_selected_verified_cluster_count
+        critique_selected_verified_by_existing_cluster_count
+        critique_selected_verified_clusters
+
+  scripts/dashboard_run_comparison_v1.py
+    - Aggregates and renders the new selected-by-existing-cluster metrics.
+
+  scripts/audit_review_issue_case_table_v1.py
+    - Always recomputes decision_hygiene with current code instead of trusting
+      cached run hygiene.
+    - Marks clusters with critique_selected_menu_verified when hygiene says a
+      Critique selected-menu item matched that verified cluster.
+
+  scripts/p31_6_entry_gate_audit.py
+    - Treats critique_selected_menu_verified clusters as Critique-origin for
+      the P31.8/P32 machine gate, without changing evidence origin.
+
+Validation:
+  py_compile state/dashboard/case-table/entry-gate/tests = PASS
+  focused pytest = 5 passed
+  broader tests/test_review_decision_hygiene.py remains stale in this branch
+  (411 passed / 32 existing behavior-shift failures); not fixed in this pass.
+
+Smoke recompute:
+  P31_8_ATTRFIX8_20260704_132142_*
+    papers = 8
+    verified_review_issue_count = 7
+    verified_review_issue_cluster_count = 5
+    critique_payload_verified_cluster_count = 3
+    candidate_menu_item_verified_count = 3
+    candidate_menu_item_verified_by_existing_cluster_count = 3
+    protection = PASS
+    entry gate machine = PASS, manual = REQUIRED
+
+Full20 current-code recompute from existing raw:
+  input:
+    mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok1536_20260704_115546.jsonl
+  outputs:
+    P31_8_ATTRFIX_FULL20_20260704_115546_HARDNEG20_DASHBOARD.md/json
+    P31_8_ATTRFIX_FULL20_20260704_115546_REVIEW_ISSUE_CASE_TABLE.md/json
+    P31_8_ATTRFIX_FULL20_20260704_115546_RECOVERY_CASE_TABLE.md/json
+    P31_8_ATTRFIX_FULL20_20260704_115546_ENTRY_GATE_AUDIT.md/json
+    P31_8_ATTRFIX_FULL20_20260704_115546_MANUAL_AUDIT_TEMPLATE.md/json
+  metrics:
+    verified_review_issue_count = 22
+    verified_review_issue_cluster_count = 15
+    reviewer_candidate_review_issue_cluster_count = 13
+    critique_payload_verified_cluster_count = 7
+    critique_selected_verified_cluster_count = 7
+    candidate_menu_item_verified_count = 8
+    candidate_menu_item_verified_by_existing_cluster_count = 7
+    mark_contested_commit_count = 9
+    negative_evidence_unlinked_to_flaw = 0
+    positive_or_neutral_negative_candidate_count = 0
+    negative_grounding_conflict_count = 0
+    protection = PASS
+    entry gate machine = PASS, manual = REQUIRED
+
+Interpretation:
+  P31.8 machine-side Critique autonomous discovery is now no longer 0 on the
+  existing full20 raw.  This is attribution/measurement repair, not verifier
+  relaxation.  P32 remains blocked until the generated manual audit template is
+  filled and validates with enough A/B Critique-origin clusters.
+
+Manual audit draft:
+  files:
+    P31_8_ATTRFIX_FULL20_20260704_115546_MANUAL_AUDIT_FILLED_DRAFT.json
+    P31_8_ATTRFIX_FULL20_20260704_115546_MANUAL_AUDIT_VALIDATION_STRICT.md/json
+    P31_8_ATTRFIX_FULL20_20260704_115546_MANUAL_AUDIT_VALIDATION_ALLOW_D.md/json
+    P31_8_ATTRFIX_FULL20_20260704_115546_ENTRY_GATE_WITH_MANUAL_STRICT.md/json
+  labels:
+    A = 3
+      NnExMNiTHw acceptance_prediction_head
+      WpXq5n8yLb recurrent_draft_model
+      mHv6wcBb0z generalized_noise_regularization
+    B = 3
+      GE6iywJtsV graph_control_module
+      a6SntIisgg global_encoder
+      fGXyvmWpw6 efficiency_resource_measurement
+    D = 1
+      TPAj63ax4Y zero-shot_choice_mechanism_module
+  strict validation:
+    manual_A_B_clusters = 6
+    critique_origin_manual_A_B_clusters = 6
+    manual_D_clusters = 1
+    unfilled_clusters = 0
+    status = FAIL because manual_D_clusters = 1
+  allow-D validation:
+    status = PASS, but only if the D cluster is excluded from paper-facing
+    tables/claims.
+  interpretation:
+    Quantity target is now plausible (6 A/B Critique-origin clusters in this
+    draft), but P32 should remain blocked until the zero-shot-choice D cluster
+    is removed by guard/counterevidence logic or explicitly filtered from the
+    paper-facing main table.
+
+P31.8 guard follow-up (20260704):
+
+```text
+Problem:
+  Manual audit marked TPAj63ax4Y / zero-shot_choice_mechanism_module as D.
+  The paper explicitly says it performs ablations over this stage's zero-shot
+  instance choice pipeline, but the missing_ablation counterevidence resolver
+  did not catch the stage-level phrasing.
+
+Code fix:
+  agent_system/environments/env_package/review/state.py
+    - _ablation_counterevidence_window_resolves_semantic_table now treats
+      "ablations over this stage / zero-shot instance choice pipeline" as
+      counterevidence for selected-stage / zero-shot-choice missing_ablation
+      targets.
+  tests/test_review_decision_hygiene.py
+    - Added regression for zero-shot choice stage ablation counterevidence.
+
+Validation:
+  focused pytest + gate script tests = 10 passed
+  py_compile = PASS
+
+Current authoritative current-code full20 recompute:
+  P31_8_ATTRFIX_GUARD_FULL20_20260704_115546_*
+  verified_review_issue_count = 22
+  verified_review_issue_cluster_count = 14
+  critique_payload_verified_cluster_count = 6
+  candidate_menu_item_verified_count = 7
+  case_table_critique_origin_cluster_count = 6
+  protection = PASS
+  machine gate = PASS
+
+Manual audit after guard:
+  P31_8_ATTRFIX_GUARD_FULL20_20260704_115546_MANUAL_AUDIT_FILLED_DRAFT.json
+  manual_A_clusters = 3
+  manual_B_clusters = 3
+  manual_A_B_clusters = 6
+  manual_D_clusters = 0
+  unfilled_clusters = 0
+  manual validation = PASS
+  P31_8_ATTRFIX_GUARD_FULL20_20260704_115546_ENTRY_GATE_WITH_MANUAL_AUDIT.md/json = PASS
+
+Interpretation:
+  P31.8 is now a P32-entry candidate on the existing full20 raw: strict
+  verifier/protection passed, Critique-selected cluster attribution is nonzero,
+  and the manual audit draft has 6 A/B Critique-origin clusters with D=0.
+  Remaining caution: this is a current-code recompute over an existing raw run,
+  not a new API full20 generated after the guard.
+```
+```
+
+Critique-only smoke results:
+
+```text
+P31_8_CRITONLY1_20260704_000010:
+  rows = 1
+  verified_review_issue_count = 2
+  verified_review_issue_cluster_count = 2
+  critique_payload_verified_cluster_count = 0
+  candidate_menu_item_verified_count = 0
+  candidate_menu_item_count = 0
+  protection counters = 0
+  finding: review_issue_discovery_required was present only after a recovery
+  override; selector menu was absent, so Critique had nothing valid to select.
+
+P31_8_CRITONLY1_20260704_000542:
+  rows = 1
+  verified_review_issue_count = 2
+  verified_review_issue_cluster_count = 1
+  critique_payload_verified_cluster_count = 0
+  candidate_menu_item_verified_count = 0
+  candidate_menu_item_count = 0
+  protection counters = 0
+  finding: review_issue_discovery_required did not fire at all; negative
+  evidence formation / recovery routing consumed the opportunity.
+
+P31_8_CRITONLY1_20260704_001006:
+  rows = 1
+  verified_review_issue_count = 2
+  verified_review_issue_cluster_count = 2
+  critique_payload_verified_cluster_count = 0
+  candidate_menu_item_verified_count = 0
+  candidate_menu_item_count = 0
+  protection counters = 0
+  finding: discovery-first made Critique run earlier, but early
+  negative_evidence_binding_retry / conflict recovery still prevented a normal
+  selector-discovery lifecycle on this sample.
+```
+
+Updated diagnosis:
+
+```text
+P31.8 menu quality/snapshot fixes are valid but insufficient.  The remaining
+blocker is architectural scheduling: Critique autonomous discovery is still an
+opportunistic branch inside hard-negative/recovery routing, so it can be
+preempted before a selector menu exists or before the selector turn is cleanly
+executed.  Next pass should introduce an explicit review_issue_discovery phase
+or turn reservation, not another verifier or prompt relaxation.
+```

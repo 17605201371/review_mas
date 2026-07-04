@@ -1843,6 +1843,33 @@ def _apply_recovery_phase_protocol(
     )
     normalized["finalize_blocked_by_phase"] = bool(normalized.get("finalize_blocked_by_phase", False))
 
+    if normalized.get("review_issue_discovery_required"):
+        normalized["decision"] = "continue"
+        normalized["action_type"] = "analyze_flaws"
+        normalized["effective_action_type"] = "analyze_flaws"
+        normalized["phase"] = "normal_review"
+        normalized["phase_before_action"] = "normal_review"
+        normalized["phase_enter_reason"] = ""
+        normalized["phase_exit_reason"] = normalized.get("phase_exit_reason", "") if previous_phase == "recovery" else ""
+        normalized["phase_hold_reason"] = ""
+        normalized["turn_mode"] = "normal_evidence"
+        normalized["recovery_patch_mode_entered"] = False
+        normalized["finalize_blocked_by_phase"] = False
+        normalized["negative_evidence_binding_retry_required"] = False
+        normalized["negative_evidence_formation_required"] = False
+        normalized["targeted_negative_search_required"] = False
+        normalized["compact_negative_pass_required"] = False
+        normalized["hard_negative_diagnosis_required"] = False
+        normalized["target_flaw_ids"] = []
+        normalized["target_evidence_ids"] = []
+        normalized["target_hypotheses"] = []
+        normalized["selected_agents"] = [
+            agent for agent in ["Critique Agent"] if agent in worker_ids
+        ][:worker_limit] or list(worker_ids[:1])
+        if not int(normalized.get("phase_turn_index") or 0):
+            normalized["phase_turn_index"] = max(1, int(state.get("phase_turn_index", 0) or 0) + (1 if previous_phase == "normal_review" else 0))
+        return _apply_turn_mode(normalized)
+
     preserved_binding_retry = _preserve_negative_binding_retry_turn(
         normalized,
         worker_ids,
@@ -2975,7 +3002,7 @@ def _selector_menu_lookup_from_state(state: Dict[str, Any]) -> Dict[str, Dict[st
     targets = _hard_negative_diagnosis_targets(state or {}, claims=(state or {}).get("claims", []), max_items=8)
     visible_menu = _review_issue_candidate_selector_menu(
         targets,
-        max_items=12,
+        max_items=10,
         max_per_claim=2,
         max_per_type=3,
     )
@@ -3002,13 +3029,41 @@ def _selector_menu_lookup_from_state(state: Dict[str, Any]) -> Dict[str, Dict[st
     return full_by_id
 
 
+def _attach_review_issue_selector_snapshot(
+    manager_payload: Dict[str, Any],
+    state: Dict[str, Any],
+) -> Dict[str, Any]:
+    if not isinstance(manager_payload, dict) or not manager_payload.get("review_issue_discovery_required"):
+        return manager_payload
+    if manager_payload.get("review_issue_candidate_selector_menu_snapshot"):
+        return manager_payload
+    try:
+        targets = _hard_negative_diagnosis_targets(state or {}, claims=(state or {}).get("claims", []), max_items=8)
+        selector_menu = _review_issue_candidate_selector_menu(
+            targets,
+            max_items=10,
+            max_per_claim=2,
+            max_per_type=3,
+        )
+    except Exception:
+        selector_menu = []
+    if not selector_menu:
+        return manager_payload
+    manager_payload["review_issue_candidate_selector_menu_snapshot"] = copy.deepcopy(selector_menu)
+    manager_payload["review_issue_candidate_selector_menu_snapshot_count"] = len(selector_menu)
+    return manager_payload
+
+
 def _candidate_from_selected_menu_item(
     menu_item: Dict[str, Any],
     selection: Dict[str, Any],
     index: int,
 ) -> Dict[str, Any]:
     menu_id = str(menu_item.get("candidate_menu_id") or selection.get("candidate_menu_id") or "").strip()
-    expected = _candidate_text(menu_item.get("expected_entity"), 160)
+    expected = _candidate_text(
+        menu_item.get("verifier_target_entity") or menu_item.get("expected_entity"),
+        180,
+    )
     observed_inventory = menu_item.get("observed_inventory")
     if not isinstance(observed_inventory, list) or not observed_inventory:
         anchor = menu_item.get("inventory_anchor") if isinstance(menu_item.get("inventory_anchor"), dict) else {}
@@ -3026,6 +3081,7 @@ def _candidate_from_selected_menu_item(
     return {
         "candidate_id": f"review-issue-candidate-selected-menu-{index}",
         "candidate_menu_id": menu_id,
+        "review_issue_candidate_menu_item": copy.deepcopy(menu_item),
         "obligation_id": str(menu_item.get("obligation_id") or ""),
         "claim_id": str(menu_item.get("claim_id") or ""),
         "claim": "",
@@ -3059,13 +3115,24 @@ def _candidate_from_selected_menu_item(
 def _maybe_recover_selected_review_issue_menu_items(
     worker_payload: Dict[str, Any],
     state: Dict[str, Any],
+    manager_payload: Optional[Dict[str, Any]] = None,
     *,
     trace_worker: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     selections = worker_payload.get("selected_menu_items") if isinstance(worker_payload, dict) else []
     if not isinstance(selections, list) or not selections:
         return worker_payload
-    menu_by_id = _selector_menu_lookup_from_state(state or {})
+    menu_by_id: Dict[str, Dict[str, Any]] = {}
+    if isinstance(manager_payload, dict):
+        for item in manager_payload.get("review_issue_candidate_selector_menu_snapshot") or []:
+            if not isinstance(item, dict):
+                continue
+            menu_id = str(item.get("candidate_menu_id") or "").strip()
+            if menu_id:
+                menu_by_id[menu_id] = item
+    state_menu_by_id = _selector_menu_lookup_from_state(state or {})
+    for menu_id, item in state_menu_by_id.items():
+        menu_by_id.setdefault(menu_id, item)
     if not menu_by_id:
         return worker_payload
     existing_candidates = worker_payload.get("reviewer_negative_candidates")
@@ -3077,6 +3144,7 @@ def _maybe_recover_selected_review_issue_menu_items(
         if isinstance(item, dict) and str(item.get("candidate_menu_id") or "").strip()
     }
     recovered: List[Dict[str, Any]] = []
+    missing_menu_ids: List[str] = []
     for selection in selections:
         if not isinstance(selection, dict):
             continue
@@ -3088,6 +3156,7 @@ def _maybe_recover_selected_review_issue_menu_items(
             continue
         menu_item = menu_by_id.get(menu_id)
         if not menu_item:
+            missing_menu_ids.append(menu_id)
             continue
         recovered.append(
             _candidate_from_selected_menu_item(
@@ -3100,10 +3169,15 @@ def _maybe_recover_selected_review_issue_menu_items(
         if len(existing_candidates) + len(recovered) >= 12:
             break
     if not recovered:
+        if trace_worker is not None and missing_menu_ids:
+            trace_worker["review_issue_selected_menu_missing_ids"] = list(dict.fromkeys(missing_menu_ids))[:8]
+            trace_worker["review_issue_selected_menu_recovery_used"] = False
         return worker_payload
     normalized = normalize_review_update_payload({"reviewer_negative_candidates": recovered})
     recovered_candidates = normalized.get("reviewer_negative_candidates", [])
     if not recovered_candidates:
+        if trace_worker is not None:
+            trace_worker["review_issue_selected_menu_recovery_normalization_failed"] = True
         return worker_payload
     updated = copy.deepcopy(worker_payload)
     updated["reviewer_negative_candidates"] = (list(existing_candidates) + recovered_candidates)[:12]
@@ -3138,6 +3212,7 @@ def _maybe_seed_review_issue_discovery_payload(
     worker_payload = _maybe_recover_selected_review_issue_menu_items(
         worker_payload,
         state or {},
+        manager_payload,
         trace_worker=trace_worker,
     )
     existing = worker_payload.get("reviewer_negative_candidates")
@@ -3212,6 +3287,8 @@ def _worker_payload_trace_flags(trace_worker: Dict[str, Any]) -> Dict[str, Any]:
         "review_issue_selected_menu_recovery_used",
         "review_issue_selected_menu_recovered_count",
         "review_issue_selected_menu_ids",
+        "review_issue_selected_menu_missing_ids",
+        "review_issue_selected_menu_recovery_normalization_failed",
         "review_issue_seed_fallback_used",
         "review_issue_seed_candidate_count",
         "review_issue_seed_candidate_ids",
@@ -3672,7 +3749,7 @@ def build_worker_observation(task: Dict[str, Any], manager_payload: Dict[str, An
         review_issue_discovery_block = (
             "# Review Issue Discovery Mode\n"
             "review_issue_discovery_required=true\n"
-            "Primary task: act like a peer reviewer and select 1-3 safe items from review_issue_candidate_selector_menu. "
+            "Primary task: act like a peer reviewer and select 1-2 safe items from review_issue_candidate_selector_menu. "
             "Output selected_menu_items with copied candidate_menu_id values; the runner expands valid ids for later verification. "
             "Do not output verified evidence, claim status changes, or recovery patches. "
             "Only output full review_issue_candidates as a fallback when no menu item fits and the free-form issue has a real claim, concrete target, copied inventory anchor, and counterevidence terms. "
@@ -7520,6 +7597,11 @@ def run_review_episode(
             }
             if manager_payload.get("decision") != "finalize":
                 for worker_id in selected_workers:
+                    if worker_id == "Critique Agent":
+                        manager_payload = _attach_review_issue_selector_snapshot(
+                            manager_payload,
+                            obs["review_state"],
+                        )
                     worker_observation = build_worker_observation(obs, manager_payload, worker_id)
                     if obs.get("_latest_evidence_context_meta"):
                         obs.setdefault("review_state", {})["_latest_evidence_context_meta"] = dict(obs.get("_latest_evidence_context_meta") or {})
@@ -7928,6 +8010,12 @@ def run_review_batch(
                     worker_id = selected_workers[worker_pos]
                     obs = task["obs"]
                     step = task["_batch_step"]
+                    if worker_id == "Critique Agent":
+                        manager_payload = _attach_review_issue_selector_snapshot(
+                            manager_payload,
+                            obs["review_state"],
+                        )
+                        task["_manager_payload"] = manager_payload
                     worker_observation = build_worker_observation(obs, manager_payload, worker_id)
                     if obs.get("_latest_evidence_context_meta"):
                         obs.setdefault("review_state", {})["_latest_evidence_context_meta"] = dict(obs.get("_latest_evidence_context_meta") or {})
