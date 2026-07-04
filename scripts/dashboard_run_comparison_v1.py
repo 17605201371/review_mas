@@ -216,6 +216,76 @@ def _sum(rows: Iterable[Dict[str, Any]], key: str) -> int:
     return total
 
 
+def _short_text(value: Any, limit: int = 180) -> str:
+    text = " ".join(str(value or "").split())
+    return text if len(text) <= limit else text[: max(0, limit - 3)] + "..."
+
+
+def _menu_failure_details(rows: Iterable[Dict[str, Any]], *, max_items: int = 80) -> List[Dict[str, Any]]:
+    details: List[Dict[str, Any]] = []
+    for row in rows:
+        paper_id = str(row.get("paper_id") or "")
+        hygiene = _hygiene(row)
+        for item in hygiene.get("failed_menu_candidate_items") or []:
+            if not isinstance(item, dict):
+                continue
+            anchor = item.get("inventory_anchor_summary") if isinstance(item.get("inventory_anchor_summary"), dict) else {}
+            details.append({
+                "paper_id": paper_id,
+                "candidate_id": str(item.get("candidate_id") or ""),
+                "candidate_menu_id": str(item.get("candidate_menu_id") or ""),
+                "claim_id": str(item.get("claim_id") or ""),
+                "issue_type": str(item.get("issue_type") or ""),
+                "review_issue_slot": str(item.get("review_issue_slot") or ""),
+                "obligation_id": str(item.get("obligation_id") or ""),
+                "selected_missing_items": list(item.get("selected_missing_items") or [])[:4],
+                "resolved_expected_entity": _short_text(item.get("resolved_expected_entity"), 140),
+                "stop_stage": str(item.get("stop_stage") or ""),
+                "rejection_reason": str(item.get("rejection_reason") or ""),
+                "counterevidence_reason": _short_text(item.get("counterevidence_reason"), 180),
+                "inventory_locator": _short_text(anchor.get("locator"), 80),
+                "inventory_quote": _short_text(anchor.get("quote"), 180),
+                "inventory_observed_items": list(anchor.get("observed_items") or [])[:4],
+            })
+            if len(details) >= max_items:
+                return details
+    return details
+
+
+def _critique_selected_cluster_details(rows: Iterable[Dict[str, Any]], *, max_items: int = 80) -> List[Dict[str, Any]]:
+    details: List[Dict[str, Any]] = []
+    seen: set[Tuple[str, str, str, str]] = set()
+    for row in rows:
+        paper_id = str(row.get("paper_id") or "")
+        hygiene = _hygiene(row)
+        for item in hygiene.get("critique_selected_verified_clusters") or []:
+            if not isinstance(item, dict):
+                continue
+            key = (
+                paper_id,
+                str(item.get("claim_id") or ""),
+                str(item.get("issue_type") or ""),
+                str(item.get("issue_cluster_target") or ""),
+            )
+            if key in seen:
+                continue
+            seen.add(key)
+            details.append({
+                "paper_id": paper_id,
+                "claim_id": key[1],
+                "issue_type": key[2],
+                "issue_cluster_key": str(item.get("issue_cluster_key") or ""),
+                "issue_cluster_target": _short_text(item.get("issue_cluster_target"), 140),
+                "candidate_menu_ids": list(item.get("candidate_menu_ids") or [])[:8],
+                "candidate_ids": list(item.get("candidate_ids") or [])[:8],
+                "discovery_origin": str(item.get("discovery_origin") or ""),
+                "attribution_mode": str(item.get("attribution_mode") or ""),
+            })
+            if len(details) >= max_items:
+                return details
+    return details
+
+
 def _paper_has_hygiene_positive(row: Dict[str, Any], key: str) -> bool:
     try:
         return int((_hygiene(row).get(key, 0) or 0)) > 0
@@ -950,6 +1020,16 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     out["critique_selected_verified_by_existing_cluster_count"] = _sum(
         rows, "critique_selected_verified_by_existing_cluster_count"
     )
+    out["critique_selected_existing_seed_cluster_count"] = _sum(
+        rows, "critique_selected_existing_seed_cluster_count"
+    ) or out["critique_selected_verified_by_existing_cluster_count"]
+    out["critique_direct_verified_cluster_count"] = _sum(rows, "critique_direct_verified_cluster_count")
+    if not out["critique_direct_verified_cluster_count"]:
+        out["critique_direct_verified_cluster_count"] = max(
+            0,
+            out["critique_payload_verified_cluster_count"]
+            - out["critique_selected_existing_seed_cluster_count"],
+        )
     out["deterministic_seed_verified_cluster_count"] = _sum(rows, "deterministic_seed_verified_cluster_count")
     out["candidate_menu_item_count"] = _sum(rows, "candidate_menu_item_count")
     out["candidate_menu_item_used_count"] = _sum(rows, "candidate_menu_item_used_count")
@@ -966,6 +1046,12 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
         candidate_menu_failed_by_stage.update(_hygiene(row).get("candidate_menu_item_failed_by_stage") or {})
     out["candidate_menu_item_failed_by_reason"] = dict(candidate_menu_failed_by_reason)
     out["candidate_menu_item_failed_by_stage"] = dict(candidate_menu_failed_by_stage)
+    out["candidate_menu_item_failed_details"] = _menu_failure_details(rows)
+    out["candidate_menu_item_failed_detail_count"] = len(out["candidate_menu_item_failed_details"])
+    out["critique_selected_verified_cluster_details"] = _critique_selected_cluster_details(rows)
+    out["critique_selected_verified_cluster_detail_count"] = len(
+        out["critique_selected_verified_cluster_details"]
+    )
     for reason in (
         "scope_menu_generic_target",
         "efficiency_cost_menu_without_resource_anchor",
@@ -2097,8 +2183,11 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "critique_payload_verified_count",
         "critique_payload_menu_bound_verified_count",
         "critique_payload_verified_cluster_count",
+        "critique_direct_verified_cluster_count",
         "critique_selected_verified_cluster_count",
+        "critique_selected_existing_seed_cluster_count",
         "critique_selected_verified_by_existing_cluster_count",
+        "critique_selected_verified_cluster_detail_count",
         "critique_only_candidate_count",
         "critique_only_selected_menu_count",
         "critique_only_verified_count",
@@ -2110,6 +2199,7 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "candidate_menu_item_any_origin_verified_count",
         "candidate_menu_item_verified_by_existing_cluster_count",
         "candidate_menu_item_failed_count",
+        "candidate_menu_item_failed_detail_count",
         "candidate_menu_item_failed_scope_menu_generic_target",
         "candidate_menu_item_failed_efficiency_cost_menu_without_resource_anchor",
         "candidate_menu_item_failed_missing_baseline_menu_generic_target",

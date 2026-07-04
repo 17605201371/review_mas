@@ -14247,14 +14247,18 @@ def _review_issue_candidate_funnel_metrics(
     metrics["candidate_menu_item_verified_by_existing_cluster_count"] = len(
         selected_menu_verified_ids_by_cluster - verified_menu_ids
     )
+    metrics["critique_direct_verified_cluster_count"] = len(direct_critique_verified_cluster_keys)
+    metrics["critique_selected_existing_seed_cluster_count"] = len(
+        selected_menu_verified_cluster_keys - direct_critique_verified_cluster_keys
+    )
     metrics["critique_selected_verified_cluster_count"] = len(
         direct_critique_verified_cluster_keys | selected_menu_verified_cluster_keys
     )
     metrics["critique_payload_verified_cluster_count"] = len(
         direct_critique_verified_cluster_keys | selected_menu_verified_cluster_keys
     )
-    metrics["critique_selected_verified_by_existing_cluster_count"] = len(
-        selected_menu_verified_cluster_keys - direct_critique_verified_cluster_keys
+    metrics["critique_selected_verified_by_existing_cluster_count"] = int(
+        metrics["critique_selected_existing_seed_cluster_count"]
     )
     used_menu_ids: set[str] = set()
     if not candidates:

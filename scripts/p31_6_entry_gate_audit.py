@@ -215,6 +215,45 @@ def _render_md(report: Dict[str, Any]) -> str:
                 )
             )
     lines.append("")
+    lines.append("## Critique Selected-Menu Attribution")
+    lines.append("")
+    selected_details = report.get("critique_selected_verified_cluster_details") or []
+    if not selected_details:
+        lines.append("_No selected-menu verified cluster attribution details found._")
+    else:
+        lines.append("| paper | type | target | menu ids | mode |")
+        lines.append("|---|---|---|---|---|")
+        for item in selected_details:
+            lines.append(
+                "| {paper} | {itype} | {target} | {menu_ids} | {mode} |".format(
+                    paper=item.get("paper_id", ""),
+                    itype=item.get("issue_type", ""),
+                    target=_clip(item.get("issue_cluster_target"), 80).replace("|", "\\|"),
+                    menu_ids=", ".join(item.get("candidate_menu_ids") or []),
+                    mode=item.get("attribution_mode", ""),
+                )
+            )
+    lines.append("")
+    lines.append("## Selected-Menu Failure Details")
+    lines.append("")
+    failed_details = report.get("candidate_menu_item_failed_details") or []
+    if not failed_details:
+        lines.append("_No selected-menu failure details found._")
+    else:
+        lines.append("| paper | stage | reason | type | target | locator |")
+        lines.append("|---|---|---|---|---|---|")
+        for item in failed_details[:20]:
+            lines.append(
+                "| {paper} | {stage} | {reason} | {itype} | {target} | {locator} |".format(
+                    paper=item.get("paper_id", ""),
+                    stage=item.get("stop_stage", ""),
+                    reason=item.get("rejection_reason", ""),
+                    itype=item.get("issue_type", ""),
+                    target=_clip(item.get("resolved_expected_entity"), 80).replace("|", "\\|"),
+                    locator=_clip(item.get("inventory_locator"), 80).replace("|", "\\|"),
+                )
+            )
+    lines.append("")
     lines.append("## Red-Flag Scan")
     lines.append("")
     flags = report["red_flags"]
@@ -413,11 +452,16 @@ def build_report(args: argparse.Namespace) -> Tuple[Dict[str, Any], int]:
             "verified_review_issue_cluster_recomputed_count": _as_int(metrics.get("verified_review_issue_cluster_recomputed_count")),
             "quote_duplicate_merged_verified_review_issue_cluster_count": _as_int(metrics.get("quote_duplicate_merged_verified_review_issue_cluster_count")),
             "critique_payload_verified_cluster_count": _as_int(metrics.get("critique_payload_verified_cluster_count")),
+            "critique_direct_verified_cluster_count": _as_int(metrics.get("critique_direct_verified_cluster_count")),
+            "critique_selected_existing_seed_cluster_count": _as_int(metrics.get("critique_selected_existing_seed_cluster_count")),
             "verified_review_issue_cluster_origin_critique_payload_count": _as_int(metrics.get("verified_review_issue_cluster_origin_critique_payload_count")),
             "mark_contested_commit_count": _as_int(metrics.get("mark_contested_commit_count")),
             "verified_issue_cluster_without_recovery_count": _as_int(metrics.get("verified_issue_cluster_without_recovery_count")),
             "candidate_menu_item_verified_count": _as_int(metrics.get("candidate_menu_item_verified_count")),
+            "candidate_menu_item_failed_count": _as_int(metrics.get("candidate_menu_item_failed_count")),
         },
+        "critique_selected_verified_cluster_details": metrics.get("critique_selected_verified_cluster_details") or [],
+        "candidate_menu_item_failed_details": metrics.get("candidate_menu_item_failed_details") or [],
         "case_summary": case_summary,
         "recovery_summary": recovery_summary,
         "manual_audit_summary": manual_summary,

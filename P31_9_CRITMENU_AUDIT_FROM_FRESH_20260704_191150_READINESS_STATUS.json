@@ -1,0 +1,56 @@
+{
+  "latest_run": {
+    "run_base": "mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok1536_20260704_191150",
+    "jsonl": "mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok1536_20260704_191150.jsonl",
+    "jsonl_exists": true,
+    "jsonl_lines": 20,
+    "log": "mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok1536_20260704_191150.log",
+    "log_exists": true,
+    "pid": "",
+    "running": false,
+    "pid_file_exists": false
+  },
+  "latest_pointers": {
+    ".latest_hardneg20_dashboard": "P31_8_FRESH_GUARD_FULL20_20260704_191150_HARDNEG20_DASHBOARD.md",
+    ".latest_hardneg20_review_issue_cases": "P31_8_FRESH_GUARD_FULL20_20260704_191150_REVIEW_ISSUE_CASE_TABLE.md",
+    ".latest_hardneg20_recovery_case": "P31_8_FRESH_GUARD_FULL20_20260704_191150_RECOVERY_CASE_TABLE.md",
+    ".latest_hardneg20_log": "mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok1536_20260704_191150.log"
+  },
+  "entry_gate": {
+    "path": "P31_9_CRITMENU_AUDIT_FROM_FRESH_20260704_191150_ENTRY_GATE_AUDIT.json",
+    "exists": true,
+    "machine_gate_status": "FAIL",
+    "manual_gate_status": "REQUIRED",
+    "blocking_issues": [
+      "critique_payload_verified_cluster_count: actual 2, required >= 3",
+      "case_table_critique_origin_cluster_count: actual 2, required >= 3"
+    ],
+    "headline_metrics": {
+      "verified_review_issue_count": 18,
+      "verified_review_issue_cluster_recomputed_count": 16,
+      "quote_duplicate_merged_verified_review_issue_cluster_count": 16,
+      "critique_payload_verified_cluster_count": 2,
+      "critique_direct_verified_cluster_count": 0,
+      "critique_selected_existing_seed_cluster_count": 2,
+      "verified_review_issue_cluster_origin_critique_payload_count": 0,
+      "mark_contested_commit_count": 4,
+      "verified_issue_cluster_without_recovery_count": 11,
+      "candidate_menu_item_verified_count": 2,
+      "candidate_menu_item_failed_count": 5
+    },
+    "manual_audit_summary": {}
+  },
+  "manual_validation": {
+    "path": "",
+    "exists": false,
+    "summary": {}
+  },
+  "api_preflight": {
+    "status": "not_run",
+    "ok": false,
+    "error": ""
+  },
+  "pipeline_command": "scripts/p31_6_full20_pipeline.sh --launch --wait --update-latest",
+  "next_action": "Run a fresh P31.6 full20 with scripts/p31_6_full20_pipeline.sh --launch --wait --update-latest, then fill and validate the manual audit template.",
+  "p32_entry_ready": false
+}

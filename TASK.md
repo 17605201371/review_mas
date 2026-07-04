@@ -10,6 +10,62 @@ Goal:
 - Improve Critique payload integration without relaxing the verifier.
 - Keep direct quote-grounded negative evidence strict; optimize obligation-grounded verified review issue bundles and safe `mark_contested` recovery.
 
+## Current P31.9 Checkpoint 2026-07-05
+
+P31.9 is an audit/instrumentation pass over the latest fresh P31.8 full20 raw run, not a new API run.
+
+Artifacts:
+
+```text
+raw = mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok1536_20260704_191150.jsonl
+dashboard = P31_9_CRITMENU_AUDIT_FROM_FRESH_20260704_191150_HARDNEG20_DASHBOARD.md/json
+case table = P31_9_CRITMENU_AUDIT_FROM_FRESH_20260704_191150_REVIEW_ISSUE_CASE_TABLE.md/json
+recovery table = P31_9_CRITMENU_AUDIT_FROM_FRESH_20260704_191150_RECOVERY_CASE_TABLE.md/json
+entry gate = P31_9_CRITMENU_AUDIT_FROM_FRESH_20260704_191150_ENTRY_GATE_AUDIT.md/json
+manual audit template = P31_9_CRITMENU_AUDIT_FROM_FRESH_20260704_191150_MANUAL_AUDIT_TEMPLATE.md/json
+```
+
+Fresh/P31.9 facts:
+
+```text
+full20 completed = 20/20
+protection = PASS
+verified_review_issue_count = 18
+verified_review_issue_cluster_count = 16
+review_negative_verified_count = 2
+critique_payload_verified_cluster_count = 2
+critique_direct_verified_cluster_count = 0
+critique_selected_existing_seed_cluster_count = 2
+candidate_menu_item_verified_count = 2
+candidate_menu_item_failed_detail_count = 5
+mark_contested_commit_count = 4
+verified_issue_cluster_without_recovery_count = 11
+negative_evidence_unlinked_to_flaw = 0
+positive_or_neutral_negative_candidate_count = 0
+negative_grounding_conflict_count = 0
+```
+
+Entry gate:
+
+```text
+machine_gate = FAIL
+manual_gate = REQUIRED
+blocking = critique_payload_verified_cluster_count 2 < 3
+blocking = case_table_critique_origin_cluster_count 2 < 3
+```
+
+Interpretation:
+
+- The two Critique-selected clusters are not direct Critique-generated verified issues; both are selected-menu matches to existing deterministic seed clusters.
+- P32 remains blocked until a fresh run has direct Critique verified clusters, not merely selected-existing attribution.
+- P31.9 dashboard/gate artifacts now preserve selected-menu failure details.
+
+Next step:
+
+```text
+Fix direct selected-menu candidate materialization and menu starvation.  Keep seed top-up separate from Critique autonomous discovery metrics; do not relax verifier gates.
+```
+
 ## Current P31.7 Checkpoint 2026-07-03
 
 P31.7A audit-fix is implemented: manual audit is cluster-level, dashboard/case

@@ -47,6 +47,40 @@ Missing-baseline, missing-ablation, insufficient-evaluation, and reproducibility
 
 ## Current Review Issue Logic
 
+### 2026-07-05 P31.9 selected-menu audit instrumentation
+
+Latest local commit before this pass: `b22eea6 Add P31.8 fresh guard full20 audit results` (local `main` ahead of `origin/main` by 1). P31.9 is an audit/instrumentation pass over the same fresh raw run, not a new API run.
+
+Fresh raw run audited:
+
+- raw: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok1536_20260704_191150.jsonl`
+- previous fresh artifacts: `P31_8_FRESH_GUARD_FULL20_20260704_191150_*`
+- new audit artifacts: `P31_9_CRITMENU_AUDIT_FROM_FRESH_20260704_191150_*`
+
+P31.8/P31.9 facts from fresh full20:
+
+- full20 completed: 20/20; protection PASS.
+- `verified_review_issue_count=18`, `verified_review_issue_cluster_count=16`, `review_negative_verified_count=2`.
+- `candidate_menu_item_verified_count=2`, but both are selected-menu matches to already verified deterministic seed clusters.
+- P31.9 split shows `critique_direct_verified_cluster_count=0` and `critique_selected_existing_seed_cluster_count=2`.
+- `candidate_menu_item_failed_detail_count=5`; failures are now listed in the entry-gate artifact.
+- Machine gate still FAILS: `critique_payload_verified_cluster_count=2 < 3` and case-table Critique-origin clusters = 2 < 3.
+
+Interpretation:
+
+- The current system is safe and has enough total verifier-passing issue rows/clusters for analysis, but Critique autonomous discovery is not solved.
+- Do not describe the two Critique-selected clusters as independent Critique-generated verified issues; they are selected-menu attributions to existing seed clusters.
+- The next engineering target is selected-menu reliability and direct Critique candidate materialization, not higher seed quantity or looser verifier gates.
+- Dashboard/gate artifacts must preserve selected-menu failure details so future runs can explain whether failures are stale/current-menu lookup, boundary-claim filtering, counterevidence, or already-observed inventory.
+
+Next P31.9/P32-blocking work:
+
+1. Make `critique_direct_verified_cluster_count >= 3` in a fresh run before claiming autonomous discovery.
+2. Keep `critique_selected_existing_seed_cluster_count` separate from direct Critique clusters in dashboards and paper narrative.
+3. Investigate menu starvation and selection: full20 selected only 7 menu items, with 5 failures.
+4. Improve direct selected-menu candidate verification/materialization using the prompt-time menu snapshot, without fuzzy rebinding stale ids.
+5. Keep recovery non-destructive; `mark_contested_commit_count=4` and `verified_issue_cluster_without_recovery_count=11` show recovery bridge remains incomplete.
+
 There are deliberately separate lanes. Keep them separate in code, metrics, dashboards, and paper narrative.
 
 ### 2026-07-02 P31.2 Critique-as-menu-selector current-code full20
