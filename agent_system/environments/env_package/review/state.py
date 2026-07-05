@@ -4151,6 +4151,51 @@ def _review_negative_quote_has_explicit_metric_improvement_context(quote: str) -
     return bool(_LOWER_IS_BETTER_METRIC_RE.search(text) and _EXPLICIT_METRIC_IMPROVEMENT_CUE_RE.search(text))
 
 
+def _review_negative_quote_is_positive_baseline_comparison_support(quote: str) -> bool:
+    """Reject ordinary baseline-comparison result prose mislabeled as negative."""
+
+    text = str(quote or "")
+    if not text:
+        return False
+    if _OWN_METHOD_WORSE_THAN_BASELINE_RE.search(text):
+        return False
+    if _REVIEW_NEGATIVE_CONCRETE_GAP_RE.search(text):
+        return False
+    if _SEMANTIC_NEGATIVE_TERMS_RE.search(text):
+        return False
+    has_baseline = bool(re.search(r"\bbaseline(?:s)?\b", text, re.IGNORECASE))
+    has_comparison = bool(
+        re.search(
+            r"\b(?:compare[sd]?|comparison|compared|performance\s+comparison|"
+            r"evaluate[sd]?|evaluation|benchmark(?:s)?|result(?:s)?)\b",
+            text,
+            re.IGNORECASE,
+        )
+    )
+    has_paper_self_anchor = bool(
+        re.search(
+            r"\b(?:we|our|ours|in\s+our\s+study|this\s+(?:paper|work|study)|"
+            r"the\s+proposed\s+(?:method|model|approach|framework))\b",
+            text,
+            re.IGNORECASE,
+        )
+    )
+    if not (has_baseline and has_comparison and has_paper_self_anchor):
+        return False
+    return bool(
+        re.search(
+            r"\b(?:use[sd]?|utili[sz]e[sd]?|adopt(?:ed)?|include[sd]?|set)\b"
+            r"[^.!?]{0,90}\bbaseline(?:s)?\b|"
+            r"\bbaseline(?:s)?\b[^.!?]{0,140}\b(?:compare[sd]?|comparison|"
+            r"evaluate[sd]?|benchmark(?:s)?|result(?:s)?)\b|"
+            r"\b(?:compare[sd]?|comparison|evaluate[sd]?|benchmark(?:s)?|result(?:s)?)\b"
+            r"[^.!?]{0,140}\bbaseline(?:s)?\b",
+            text,
+            re.IGNORECASE,
+        )
+    )
+
+
 def _has_review_negative_semantic_intent(evidence: Dict[str, Any]) -> bool:
     """Recognize concrete current-paper gaps even when model stance is wrong."""
     if not isinstance(evidence, dict):
@@ -4261,6 +4306,12 @@ def _assess_review_negative_relation(state: Dict[str, Any], evidence: Dict[str, 
         return _review_negative_assessment(
             "not_negative_evidence",
             "lower_is_better_metric_improvement_support",
+            relation_score,
+        )
+    if _review_negative_quote_is_positive_baseline_comparison_support(quote):
+        return _review_negative_assessment(
+            "positive_or_neutral_support",
+            "quote_describes_baseline_comparison_support",
             relation_score,
         )
     if _SEMANTIC_ABSENCE_EXCERPT_LIMIT_RE.search(
@@ -11109,6 +11160,58 @@ def _review_issue_full_text_target_windows(
     )
 
 
+def _review_issue_full_text_ablation_resolution_windows(
+    body: str,
+    missing_items: Sequence[str],
+    *,
+    window: int = 1400,
+    max_windows: int = 80,
+    max_scan_chars: int = 80000,
+    max_matches_per_pattern: int = 40,
+) -> List[str]:
+    """Scan windows around ablation-resolution cues, not only target tokens."""
+
+    if not body:
+        return []
+    scan_body = body[:max_scan_chars]
+    missing = _missing_joined_text(missing_items)
+    patterns: List[re.Pattern[str]] = [
+        _ABLATION_COUNTEREVIDENCE_RE,
+        _REVIEW_ISSUE_ABLATION_RESOLUTION_RE,
+    ]
+    if re.search(r"\bgraph2tac\b|\bhierarchical\s+representation\b|\bdefinition\s+task\b", missing):
+        patterns.append(re.compile(r"\b(?:g2t[- ]?nodef|no[- ]?def|definition\s+task|trained\s+without)\b", re.I))
+    if re.search(r"\bglobal\s+encoder\b|\blocal\s+global\b|\btwo[- ]?branch\b", missing):
+        patterns.append(
+            re.compile(
+                r"\b(?:ablation\s+stud(?:y|ies)\s+of\s+model\s+architecture|"
+                r"global\s+encoder|local\s+encoder|transformer\s*\$?\+\$?\s*tcn)\b",
+                re.I,
+            )
+        )
+    if re.search(r"\bnoise\b.{0,50}\bregulari[sz]ation\b|\bnr[- ]?dcca\b", missing):
+        patterns.append(re.compile(r"\b(?:nr[- ]?dcca|dcca|noise\s+regulari[sz]ation|model\s+collapse)\b", re.I))
+
+    windows: List[str] = []
+    seen: set[Tuple[int, int]] = set()
+    for pattern in patterns:
+        match_count = 0
+        for match in pattern.finditer(scan_body):
+            start = max(0, match.start() - window // 2)
+            end = min(len(scan_body), match.end() + window // 2)
+            span = (start, end)
+            if span in seen:
+                continue
+            seen.add(span)
+            windows.append(scan_body[start:end])
+            match_count += 1
+            if len(windows) >= max_windows:
+                return windows
+            if match_count >= max_matches_per_pattern:
+                break
+    return windows
+
+
 def _review_issue_full_text_structural_windows(
     body: str,
     neg_type: str,
@@ -11705,10 +11808,17 @@ def _ablation_counterevidence_window_resolves_semantic_table(window: str, missin
     ):
         return True
     if (
-        re.search(r"\bnoise\s+regulari[sz]ation\b|\bnr[- ]?dcca\b", missing)
+        re.search(r"\bnoise\b.{0,50}\bregulari[sz]ation\b|\bnoise\s+regulari[sz]ation\b|\bnr[- ]?dcca\b", missing)
         and re.search(r"\bnr[- ]?dcca\b", text)
         and re.search(r"\bdcca\b", text)
         and re.search(r"\b(?:baseline|baselines|compared?|comparison|methods?|performance|stability|collapse)\b", text)
+    ):
+        return True
+    if (
+        re.search(r"\bgraph2tac\b|\bhierarchical\s+representation\b|\bdefinition\s+task\b", missing)
+        and re.search(r"\bg2t[- ]?nodef\b|\bno[- ]?def\b|\bwithout\s+(?:a\s+|the\s+)?definition\s+task\b", text)
+        and re.search(r"\b(?:ablation|variant|trained\s+without|table|results?|accuracy|performance)\b", text)
+        and re.search(r"\b(?:definition\s+task|hierarchical\s+representation|theorem[- ]proving|proof)\b", text)
     ):
         return True
     if not has_ablation:
@@ -11755,6 +11865,18 @@ def _ablation_counterevidence_window_resolves_semantic_table(window: str, missin
             r"\bmulti[- ]scale\s+local\s+encoder\b",
             text,
         )
+    ):
+        return True
+
+    if (
+        re.search(r"\bglobal\s+encoder\b", missing)
+        and re.search(r"\bablation\s+stud(?:y|ies)\s+of\s+model\s+architecture\b|\bmodel\s+architecture\b.{0,80}\bablation\b", text)
+        and re.search(
+            r"\bglobal\s+encoder\s*\$?\+\$?\s*(?:tcn|local\s+encoder)\b|"
+            r"\b(?:tcn|local\s+encoder)\s*\$?\+\$?\s*global\s+encoder\b",
+            text,
+        )
+        and re.search(r"\b(?:transformer|patchtst|tcn|local\s+encoder|\\abbr|logora)\b", text)
     ):
         return True
 
@@ -11948,6 +12070,110 @@ def _window_satisfies_missing_task_phrase(window: str, missing_text: str) -> boo
         return True
     window_text = re.sub(r"\s+", " ", str(window or "").lower())
     return any(phrase in window_text for phrase in phrases)
+
+
+def _generic_scope_coverage_target_from_missing(missing_items: Sequence[str]) -> str:
+    missing_text = " ".join(str(item or "") for item in missing_items or [])
+    match = re.search(
+        r"\b(?:held[- ]out\s+or\s+coverage|coverage\s+or\s+held[- ]out|held[- ]out|coverage)\s+"
+        r"(?:evaluation|test|testing|analysis|coverage)\s+for\s+(.+)",
+        missing_text,
+        re.IGNORECASE,
+    )
+    if not match:
+        return ""
+    target = _normalize_text(match.group(1), max_length=80).strip(" .,:;()[]{}")
+    if not target:
+        return ""
+    target_l = target.lower()
+    concrete_scope_markers = {
+        "acdc",
+        "cityscapes",
+        "gtav",
+        "synthia",
+        "zinc",
+        "cifar",
+        "imagenet",
+        "coco",
+        "ssv2",
+        "hmdb",
+        "ucf",
+        "davis",
+        "nuscenes",
+        "rainy",
+        "night",
+        "corruption",
+        "stress",
+        "ood",
+        "out-of-domain",
+        "out of domain",
+    }
+    if any(marker in target_l for marker in concrete_scope_markers):
+        return ""
+    if re.search(r"\b(?:dataset|domain|benchmark|task|setting|split|fold)\b", target_l):
+        return ""
+    if re.search(r"\b(?:source[- ]?to[- ]?target|parameter[- ]efficient|state[- ]of[- ]the[- ]art)\b", target_l):
+        return target
+    if re.search(r"\b(?:efficient|efficiency|performance|accuracy|baseline|method|model|architecture)\b", target_l):
+        return target
+    if re.fullmatch(r"[A-Z][A-Za-z0-9_-]{2,}", target):
+        return target
+    tokens = [token for token in re.split(r"[^A-Za-z0-9_-]+", target) if token]
+    if 1 <= len(tokens) <= 2 and not any(token.lower() in {"dataset", "domain", "benchmark", "task"} for token in tokens):
+        return target
+    return ""
+
+
+def _paper_text_has_multi_scope_coverage_counterevidence(text: str) -> bool:
+    value = str(text or "")
+    if not value or not _REVIEW_ISSUE_FULL_TEXT_EVAL_RE.search(value):
+        return False
+    collapsed = re.sub(r"\s+", " ", value)
+    lower = collapsed.lower()
+    domain_pairs = {
+        re.sub(r"\s+", " ", match.group(0).strip().lower())
+        for match in re.finditer(
+            r"\b[A-Za-z][A-Za-z0-9_-]+\s*(?:->|→|to)\s*[A-Za-z][A-Za-z0-9_-]+\b",
+            collapsed,
+        )
+    }
+    if len(domain_pairs) >= 2:
+        return True
+    if re.search(r"\bsource[-/ ]?to[-/ ]?target\b.{0,80}\b(?:pairs?|domains?|settings?)\b", lower):
+        return True
+    if (
+        re.search(r"\b(?:multiple|various|different|several|across)\b.{0,120}\b(?:datasets?|benchmarks?|tasks?|domains?|settings?)\b", lower)
+        and re.search(r"\b(?:table|tab\.?|results?|reports?|evaluat(?:e|ed|ion)|benchmark)\b", lower)
+    ):
+        return True
+    dimension_patterns = [
+        r"\bsynthetic\b",
+        r"\bsubstructure\s+counting\b",
+        r"\bgraph\s+property\s+prediction\b",
+        r"\blong[- ]range\s+graph\s+benchmarks?\b",
+        r"\bsemantic\s+segmentation\b",
+        r"\bconvolutional\s+backbones?\b",
+        r"\battention\s+backbones?\b",
+        r"\bdomain\s+shift\b",
+        r"\bsource[-/ ]?target\b|\bsource\s+and\s+target\b",
+        r"\bbenchmark(?:s)?\b",
+        r"\bdataset(?:s)?\b",
+        r"\btask(?:s)?\b",
+    ]
+    covered_dimensions = sum(1 for pattern in dimension_patterns if re.search(pattern, lower))
+    return bool(
+        covered_dimensions >= 3
+        and re.search(r"\b(?:table|tab\.?|results?|reports?|evaluat(?:e|ed|ion)|benchmark)\b", lower)
+    )
+
+
+def _generic_scope_coverage_counterevidenced_by_full_text(
+    paper_text: str,
+    missing_items: Sequence[str],
+) -> bool:
+    if not _generic_scope_coverage_target_from_missing(missing_items):
+        return False
+    return _paper_text_has_multi_scope_coverage_counterevidence(paper_text)
 
 
 def _window_resolves_evaluation_or_scope_missing(
@@ -12211,9 +12437,14 @@ def _review_issue_full_text_counterevidence_reason(
     missing = bundle.get("missing_or_mismatch") if isinstance(bundle.get("missing_or_mismatch"), dict) else {}
     missing_items = _review_issue_missing_item_texts(bundle)
     target_tokens = _review_issue_full_text_target_tokens(missing_items)
+    neg_type = _canonical_negative_evidence_type(neg_type)
+    if (
+        neg_type in {"missing_robustness_or_generalization", "scope_overclaim", "insufficient_evaluation"}
+        and _generic_scope_coverage_counterevidenced_by_full_text(body, missing_items)
+    ):
+        return "full_text_evaluation_or_scope_counterevidence"
     if not target_tokens:
         return ""
-    neg_type = _canonical_negative_evidence_type(neg_type)
     claim_obligation_structural = (
         str(missing.get("source") or "") == "claim_obligation"
         and _review_issue_structural_expectation_type_matches(
@@ -12246,6 +12477,11 @@ def _review_issue_full_text_counterevidence_reason(
             str(anchor.get("quote") or ""),
         ):
             return "full_text_ablation_counterevidence"
+        for window in _review_issue_full_text_ablation_resolution_windows(body, missing_items):
+            if _ablation_counterevidence_window_resolves_semantic_table(window, missing_items):
+                return "full_text_ablation_counterevidence"
+            if _ABLATION_COUNTEREVIDENCE_RE.search(window) and _ablation_missing_items_resolved_by_text(window, missing_items):
+                return "full_text_ablation_counterevidence"
         if _ablation_missing_items_have_scope(missing_items):
             return ""
         for window in windows:
@@ -27456,6 +27692,8 @@ def _explicit_negative_potential_false_positive_reason(record: Dict[str, Any]) -
         and not _SEMANTIC_NEGATIVE_TERMS_RE.search(quote)
         and not _OWN_METHOD_WORSE_THAN_BASELINE_RE.search(quote)
     ):
+        return "positive_or_neutral_support"
+    if _review_negative_quote_is_positive_baseline_comparison_support(quote):
         return "positive_or_neutral_support"
     if _REVIEW_NEGATIVE_RESOURCE_CONTEXT_RE.search(quote) and not concrete_gap:
         return "resource_or_scope_context"

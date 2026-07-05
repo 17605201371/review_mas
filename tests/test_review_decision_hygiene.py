@@ -15536,6 +15536,61 @@ def test_review_issue_menu_rejects_state_of_art_scope_placeholder():
     assert item == {}
 
 
+def test_p32_precision_scope_counterevidence_rejects_generic_heldout_method_family_targets():
+    cases = [
+        (
+            "missing_robustness_or_generalization",
+            "held-out or coverage evaluation for parameter-efficient",
+            "PST achieves competitive or superior performance on various graph tasks while being parameter-efficient.",
+            (
+                "Experiments evaluate PST on synthetic substructure counting, graph property "
+                "prediction, and long-range graph benchmarks. Table 1 reports results on "
+                "ZINC, PATTERN, CLUSTER, Peptides-func, Peptides-struct, and graph property "
+                "prediction tasks against GNN and graph-transformer baselines."
+            ),
+        ),
+        (
+            "missing_robustness_or_generalization",
+            "held-out or coverage evaluation for EqualAL",
+            "HALO achieves state-of-the-art performance and improves over baselines like EqualAL under domain shift.",
+            (
+                "Experiments evaluate HALO under domain shift on GTAV to Cityscapes, "
+                "SYNTHIA to Cityscapes, and Cityscapes to ACDC. Tables report semantic "
+                "segmentation mIoU for convolutional and attention backbones compared "
+                "with EqualAL and other active-learning baselines."
+            ),
+        ),
+        (
+            "scope_overclaim",
+            "held-out or coverage evaluation for source-to-target",
+            "LogoRA achieves the best accuracy compared to baseline methods.",
+            (
+                "The unsupervised domain adaptation benchmark evaluates source-to-target "
+                "pairs, including GTAV to Cityscapes, SYNTHIA to Cityscapes, and "
+                "Cityscapes to ACDC. Table 2 reports accuracy and mIoU against baseline "
+                "methods for each source/target domain setting."
+            ),
+        ),
+    ]
+
+    for neg_type, missing_item, claim, paper_suffix in cases:
+        bundle = {
+            "issue_type": neg_type,
+            "missing_or_mismatch": {"entity": missing_item, "items": [missing_item]},
+            "claim_anchor": {"quote": claim},
+            "source_of_expectation": "reviewer_candidate",
+        }
+
+        assert (
+            review_state_mod._review_issue_full_text_counterevidence_reason(
+                bundle,
+                {"paper_text": f"{claim}\n\n{paper_suffix}"},
+                neg_type=neg_type,
+            )
+            == "full_text_evaluation_or_scope_counterevidence"
+        )
+
+
 def test_review_issue_menu_rejects_malformed_based_reproducibility_target():
     item = review_state_mod._review_issue_candidate_menu_item(
         {},
@@ -17767,6 +17822,40 @@ def test_lower_is_better_metric_improvement_is_not_negative_result_claim_mismatc
     assert assessment["review_negative_reason"] == "lower_is_better_metric_improvement_support"
 
 
+def test_positive_baseline_comparison_quote_is_not_review_negative_issue():
+    quote = (
+        "In our study, we utilized an unconditioned MIDI model as the baseline. "
+        "We conducted a performance comparison between Diff-Shape and two other "
+        "shape-conditioned generative models: SQUID and ShapeMol."
+    )
+    evidence = {
+        "evidence_id": "evidence-critique-negative-1",
+        "claim_id": "claim-1",
+        "raw_quote": quote,
+        "evidence": quote,
+        "negative_evidence_type": "insufficient_evaluation",
+        "verified_grounding_label": "paper_grounded_exact",
+        "semantic_grounding_label": "semantic_negative_verified",
+    }
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "Diff-Shape outperforms baseline methods in generating molecules.",
+                "claim_kind": "paper_extracted",
+            }
+        ],
+        "paper_text": quote,
+        "evidence_map": [evidence],
+        "flaw_candidates": [],
+    }
+
+    assessment = _assess_review_negative_relation(state, evidence)
+
+    assert assessment["review_negative_label"] == "positive_or_neutral_support"
+    assert assessment["review_negative_reason"] == "quote_describes_baseline_comparison_support"
+
+
 def test_positive_or_neutral_negative_rejection_is_not_active_candidate_when_unlinked():
     quote = (
         "the average EER for the 1,000 devices in the federated model, within the same "
@@ -18978,6 +19067,112 @@ def test_missing_ablation_full_text_counterevidence_catches_semantic_component_c
             )
             == "full_text_ablation_counterevidence"
         )
+
+
+def test_p32_precision_ablation_counterevidence_catches_graph2tac_definition_variant():
+    decoy_target_mentions = " ".join(
+        "Graph2Tac learns hierarchical representations from graph structure."
+        for _ in range(24)
+    )
+    paper_text = (
+        "Graph2Tac learns a hierarchical representation of math concepts from their "
+        "graph structure to aid theorem proving. Figure 3 describes our novel "
+        "definition training task. "
+        f"{decoy_target_mentions} "
+        "G2T-NoDef is trained without "
+        "a definition task and the table reports theorem-proving accuracy."
+    )
+    bundle = {
+        "issue_type": "missing_ablation",
+        "missing_or_mismatch": {
+            "entity": "ablation isolating Graph2Tac learns a hierarchical representation module",
+            "items": ["ablation isolating Graph2Tac learns a hierarchical representation module"],
+        },
+        "claim_anchor": {
+            "quote": (
+                "Graph2Tac learns a hierarchical representation of math concepts "
+                "from their graph structure to aid theorem proving."
+            )
+        },
+        "source_of_expectation": "claim_obligation",
+    }
+
+    assert (
+        review_state_mod._review_issue_full_text_counterevidence_reason(
+            bundle,
+            {"paper_text": paper_text},
+            neg_type="missing_ablation",
+        )
+        == "full_text_ablation_counterevidence"
+    )
+
+
+def test_p32_precision_ablation_counterevidence_catches_global_encoder_architecture_table():
+    decoy_target_mentions = " ".join(
+        "The Global Encoder employs a transformer to model long-distance dependencies."
+        for _ in range(24)
+    )
+    paper_text = (
+        "LogoRA proposes a novel local-global representation alignment framework "
+        "using a two-branch encoder. "
+        f"{decoy_target_mentions} "
+        "Ablation studies of model architecture. "
+        "The table includes TCN, Transformer, PatchTST, Transformer + TCN, "
+        "Global Encoder + TCN, Global Encoder + Local Encoder, and LogoRA."
+    )
+    bundle = {
+        "issue_type": "missing_ablation",
+        "missing_or_mismatch": {
+            "entity": "component-isolation ablation for architecture of Global Encoder",
+            "items": ["component-isolation ablation for architecture of Global Encoder"],
+        },
+        "claim_anchor": {
+            "quote": (
+                "LogoRA proposes a novel local-global representation alignment "
+                "framework using a two-branch encoder."
+            )
+        },
+        "source_of_expectation": "reviewer_candidate",
+    }
+
+    assert (
+        review_state_mod._review_issue_full_text_counterevidence_reason(
+            bundle,
+            {"paper_text": paper_text},
+            neg_type="missing_ablation",
+        )
+        == "full_text_ablation_counterevidence"
+    )
+
+
+def test_p32_precision_ablation_counterevidence_catches_nrdcca_regularization_comparison():
+    paper_text = (
+        "The paper proposes NR-DCCA, a method using noise regularization to prevent "
+        "model collapse in DCCA. Experiments compare DCCA-based baselines with "
+        "NR-DCCA on synthetic and real-world datasets. The developed NR-DCCA "
+        "outperforms baselines stably and consistently, and the analysis shows "
+        "noise regularization prevents collapse across training."
+    )
+    bundle = {
+        "issue_type": "missing_ablation",
+        "missing_or_mismatch": {
+            "entity": "component-isolation ablation for of noise perform specific regularization",
+            "items": ["component-isolation ablation for of noise perform specific regularization"],
+        },
+        "claim_anchor": {
+            "quote": "The paper proposes NR-DCCA, a method using noise regularization to prevent model collapse in DCCA."
+        },
+        "source_of_expectation": "reviewer_candidate",
+    }
+
+    assert (
+        review_state_mod._review_issue_full_text_counterevidence_reason(
+            bundle,
+            {"paper_text": paper_text},
+            neg_type="missing_ablation",
+        )
+        == "full_text_ablation_counterevidence"
+    )
 
 
 def test_component_ablation_seed_targets_skip_fragments_and_existing_ablation():

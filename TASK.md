@@ -2050,3 +2050,72 @@ Next:
   3. Only after strict manual_D_clusters reaches 0, run the next clean R2/R3
      stability sample.
 ```
+
+P32 clean R1 precision recompute checkpoint (20260706):
+
+```text
+Status:
+  - Precision work was applied to the same clean R1 raw run; no new API sample
+    was launched for this recompute.
+  - The strict manual gate now passes.  This changes the P32 R1 conclusion from
+    "functional path live but not paper-ready" to "paper-ready for this clean
+    hardneg20 slice, with C-label wording caveats".
+
+Run:
+  raw =
+    mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok2048_20260705_232528.jsonl
+  label = P32_CLEAN_R1_PRECISION_RECOMPUTE_20260705_232527
+  rows = 20
+
+Verifier precision fixes:
+  - Positive baseline-comparison quotes are rejected as positive/neutral support
+    instead of direct quote negative issues.
+  - Generic held-out/coverage targets are countered when the full paper already
+    reports multi-benchmark, multi-domain, or source-to-target coverage.
+  - Missing-ablation counterevidence now scans ablation-resolution windows, not
+    only early target-token windows, so distant G2T-NoDef, LogoRA architecture,
+    and NR-DCCA/DCCA evidence can block false positives.
+
+Gate:
+  - machine gate = PASS
+  - manual gate = PASS
+  - P31.6 readiness status = True
+  - `verified_review_issue_count = 18`
+  - `verified_review_issue_cluster_count = 11`
+  - `critique_direct_verified_cluster_count = 5`
+  - `candidate_menu_item_verified_count = 5`
+  - `case_table_critique_origin_cluster_count = 5`
+  - `mark_contested_commit_count = 20`
+  - `state_contamination_count = 0`
+  - `positive_or_neutral_negative_candidate_count = 0`
+  - `negative_evidence_unlinked_to_flaw = 0`
+  - `negative_grounding_conflict_count = 0`
+
+Manual audit:
+  - old P32 R1 D clusters removed from verified clusters = 7/7
+  - labels after recompute: A=2, B=5, C=4, D=0
+  - `critique_origin_manual_A_B_clusters = 5`
+  - audit =
+    P32_CLEAN_R1_PRECISION_RECOMPUTE_20260705_232527_MANUAL_AUDIT.json
+  - validation =
+    P32_CLEAN_R1_PRECISION_RECOMPUTE_20260705_232527_MANUAL_AUDIT_VALIDATION.json
+  - entry gate =
+    P32_CLEAN_R1_PRECISION_RECOMPUTE_20260705_232527_ENTRY_GATE_AUDIT.json
+
+Validation:
+  - new P32 precision regressions = 5 passed
+  - focused hygiene/gate suite = 17 passed
+  - runner selected-menu/discovery suite = 21 passed
+  - `py_compile state.py + test_review_decision_hygiene.py` = PASS
+  - full `tests/test_review_decision_hygiene.py` is NOT green in this worktree:
+    461 passed / 21 failed.  Treat that as unresolved broader semantic debt;
+    do not claim full-suite green.
+
+Next:
+  1. Commit the precision fix, P32 recompute artifacts, TASK/memory updates, and
+     latest pointers.  Do not stage `.env`, `.DS_Store`, `AGENTS.md`, or old
+     scratch artifacts.
+  2. After commit, the next project-level step is Stage 4 stability: run a clean
+     R2/R3 hardneg20 or a carefully scoped full39 only if the paper narrative
+     needs recurrence beyond this R1 slice.  Do not loosen gates.
+```

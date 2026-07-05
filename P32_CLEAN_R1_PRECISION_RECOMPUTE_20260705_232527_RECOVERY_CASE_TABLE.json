@@ -1,0 +1,981 @@
+{
+  "input": "mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok2048_20260705_232528.jsonl",
+  "summary": {
+    "bucket::attempted_not_committed": 9,
+    "operation::reject_patch": 9,
+    "bucket::committed_not_effective": 3,
+    "operation::record_diagnosis_pending_concern": 2,
+    "bucket::verified_review_issue_repair": 17,
+    "operation::mark_contested": 20,
+    "effective_repair_turns": 20,
+    "effective_repair_not_verified_negative_repair": 20,
+    "turns_with_verified_review_issue_bundle_evidence": 17,
+    "evidence_bucket::obligation_grounded_review_issue": 17,
+    "evidence_bucket::not_verified_or_unknown": 1,
+    "bucket::effective_repair_without_verified_negative": 3,
+    "evidence_bucket::stale_reviewer_absence_audit": 6,
+    "evidence_bucket::support_only": 2,
+    "evidence_bucket::quote-bank-negative-grounding_candidate": 1,
+    "operation::downgrade_final_to_candidate": 1,
+    "turns_with_verified_review_negative_evidence": 1,
+    "evidence_bucket::verified_review_negative": 1,
+    "case_rows": 32
+  },
+  "cases": [
+    {
+      "paper_id": "uOrfve3prk",
+      "turn_id": 6,
+      "narrative_bucket": "attempted_not_committed",
+      "recovery_layer": "attempted",
+      "effective_repair": false,
+      "committed": false,
+      "operation": "reject_patch",
+      "target_type": "claim",
+      "target_id": "claim-3",
+      "target_text": "The paper introduces a coherence metric and uses Pareto frontier analysis (Figure 3) to evaluate the trade-off between intervention success and coherence, as a method for assessing the connection between interpretabil...",
+      "old_status": "",
+      "new_status": "",
+      "failure_code": "BLOCKED_BY_POLICY",
+      "supporting_evidence_ids": [],
+      "evidence_buckets": {},
+      "evidence": []
+    },
+    {
+      "paper_id": "7Dub7UXTXN",
+      "turn_id": 4,
+      "narrative_bucket": "committed_not_effective",
+      "recovery_layer": "diagnosis_pending_recorded",
+      "effective_repair": false,
+      "committed": true,
+      "operation": "record_diagnosis_pending_concern",
+      "target_type": "claim_requirement_gap",
+      "target_id": "claim-3",
+      "target_text": "",
+      "old_status": "open",
+      "new_status": "recorded",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [],
+      "evidence_buckets": {},
+      "evidence": []
+    },
+    {
+      "paper_id": "7Dub7UXTXN",
+      "turn_id": 6,
+      "narrative_bucket": "attempted_not_committed",
+      "recovery_layer": "attempted",
+      "effective_repair": false,
+      "committed": false,
+      "operation": "reject_patch",
+      "target_type": "",
+      "target_id": "",
+      "target_text": "",
+      "old_status": "",
+      "new_status": "",
+      "failure_code": "BLOCKED_BY_POLICY",
+      "supporting_evidence_ids": [],
+      "evidence_buckets": {},
+      "evidence": []
+    },
+    {
+      "paper_id": "9zEBK3E9bX",
+      "turn_id": 6,
+      "narrative_bucket": "verified_review_issue_repair",
+      "recovery_layer": "hygiene_delta_improved",
+      "effective_repair": true,
+      "committed": true,
+      "operation": "mark_contested",
+      "target_type": "claim",
+      "target_id": "claim-1",
+      "target_text": "The paper proposes SPOT, a scalable pre-training method via occupancy prediction for learning transferable 3D representations for autonomous driving.",
+      "old_status": "supported",
+      "new_status": "supported",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [
+        "evidence-reviewer-absence-claim-1-ablation-or-component-mi"
+      ],
+      "evidence_buckets": {
+        "obligation_grounded_review_issue": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-reviewer-absence-claim-1-ablation-or-component-mi",
+          "bucket": "obligation_grounded_review_issue",
+          "negative_type": "missing_ablation",
+          "review_negative_label": "review_negative_absence_audit_verified",
+          "trusted_grounding": false,
+          "locator": "paper component inventory #1",
+          "raw_quote": "missing/mismatch: component-isolation ablation for sz-Softmax loss; observed inventory: Finally, we use class-balancing cross entropy loss and Lova´sz-Softmax loss to guide the pre-training."
+        }
+      ]
+    },
+    {
+      "paper_id": "XyB4VvF01X",
+      "turn_id": 3,
+      "narrative_bucket": "attempted_not_committed",
+      "recovery_layer": "attempted",
+      "effective_repair": false,
+      "committed": false,
+      "operation": "reject_patch",
+      "target_type": "claim",
+      "target_id": "claim-2",
+      "target_text": "Graph2Tac outperforms existing baselines on the given theorem proving task.",
+      "old_status": "",
+      "new_status": "",
+      "failure_code": "BLOCKED_BY_POLICY",
+      "supporting_evidence_ids": [],
+      "evidence_buckets": {},
+      "evidence": []
+    },
+    {
+      "paper_id": "GE6iywJtsV",
+      "turn_id": 4,
+      "narrative_bucket": "verified_review_issue_repair",
+      "recovery_layer": "hygiene_delta_improved",
+      "effective_repair": true,
+      "committed": true,
+      "operation": "mark_contested",
+      "target_type": "claim",
+      "target_id": "claim-1",
+      "target_text": "The paper introduces a novel constrained diffusion model (Diff-Shape) and a Graph ControllNet (GrCN) for shape-based de novo drug design.",
+      "old_status": "supported",
+      "new_status": "supported",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [
+        "evidence-reviewer-absence-claim-1-ablation-or-component-mi"
+      ],
+      "evidence_buckets": {
+        "obligation_grounded_review_issue": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-reviewer-absence-claim-1-ablation-or-component-mi",
+          "bucket": "obligation_grounded_review_issue",
+          "negative_type": "missing_ablation",
+          "review_negative_label": "review_negative_absence_audit_verified",
+          "trusted_grounding": false,
+          "locator": "Section 3.2",
+          "raw_quote": "missing/mismatch: graph control module; component-isolation ablation for with a graph control module; observed inventory: In Diff-Shape method, a novel equivariant neural network architecture,named Graph ControllNet (GrCN), was proposed and it composed an unconditioned..."
+        }
+      ]
+    },
+    {
+      "paper_id": "GE6iywJtsV",
+      "turn_id": 5,
+      "narrative_bucket": "verified_review_issue_repair",
+      "recovery_layer": "hygiene_delta_improved",
+      "effective_repair": true,
+      "committed": true,
+      "operation": "mark_contested",
+      "target_type": "claim",
+      "target_id": "claim-3",
+      "target_text": "The GrCN mechanism processes shape conditions to guide the diffusion model's generation.",
+      "old_status": "supported",
+      "new_status": "supported",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [
+        "evidence-reviewer-absence-claim-3-ablation-or-component-mi"
+      ],
+      "evidence_buckets": {
+        "obligation_grounded_review_issue": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-reviewer-absence-claim-3-ablation-or-component-mi",
+          "bucket": "obligation_grounded_review_issue",
+          "negative_type": "missing_ablation",
+          "review_negative_label": "review_negative_absence_audit_verified",
+          "trusted_grounding": false,
+          "locator": "Section 3.2",
+          "raw_quote": "missing/mismatch: graph control module; observed inventory: In Diff-Shape method, a novel equivariant neural network architecture,named Graph ControllNet (GrCN), was proposed and it composed an unconditioned..."
+        }
+      ]
+    },
+    {
+      "paper_id": "GE6iywJtsV",
+      "turn_id": 6,
+      "narrative_bucket": "verified_review_issue_repair",
+      "recovery_layer": "hygiene_delta_improved",
+      "effective_repair": true,
+      "committed": true,
+      "operation": "mark_contested",
+      "target_type": "claim",
+      "target_id": "claim-3",
+      "target_text": "The GrCN mechanism processes shape conditions to guide the diffusion model's generation.",
+      "old_status": "supported",
+      "new_status": "supported",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [
+        "evidence-reviewer-absence-claim-3-ablation-or-component-mi"
+      ],
+      "evidence_buckets": {
+        "obligation_grounded_review_issue": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-reviewer-absence-claim-3-ablation-or-component-mi",
+          "bucket": "obligation_grounded_review_issue",
+          "negative_type": "missing_ablation",
+          "review_negative_label": "review_negative_absence_audit_verified",
+          "trusted_grounding": false,
+          "locator": "Section 3.2",
+          "raw_quote": "missing/mismatch: graph control module; observed inventory: In Diff-Shape method, a novel equivariant neural network architecture,named Graph ControllNet (GrCN), was proposed and it composed an unconditioned..."
+        }
+      ]
+    },
+    {
+      "paper_id": "WpXq5n8yLb",
+      "turn_id": 3,
+      "narrative_bucket": "verified_review_issue_repair",
+      "recovery_layer": "hygiene_delta_improved",
+      "effective_repair": true,
+      "committed": true,
+      "operation": "mark_contested",
+      "target_type": "claim",
+      "target_id": "claim-3",
+      "target_text": "ReDrafter accelerates Vicuna inference in MT-Bench by up to 3.5x with a PyTorch implementation.",
+      "old_status": "partially_supported",
+      "new_status": "partially_supported",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [
+        "evidence-reviewer-absence-claim-3-ablation-or-component-mi"
+      ],
+      "evidence_buckets": {
+        "obligation_grounded_review_issue": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-reviewer-absence-claim-3-ablation-or-component-mi",
+          "bucket": "obligation_grounded_review_issue",
+          "negative_type": "missing_ablation",
+          "review_negative_label": "review_negative_absence_audit_verified",
+          "trusted_grounding": false,
+          "locator": "paper component inventory #1",
+          "raw_quote": "missing/mismatch: component-isolation ablation for recurrent neural network; observed inventory: Additionally, we incorporate the embeddings of historical tokens as recurrent inputs to the draft head."
+        }
+      ]
+    },
+    {
+      "paper_id": "WpXq5n8yLb",
+      "turn_id": 5,
+      "narrative_bucket": "verified_review_issue_repair",
+      "recovery_layer": "hygiene_delta_improved",
+      "effective_repair": true,
+      "committed": true,
+      "operation": "mark_contested",
+      "target_type": "claim",
+      "target_id": "claim-3",
+      "target_text": "ReDrafter accelerates Vicuna inference in MT-Bench by up to 3.5x with a PyTorch implementation.",
+      "old_status": "partially_supported",
+      "new_status": "partially_supported",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [
+        "evidence-reviewer-absence-claim-3-ablation-or-component-mi"
+      ],
+      "evidence_buckets": {
+        "obligation_grounded_review_issue": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-reviewer-absence-claim-3-ablation-or-component-mi",
+          "bucket": "obligation_grounded_review_issue",
+          "negative_type": "missing_ablation",
+          "review_negative_label": "review_negative_absence_audit_verified",
+          "trusted_grounding": false,
+          "locator": "paper component inventory #1",
+          "raw_quote": "missing/mismatch: component-isolation ablation for recurrent neural network; observed inventory: Additionally, we incorporate the embeddings of historical tokens as recurrent inputs to the draft head."
+        }
+      ]
+    },
+    {
+      "paper_id": "WpXq5n8yLb",
+      "turn_id": 6,
+      "narrative_bucket": "verified_review_issue_repair",
+      "recovery_layer": "hygiene_delta_improved",
+      "effective_repair": true,
+      "committed": true,
+      "operation": "mark_contested",
+      "target_type": "claim",
+      "target_id": "claim-1",
+      "target_text": "ReDrafter is an advanced speculative decoding approach that achieves state-of-the-art speedup for LLM inference.",
+      "old_status": "partially_supported",
+      "new_status": "partially_supported",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [
+        "evidence-reviewer-absence-claim-1-ablation-or-component-mi"
+      ],
+      "evidence_buckets": {
+        "obligation_grounded_review_issue": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-reviewer-absence-claim-1-ablation-or-component-mi",
+          "bucket": "obligation_grounded_review_issue",
+          "negative_type": "missing_ablation",
+          "review_negative_label": "review_negative_absence_audit_verified",
+          "trusted_grounding": false,
+          "locator": "paper component inventory #1",
+          "raw_quote": "missing/mismatch: component-isolation ablation for recurrent neural network; observed inventory: Additionally, we incorporate the embeddings of historical tokens as recurrent inputs to the draft head."
+        }
+      ]
+    },
+    {
+      "paper_id": "WpXq5n8yLb",
+      "turn_id": 7,
+      "narrative_bucket": "attempted_not_committed",
+      "recovery_layer": "attempted",
+      "effective_repair": false,
+      "committed": false,
+      "operation": "reject_patch",
+      "target_type": "claim",
+      "target_id": "claim-1",
+      "target_text": "ReDrafter is an advanced speculative decoding approach that achieves state-of-the-art speedup for LLM inference.",
+      "old_status": "partially_supported",
+      "new_status": "unsupported",
+      "failure_code": "BLOCKED_BY_POLICY",
+      "supporting_evidence_ids": [
+        "evidence-critique-ablation-1"
+      ],
+      "evidence_buckets": {
+        "not_verified_or_unknown": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-critique-ablation-1",
+          "bucket": "not_verified_or_unknown",
+          "negative_type": "missing_ablation",
+          "review_negative_label": "insufficient_semantic_negative",
+          "trusted_grounding": false,
+          "locator": "Ablation Study in PyTorch subsection",
+          "raw_quote": "In Section~\\ref{subsection:exp_beam_width_batch_size}, we explore ReDrafter's performance trade-offs when adjusting beam width and batch size. We evaluate the benefits of dynamic tree attention in Section~\\ref{subsec:..."
+        }
+      ]
+    },
+    {
+      "paper_id": "NnExMNiTHw",
+      "turn_id": 4,
+      "narrative_bucket": "verified_review_issue_repair",
+      "recovery_layer": "hygiene_delta_improved",
+      "effective_repair": true,
+      "committed": true,
+      "operation": "mark_contested",
+      "target_type": "claim",
+      "target_id": "claim-1",
+      "target_text": "SpecDec++ formulates the candidate length selection as an MDP and implements an adaptive policy to choose K.",
+      "old_status": "supported",
+      "new_status": "supported",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [
+        "evidence-reviewer-absence-claim-1-ablation-or-component-mi"
+      ],
+      "evidence_buckets": {
+        "obligation_grounded_review_issue": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-reviewer-absence-claim-1-ablation-or-component-mi",
+          "bucket": "obligation_grounded_review_issue",
+          "negative_type": "missing_ablation",
+          "review_negative_label": "review_negative_absence_audit_verified",
+          "trusted_grounding": false,
+          "locator": "Section: SpecDec++: Theory and Algorithm",
+          "raw_quote": "missing/mismatch: acceptance prediction head; component-isolation ablation for of the acceptance prediction head; observed inventory: Theory and Algorithm} \\label{sec:method} \\newcommand{\\Hid}{{\\boldsymbol{e}}} \\begin{figure}[t] \\centering \\includegraphics[width=1\\textwidth]{figs/..."
+        }
+      ]
+    },
+    {
+      "paper_id": "NnExMNiTHw",
+      "turn_id": 5,
+      "narrative_bucket": "verified_review_issue_repair",
+      "recovery_layer": "hygiene_delta_improved",
+      "effective_repair": true,
+      "committed": true,
+      "operation": "mark_contested",
+      "target_type": "claim",
+      "target_id": "claim-2",
+      "target_text": "The optimal policy derived from the MDP takes the form of a threshold policy.",
+      "old_status": "supported",
+      "new_status": "supported",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [
+        "evidence-reviewer-absence-claim-2-ablation-or-component-mi"
+      ],
+      "evidence_buckets": {
+        "obligation_grounded_review_issue": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-reviewer-absence-claim-2-ablation-or-component-mi",
+          "bucket": "obligation_grounded_review_issue",
+          "negative_type": "missing_ablation",
+          "review_negative_label": "review_negative_absence_audit_verified",
+          "trusted_grounding": false,
+          "locator": "paper component inventory #1",
+          "raw_quote": "missing/mismatch: Weighted BCE Loss; observed inventory: To overcome the two challenges, we adopt a weighted Binary Cross-Entropy loss to address the class i"
+        }
+      ]
+    },
+    {
+      "paper_id": "NnExMNiTHw",
+      "turn_id": 7,
+      "narrative_bucket": "verified_review_issue_repair",
+      "recovery_layer": "hygiene_delta_improved",
+      "effective_repair": true,
+      "committed": true,
+      "operation": "mark_contested",
+      "target_type": "claim",
+      "target_id": "claim-4",
+      "target_text": "SpecDec++ uses a prediction head to estimate acceptance probabilities for the threshold decision.",
+      "old_status": "supported",
+      "new_status": "supported",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [
+        "evidence-reviewer-absence-claim-4-ablation-or-component-mi"
+      ],
+      "evidence_buckets": {
+        "obligation_grounded_review_issue": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-reviewer-absence-claim-4-ablation-or-component-mi",
+          "bucket": "obligation_grounded_review_issue",
+          "negative_type": "missing_ablation",
+          "review_negative_label": "review_negative_absence_audit_verified",
+          "trusted_grounding": false,
+          "locator": "Claim-matched evidence excerpt #2",
+          "raw_quote": "missing/mismatch: component-isolation ablation for trained acceptance prediction head; observed inventory: \\textbf{Network Architecture, Weighted BCE Loss, and Stopping Criteria for \\ours.} We build a $(D+1)$-layer ResNet with SiLU activation as the acce..."
+        }
+      ]
+    },
+    {
+      "paper_id": "a6SntIisgg",
+      "turn_id": 4,
+      "narrative_bucket": "effective_repair_without_verified_negative",
+      "recovery_layer": "hygiene_delta_improved",
+      "effective_repair": true,
+      "committed": true,
+      "operation": "mark_contested",
+      "target_type": "claim",
+      "target_id": "claim-1",
+      "target_text": "LogoRA proposes a novel local-global representation alignment framework using a two-branch encoder (multi-scale convolutional and Transformer) to capture both local and global features.",
+      "old_status": "supported",
+      "new_status": "supported",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [
+        "evidence-reviewer-absence-claim-1-ablation-or-component-mi"
+      ],
+      "evidence_buckets": {
+        "stale_reviewer_absence_audit": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-reviewer-absence-claim-1-ablation-or-component-mi",
+          "bucket": "stale_reviewer_absence_audit",
+          "negative_type": "missing_ablation",
+          "review_negative_label": "",
+          "trusted_grounding": false,
+          "locator": "claim-evidence coverage audit",
+          "raw_quote": "Verified review issue bundle: the paper claim and observed inventory support a missing ablation concern; missing/mismatch item(s): component-isolation ablation for architecture of Global Encoder. Target claim: 'LogoRA..."
+        }
+      ]
+    },
+    {
+      "paper_id": "a6SntIisgg",
+      "turn_id": 6,
+      "narrative_bucket": "effective_repair_without_verified_negative",
+      "recovery_layer": "hygiene_delta_improved",
+      "effective_repair": true,
+      "committed": true,
+      "operation": "mark_contested",
+      "target_type": "claim",
+      "target_id": "claim-3",
+      "target_text": "LogoRA achieves the best accuracy compared to baseline methods.",
+      "old_status": "supported",
+      "new_status": "supported",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [
+        "evidence-reviewer-absence-claim-3-scope-coverage-scope-ove"
+      ],
+      "evidence_buckets": {
+        "stale_reviewer_absence_audit": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-reviewer-absence-claim-3-scope-coverage-scope-ove",
+          "bucket": "stale_reviewer_absence_audit",
+          "negative_type": "scope_overclaim",
+          "review_negative_label": "",
+          "trusted_grounding": false,
+          "locator": "claim-evidence coverage audit",
+          "raw_quote": "Verified review issue bundle: the paper claim and observed inventory support a scope overclaim concern; missing/mismatch item(s): held-out or coverage evaluation for source-to-target. Target claim: 'LogoRA achieves th..."
+        }
+      ]
+    },
+    {
+      "paper_id": "cklg91aPGk",
+      "turn_id": 6,
+      "narrative_bucket": "attempted_not_committed",
+      "recovery_layer": "patch_validated",
+      "effective_repair": false,
+      "committed": false,
+      "operation": "reject_patch",
+      "target_type": "claim",
+      "target_id": "claim-2",
+      "target_text": "PROP offers an efficiency advantage (e.g., in runtime or memory usage) compared to other GCL methods.",
+      "old_status": "partially_supported",
+      "new_status": "supported",
+      "failure_code": "UNRESOLVED_CONFLICT",
+      "supporting_evidence_ids": [
+        "evidence-2-turn-2",
+        "evidence-3-turn-2"
+      ],
+      "evidence_buckets": {
+        "support_only": 2
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-2-turn-2",
+          "bucket": "support_only",
+          "negative_type": "generic_gap",
+          "review_negative_label": "",
+          "trusted_grounding": true,
+          "locator": "Table 2",
+          "raw_quote": "As shown in Table 2, the transformation weights learned by GCL are no better than random. The model with random weights $\\mathbf{W}_{1}$ and $\\mathbf{W}_{2}$ attains a performance of $71.42\\%$ , remarkably close to the"
+        },
+        {
+          "evidence_id": "evidence-3-turn-2",
+          "bucket": "support_only",
+          "negative_type": "generic_gap",
+          "review_negative_label": "",
+          "trusted_grounding": false,
+          "locator": "Abstract excerpt #1",
+          "raw_quote": "\\title{Propagation Alone is Enough for Graph Contrastive Learning}"
+        }
+      ]
+    },
+    {
+      "paper_id": "HPuLU6q7xq",
+      "turn_id": 4,
+      "narrative_bucket": "verified_review_issue_repair",
+      "recovery_layer": "hygiene_delta_improved",
+      "effective_repair": true,
+      "committed": true,
+      "operation": "mark_contested",
+      "target_type": "claim",
+      "target_id": "claim-2",
+      "target_text": "The Orca method empirically outperforms baseline methods on role-playing tasks.",
+      "old_status": "supported",
+      "new_status": "supported",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [
+        "evidence-reviewer-absence-claim-2-baseline-or-comparison-m"
+      ],
+      "evidence_buckets": {
+        "obligation_grounded_review_issue": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-reviewer-absence-claim-2-baseline-or-comparison-m",
+          "bucket": "obligation_grounded_review_issue",
+          "negative_type": "missing_baseline",
+          "review_negative_label": "review_negative_absence_audit_verified",
+          "trusted_grounding": false,
+          "locator": "Table/Figure excerpt #2",
+          "raw_quote": "missing/mismatch: same-setting comparison against paper-named GPT-4 baseline; observed inventory: \\caption{An example interaction between an personalized agent object of Orca and human on social platform."
+        }
+      ]
+    },
+    {
+      "paper_id": "fGXyvmWpw6",
+      "turn_id": 4,
+      "narrative_bucket": "verified_review_issue_repair",
+      "recovery_layer": "hygiene_delta_improved",
+      "effective_repair": true,
+      "committed": true,
+      "operation": "mark_contested",
+      "target_type": "claim",
+      "target_id": "claim-1",
+      "target_text": "The paper proposes a federated learning framework called 'Federated Virtual Learning' that uses local-global distillation to address performance drops caused by data heterogeneity.",
+      "old_status": "supported",
+      "new_status": "supported",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [
+        "evidence-reviewer-absence-claim-1-efficiency-cost-efficien"
+      ],
+      "evidence_buckets": {
+        "obligation_grounded_review_issue": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-reviewer-absence-claim-1-efficiency-cost-efficien",
+          "bucket": "obligation_grounded_review_issue",
+          "negative_type": "efficiency_cost_gap",
+          "review_negative_label": "review_negative_absence_audit_verified",
+          "trusted_grounding": false,
+          "locator": "paper inventory #1",
+          "raw_quote": "missing/mismatch: runtime, memory, parameter, FLOP, hardware, or compute-cost measurement for the efficie...; observed inventory: Despite Federated Learning (FL)'s trend for learning machine learning models in a distributed manner, it is susceptible to performance drops when t..."
+        }
+      ]
+    },
+    {
+      "paper_id": "fGXyvmWpw6",
+      "turn_id": 6,
+      "narrative_bucket": "verified_review_issue_repair",
+      "recovery_layer": "hygiene_delta_improved",
+      "effective_repair": true,
+      "committed": true,
+      "operation": "mark_contested",
+      "target_type": "claim",
+      "target_id": "claim-4",
+      "target_text": "The proposed method is computationally efficient, reducing communication rounds and training time compared to other methods.",
+      "old_status": "supported",
+      "new_status": "supported",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [
+        "evidence-reviewer-absence-claim-4-efficiency-cost-efficien"
+      ],
+      "evidence_buckets": {
+        "obligation_grounded_review_issue": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-reviewer-absence-claim-4-efficiency-cost-efficien",
+          "bucket": "obligation_grounded_review_issue",
+          "negative_type": "efficiency_cost_gap",
+          "review_negative_label": "review_negative_absence_audit_verified",
+          "trusted_grounding": false,
+          "locator": "paper inventory #1",
+          "raw_quote": "missing/mismatch: runtime, memory, parameter, FLOP, hardware, or compute-cost measurement for the efficie...; observed inventory: Despite Federated Learning (FL)'s trend for learning machine learning models in a distributed manner, it is susceptible to performance drops when t..."
+        }
+      ]
+    },
+    {
+      "paper_id": "QAgwFiIY4p",
+      "turn_id": 4,
+      "narrative_bucket": "attempted_not_committed",
+      "recovery_layer": "attempted",
+      "effective_repair": false,
+      "committed": false,
+      "operation": "reject_patch",
+      "target_type": "claim",
+      "target_id": "claim-3",
+      "target_text": "The proposed method achieves competitive or superior performance on graph tasks (e.g., classification, regression) while using fewer parameters than baseline GNNs.",
+      "old_status": "supported",
+      "new_status": "unsupported",
+      "failure_code": "BLOCKED_BY_POLICY",
+      "supporting_evidence_ids": [
+        "evidence-negative-quote-bank-quote-critique-negative-1-1"
+      ],
+      "evidence_buckets": {
+        "quote-bank-negative-grounding_candidate": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-negative-quote-bank-quote-critique-negative-1-1",
+          "bucket": "quote-bank-negative-grounding_candidate",
+          "negative_type": "scope_overclaim",
+          "review_negative_label": "author_limitation_only",
+          "trusted_grounding": false,
+          "locator": "Limitation / Gap / Negative evidence excerpt #1",
+          "raw_quote": "To overcome this, acceleration techniques such as sparse attention and linear attention could be explored, which will be our future work."
+        }
+      ]
+    },
+    {
+      "paper_id": "QAgwFiIY4p",
+      "turn_id": 5,
+      "narrative_bucket": "verified_review_issue_repair",
+      "recovery_layer": "hygiene_delta_improved",
+      "effective_repair": true,
+      "committed": true,
+      "operation": "mark_contested",
+      "target_type": "claim",
+      "target_id": "claim-3",
+      "target_text": "The proposed method achieves competitive or superior performance on graph tasks (e.g., classification, regression) while using fewer parameters than baseline GNNs.",
+      "old_status": "supported",
+      "new_status": "supported",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [
+        "evidence-reviewer-absence-claim-3-efficiency-cost-efficien",
+        "evidence-reviewer-absence-claim-3-robustness-or-generaliza"
+      ],
+      "evidence_buckets": {
+        "obligation_grounded_review_issue": 1,
+        "stale_reviewer_absence_audit": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-reviewer-absence-claim-3-efficiency-cost-efficien",
+          "bucket": "obligation_grounded_review_issue",
+          "negative_type": "efficiency_cost_gap",
+          "review_negative_label": "review_negative_absence_audit_verified",
+          "trusted_grounding": false,
+          "locator": "Table/Figure caption: Results on graph property prediction tasks.",
+          "raw_quote": "missing/mismatch: parameters measurement under the claimed setting; observed inventory: \\caption{Results on graph property prediction tasks.}\\label{tab::zinc}"
+        },
+        {
+          "evidence_id": "evidence-reviewer-absence-claim-3-robustness-or-generaliza",
+          "bucket": "stale_reviewer_absence_audit",
+          "negative_type": "missing_robustness_or_generalization",
+          "review_negative_label": "",
+          "trusted_grounding": false,
+          "locator": "claim-evidence coverage audit",
+          "raw_quote": "Verified review issue bundle: the paper claim and observed inventory support a missing robustness or generalization concern; missing/mismatch item(s): held-out or coverage evaluation for parameter-efficient. Target cl..."
+        }
+      ]
+    },
+    {
+      "paper_id": "mHv6wcBb0z",
+      "turn_id": 4,
+      "narrative_bucket": "attempted_not_committed",
+      "recovery_layer": "patch_validated",
+      "effective_repair": false,
+      "committed": false,
+      "operation": "reject_patch",
+      "target_type": "flaw",
+      "target_id": "flaw-reviewer-absence-claim-1-missing-ablation",
+      "target_text": "Reviewer-inferred missing evidence: ablation or component-isolation evidence The paper's visible evaluation or method inventory leaves a missing ablation concern for claim 'The paper proposes NR-DCCA, a noise regulari...",
+      "old_status": "candidate",
+      "new_status": "retracted",
+      "failure_code": "INSUFFICIENT_EVIDENCE",
+      "supporting_evidence_ids": [],
+      "evidence_buckets": {},
+      "evidence": []
+    },
+    {
+      "paper_id": "mHv6wcBb0z",
+      "turn_id": 5,
+      "narrative_bucket": "attempted_not_committed",
+      "recovery_layer": "patch_validated",
+      "effective_repair": false,
+      "committed": false,
+      "operation": "reject_patch",
+      "target_type": "flaw",
+      "target_id": "flaw-reviewer-absence-claim-1-missing-ablation",
+      "target_text": "Reviewer-inferred missing evidence: ablation or component-isolation evidence The paper's visible evaluation or method inventory leaves a missing ablation concern for claim 'The paper proposes NR-DCCA, a noise regulari...",
+      "old_status": "candidate",
+      "new_status": "retracted",
+      "failure_code": "INSUFFICIENT_EVIDENCE",
+      "supporting_evidence_ids": [],
+      "evidence_buckets": {},
+      "evidence": []
+    },
+    {
+      "paper_id": "mHv6wcBb0z",
+      "turn_id": 6,
+      "narrative_bucket": "effective_repair_without_verified_negative",
+      "recovery_layer": "hygiene_delta_improved",
+      "effective_repair": true,
+      "committed": true,
+      "operation": "mark_contested",
+      "target_type": "claim",
+      "target_id": "claim-1",
+      "target_text": "The paper proposes NR-DCCA, a noise regularization mechanism to prevent model collapse in DCCA-based methods.",
+      "old_status": "supported",
+      "new_status": "supported",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [
+        "evidence-reviewer-absence-claim-1-ablation-or-component-mi"
+      ],
+      "evidence_buckets": {
+        "stale_reviewer_absence_audit": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-reviewer-absence-claim-1-ablation-or-component-mi",
+          "bucket": "stale_reviewer_absence_audit",
+          "negative_type": "missing_ablation",
+          "review_negative_label": "",
+          "trusted_grounding": false,
+          "locator": "claim-evidence coverage audit",
+          "raw_quote": "Verified review issue bundle: the paper claim and observed inventory support a missing ablation concern; missing/mismatch item(s): component-isolation ablation for of noise perform specific regularization. Target clai..."
+        }
+      ]
+    },
+    {
+      "paper_id": "xUe1YqEgd6",
+      "turn_id": 5,
+      "narrative_bucket": "attempted_not_committed",
+      "recovery_layer": "attempted",
+      "effective_repair": false,
+      "committed": false,
+      "operation": "reject_patch",
+      "target_type": "claim_requirement_gap",
+      "target_id": "claim-3",
+      "target_text": "",
+      "old_status": "open",
+      "new_status": "recorded",
+      "failure_code": "UNKNOWN_TARGET",
+      "supporting_evidence_ids": [],
+      "evidence_buckets": {},
+      "evidence": []
+    },
+    {
+      "paper_id": "YXn76HMetm",
+      "turn_id": 4,
+      "narrative_bucket": "verified_review_issue_repair",
+      "recovery_layer": "hygiene_delta_improved",
+      "effective_repair": true,
+      "committed": true,
+      "operation": "mark_contested",
+      "target_type": "claim",
+      "target_id": "claim-3",
+      "target_text": "The HALO method empirically outperforms baseline methods (including EqualAL) for active learning semantic segmentation under domain shift.",
+      "old_status": "supported",
+      "new_status": "supported",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [
+        "evidence-reviewer-absence-claim-3-baseline-or-comparison-m"
+      ],
+      "evidence_buckets": {
+        "obligation_grounded_review_issue": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-reviewer-absence-claim-3-baseline-or-comparison-m",
+          "bucket": "obligation_grounded_review_issue",
+          "negative_type": "missing_baseline",
+          "review_negative_label": "review_negative_absence_audit_verified",
+          "trusted_grounding": false,
+          "locator": "Comparison / Robustness excerpt #1",
+          "raw_quote": "missing/mismatch: same-setting comparison against paper-named PixelPick baseline; same-setting comparison against paper-named EqualAL baseline; observed inventory: HALO sets a new state-of-the-art in active learning for semantic segmentation under domain shift and it is the first active learning approach that ..."
+        }
+      ]
+    },
+    {
+      "paper_id": "YXn76HMetm",
+      "turn_id": 5,
+      "narrative_bucket": "verified_review_issue_repair",
+      "recovery_layer": "hygiene_delta_improved",
+      "effective_repair": true,
+      "committed": true,
+      "operation": "mark_contested",
+      "target_type": "claim",
+      "target_id": "claim-3",
+      "target_text": "The HALO method empirically outperforms baseline methods (including EqualAL) for active learning semantic segmentation under domain shift.",
+      "old_status": "supported",
+      "new_status": "supported",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [
+        "evidence-reviewer-absence-claim-3-baseline-or-comparison-m",
+        "evidence-reviewer-absence-claim-3-robustness-or-generaliza"
+      ],
+      "evidence_buckets": {
+        "obligation_grounded_review_issue": 1,
+        "stale_reviewer_absence_audit": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-reviewer-absence-claim-3-baseline-or-comparison-m",
+          "bucket": "obligation_grounded_review_issue",
+          "negative_type": "missing_baseline",
+          "review_negative_label": "review_negative_absence_audit_verified",
+          "trusted_grounding": false,
+          "locator": "Comparison / Robustness excerpt #1",
+          "raw_quote": "missing/mismatch: same-setting comparison against paper-named PixelPick baseline; same-setting comparison against paper-named EqualAL baseline; observed inventory: HALO sets a new state-of-the-art in active learning for semantic segmentation under domain shift and it is the first active learning approach that ..."
+        },
+        {
+          "evidence_id": "evidence-reviewer-absence-claim-3-robustness-or-generaliza",
+          "bucket": "stale_reviewer_absence_audit",
+          "negative_type": "missing_robustness_or_generalization",
+          "review_negative_label": "",
+          "trusted_grounding": false,
+          "locator": "claim-evidence coverage audit",
+          "raw_quote": "Verified review issue bundle: the paper claim and observed inventory support a missing robustness or generalization concern; missing/mismatch item(s): held-out or coverage evaluation for EqualAL. Target claim: 'HALO a..."
+        }
+      ]
+    },
+    {
+      "paper_id": "YXn76HMetm",
+      "turn_id": 6,
+      "narrative_bucket": "verified_review_issue_repair",
+      "recovery_layer": "hygiene_delta_improved",
+      "effective_repair": true,
+      "committed": true,
+      "operation": "mark_contested",
+      "target_type": "claim",
+      "target_id": "claim-3",
+      "target_text": "The HALO method empirically outperforms baseline methods (including EqualAL) for active learning semantic segmentation under domain shift.",
+      "old_status": "supported",
+      "new_status": "supported",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [
+        "evidence-reviewer-absence-claim-3-baseline-or-comparison-m",
+        "evidence-reviewer-absence-claim-3-robustness-or-generaliza"
+      ],
+      "evidence_buckets": {
+        "obligation_grounded_review_issue": 1,
+        "stale_reviewer_absence_audit": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-reviewer-absence-claim-3-baseline-or-comparison-m",
+          "bucket": "obligation_grounded_review_issue",
+          "negative_type": "missing_baseline",
+          "review_negative_label": "review_negative_absence_audit_verified",
+          "trusted_grounding": false,
+          "locator": "Comparison / Robustness excerpt #1",
+          "raw_quote": "missing/mismatch: same-setting comparison against paper-named PixelPick baseline; same-setting comparison against paper-named EqualAL baseline; observed inventory: HALO sets a new state-of-the-art in active learning for semantic segmentation under domain shift and it is the first active learning approach that ..."
+        },
+        {
+          "evidence_id": "evidence-reviewer-absence-claim-3-robustness-or-generaliza",
+          "bucket": "stale_reviewer_absence_audit",
+          "negative_type": "missing_robustness_or_generalization",
+          "review_negative_label": "",
+          "trusted_grounding": false,
+          "locator": "claim-evidence coverage audit",
+          "raw_quote": "Verified review issue bundle: the paper claim and observed inventory support a missing robustness or generalization concern; missing/mismatch item(s): held-out or coverage evaluation for EqualAL. Target claim: 'HALO a..."
+        }
+      ]
+    },
+    {
+      "paper_id": "KOUAayk5Kx",
+      "turn_id": 3,
+      "narrative_bucket": "committed_not_effective",
+      "recovery_layer": "diagnosis_pending_recorded",
+      "effective_repair": false,
+      "committed": true,
+      "operation": "record_diagnosis_pending_concern",
+      "target_type": "claim_requirement_gap",
+      "target_id": "claim-3",
+      "target_text": "",
+      "old_status": "open",
+      "new_status": "recorded",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [],
+      "evidence_buckets": {},
+      "evidence": []
+    },
+    {
+      "paper_id": "XH3OiIhtvf",
+      "turn_id": 6,
+      "narrative_bucket": "committed_not_effective",
+      "recovery_layer": "patch_committed",
+      "effective_repair": false,
+      "committed": true,
+      "operation": "downgrade_final_to_candidate",
+      "target_type": "flaw",
+      "target_id": "flaw-1",
+      "target_text": "Core Proposed Mechanism Degrades Performance The paper's central contribution, the secure aggregator for privacy preservation, results in a worse Equal Error Rate (EER) compared to a baseline without it. This is a cri...",
+      "old_status": "confirmed",
+      "new_status": "candidate",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [
+        "evidence-critique-negative-1"
+      ],
+      "evidence_buckets": {
+        "verified_review_negative": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-critique-negative-1",
+          "bucket": "verified_review_negative",
+          "negative_type": "negative_result",
+          "review_negative_label": "review_negative_verified",
+          "trusted_grounding": true,
+          "locator": "Figure 2",
+          "raw_quote": "However, it is important to note that incorporating a secure aggregator in the federated model results in a less favorable outcome than the baseline system, as indicated in the table."
+        }
+      ]
+    }
+  ]
+}

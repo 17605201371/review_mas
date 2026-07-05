@@ -4477,3 +4477,57 @@ P32 clean R1 manual-audit checkpoint (20260705):
     treated as negative evaluation gap; generic held-out coverage seeds despite
     broad benchmarks; missing-ablation claims contradicted by explicit
     architecture ablations or DCCA/NR-DCCA and G2T-NoDef counterevidence.
+
+P32 clean R1 precision recompute checkpoint (20260706):
+
+- Same raw run was recomputed after tightening verifier precision; no new API
+  sampling was used for the conclusion.
+- Code changes:
+  - direct quote review-negative relation now rejects ordinary paper-owned
+    baseline-comparison prose as `positive_or_neutral_support`;
+  - full-text scope/coverage counterevidence catches generic held-out coverage
+    targets when the paper already reports multi-benchmark, multi-domain, or
+    source-to-target evaluations;
+  - missing-ablation full-text counterevidence now scans ablation-resolution
+    windows, so distant `G2T-NoDef`, LogoRA architecture tables, and
+    NR-DCCA/DCCA analysis block false verified issues even when early target
+    windows are exhausted.
+- Recomputed artifacts:
+  - label = `P32_CLEAN_R1_PRECISION_RECOMPUTE_20260705_232527`
+  - raw =
+    `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok2048_20260705_232528.jsonl`
+  - old P32 R1 manual-D clusters removed from verified clusters = 7/7.
+- Final gate:
+  - machine gate = PASS
+  - manual gate = PASS
+  - readiness status = True
+  - `verified_review_issue_count = 18`
+  - `verified_review_issue_cluster_count = 11`
+  - `critique_direct_verified_cluster_count = 5`
+  - `candidate_menu_item_verified_count = 5`
+  - `case_table_critique_origin_cluster_count = 5`
+  - `mark_contested_commit_count = 20`
+  - `state_contamination_count = 0`
+  - `positive_or_neutral_negative_candidate_count = 0`
+  - `negative_evidence_unlinked_to_flaw = 0`
+  - `negative_grounding_conflict_count = 0`
+- Manual audit after recompute:
+  - A=2, B=5, C=4, D=0
+  - `critique_origin_manual_A_B_clusters = 5`
+  - new C item: `a6SntIisgg / feature_dependencies_self-attention_mechanism`
+    is too over-specific for paper-facing use, but not a strict D because the
+    exact self-attention removal is not separately shown.
+- Validation:
+  - P32 precision regressions = 5 passed
+  - focused hygiene/gate suite = 17 passed
+  - runner selected-menu/discovery focused suite = 21 passed
+  - `py_compile` for changed state/test files = PASS
+  - full `tests/test_review_decision_hygiene.py` remains red in the current
+    worktree: 461 passed / 21 failed.  Do not claim full-suite green.
+- Interpretation:
+  - P32 clean R1 now provides a stricter Stage 4 artifact: functional Critique
+    discovery remains above threshold while the known manual-D false positives
+    are removed.
+  - This supports moving toward Stage 4 stability/repetition or P32 paper
+    narrative work, but still does not justify loosening gates or touching
+    `verl/`, PPO, or rollout internals.
