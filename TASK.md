@@ -64,6 +64,7 @@ P32 entry artifact:
 ```text
 P32_ENTRY_AUDIT_20260705.md
 P32_CLEAN_R1_ATTEMPT_20260705_224419_STATUS.md
+scripts/p32_stability_report.py
 ```
 
 Key accepted manual clusters:
@@ -124,11 +125,36 @@ It stopped at 16/20 rows because MiMo returned 402 Insufficient account
 balance.  This partial run is not counted and must not be postprocessed as P32
 clean evidence.
 
+The P32 stability-report tool is now available.  It consumes completed artifact
+labels as `--run LABEL=RUN_BASE`, excludes partial runs, and reports:
+
+```text
+manual strict A/B count mean/std/min/max
+D cluster rate
+cluster Jaccard overlap
+same-paper issue recurrence
+same-target entity recurrence
+Critique-origin cluster recurrence
+deterministic/other origin contribution via manual summaries
+harmful recovery count across included runs
+verified issue recovery coverage
+```
+
 After balance is restored, rerun P32 clean hardneg20 run 1 from scratch with
 the same configuration.
 
 Do not use the older 1536-token P32 setting; current project constraints and
 fresh-run evidence require 2048.  Do not relax verifier or validator gates.
+```
+
+Validation after adding the P32 stability tool:
+
+```text
+py_compile scripts/p32_stability_report.py tests/test_p31_6_gate_scripts.py = PASS
+pytest tests/test_p31_6_gate_scripts.py -q = 8 passed
+real artifact dry check =
+  P31_6_FRESH_20260705_205654 included, rows=20
+  P32_CLEAN_R1_ATTEMPT_20260705_224419 excluded, rows=16
 ```
 
 ## Previous P31.28 Checkpoint 2026-07-05

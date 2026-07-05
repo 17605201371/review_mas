@@ -102,6 +102,14 @@ Interpretation:
   `MAX_TOKENS=2048`, but failed due account balance after 16 rows.  Recharge
   MiMo and rerun from scratch; do not postprocess or manually audit the partial
   as a clean hardneg20.
+- Added `scripts/p32_stability_report.py` to aggregate P32 clean-run evidence
+  across generated P31.6 artifacts.  It excludes partial runs, requires raw
+  jsonl row evidence, summarizes A/B count statistics, D rate, pairwise cluster
+  Jaccard, same-paper/same-target recurrence, Critique-origin recurrence, and
+  harmful recovery.  Default P32 threshold remains 3 complete runs.
+- Validation for the stability tool: `tests/test_p31_6_gate_scripts.py` passed
+  8/8; live artifact dry check included the 20/20 P31.6 run and excluded the
+  16/20 P32 attempt.
 - Do not jump to full39, do not touch `verl/`, and do not relax verifier or
   validator gates.
 
