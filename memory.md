@@ -47,6 +47,53 @@ Missing-baseline, missing-ablation, insufficient-evaluation, and reproducibility
 
 ## Current Review Issue Logic
 
+### 2026-07-05 P31.27 hardneg20 Stage 2 machine pass + SPOT false-positive fix
+
+Fresh hardneg20 run:
+
+- raw: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok2048_20260705_182335.jsonl`
+- artifacts: `P31_6_FRESH_20260705_182335_*`
+- rows: 20/20; machine gate PASS; manual gate REQUIRED.
+- `evidence_json_fallback_rate_pct=0`, `state_contamination_count=0`.
+- `verified_review_issue_count=22`, cluster count=18.
+- `critique_direct_verified_cluster_count=5`, `candidate_menu_item_verified_count=5`, `critique_selected_existing_seed_cluster_count=0`.
+- `mark_contested_commit_count=10`, `verified_issue_cluster_without_recovery_count=10`.
+- Weak hygiene warnings remain split from hard contamination: legacy/warning count=15 (`zero_real_support=7`, `stale_gap_persistence=8`).
+
+Manual preaudit of the five Critique-origin clusters found four likely A/B
+clusters (Diff-Shape graph control module, SpecDec++ acceptance prediction
+head, PST/Graphormer baseline, HALO/EqualAL baseline) and one likely false
+positive or downgrade:
+
+- `9zEBK3E9bX / including_loss`: selected missing-ablation target was cut from
+  "including loss balancing"; the paper text says Table 6 is an ablation study
+  on pre-training strategies and explicitly mentions loss balancing.
+
+Implemented fix:
+
+- reject `including ...` missing-ablation targets as prose fragments;
+- treat SPOT-style pre-training strategy ablation tables with explicit `loss
+  balancing` as full-text counterevidence;
+- allow missing-ablation component anchors from reviewer inventory quotes when
+  the quote itself contains the target, even if `observed_items` is empty;
+- allow deterministic component-ablation seed/menu supply from locatable
+  claim-surface component anchors such as `learned routing component`.
+
+Validation:
+
+- focused hygiene missing-ablation/state tests: 56 passed;
+- focused runner/gate selected-menu tests: 26 passed;
+- `py_compile` for touched files: PASS;
+- broad three-file suite is not green: 806 passed / 28 failed. Do not claim
+  full-suite green.
+
+Interpretation:
+
+- Stage 2 is functionally live at machine-gate level, but paper-ready precision
+  still requires fresh post-fix sample/hardneg20 evidence.
+- Next major direction after rerun confirmation: Stage 3 contested/recovery
+  coverage. Recovery is live but incomplete, not yet a finished narrative.
+
 ### 2026-07-05 P31.9 selected-menu audit instrumentation
 
 Latest local commit before this pass: `b22eea6 Add P31.8 fresh guard full20 audit results` (local `main` ahead of `origin/main` by 1). P31.9 is an audit/instrumentation pass over the same fresh raw run, not a new API run.

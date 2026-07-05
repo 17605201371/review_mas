@@ -18051,6 +18051,21 @@ def test_missing_ablation_counterevidence_detects_pretraining_strategy_table():
     )
 
 
+def test_missing_ablation_counterevidence_detects_loss_balancing_strategy_table():
+    window = (
+        "Table 6: Ablation study on pre-training strategies across different datasets. "
+        "The results presented in Tab. 6 demonstrate the effectiveness of the "
+        "occupancy prediction task. Moreover, the proposed strategies for "
+        "pre-training, including loss balancing, beam re-sampling, and dataset "
+        "balancing, yield significant improvements in different datasets."
+    )
+
+    assert _ablation_missing_items_resolved_by_text(
+        window,
+        ["component-isolation ablation for loss balancing"],
+    )
+
+
 def test_missing_ablation_counterevidence_detects_latex_architecture_table():
     window = (
         "Ablation studies of model architecture. We evaluate different backbones. "
@@ -18163,6 +18178,27 @@ def test_missing_ablation_target_quality_rejects_following_empirical_loss_fragme
                 "quote": "The model is trained to optimize the following empirical loss.",
                 "locator": "Method",
                 "observed_items": ["following", "empirical", "loss"],
+            }
+        ],
+    }
+
+    assert _missing_ablation_target_quality(bundle) == {
+        "quality": "reject",
+        "reason": "missing_ablation_target_prose_fragment",
+    }
+
+
+def test_missing_ablation_target_quality_rejects_including_loss_fragment():
+    bundle = {
+        "issue_type": "missing_ablation",
+        "missing_or_mismatch": {
+            "items": ["component-isolation ablation for including loss"]
+        },
+        "claim_anchor": {"quote": "The method reports pre-training strategies."},
+        "observed_inventory": [
+            {
+                "quote": "The proposed strategies include loss balancing.",
+                "observed_items": ["including loss balancing"],
             }
         ],
     }

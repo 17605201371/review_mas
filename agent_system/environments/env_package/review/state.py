@@ -2218,6 +2218,11 @@ def _missing_ablation_target_quality(bundle: Dict[str, Any]) -> Dict[str, str]:
         return {"quality": "reject", "reason": "missing_ablation_target_generic_component"}
     if _MISSING_ABLATION_TARGET_WEAK_ACTION_RE.search(target.lower()):
         return {"quality": "reject", "reason": "missing_ablation_target_weak_action"}
+    if re.fullmatch(
+        r"(?:analy[sz]e|analysis\s+of|investigate|study|examine)\s+(?:the\s+)?(?:mechanism|effect|impact)",
+        lowered,
+    ):
+        return {"quality": "reject", "reason": "missing_ablation_target_weak_action"}
     if _missing_ablation_target_is_malformed_fragment(target):
         return {"quality": "reject", "reason": "missing_ablation_target_malformed_fragment"}
     if re.search(r"\b(?:seems?\s+similar|methodology\s+involves|design\s+of\s+gradient)\b", lowered):
@@ -2230,6 +2235,8 @@ def _missing_ablation_target_quality(bundle: Dict[str, Any]) -> Dict[str, str]:
         lowered,
     ):
         return {"quality": "reject", "reason": "missing_ablation_target_malformed_or_abstract"}
+    if re.match(r"^including\s+", lowered):
+        return {"quality": "reject", "reason": "missing_ablation_target_prose_fragment"}
     if re.fullmatch(r"performance\s+of\s+(?:the\s+)?(?:neural\s+)?network", lowered):
         return {"quality": "reject", "reason": "missing_ablation_target_generic_component"}
     if re.fullmatch(
@@ -9126,7 +9133,7 @@ def _review_issue_component_anchor_inventory_for_missing_ablation(
 
 _REVIEW_ISSUE_COMPONENT_PHRASE_RE = re.compile(
     r"\b(?:[A-Za-z0-9$\\_-]+\s+){0,4}"
-    r"(?:constraint|loss|objective|module|head|predictor|regulari[sz]ation|"
+    r"(?:constraint|loss|objective|module|component|head|predictor|regulari[sz]ation|"
     r"regulari[sz]er|gradient(?:\s+learning)?|mechanism|task|network|encoder|decoder|branch|"
     r"alignment|attention|fusion|conversion\s+method|representation)\b",
     re.IGNORECASE,
@@ -9230,6 +9237,75 @@ def _review_issue_component_ablation_seed_targets(
             )
             if not inventory:
                 continue
+            bundle_probe = {
+                "issue_type": "missing_ablation",
+                "claim_anchor": {"quote": claim_text},
+                "observed_inventory": inventory,
+                "missing_or_mismatch": {
+                    "entity": missing_item,
+                    "items": [missing_item],
+                },
+            }
+            ablation_quality = _missing_ablation_target_quality(bundle_probe)
+            if str(ablation_quality.get("quality") or "") in {"", "low", "reject"}:
+                continue
+            if _review_issue_bundle_has_ablation_counterevidence(bundle_probe):
+                continue
+            seen.add(lowered)
+            results.append(
+                {
+                    "missing_item": missing_item,
+                    "component_phrase": phrase,
+                    "observed_inventory": inventory,
+                }
+            )
+            if len(results) >= max_items:
+                return results
+    claim_is_locatable = bool(claim_text and claim_text.lower() in paper_text.lower())
+    if claim_is_locatable and len(results) < max_items:
+        for match in _REVIEW_ISSUE_COMPONENT_PHRASE_RE.finditer(claim_text):
+            phrase = _normalize_text(match.group(0), max_length=100)
+            while True:
+                stripped = re.sub(
+                    r"^(?:we|our|the|a|an|to|and|or|another|overcome|issue|propose|proposes|"
+                    r"introduce|introduces|use|uses|using|guided|by)\s+",
+                    "",
+                    phrase,
+                    flags=re.IGNORECASE,
+                ).strip()
+                if stripped == phrase:
+                    break
+                phrase = stripped
+            if not phrase:
+                continue
+            lowered = phrase.lower()
+            if lowered in seen:
+                continue
+            missing_item = f"component-isolation ablation for {phrase}"
+            if not _review_issue_missing_items_are_concrete("missing_ablation", [missing_item]):
+                continue
+            if _missing_ablation_target_is_task_scope(missing_item):
+                continue
+            if _paper_has_ablation_counterevidence_for_missing_claim(
+                view or {},
+                {
+                    "negative_evidence_type": "missing_ablation",
+                    "coverage_missing_items": [missing_item],
+                },
+                claim_text,
+            ):
+                continue
+            inventory = [
+                {
+                    "quote": claim_text,
+                    "locator": "claim extraction",
+                    "observed_items": [phrase],
+                    "inventory_id": _slugify("claim-component-anchor", phrase, len(results) + 1),
+                    "inventory_type": "component_anchor",
+                    "inventory_source": "claim_component_anchor",
+                    "support_bucket": "claim_component_anchor",
+                }
+            ]
             bundle_probe = {
                 "issue_type": "missing_ablation",
                 "claim_anchor": {"quote": claim_text},
@@ -10519,10 +10595,13 @@ def _review_issue_observed_inventory_relevant_for_type(bundle: Dict[str, Any], n
     if neg_type == "missing_ablation":
         if _REVIEW_ISSUE_ABLATION_INVENTORY_RE.search(inventory_quote_text):
             return True
+        claim_anchor = bundle.get("claim_anchor") if isinstance(bundle.get("claim_anchor"), dict) else {}
+        claim_anchor_quote = _normalize_text(claim_anchor.get("quote"), max_length=300).lower()
         for item in (bundle.get("observed_inventory") or []):
             if not isinstance(item, dict):
                 continue
-            if str(item.get("inventory_type") or "") != "component_anchor":
+            inventory_type = str(item.get("inventory_type") or "").strip()
+            if inventory_type and inventory_type != "component_anchor":
                 continue
             quote = " ".join(
                 [
@@ -10530,7 +10609,14 @@ def _review_issue_observed_inventory_relevant_for_type(bundle: Dict[str, Any], n
                     " ".join(str(part or "") for part in item.get("observed_items") or []),
                 ]
             )
-            if not _review_issue_component_anchor_is_current_paper_owned(quote):
+            quote_norm = _normalize_text(item.get("quote"), max_length=300).lower()
+            claim_component_anchor = (
+                str(item.get("inventory_source") or "") == "claim_component_anchor"
+                and quote_norm
+                and claim_anchor_quote
+                and (quote_norm in claim_anchor_quote or claim_anchor_quote in quote_norm)
+            )
+            if not claim_component_anchor and not _review_issue_component_anchor_is_current_paper_owned(quote):
                 continue
             missing_items = _review_issue_missing_item_texts(bundle)
             target_tokens: set[str] = set()
@@ -11487,6 +11573,15 @@ def _ablation_counterevidence_window_resolves_semantic_table(window: str, missin
         and re.search(r"\bpre[- ]?training\b", missing)
         and re.search(r"\bpre[- ]?training\s+strateg(?:y|ies|ies)\b", text)
         and re.search(r"\boccupancy\s+prediction\s+task\b|\boccupancy\s+prediction\b.{0,120}\beffectiveness\b", text)
+        and re.search(r"\btab(?:le)?\.?\s*\d+|\bresults?\s+(?:presented\s+)?in\s+tab", text)
+    ):
+        return True
+
+    if (
+        re.search(r"\bloss\s+balanc(?:e|ing)\b|\bincluding\s+loss\b|\bclass[- ]balancing\b", missing)
+        and re.search(r"\bpre[- ]?training\s+strateg(?:y|ies|ies)\b", text)
+        and re.search(r"\bablation\s+stud(?:y|ies)\b", text)
+        and re.search(r"\bloss\s+balanc(?:e|ing)\b|\bclass[- ]balancing\b", text)
         and re.search(r"\btab(?:le)?\.?\s*\d+|\bresults?\s+(?:presented\s+)?in\s+tab", text)
     ):
         return True

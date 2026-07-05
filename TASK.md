@@ -10,7 +10,106 @@ Goal:
 - Improve Critique payload integration without relaxing the verifier.
 - Keep direct quote-grounded negative evidence strict; optimize obligation-grounded verified review issue bundles and safe `mark_contested` recovery.
 
-## Current P31.25/P31.26 Checkpoint 2026-07-05
+## Current P31.27 Checkpoint 2026-07-05
+
+Current stage:
+
+```text
+Stage 2 now has hardneg20 machine-gate evidence, but not final paper-ready
+manual evidence.  The 20260705_182335 hardneg20 run passed the machine gate
+with 5 direct Critique-selected verified clusters, while manual preaudit found
+one likely false positive in SPOT / 9zEBK3E9bX: a selected missing-ablation
+target `including_loss` was cut from "including loss balancing" despite the
+paper text saying Table 6 is an ablation study on pre-training strategies.
+```
+
+Fresh hardneg20:
+
+```text
+run = mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok2048_20260705_182335
+rows = 20
+machine_gate = PASS
+manual_gate = REQUIRED
+evidence_json_fallback_rate_pct = 0
+state_contamination_count = 0
+state_contamination_count_legacy = 15
+state_hygiene_warning_count = 15
+verified_review_issue_count = 22
+verified_review_issue_cluster_count = 18
+critique_payload_verified_cluster_count = 5
+critique_direct_verified_cluster_count = 5
+critique_selected_existing_seed_cluster_count = 0
+candidate_menu_item_count = 10
+candidate_menu_item_used_count = 8
+candidate_menu_item_verified_count = 5
+candidate_menu_item_failed_count = 3
+mark_contested_commit_count = 10
+verified_issue_cluster_without_recovery_count = 10
+```
+
+Manual preaudit of Critique-origin clusters:
+
+```text
+Likely A/B:
+  GE6iywJtsV / graph_control_module
+  NnExMNiTHw / acceptance_prediction_head
+  QAgwFiIY4p / paper-named_graphormer_baseline
+  YXn76HMetm / equalal_baseline
+
+Likely false positive or at least downgrade:
+  9zEBK3E9bX / including_loss
+```
+
+Implemented after the preaudit:
+
+- `including ...` missing-ablation targets are now rejected as prose fragments,
+  preventing selector/menu supply from treating sentence glue like `including
+  loss` as a contribution-bearing component.
+- Full-text ablation counterevidence now recognizes SPOT-style pre-training
+  strategy tables where `loss balancing` is explicitly covered by an ablation
+  table and surrounding text.
+- Missing-ablation component anchors can be inferred from a reviewer-provided
+  inventory quote even when `observed_items` is empty, as long as the quote is
+  current-paper component text and contains the target tokens.
+- Deterministic component-ablation seed/menu supply can use a locatable
+  claim-surface component anchor such as `learned routing component`, without
+  requiring every valid claim sentence to contain `we propose`.
+
+Validation:
+
+```text
+focused hygiene missing-ablation/state tests = 56 passed
+focused runner/gate selected-menu tests = 26 passed
+py_compile state.py/test files = PASS
+three-file broad suite = 806 passed / 28 failed
+```
+
+Interpretation:
+
+```text
+The fresh hardneg20 proves the Stage 2 path is functional at machine-gate
+level: Critique-selected menu candidates are entering strict verification and
+forming non-seed-shadow clusters.  It does not yet prove paper-ready precision:
+at least one machine-passing Critique cluster was a real false positive.  After
+the fix, the expected Critique direct cluster count should still be >=3, but
+that requires a fresh sample or hardneg20 rerun before it can be claimed.
+
+Stage 3 is live but incomplete: `mark_contested_commit_count=10`, while
+`verified_issue_cluster_without_recovery_count=10`.  The next major direction
+after rerun confirmation is contested/recovery coverage, not more seed
+quantity.
+```
+
+Next step:
+
+```text
+Run a fresh small sample that includes 9zEBK3E9bX or a fresh hardneg20 after the
+SPOT false-positive fix.  If protection stays clean and direct Critique
+clusters remain >=3 after removing `including_loss`, move the main engineering
+focus to Stage 3 contested relation / recovery coverage.
+```
+
+## Previous P31.25/P31.26 Checkpoint 2026-07-05
 
 Current stage:
 
