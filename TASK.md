@@ -86,6 +86,53 @@ can only relabel or remove stale/template candidates; it cannot prove direct
 Critique discovery because Critique already selected the old menu.
 ```
 
+Fresh validation and precision update:
+
+```text
+fresh raw = mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok2048_20260705_132812.jsonl
+fresh artifacts = P31_6_FRESH_20260705_132812_*
+rows = 20
+evidence_json_valid_turns = 62
+evidence_json_fallback_turns = 1
+evidence_json_fallback_rate_pct = 2
+protection = PASS
+state_contamination_count = 0
+fresh critique_direct_verified_cluster_count = 2
+fresh candidate_menu_item_verified_count = 2
+```
+
+Manual audit of the two fresh direct clusters found both were precision risks:
+
+- `ye3NrNrYOY / evaluation_protocol_risk / metric_definition_threshold_selection_protocol`
+  is a generic protocol target; paper text already gives Top-1 accuracy and
+  official split details.
+- `cklg91aPGk / missing_baseline / recent_gnn_graph-transformer_baselines...`
+  is an external family baseline template, not a paper-named missing baseline.
+
+Current code now rejects those at bundle verification, not only telemetry:
+
+```text
+current-code recompute = P31_13_MENU_QUALITY_RECOMPUTE_20260705_132812_*
+verified_review_issue_count = 15
+verified_review_issue_cluster_count = 11
+critique_direct_verified_cluster_count = 0
+critique_payload_verified_cluster_count = 0
+candidate_menu_item_verified_count = 0
+candidate_menu_item_failed_count = 11
+candidate_menu_item_failed_by_stage =
+  counterevidence: 7
+  menu_quality_guard: 4
+```
+
+Updated next step:
+
+```text
+Do not rerun another full20 immediately.  First improve concrete selector menu
+supply so Critique sees paper-named baseline targets, metric-specific protocol
+targets, and ablation/component targets that are not already countered by
+inventory.  Keep verifier/validator gates strict.
+```
+
 ## Current P31.11 Checkpoint 2026-07-05
 
 P31.11 turns the Critique selector path into a more functional direct candidate

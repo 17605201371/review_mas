@@ -3682,3 +3682,66 @@ cluster; it does not and cannot create new direct Critique discoveries from an
 old raw.  The next meaningful validation is a fresh response-format-on full20
 so Critique sees the new selector menu.  Do not loosen verifier/validator gates
 or count selected-existing seed clusters as direct Critique discovery.
+
+P31.13 fresh full20 and precision follow-up (20260705):
+
+- Ran a fresh response-format-on hardneg20 from commit `7b0aafb`:
+
+```text
+raw = mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok2048_20260705_132812.jsonl
+artifacts = P31_6_FRESH_20260705_132812_*
+rows = 20
+evidence_json_valid_turns = 62
+evidence_json_fallback_turns = 1
+evidence_json_fallback_rate_pct = 2
+protection = PASS
+state_contamination_count = 0
+verified_review_issue_count = 17
+verified_review_issue_cluster_count = 13
+critique_direct_verified_cluster_count = 2
+candidate_menu_item_verified_count = 2
+```
+
+- Manual audit of the two direct clusters found high false-positive risk:
+  - `ye3NrNrYOY / evaluation_protocol_risk / metric_definition_threshold_selection_protocol`
+    was a generic protocol target; the paper text actually defines Top-1
+    accuracy and official splits.
+  - `cklg91aPGk / missing_baseline / recent_gnn_graph-transformer_baselines...`
+    was an external family baseline template, similar to the prior NAS
+    external-list false positive.
+- Added hard bundle-level target guards for reviewer/menu candidates:
+  - generic evaluation-protocol templates are rejected before verified issue
+    creation;
+  - hardcoded external baseline-family menu templates are rejected before
+    verified issue creation;
+  - runner protocol fallback no longer fabricates `evaluation protocol details
+    for <primary>`.
+- Current-code recompute over the same fresh raw:
+
+```text
+artifacts = P31_13_MENU_QUALITY_RECOMPUTE_20260705_132812_*
+verified_review_issue_count = 15
+verified_review_issue_cluster_count = 11
+critique_direct_verified_cluster_count = 0
+critique_payload_verified_cluster_count = 0
+candidate_menu_item_verified_count = 0
+candidate_menu_item_failed_count = 11
+candidate_menu_item_failed_by_stage =
+  counterevidence: 7
+  menu_quality_guard: 4
+candidate_menu_item_failed_by_reason =
+  missing_entity_already_observed_in_inventory: 4
+  evaluation_protocol_menu_generic_target: 3
+  missing_ablation_counterevidence_in_claim_or_inventory: 3
+  missing_baseline_menu_external_family_target: 1
+state_contamination_count = 0
+positive_or_neutral_negative_candidate_count = 0
+negative_evidence_unlinked_to_flaw = 0
+negative_grounding_conflict_count = 0
+```
+
+Conclusion: the apparent direct=2 fresh improvement was not paper-safe.  The
+strict current-code result is direct=0, but that is the correct precision
+position.  Next functional work should improve concrete menu supply (paper-named
+baseline targets, metric-specific protocol targets, and ablation targets not
+already countered), not relax verification or count external template targets.

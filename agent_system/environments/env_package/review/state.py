@@ -12225,6 +12225,33 @@ def _review_issue_bundle_verification_failure(
         quality = str(ablation_quality.get("quality") or "")
         if quality in {"", "low", "reject"}:
             return str(ablation_quality.get("reason") or "missing_ablation_target_low_confidence")
+    if str(bundle.get("source_of_expectation") or "") == "reviewer_candidate" or str(bundle.get("candidate_menu_id") or ""):
+        inventory_text = " ".join(
+            " ".join(
+                [
+                    str(item.get("quote") or ""),
+                    str(item.get("locator") or ""),
+                    " ".join(str(observed or "") for observed in item.get("observed_items") or []),
+                ]
+            )
+            for item in (bundle.get("observed_inventory") or [])
+            if isinstance(item, dict)
+        )
+        claim_anchor = bundle.get("claim_anchor") if isinstance(bundle.get("claim_anchor"), dict) else {}
+        target_quality_failure = _review_issue_candidate_menu_quality_failure(
+            neg_type=neg_type,
+            expected_entity=primary_missing_entity or (missing_items[0] if missing_items else ""),
+            claim_text=" ".join(
+                [
+                    str(claim_anchor.get("quote") or ""),
+                    str(bundle.get("reviewer_negative_candidate") or ""),
+                ]
+            ),
+            inventory_text=inventory_text,
+            source=str(bundle.get("discovery_origin") or bundle.get("source_of_expectation") or ""),
+        )
+        if target_quality_failure:
+            return target_quality_failure
     if not _review_issue_observed_inventory_is_verifiable(bundle):
         return "observed_inventory_missing"
     if not _review_issue_observed_inventory_relevant_for_type(bundle, neg_type):
@@ -13483,6 +13510,13 @@ def _review_issue_candidate_menu_quality_failure(
     if neg_type in {"missing_baseline", "unfair_or_weak_baseline"}:
         if re.search(r"\\cite[tp]?\s*\{|\{[^}]*$", expected):
             return "missing_baseline_menu_malformed_target"
+        if re.fullmatch(
+            r"(?:gpt-4/chatgpt/llama-family\s+baseline\s+under\s+the\s+same\s+benchmark|"
+            r"recent\s+gnn\s+or\s+graph-transformer\s+baselines\s+on\s+the\s+same\s+graph\s+benchmarks|"
+            r"standard\s+ris/segmentation\s+baselines\s+and\s+datasets\s+used\s+by\s+the\s+claim\s+scope)",
+            expected_l,
+        ):
+            return "missing_baseline_menu_external_family_target"
         paper_named_match = re.search(r"\bpaper[- ]named\s+([a-z][a-z0-9_-]*)\s+baseline\b", expected_l)
         if paper_named_match and paper_named_match.group(1) in {
             "labor",
@@ -13554,6 +13588,18 @@ def _review_issue_candidate_menu_quality_failure(
             return "reproducibility_menu_multi_dimension_umbrella_target"
         if generic_repro_target and theory_context and not empirical_anchor:
             return "reproducibility_menu_theory_context"
+
+    if neg_type == "evaluation_protocol_risk":
+        if re.fullmatch(
+            r"(?:train/test\s+or\s+validation\s+split\s+definition|"
+            r"metric\s+definition\s+or\s+threshold\s+selection\s+protocol|"
+            r"random\s+seed\s*/\s*repeated[- ]run\s+protocol|"
+            r"same[- ]budget\s+or\s+same[- ]hardware\s+comparison\s+setting|"
+            r"protocol\s+definition\s+for\s+evaluating\s+.+\s+under\s+the\s+claimed\s+setting|"
+            r"evaluation\s+split,\s+threshold,\s+seed,\s+or\s+same[- ]budget\s+protocol\s+for\s+.+)",
+            expected_l,
+        ):
+            return "evaluation_protocol_menu_generic_target"
 
     if neg_type == "efficiency_cost_gap":
         expected_resource_dimension = bool(

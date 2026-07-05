@@ -15028,6 +15028,26 @@ def test_review_issue_menu_quality_rejects_template_scope_and_result_placeholder
         )
         == "missing_baseline_menu_malformed_target"
     )
+    assert (
+        review_state_mod._review_issue_candidate_menu_quality_failure(
+            neg_type="missing_baseline",
+            expected_entity="recent GNN or graph-transformer baselines on the same graph benchmarks",
+            claim_text="PROPGCL achieves competitive node classification performance on graph benchmarks.",
+            inventory_text="Table 5 compares PROPGCL with other baselines on node classification benchmarks.",
+            source="runner_seed_blueprint",
+        )
+        == "missing_baseline_menu_external_family_target"
+    )
+    assert (
+        review_state_mod._review_issue_candidate_menu_quality_failure(
+            neg_type="evaluation_protocol_risk",
+            expected_entity="metric definition or threshold selection protocol",
+            claim_text="The evaluation uses standard metrics such as Top-1 accuracy.",
+            inventory_text="Performance Measure. In all experiments we compare the Top-1 accuracy.",
+            source="runner_seed_blueprint",
+        )
+        == "evaluation_protocol_menu_generic_target"
+    )
 
 
 def test_entity_obligation_candidates_do_not_cast_dataset_or_metric_as_baseline_target():
@@ -15089,6 +15109,139 @@ def test_missing_ablation_quality_rejects_bare_temporal_descriptor_but_keeps_nam
         "reason": "missing_ablation_target_generic_component",
     }
     assert _missing_ablation_target_quality(named)["quality"] in {"high", "medium"}
+
+
+def test_review_issue_bundle_rejects_generic_protocol_selected_menu_target():
+    claim = (
+        "The evaluation is conducted on standard few-shot action recognition datasets "
+        "using standard metrics such as Top-1 accuracy."
+    )
+    inventory_quote = (
+        "Performance Measure. In all experiments we compare the Top-1 accuracy, "
+        "i.e., the maximum accuracy on any action class, of TCMT against leading benchmarks."
+    )
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "empirical",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["evaluation_protocol"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "review-issue-candidate-selected-menu-1",
+                "candidate_menu_id": "rim-c1-pr-metric-definition-or-threshold-s",
+                "claim_id": "claim-1",
+                "weakness": (
+                    "Verify whether the paper leaves the review issue target uncovered: "
+                    "metric definition or threshold selection protocol."
+                ),
+                "negative_type": "evaluation_protocol_risk",
+                "required_evidence_type": "evaluation_protocol",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["metric definition or threshold selection protocol"],
+                "observed_inventory": [
+                    {
+                        "quote": inventory_quote,
+                        "locator": "Performance Measure",
+                        "observed_items": ["Top-1 accuracy"],
+                    }
+                ],
+                "status": "pending_absence_audit",
+                "source": "critique_selected_menu_item",
+                "discovery_origin": "critique_payload_menu_selected",
+                "source_of_expectation": "reviewer_candidate",
+                "review_issue_candidate_menu_item": {
+                    "candidate_menu_id": "rim-c1-pr-metric-definition-or-threshold-s",
+                    "claim_id": "claim-1",
+                    "issue_type": "evaluation_protocol_risk",
+                    "expected_entity": "metric definition or threshold selection protocol",
+                },
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["verified_review_issue_count"] == 0
+    assert hygiene["review_issue_candidate_rejected_by_reason"]["evaluation_protocol_menu_generic_target"] == 1
+
+
+def test_review_issue_bundle_rejects_external_graph_baseline_family_selected_menu_target():
+    claim = "PROPGCL achieves competitive node classification performance on standard graph benchmarks."
+    inventory_quote = (
+        "Table 5: Test accuracy (%) of homophily node classification benchmarks, "
+        "comparing PROPGCL with other baselines."
+    )
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "comparison",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["baseline_or_comparison"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "review-issue-candidate-selected-menu-1",
+                "candidate_menu_id": "rim-c1-mb-recent-gnn-or-graph-transformer",
+                "claim_id": "claim-1",
+                "weakness": (
+                    "Verify whether the paper leaves recent GNN or graph-transformer "
+                    "baselines on the same graph benchmarks uncovered."
+                ),
+                "negative_type": "missing_baseline",
+                "required_evidence_type": "baseline_or_comparison",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": [
+                    "recent GNN or graph-transformer baselines on the same graph benchmarks"
+                ],
+                "observed_inventory": [
+                    {
+                        "quote": inventory_quote,
+                        "locator": "Table 5",
+                        "observed_items": ["PROPGCL"],
+                    }
+                ],
+                "status": "pending_absence_audit",
+                "source": "critique_selected_menu_item",
+                "discovery_origin": "critique_payload_menu_selected",
+                "source_of_expectation": "reviewer_candidate",
+                "review_issue_candidate_menu_item": {
+                    "candidate_menu_id": "rim-c1-mb-recent-gnn-or-graph-transformer",
+                    "claim_id": "claim-1",
+                    "issue_type": "missing_baseline",
+                    "expected_entity": "recent GNN or graph-transformer baselines on the same graph benchmarks",
+                },
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["verified_review_issue_count"] == 0
+    assert hygiene["review_issue_candidate_rejected_by_reason"]["missing_baseline_menu_external_family_target"] == 1
 
 
 def test_review_issue_menu_rejects_unlocatable_claim_anchor_when_paper_text_available():

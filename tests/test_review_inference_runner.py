@@ -3281,7 +3281,7 @@ def test_runner_seed_selector_filters_template_blueprint_items(monkeypatch):
                 "quote": "Table 1 reports aggregate theorem-proving accuracy on Benchmark-X.",
                 "locator": "Table 1",
                 "inventory_type": "metric",
-                "requirement_types": ["empirical_result", "robustness_or_generalization"],
+                "requirement_types": ["empirical_result", "robustness_or_generalization", "evaluation_protocol"],
                 "observed_items": ["Benchmark-X", "accuracy"],
             }
         ],
@@ -3300,6 +3300,13 @@ def test_runner_seed_selector_filters_template_blueprint_items(monkeypatch):
                     "per-dataset result for the claim's stated task",
                     "metric result table for the claimed effect",
                     "quantitative result table or metric for RNN",
+                ],
+            },
+            {
+                "required_evidence_type": "evaluation_protocol",
+                "issue_type": "evaluation_protocol_risk",
+                "candidate_missing_item_examples": [
+                    "metric definition or threshold selection protocol",
                 ],
             },
         ],
@@ -3321,6 +3328,7 @@ def test_runner_seed_selector_filters_template_blueprint_items(monkeypatch):
     assert "per-dataset result for the claim's stated task" not in missing_items
     assert "metric result table for the claimed effect" not in missing_items
     assert "quantitative result table or metric for RNN" not in missing_items
+    assert "metric definition or threshold selection protocol" not in missing_items
     assert candidates == []
 
 
@@ -3358,10 +3366,19 @@ def test_runner_seed_selector_does_not_fabricate_primary_entity_scope_or_result_
             "candidate_missing_item_examples": [],
         },
     )
+    protocol_items = review_runner_mod._seed_items_from_review_issue_blueprint(
+        target,
+        {
+            "required_evidence_type": "evaluation_protocol",
+            "issue_type": "evaluation_protocol_risk",
+            "candidate_missing_item_examples": [],
+        },
+    )
 
     assert scope_items == []
     assert result_items == []
     assert mismatch_items == []
+    assert protocol_items == []
 
 
 def test_review_issue_discovery_uses_critique_prompt():

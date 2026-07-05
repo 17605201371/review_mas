@@ -2873,7 +2873,7 @@ def _seed_items_from_review_issue_blueprint(target: Dict[str, Any], blueprint: D
     if issue_type in {"missing_robustness_or_generalization", "scope_overclaim"}:
         return []
     if issue_type == "evaluation_protocol_risk":
-        return [f"evaluation protocol details for {primary}"] if primary else []
+        return []
     if issue_type == "efficiency_cost_gap":
         return [f"runtime, memory, or compute-cost measurement for {primary}"] if primary else []
     if issue_type == "reproducibility_gap":
