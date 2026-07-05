@@ -3264,10 +3264,39 @@ def _attach_review_issue_selector_snapshot(
     except Exception:
         selector_menu = []
     if not selector_menu:
+        manager_payload["review_issue_candidate_selector_menu_snapshot_count"] = 0
+        manager_payload["review_issue_discovery_empty_selector_menu"] = True
         return manager_payload
     manager_payload["review_issue_candidate_selector_menu_snapshot"] = copy.deepcopy(selector_menu)
     manager_payload["review_issue_candidate_selector_menu_snapshot_count"] = len(selector_menu)
+    manager_payload.pop("review_issue_discovery_empty_selector_menu", None)
     return manager_payload
+
+
+def _downgrade_empty_review_issue_discovery_turn(manager_payload: Dict[str, Any]) -> Dict[str, Any]:
+    if not isinstance(manager_payload, dict):
+        return manager_payload
+    if not manager_payload.get("review_issue_discovery_required"):
+        return manager_payload
+    if manager_payload.get("review_issue_candidate_selector_menu_snapshot"):
+        return manager_payload
+    if not manager_payload.get("review_issue_discovery_empty_selector_menu"):
+        return manager_payload
+    updated = dict(manager_payload)
+    updated["review_issue_discovery_required"] = False
+    updated["freeform_reviewer_negative_discovery_required"] = False
+    updated["review_issue_discovery_skipped_reason"] = "empty_selector_menu"
+    updated["freeform_reviewer_negative_stage"] = "selector_discovery_skipped_no_menu"
+    notes = list(updated.get("policy_notes") or [])
+    notes.append("Critique selector discovery was downgraded because no visible selector menu item was available.")
+    updated["policy_notes"] = list(dict.fromkeys(notes))[:8]
+    focus = _candidate_text(updated.get("focus"), 260)
+    if not focus or "review_issue_candidate_selector_menu" in focus:
+        updated["focus"] = (
+            "Analyze existing evidence, claims, and candidate flaws without selecting review_issue_candidate_selector_menu ids; "
+            "no visible selector menu item is available in this turn."
+        )
+    return updated
 
 
 def _candidate_from_selected_menu_item(
@@ -7834,6 +7863,7 @@ def run_review_episode(
                             manager_payload,
                             obs["review_state"],
                         )
+                        manager_payload = _downgrade_empty_review_issue_discovery_turn(manager_payload)
                     worker_observation = build_worker_observation(obs, manager_payload, worker_id)
                     if obs.get("_latest_evidence_context_meta"):
                         obs.setdefault("review_state", {})["_latest_evidence_context_meta"] = dict(obs.get("_latest_evidence_context_meta") or {})
@@ -8247,6 +8277,7 @@ def run_review_batch(
                             manager_payload,
                             obs["review_state"],
                         )
+                        manager_payload = _downgrade_empty_review_issue_discovery_turn(manager_payload)
                         task["_manager_payload"] = manager_payload
                     worker_observation = build_worker_observation(obs, manager_payload, worker_id)
                     if obs.get("_latest_evidence_context_meta"):

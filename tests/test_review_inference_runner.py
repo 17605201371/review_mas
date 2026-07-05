@@ -3407,6 +3407,40 @@ def test_review_issue_discovery_uses_critique_prompt():
     assert "Do not invent an external list of well-known baselines" in review_prompts_mod.REVIEW_ISSUE_DISCOVERY_PROMPT
 
 
+def test_empty_review_issue_selector_snapshot_downgrades_selector_prompt(monkeypatch):
+    monkeypatch.setattr(
+        review_runner_mod,
+        "_augmented_review_issue_selector_menu_from_state",
+        lambda state, **kwargs: ([], []),
+    )
+
+    manager_payload = review_runner_mod._attach_review_issue_selector_snapshot(
+        {
+            "review_issue_discovery_required": True,
+            "freeform_reviewer_negative_discovery_required": True,
+            "freeform_reviewer_negative_stage": "candidate_discovery",
+            "focus": "Select ids from review_issue_candidate_selector_menu.",
+            "policy_notes": [],
+        },
+        {
+            "claims": [{"claim_id": "claim-1", "claim": "The method improves accuracy."}],
+            "evidence_map": [{"evidence_id": "evidence-1", "claim_id": "claim-1"}],
+        },
+    )
+
+    assert manager_payload["review_issue_candidate_selector_menu_snapshot_count"] == 0
+    assert manager_payload["review_issue_discovery_empty_selector_menu"] is True
+
+    downgraded = review_runner_mod._downgrade_empty_review_issue_discovery_turn(manager_payload)
+
+    assert downgraded["review_issue_discovery_required"] is False
+    assert downgraded["freeform_reviewer_negative_discovery_required"] is False
+    assert downgraded["review_issue_discovery_skipped_reason"] == "empty_selector_menu"
+    assert downgraded["freeform_reviewer_negative_stage"] == "selector_discovery_skipped_no_menu"
+    assert _resolve_prompt_template("Critique Agent", downgraded) != review_prompts_mod.REVIEW_ISSUE_DISCOVERY_PROMPT
+    assert "review_issue_candidate_selector_menu ids" in downgraded["focus"]
+
+
 def test_worker_prompt_char_counts_survive_turn_action_normalization():
     action = review_state_mod.build_turn_action(
         manager_payload={
@@ -12170,6 +12204,56 @@ def test_s4_targeted_negative_search_routes_shortfall_to_evidence_agent(monkeypa
     assert payload["phase"] == "normal_review"
     assert payload.get("hard_negative_diagnosis_required") is not True
     assert payload["selected_agents"] == ["Evidence Agent"]
+
+
+def test_s4_bundle_negative_search_skips_selector_discovery_when_menu_empty(monkeypatch):
+    monkeypatch.setattr(review_manager_policy_mod, "_TARGETED_NEGATIVE_SEARCH_ENABLED", True)
+    monkeypatch.setattr(review_manager_policy_mod, "_FREEFORM_REVIEWER_NEGATIVE_ENABLED", True)
+    monkeypatch.setattr(review_manager_policy_mod, "_REVIEW_ISSUE_BUNDLE_ENABLED", True)
+    monkeypatch.setattr(review_manager_policy_mod, "_CRITIQUE_DISCOVERY_FIRST_ENABLED", True)
+    monkeypatch.setattr(review_manager_policy_mod, "_review_issue_selector_menu_available", lambda state: False)
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The method outperforms strong baselines.",
+                "status": "supported",
+                "claim_kind": "paper_extracted",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "evidence-1",
+                "claim_id": "claim-1",
+                "evidence": "Table 1 supports the claim.",
+                "stance": "supports",
+                "strength": "strong",
+                "verified_grounding_label": "paper_grounded_exact",
+                "semantic_grounding_label": "semantic_support_verified",
+            }
+        ],
+        "flaw_candidates": [],
+        "evidence_gaps": [],
+        "unresolved_questions": [],
+    }
+
+    payload = _apply_manager_policy_fallback(
+        {"decision": "continue", "action_type": "summarize_progress", "selected_agents": []},
+        state,
+        "s4",
+        ["Evidence Agent", "Critique Agent"],
+        1,
+        recent_turn_logs=[],
+    )
+
+    assert payload["policy_source"] == "targeted_negative_search_override"
+    assert payload["action_type"] == "verify_evidence"
+    assert payload["selected_agents"] == ["Evidence Agent"]
+    assert payload["negative_evidence_formation_required"] is True
+    assert payload["targeted_negative_search_required"] is True
+    assert payload.get("review_issue_discovery_required") is not True
+    assert payload.get("freeform_reviewer_negative_discovery_required") is not True
+    assert "no concrete selector menu item was visible" in " ".join(payload["policy_notes"])
 
 
 def test_s4_freeform_reviewer_negative_runs_discovery_before_verification(monkeypatch):

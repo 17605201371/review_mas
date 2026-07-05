@@ -608,9 +608,9 @@ def _review_issue_selector_menu_available(state: Dict[str, Any]) -> bool:
         targets = _hard_negative_diagnosis_targets(state or {}, claims=(state or {}).get("claims", []), max_items=8)
         selector_menu = _review_issue_candidate_selector_menu(
             targets,
-            max_items=6,
-            max_per_claim=2,
-            max_per_type=2,
+            max_items=12,
+            max_per_claim=3,
+            max_per_type=4,
         )
     except Exception:
         return False
@@ -3305,6 +3305,7 @@ def apply_manager_policy_fallback(
     targeted_reviewer_negative_attempt_count = _targeted_reviewer_negative_verification_attempt_count(recent_turn_logs)
     targeted_no_task_recent = _has_recent_targeted_negative_no_task_block(recent_turn_logs)
     pending_reviewer_negative_candidates = _has_pending_reviewer_negative_candidates(state)
+    review_issue_selector_menu_available = _review_issue_selector_menu_available(state)
     freeform_reviewer_negative_discovery_needed = bool(
         _TARGETED_NEGATIVE_SEARCH_ENABLED
         and _FREEFORM_REVIEWER_NEGATIVE_ENABLED
@@ -3392,7 +3393,9 @@ def apply_manager_policy_fallback(
                 payload["effective_action_type"] = "verify_evidence"
                 payload["phase"] = "normal_review"
                 payload["turn_mode"] = "normal_evidence"
-                if freeform_reviewer_negative_discovery_needed:
+                if freeform_reviewer_negative_discovery_needed and (
+                    not _REVIEW_ISSUE_BUNDLE_ENABLED or review_issue_selector_menu_available
+                ):
                     # First stage: Critique proposes review-issue hypotheses.
                     # This deliberately does not create verified evidence or
                     # mutate claim status; the following Evidence/State pass
@@ -3420,6 +3423,10 @@ def apply_manager_policy_fallback(
                     # Target generator path: keep formation in the Evidence Agent. The worker receives
                     # claim-obligation or reviewer-candidate search tasks and must return either quote-grounded
                     # negative evidence or not_assessable, never a free-form flaw diagnosis.
+                    if freeform_reviewer_negative_discovery_needed and _REVIEW_ISSUE_BUNDLE_ENABLED:
+                        policy_notes.append(
+                            "Review-issue selector discovery was skipped because no concrete selector menu item was visible."
+                        )
                     payload["negative_evidence_formation_required"] = True
                     payload["targeted_negative_search_required"] = True
                     payload["freeform_reviewer_negative_discovery_required"] = False

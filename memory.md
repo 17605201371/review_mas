@@ -3839,3 +3839,54 @@ P31.15 Stage 2 selector/attribution follow-up:
   Critique discovery is still not stable enough for full20.  Next functional
   direction is manager trigger / selector-attention reliability, not verifier
   relaxation and not broader statistics.
+
+P31.16 Stage 2 manager trigger / selector-menu checkpoint:
+
+- Manager review-issue selector availability now uses the same wider selector
+  budget as the prompt path (`max_items=12`, `max_per_claim=3`,
+  `max_per_type=4`) instead of the old narrow availability check.
+- Hard-negative discovery no longer routes to Critique selector mode when
+  review-issue bundle is enabled but no concrete selector menu item is visible;
+  it falls back to Evidence targeted negative search instead.
+- Runner marks empty selector snapshots and downgrades stale
+  `review_issue_discovery_required` turns before building the Critique prompt,
+  preventing empty-menu turns from eliciting invented `rim-c...` ids.
+- Validation:
+  - targeted runner/manager selector tests: `5 passed`
+  - runner selector/discovery focused suite: `21 passed`
+  - hygiene/gate focused suite: `21 passed`
+  - `py_compile` for review_manager_policy.py, review_runner.py, and
+    test_review_inference_runner.py: PASS
+- Live sample:
+  - run: `p31_16_trigger_menu_sample3_20260705_155155`
+  - input: `p31_16_trigger_sample3_input.parquet`
+  - papers: HPuLU6q7xq, QAgwFiIY4p, YXn76HMetm
+  - environment: response_format=on, qhyg=1, targetneg=1, freeformrevneg=1,
+    reviewissuebundle=1, max_tokens=2048
+  - evidence_json_fallback_rate_pct=0, protection PASS,
+    verified_review_issue_cluster_count=3,
+    critique_direct_verified_cluster_count=1,
+    candidate_menu_item_used_count=2,
+    candidate_menu_item_verified_count=1,
+    state_contamination_count=0,
+    positive_or_neutral_negative_candidate_count=0,
+    negative_evidence_unlinked_to_flaw=0,
+    negative_grounding_conflict_count=0.
+- Trace/case findings:
+  - YXn76HMetm received selector snapshot count 3, Critique selected EqualAL
+    (`rim-c2-mb-same-setting-comparison-against`), runner recovered it, and the
+    final case table records `missing_baseline / equalal_baseline` with
+    `discovery_origin=critique_payload_menu_selected`.
+  - QAgwFiIY4p no longer had an empty-menu selector turn; it received snapshot
+    count 1 and selected Graphormer, but bundle verification rejected it as
+    `missing_baseline_target_generic_or_truncated`.
+  - HPuLU6q7xq did not enter selector discovery in this stochastic sample; it
+    followed negative binding / recovery routing.  Its final state can still
+    generate two insufficient-evaluation runner-seed menu items.
+- Conclusion: the Critique-selected-menu -> verifier -> direct Critique-origin
+  case-table path is alive in a fresh API sample with clean protection metrics.
+  Stage 2 is not complete.  Next work should improve paper-named baseline
+  target quality (Graphormer-style rejection) and stabilize discovery trigger
+  timing when menus exist but recovery/binding routes consume the turn.  Do not
+  relax verifier/validator gates and do not count deterministic seed clusters
+  as Critique discovery.

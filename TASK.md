@@ -1170,3 +1170,67 @@ Next major direction:
   triggered and Critique should select/reject visible items explicitly.  Keep
   all bundle verifier and hygiene gates strict.
 ```
+
+P31.16 current Stage 2 task update (20260705):
+
+```text
+Completed in this step:
+  - Manager selector availability now matches the prompt-scale selector budget
+    (`max_items=12`, `max_per_claim=3`, `max_per_type=4`).
+  - Empty-menu review-issue selector discovery is blocked at manager routing:
+    with review_issue_bundle enabled and no visible selector menu, hard-negative
+    discovery falls back to Evidence targeted negative search.
+  - Runner adds an empty-snapshot guard: stale
+    review_issue_discovery_required turns are downgraded before building the
+    Critique prompt, so Critique is not asked to select from a non-existent menu.
+
+Validation:
+  targeted runner/manager selector tests = 5 passed
+  runner selector/discovery focused suite = 21 passed
+  hygiene/gate focused suite = 21 passed
+  py_compile review_manager_policy.py/review_runner.py/test_review_inference_runner.py = PASS
+
+Live sample:
+  run = p31_16_trigger_menu_sample3_20260705_155155
+  input = p31_16_trigger_sample3_input.parquet
+  papers = HPuLU6q7xq, QAgwFiIY4p, YXn76HMetm
+  env = DRMAS_JSON_RESPONSE_FORMAT=on, qhyg=1, targetneg=1,
+        freeformrevneg=1, reviewissuebundle=1, max_tokens=2048
+
+Sample metrics:
+  evidence_json_valid_turns = 11
+  evidence_json_fallback_turns = 0
+  evidence_json_fallback_rate_pct = 0
+  protection = PASS
+  verified_review_issue_cluster_count = 3
+  critique_payload_verified_cluster_count = 1
+  critique_direct_verified_cluster_count = 1
+  critique_selected_existing_seed_cluster_count = 0
+  candidate_menu_item_count = 2
+  candidate_menu_item_used_count = 2
+  candidate_menu_item_verified_count = 1
+  candidate_menu_item_failed_count = 1
+  state_contamination_count = 0
+  positive_or_neutral_negative_candidate_count = 0
+  negative_evidence_unlinked_to_flaw = 0
+  negative_grounding_conflict_count = 0
+
+Trace findings:
+  - YXn76HMetm: selector snapshot count 3; Critique selected EqualAL;
+    final case table has missing_baseline/equalal_baseline with
+    discovery_origin=critique_payload_menu_selected.
+  - QAgwFiIY4p: selector snapshot count 1; Critique selected Graphormer, but
+    bundle verifier rejected it as missing_baseline_target_generic_or_truncated.
+  - HPuLU6q7xq: no selector discovery in this stochastic sample; it followed
+    negative binding / recovery routing, though the final state can generate
+    two insufficient-evaluation menu items.
+
+Next:
+  1. Fix paper-named baseline target quality for Graphormer-style candidates
+     without reopening generic external-family false positives.
+  2. Stabilize discovery trigger timing so menu-bearing states are not consumed
+     by negative binding/recovery routes before Critique gets a selector pass.
+  3. After another sample shows at least two verifier-surviving selected menu
+     clusters with clean protection, run a fresh hardneg20; do not run full20
+     from the current sample alone.
+```
