@@ -1991,3 +1991,62 @@ Next:
   3. Treat P31.6 as hardneg20-ready for P32 review, not as full39 stability.
      Carry manual wording caveats into the paper narrative.
 ```
+
+P32 clean R1 manual audit checkpoint (20260705):
+
+```text
+Status:
+  - MiMo old-key failure was a live API/account issue: preflight previously
+    returned 402 insufficient balance.
+  - New local `.env` MIMO_API_KEY was installed but not committed.
+  - Post-swap one-call MiMo preflight = ok.
+
+Run:
+  raw =
+    mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok2048_20260705_232528.jsonl
+  label = P32_CLEAN_R1_20260705_232527
+  rows = 20
+  code_commit in meta = f0d2a30
+  env = DRMAS_JSON_RESPONSE_FORMAT=on, MAX_TOKENS=2048
+
+Machine path:
+  - protection checks still PASS.
+  - critique_direct_verified_cluster_count = 6
+  - candidate_menu_item_verified_count = 6
+  - case_table_critique_origin_cluster_count = 6
+  - verified_review_issue_cluster_count = 17
+  - mark_contested_commit_count = 20
+
+Manual audit:
+  files =
+    P32_CLEAN_R1_20260705_232527_MANUAL_AUDIT.json
+    P32_CLEAN_R1_20260705_232527_MANUAL_AUDIT_VALIDATION.json
+  labels:
+    A = 2
+    B = 5
+    C = 3
+    D = 7
+    critique_origin_manual_A_B_clusters = 5
+    critique_origin_D_clusters = 1
+  strict manual validation = FAIL because manual_D_clusters = 7.
+  allow-D diagnostic validation = PASS for recurrence only, but entry gate
+  still blocks because official manual_D_clusters required = 0.
+
+Interpretation:
+  P32 R1 proves the functional Critique path is live on a clean full20:
+  Critique-origin clusters recur above threshold and contested recovery fires.
+  But the strict paper-readiness gate is not satisfied because verifier/selector
+  precision still lets through false positives.  The next work should target
+  precision against already-covered ablation/baseline/coverage evidence:
+    - positive baseline-comparison quote misread as insufficient evaluation;
+    - generic held-out coverage seeds despite broad benchmark coverage;
+    - missing-ablation clusters contradicted by explicit architecture or
+      DCCA-vs-NR-DCCA / G2T-NoDef counterevidence.
+
+Next:
+  1. Add verifier/selector regressions for the P32 R1 D clusters.
+  2. Recompute P32 artifacts from the same raw run to confirm D clusters drop
+     without relaxing gates.
+  3. Only after strict manual_D_clusters reaches 0, run the next clean R2/R3
+     stability sample.
+```

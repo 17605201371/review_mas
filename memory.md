@@ -4437,3 +4437,43 @@ P31.6 hardneg20 precision/manual-audit checkpoint (20260705):
     carry the manual wording caveats into the P32 narrative, preserve the
     strict verifier behavior, and only then decide whether a broader run is
     needed for the paper story.
+
+P32 clean R1 manual-audit checkpoint (20260705):
+
+- API/account status:
+  - Old MiMo key failed preflight with 402 insufficient balance.
+  - User provided a replacement key; `.env` was updated locally and must not be
+    committed.
+  - One-call MiMo preflight after key swap = ok.
+- Clean R1 run:
+  - raw =
+    `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok2048_20260705_232528.jsonl`
+  - label = `P32_CLEAN_R1_20260705_232527`
+  - rows = 20
+  - meta commit = `f0d2a30`
+  - env = `DRMAS_JSON_RESPONSE_FORMAT=on`, `MAX_TOKENS=2048`
+- Machine checks:
+  - protection = PASS
+  - `critique_direct_verified_cluster_count = 6`
+  - `candidate_menu_item_verified_count = 6`
+  - `case_table_critique_origin_cluster_count = 6`
+  - `verified_review_issue_cluster_count = 17`
+  - `mark_contested_commit_count = 20`
+- Manual audit:
+  - audit = `P32_CLEAN_R1_20260705_232527_MANUAL_AUDIT.json`
+  - strict validation = `P32_CLEAN_R1_20260705_232527_MANUAL_AUDIT_VALIDATION.json`
+  - labels: A=2, B=5, C=3, D=7
+  - `critique_origin_manual_A_B_clusters = 5`
+  - `critique_origin_D_clusters = 1`
+  - strict manual gate = FAIL because `manual_D_clusters = 7`
+  - `--allow-d` diagnostic validation passes recurrence, but official entry
+    gate still blocks on `manual_D_clusters > 0`.
+- Important interpretation:
+  - The functional path is live on a clean full20: Critique-origin verified
+    clusters recur above threshold and contested recovery fires.
+  - P32 R1 is not paper-ready under the strict manual gate.  The next move is
+    precision work against R1 false positives, not more sample runs.
+  - High-value false-positive types from R1: positive baseline-comparison quote
+    treated as negative evaluation gap; generic held-out coverage seeds despite
+    broad benchmarks; missing-ablation claims contradicted by explicit
+    architecture ablations or DCCA/NR-DCCA and G2T-NoDef counterevidence.

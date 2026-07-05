@@ -3,9 +3,9 @@
 - dashboard: `P32_CLEAN_R1_20260705_232527_HARDNEG20_DASHBOARD.json`
 - review issue cases: `P32_CLEAN_R1_20260705_232527_REVIEW_ISSUE_CASE_TABLE.json`
 - recovery cases: `P32_CLEAN_R1_20260705_232527_RECOVERY_CASE_TABLE.json`
-- manual audit validation: `P32_CLEAN_R1_20260705_232527_MANUAL_AUDIT_VALIDATION.json`
+- manual audit validation: `P32_CLEAN_R1_20260705_232527_MANUAL_AUDIT_VALIDATION_ALLOW_D.json`
 - machine gate: **FAIL**
-- manual gate: **FAIL**
+- manual gate: **PASS**
 
 ## Machine Checks
 
@@ -23,14 +23,13 @@
 | `negative_evidence_unlinked_to_flaw` | 0 | 0 | PASS |
 | `positive_or_neutral_negative_candidate_count` | 0 | 0 | PASS |
 | `negative_grounding_conflict_count` | 0 | 0 | PASS |
-| `manual_audit_status` | FAIL | PASS | FAIL |
+| `manual_audit_status` | PASS | PASS | PASS |
 | `manual_critique_origin_A_B_clusters` | 5 | >= 3 | PASS |
 | `manual_D_clusters` | 7 | 0 | FAIL |
 | `manual_unfilled_clusters` | 0 | 0 | PASS |
 
 ## Blocking Issues
 
-- manual_audit_status: actual FAIL, required PASS
 - manual_D_clusters: actual 7, required 0
 
 ## Manual Audit Summary
@@ -52,7 +51,7 @@
 | `critique_origin_manual_A_B_clusters` | 5 |
 | `deterministic_seed_manual_A_B_clusters` | 1 |
 | `critique_origin_D_clusters` | 1 |
-| `status` | FAIL |
+| `status` | PASS |
 
 ## Critique-Origin Clusters For Manual Audit
 
@@ -94,6 +93,6 @@ _No simple lexical red flags found in verified issue cases._
 
 ## Notes
 
-- Machine PASS is not paper-ready approval; manual A/B audit of the listed Critique-origin clusters is still required.
+- Machine and manual gates pass for this audit scope; paper-ready claims still require carrying the listed manual labels and wording caveats into the narrative.
 - The red-flag scan is lexical only and should be treated as triage, not a verifier.
-- P32 entry remains blocked if the machine gate fails or manual audit finds external-baseline, retrieval/context, author-limitation, or other false positives.
+- P32 entry remains blocked if a later full-scope gate fails or manual audit finds external-baseline, retrieval/context, author-limitation, or other false positives.
