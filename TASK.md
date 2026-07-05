@@ -10,6 +10,82 @@ Goal:
 - Improve Critique payload integration without relaxing the verifier.
 - Keep direct quote-grounded negative evidence strict; optimize obligation-grounded verified review issue bundles and safe `mark_contested` recovery.
 
+## Current P31.25/P31.26 Checkpoint 2026-07-05
+
+Current stage:
+
+```text
+Stage 2 is active.  Selected-menu candidates now reach strict verification and
+can verify cleanly, but direct Critique-origin clusters are still 2/3 on the
+latest sample.  The main remaining risk is selector/menu identity fidelity:
+candidate_menu_id must be a reliable pointer to exactly the selected target.
+```
+
+Implemented after P31.24:
+
+- Added supply-quality guards for P31.24 failure modes:
+  - runner/entity generated `quantitative result for ...` placeholders are
+    filtered before they enter the selector menu;
+  - entity-generated `quantitative result table for ...` placeholders are
+    filtered without changing historical Critique-selected attribution;
+  - generic `metric reporting protocol or comparability setting` menu targets
+    are filtered as protocol-generic.
+- Fixed `candidate_menu_id` collision for long same-prefix targets such as
+  paper-named `EqualAL` vs `PixelPick`.  Menu ids are now disambiguated during
+  ReviewState menu generation and runner seed-menu expansion, preventing a
+  selected id from binding to a different target after lookup.
+
+Validation:
+
+```text
+runner selector/menu focused suite = 16 passed
+hygiene/gate focused suite = 28 passed
+paper-named/id-collision focused tests = 13 passed
+runner id-collision focused tests = 4 passed
+py_compile state.py/review_runner.py/tests = PASS
+git diff --check = PASS
+```
+
+Live sample:
+
+```text
+run = p31_25_supply_filter_sample3_20260705_180321
+rows = 3
+sample = HPuLU6q7xq, QAgwFiIY4p, YXn76HMetm
+protection = PASS
+evidence_json_fallback_rate_pct = 0
+state_contamination_count = 0
+verified_review_issue_cluster_count = 4
+critique_payload_verified_cluster_count = 2
+critique_direct_verified_cluster_count = 2
+candidate_menu_item_count = 2
+candidate_menu_item_used_count = 2
+candidate_menu_item_verified_count = 2
+candidate_menu_item_failed_count = 0
+```
+
+Interpretation:
+
+```text
+The supply filter improved selected-menu quality: no selected-menu verifier
+failures remained in this sample, and 2/2 selected menu items verified.  The
+machine gate still fails because direct Critique-origin clusters are 2/3, not
+3/3.  During audit, YXn exposed a candidate_menu_id collision that could make
+candidate_menu_item_verified_count look healthier than the exact target binding
+really was.  That collision is now fixed in code, but needs a fresh sample
+before claiming improved direct-cluster count.
+```
+
+Next step:
+
+```text
+Rerun the 3-paper sample after the id-collision fix.  If selected-menu
+verified_count stays clean and direct Critique clusters reach >=3 with
+protection still passing, then move to hardneg20.  If direct remains 2/3, audit
+which paper lacks a Critique-origin cluster and improve selector exposure rather
+than verifier looseness.
+```
+
 ## Current P31.24 Checkpoint 2026-07-05
 
 Current stage:

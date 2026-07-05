@@ -3979,3 +3979,46 @@ P31.24 Stage 2 selected-menu recovery checkpoint (20260705):
   Critique clusters.  Next work should improve selector supply/ranking so
   visible menu items are concrete verifier-survivable issues, not already
   covered inventory checks.
+
+P31.25/P31.26 Stage 2 selector supply and menu-id fidelity checkpoint (20260705):
+
+- Implemented supply-quality filters for the concrete P31.24 verifier failures:
+  - runner/entity-generated `quantitative result for ...` placeholder targets
+    are filtered before entering the selector menu;
+  - entity-generated `quantitative result table for ...` placeholders are
+    filtered without changing posthoc attribution of historical
+    Critique-selected snapshots;
+  - `metric reporting protocol or comparability setting` is treated as a
+    generic protocol menu target.
+- Ran fresh sample:
+  - run = `p31_25_supply_filter_sample3_20260705_180321`
+  - sample papers = HPuLU6q7xq, QAgwFiIY4p, YXn76HMetm
+  - protection = PASS
+  - evidence_json_fallback_rate_pct = 0
+  - state_contamination_count = 0
+  - verified_review_issue_cluster_count = 4
+  - critique_payload_verified_cluster_count = 2
+  - critique_direct_verified_cluster_count = 2
+  - candidate_menu_item_count = 2
+  - candidate_menu_item_used_count = 2
+  - candidate_menu_item_verified_count = 2
+  - candidate_menu_item_failed_count = 0
+  - entry gate still failed only on direct Critique clusters 2/3 and case-table
+    Critique-origin clusters 2/3.
+- Audit finding from P31.25:
+  - YXn exposed a `candidate_menu_id` collision: long same-prefix
+    paper-named targets such as `EqualAL` and `PixelPick` collapsed to
+    `rim-c2-mb-same-setting-comparison-against`, allowing a selected menu id
+    to bind to a different target during lookup.
+  - Fixed by disambiguating menu ids during ReviewState menu generation and
+    runner seed-menu expansion.
+- Validation after the collision fix:
+  - runner selector/menu focused suite = 16 passed
+  - hygiene/gate focused suite = 28 passed
+  - paper-named/id-collision focused tests = 13 passed
+  - runner id-collision focused tests = 4 passed
+  - `py_compile` = PASS
+  - `git diff --check` = PASS
+- Interpretation: selected-menu quality improved, but Stage 2 is not complete.
+  The next sample must be rerun after the id-collision fix before claiming
+  direct Critique cluster improvement or moving to hardneg20.

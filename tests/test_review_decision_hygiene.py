@@ -8955,6 +8955,71 @@ def test_paper_named_baseline_menu_supply_uses_eval_inventory_without_seed_expan
     assert any("GraphFormer" in item["expected_entity"] for item in menu)
 
 
+def test_paper_named_baseline_menu_ids_disambiguate_truncated_targets(monkeypatch):
+    claim = "HALO outperforms state-of-the-art active learning baselines under domain shift."
+    table_quote = "Table 1 reports HALO and supervised domain adaptation baseline results."
+    inventory = [
+        {
+            "quote": table_quote,
+            "locator": "Table 1",
+            "inventory_type": "baseline",
+            "observed_items": ["HALO"],
+        }
+    ]
+
+    def fake_paper_named_targets(view, claim_obj, max_items=2, allow_menu_supply_without_limited_comparison=False):
+        return [
+            {
+                "missing_item": "same-setting comparison against paper-named EqualAL baseline",
+                "baseline_name": "EqualAL",
+                "expectation_quote": "EqualAL incorporates a self-consistency signal for limited labeled data.",
+                "expectation_locator": "Related Work",
+                "expectation_grounding_label": "paper_grounded_exact",
+                "observed_inventory": inventory,
+            },
+            {
+                "missing_item": "same-setting comparison against paper-named PixelPick baseline",
+                "baseline_name": "PixelPick",
+                "expectation_quote": "PixelPick prioritizes specific pixels or regions over labeling entire images.",
+                "expectation_locator": "Related Work",
+                "expectation_grounding_label": "paper_grounded_exact",
+                "observed_inventory": inventory,
+            },
+        ][:max_items]
+
+    monkeypatch.setattr(
+        review_state_mod,
+        "_paper_named_prior_baseline_seed_targets",
+        fake_paper_named_targets,
+    )
+    monkeypatch.setattr(review_state_mod, "_review_issue_component_ablation_seed_targets", lambda *args, **kwargs: [])
+    monkeypatch.setattr(review_state_mod, "_review_issue_scope_or_robustness_seed_targets", lambda *args, **kwargs: [])
+    monkeypatch.setattr(review_state_mod, "_review_issue_protocol_seed_targets", lambda *args, **kwargs: [])
+    monkeypatch.setattr(review_state_mod, "_review_issue_efficiency_cost_seed_targets", lambda *args, **kwargs: [])
+    monkeypatch.setattr(review_state_mod, "_review_issue_reproducibility_seed_targets", lambda *args, **kwargs: [])
+
+    menu = review_state_mod._review_issue_candidate_menu_for_claim(
+        {"paper_text": f"{claim}\n{table_quote}"},
+        {
+            "claim_id": "claim-2",
+            "claim": claim,
+            "claim_kind": "paper_extracted",
+            "claim_type": "empirical",
+            "claim_obligations": ["baseline_or_comparison"],
+        },
+        max_items=6,
+    )
+    paper_named_items = [
+        item for item in menu
+        if item.get("source") == "deterministic_paper_named_baseline_menu"
+    ]
+
+    assert [item["paper_named_baseline_name"] for item in paper_named_items] == ["EqualAL", "PixelPick"]
+    menu_ids = [item["candidate_menu_id"] for item in paper_named_items]
+    assert len(set(menu_ids)) == 2
+    assert menu_ids[0] != menu_ids[1]
+
+
 def test_paper_named_baseline_menu_supply_uses_baseline_obligation_for_best_result_claim():
     claim = "Our model achieves the best results on the OrcaBench evaluation benchmark."
     result_quote = (
@@ -15547,6 +15612,8 @@ def test_review_issue_menu_quality_rejects_template_scope_and_result_placeholder
         "EER result table for the claimed effect",
         "quantitative result table or metric for RNN",
         "quantitative result table or metric for OGL",
+        "quantitative result for Something-Else",
+        "quantitative result table for Something-Else",
     ]:
         assert (
             review_state_mod._review_issue_candidate_menu_quality_failure(
@@ -15584,6 +15651,16 @@ def test_review_issue_menu_quality_rejects_template_scope_and_result_placeholder
             expected_entity="metric definition or threshold selection protocol",
             claim_text="The evaluation uses standard metrics such as Top-1 accuracy.",
             inventory_text="Performance Measure. In all experiments we compare the Top-1 accuracy.",
+            source="runner_seed_blueprint",
+        )
+        == "evaluation_protocol_menu_generic_target"
+    )
+    assert (
+        review_state_mod._review_issue_candidate_menu_quality_failure(
+            neg_type="evaluation_protocol_risk",
+            expected_entity="metric reporting protocol or comparability setting",
+            claim_text="The paper reports intervention success rate results.",
+            inventory_text="Additionally, the lack of standardized applications and evaluation metrics is discussed.",
             source="runner_seed_blueprint",
         )
         == "evaluation_protocol_menu_generic_target"

@@ -2547,7 +2547,38 @@ def _review_issue_selected_menu_sample_state():
     }
 
 
-def test_review_issue_seed_candidates_from_targets_are_candidates_only():
+def test_review_issue_seed_candidates_from_targets_are_candidates_only(monkeypatch):
+    inventory = {
+        "inventory_id": "inv-rankhead-ablation",
+        "quote": "Table 2 reports ablation variants for the encoder and decoder components.",
+        "locator": "Table 2",
+        "inventory_type": "ablation",
+        "requirement_types": ["ablation_or_component", "empirical_result"],
+        "observed_items": ["encoder", "decoder"],
+    }
+
+    def fake_targets(state, claims=None, max_items=12):
+        return [
+            {
+                "claim_id": "claim-1",
+                "claim": "RankHead improves ranking accuracy by using a learned routing module.",
+                "claim_type": "method",
+                "paper_evaluation_inventory": [inventory],
+                "entity_level_claim_obligations": [
+                    {
+                        "obligation_id": "obligation-claim-1-missing-ablation-rankhead",
+                        "issue_type": "missing_ablation",
+                        "required_evidence_type": "ablation_or_component",
+                        "expected_entity": "ablation isolating RankHead routing module",
+                        "entity_source": "method_component",
+                    }
+                ],
+            }
+        ]
+
+    monkeypatch.setattr(review_runner_mod, "_hard_negative_diagnosis_targets", fake_targets)
+    monkeypatch.setattr(review_runner_mod, "_review_issue_component_ablation_seed_targets", lambda *args, **kwargs: [])
+
     seeds = _seed_review_issue_candidates_from_targets(_review_issue_seed_sample_state(), max_candidates=4)
 
     assert seeds
@@ -2589,6 +2620,65 @@ def test_review_issue_seed_candidates_skip_limitation_boundary_claims(monkeypatc
 
     seeds = review_runner_mod._seed_review_issue_candidates_from_targets(
         {"claims": [{"claim_id": "claim-scope"}]},
+        max_candidates=4,
+    )
+
+    assert seeds == []
+
+
+def test_review_issue_seed_candidates_filter_placeholder_result_and_protocol_targets(monkeypatch):
+    result_inventory = {
+        "inventory_id": "inv-figure-5",
+        "quote": (
+            "Figure 5: Comparing performance of TCMT against VL-Prompting "
+            "across all action classes on the Sth-Else dataset."
+        ),
+        "locator": "Figure 5",
+        "inventory_type": "baseline",
+        "requirement_types": ["baseline_or_comparison", "empirical_result", "scope_coverage"],
+        "observed_items": ["VL-Prompting"],
+    }
+    protocol_inventory = {
+        "inventory_id": "paper-inventory-2",
+        "quote": (
+            "Additionally, the lack of standardized applications, motivations, "
+            "and evaluation metrics makes it difficult to assess practical utility."
+        ),
+        "locator": "paper inventory #2",
+        "inventory_type": "protocol",
+        "requirement_types": ["evaluation_protocol", "empirical_result"],
+        "observed_items": ["Additionally"],
+    }
+
+    def fake_targets(state, claims=None, max_items=12):
+        return [
+            {
+                "claim_id": "claim-2",
+                "claim": "TCMT achieves superior empirical performance on the Something-Else dataset.",
+                "claim_type": "empirical",
+                "paper_evaluation_inventory": [result_inventory, protocol_inventory],
+                "entity_level_claim_obligations": [
+                    {
+                        "obligation_id": "obligation-claim-2-insufficient-evaluation",
+                        "issue_type": "insufficient_evaluation",
+                        "required_evidence_type": "empirical_result",
+                        "expected_entity": "quantitative result for Something-Else",
+                    },
+                    {
+                        "obligation_id": "obligation-claim-2-evaluation-protocol",
+                        "issue_type": "evaluation_protocol_risk",
+                        "required_evidence_type": "evaluation_protocol",
+                        "expected_entity": "metric reporting protocol or comparability setting",
+                    },
+                ],
+            }
+        ]
+
+    monkeypatch.setattr(review_runner_mod, "_hard_negative_diagnosis_targets", fake_targets)
+    monkeypatch.setattr(review_runner_mod, "_review_issue_component_ablation_seed_targets", lambda *args, **kwargs: [])
+
+    seeds = review_runner_mod._seed_review_issue_candidates_from_targets(
+        {"claims": [{"claim_id": "claim-2"}]},
         max_candidates=4,
     )
 
@@ -2680,6 +2770,65 @@ def test_review_issue_selector_snapshot_exposes_runner_seed_candidates(monkeypat
     assert trace["review_issue_selected_menu_recovery_used"] is True
     assert len(updated["reviewer_negative_candidates"]) == 1
     assert "review_issue_seed_fallback_used" not in trace
+
+
+def test_runner_seed_selector_menu_ids_disambiguate_truncated_targets(monkeypatch):
+    inventory = {
+        "inventory_id": "inv-baseline-table",
+        "quote": "Table 1 reports HALO and supervised domain adaptation baseline results.",
+        "locator": "Table 1",
+        "observed_items": ["HALO"],
+        "inventory_type": "baseline",
+    }
+
+    def fake_seed_candidates(state, max_candidates=12):
+        return [
+            {
+                "candidate_id": "reviewer-seed-candidate-equalal",
+                "claim_id": "claim-2",
+                "claim": "HALO outperforms state-of-the-art active learning baselines.",
+                "weakness": "The paper lacks a same-setting comparison against EqualAL.",
+                "negative_type": "missing_baseline",
+                "required_evidence_type": "baseline_or_comparison",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["same-setting comparison against paper-named EqualAL baseline"],
+                "observed_inventory": [inventory],
+                "status": "pending_absence_audit",
+                "source": "runner_seed_blueprint",
+                "discovery_origin": "runner_seed_blueprint",
+                "entity_source": "paper_named_related_method",
+            },
+            {
+                "candidate_id": "reviewer-seed-candidate-pixelpick",
+                "claim_id": "claim-2",
+                "claim": "HALO outperforms state-of-the-art active learning baselines.",
+                "weakness": "The paper lacks a same-setting comparison against PixelPick.",
+                "negative_type": "missing_baseline",
+                "required_evidence_type": "baseline_or_comparison",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["same-setting comparison against paper-named PixelPick baseline"],
+                "observed_inventory": [inventory],
+                "status": "pending_absence_audit",
+                "source": "runner_seed_blueprint",
+                "discovery_origin": "runner_seed_blueprint",
+                "entity_source": "paper_named_related_method",
+            },
+        ]
+
+    monkeypatch.setattr(review_runner_mod, "_seed_review_issue_candidates_from_targets", fake_seed_candidates)
+
+    menu = review_runner_mod._seed_review_issue_candidate_menu_items_from_state(
+        {"claims": [{"claim_id": "claim-2"}]},
+        max_items=4,
+    )
+
+    assert [item["expected_entity"] for item in menu] == [
+        "same-setting comparison against paper-named EqualAL baseline",
+        "same-setting comparison against paper-named PixelPick baseline",
+    ]
+    menu_ids = [item["candidate_menu_id"] for item in menu]
+    assert len(set(menu_ids)) == 2
+    assert menu_ids[0] != menu_ids[1]
 
 
 def test_selected_runner_seed_menu_candidate_preserves_claim_for_normalizer():

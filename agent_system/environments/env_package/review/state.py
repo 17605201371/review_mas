@@ -13727,6 +13727,22 @@ def _review_issue_candidate_menu_quality_failure(
             expected_l,
         ):
             return "insufficient_evaluation_menu_generic_result_target"
+        if re.fullmatch(
+            r"quantitative\s+result\s+for\s+[a-z0-9][a-z0-9_+\-/]*(?:[-\s][a-z0-9_+\-/]+){0,3}",
+            expected_l,
+        ) and (
+            "entity_claim_obligation" in str(source or "")
+            or "runner_seed" in str(source or "")
+        ):
+            return "insufficient_evaluation_menu_generic_result_target"
+        if re.fullmatch(
+            r"quantitative\s+result\s+table\s+for\s+[a-z0-9][a-z0-9_+\-/]*(?:[-\s][a-z0-9_+\-/]+){0,3}",
+            expected_l,
+        ) and (
+            "entity_claim_obligation" in str(source or "")
+            or "runner_seed_entity_obligation" in str(source or "")
+        ):
+            return "insufficient_evaluation_menu_generic_result_target"
         if re.search(r"\bstate[- ]of[- ]the[- ]art\b", expected_l):
             return "scope_menu_generic_target"
         if re.fullmatch(
@@ -13849,6 +13865,7 @@ def _review_issue_candidate_menu_quality_failure(
         if re.fullmatch(
             r"(?:train/test\s+or\s+validation\s+split\s+definition|"
             r"metric\s+definition\s+or\s+threshold\s+selection\s+protocol|"
+            r"metric\s+reporting\s+protocol\s+or\s+comparability\s+setting|"
             r"random\s+seed\s*/\s*repeated[- ]run\s+protocol|"
             r"same[- ]budget\s+or\s+same[- ]hardware\s+comparison\s+setting|"
             r"protocol\s+definition\s+for\s+evaluating\s+.+\s+under\s+the\s+claimed\s+setting|"
@@ -14067,6 +14084,25 @@ def _review_issue_candidate_menu_id(
     return f"rim-{claim_token}-{type_token}-{target_token}"
 
 
+def _review_issue_disambiguate_candidate_menu_id(
+    menu_id: str,
+    used_ids: set[str],
+    fallback_index: int,
+) -> str:
+    base = str(menu_id or "").strip()
+    if not base:
+        base = f"rim-c{int(fallback_index or 1)}-ri-{int(fallback_index or 1)}"
+    candidate = base
+    suffix = max(2, int(fallback_index or 1))
+    while candidate in used_ids:
+        suffix_text = f"-{suffix}"
+        root = base[: max(8, 80 - len(suffix_text))].rstrip("-")
+        candidate = f"{root}{suffix_text}"
+        suffix += 1
+    used_ids.add(candidate)
+    return candidate
+
+
 def _review_issue_candidate_menu_worthiness_reason(
     issue_type: str,
     expected_entity: str,
@@ -14195,6 +14231,7 @@ def _review_issue_candidate_menu_for_claim(
         return []
     results: List[Dict[str, Any]] = []
     seen: set[Tuple[str, str]] = set()
+    used_menu_ids: set[str] = set()
 
     def add_menu(item: Dict[str, Any]) -> None:
         if not item:
@@ -14207,10 +14244,14 @@ def _review_issue_candidate_menu_for_claim(
             return
         seen.add(key)
         item = dict(item)
-        item["candidate_menu_id"] = _review_issue_candidate_menu_id(
-            str(item.get("claim_id") or ""),
-            str(item.get("issue_type") or ""),
-            str(item.get("verifier_target_entity") or item.get("expected_entity") or ""),
+        item["candidate_menu_id"] = _review_issue_disambiguate_candidate_menu_id(
+            _review_issue_candidate_menu_id(
+                str(item.get("claim_id") or ""),
+                str(item.get("issue_type") or ""),
+                str(item.get("verifier_target_entity") or item.get("expected_entity") or ""),
+                len(results) + 1,
+            ),
+            used_menu_ids,
             len(results) + 1,
         )
         results.append(item)

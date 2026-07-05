@@ -34,6 +34,7 @@ from agent_system.environments.env_package.review.state import (
     _review_issue_candidate_menu_id,
     _review_issue_candidate_selector_menu,
     _review_issue_component_ablation_seed_targets,
+    _review_issue_disambiguate_candidate_menu_id,
     _review_issue_missing_items_are_concrete,
     _review_issue_normalized_cluster_target,
     _review_issue_slot_for_type,
@@ -3205,6 +3206,7 @@ def _seed_review_issue_candidate_menu_items_from_state(
     candidates = normalized.get("reviewer_negative_candidates", [])
     items: List[Dict[str, Any]] = []
     seen_clusters: set[Tuple[str, str, str]] = set()
+    used_menu_ids: set[str] = set()
     for candidate in candidates:
         if not isinstance(candidate, dict):
             continue
@@ -3214,6 +3216,12 @@ def _seed_review_issue_candidate_menu_items_from_state(
         menu_item = _menu_item_from_seed_review_issue_candidate(candidate, len(items) + 1)
         if not menu_item:
             continue
+        menu_item = dict(menu_item)
+        menu_item["candidate_menu_id"] = _review_issue_disambiguate_candidate_menu_id(
+            str(menu_item.get("candidate_menu_id") or ""),
+            used_menu_ids,
+            len(items) + 1,
+        )
         if cluster_key[0]:
             seen_clusters.add(cluster_key)
         items.append(menu_item)
