@@ -3553,3 +3553,30 @@ Conclusion: the sample3 blocker is no longer a stale-menu diagnostic problem.
 It is a real menu supply / selector quality problem.  Next work should use the
 failure mix above to improve concrete verifier-survivable menu targets after
 the JSON response-format A/B is rerun with a valid MiMo key.
+
+P31.12 JSON response-format A/B follow-up (20260705):
+
+- Checked the MiMo credentials path.  The `.env` `MIMO_API_KEY` is valid; the
+  earlier 401 happened because the failing command did not source `.env` and
+  runner fell through to the shell `OPENAI_API_KEY`.
+- `DRMAS_JSON_RESPONSE_FORMAT=on` sample3 completed successfully:
+
+```text
+run = p31_12_jsonfmt_on_sample3_20260705_121250
+rows = 3
+evidence_json_valid_turns = 10
+evidence_json_fallback_turns = 0
+evidence_json_fallback_rate_pct = 0
+evidence_json_no_json_object_turns = 0
+state_contamination_count = 0
+positive_or_neutral_negative_candidate_count = 0
+```
+
+- Generated artifacts:
+  `P31_12_JSONFMT_ON_SAMPLE3_20260705_121250_*`.
+- `DRMAS_JSON_RESPONSE_FORMAT=off` sample3 did not complete: MiMo returned
+  `402 insufficient account balance` after several successful API calls, and
+  `p31_12_jsonfmt_off_sample3_20260705_121616.jsonl` has 0 rows.
+- Current conclusion: response-format `on` is freshly smoke-validated on 3
+  papers with fallback rate 0, but the requested live on/off A/B is incomplete
+  until account balance is restored.

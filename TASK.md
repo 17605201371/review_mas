@@ -912,4 +912,20 @@ Next:
      and not-materialized bundle candidates.
   3. Do not loosen verifier/validator gates and do not enter P32 until the
      fresh hardneg20 gate is satisfied.
+
+Follow-up:
+  - MiMo key in .env is valid; the earlier 401 came from running without
+    sourcing .env and falling through to OPENAI_API_KEY.
+  - DRMAS_JSON_RESPONSE_FORMAT=on sample3 completed:
+      run = p31_12_jsonfmt_on_sample3_20260705_121250
+      rows = 3
+      evidence_json_valid_turns = 10
+      evidence_json_fallback_turns = 0
+      evidence_json_fallback_rate_pct = 0
+      evidence_json_no_json_object_turns = 0
+  - DRMAS_JSON_RESPONSE_FORMAT=off sample3 could not complete because MiMo
+    returned 402 insufficient account balance after multiple calls; output
+    jsonl has 0 rows.
+  - P0 is partially revalidated for response_format=on, but the requested live
+    on/off A/B remains incomplete until account balance is restored.
 ```
