@@ -12174,10 +12174,11 @@ def test_generic_claim_obligation_without_entity_stays_unverified():
 
 
 def test_review_issue_bundle_allows_empirical_claim_with_noisy_limitation_tag():
-    claim = "CDiffuser demonstrates a significant advantage over baselines in low-quality datasets."
-    inventory_quote = "Table 2 reports CDiffuser and baseline performance on Kitchen low-quality datasets."
+    claim = "HALO demonstrates a significant advantage over baselines in low-quality datasets."
+    inventory_quote = "Table 2 reports HALO and baseline performance on Kitchen low-quality datasets."
+    expectation_quote = "Related Work. EqualAL is a strong active-learning baseline for low-quality datasets."
     state = {
-        "paper_text": f"{claim}\n\n{inventory_quote}",
+        "paper_text": f"{claim}\n\n{expectation_quote}\n\n{inventory_quote}",
         "claims": [
             {
                 "claim_id": "claim-1",
@@ -12195,20 +12196,37 @@ def test_review_issue_bundle_allows_empirical_claim_with_noisy_limitation_tag():
             {
                 "candidate_id": "reviewer-neg-candidate-low-quality-baseline",
                 "claim_id": "claim-1",
-                "weakness": "The low-quality comparison may omit a Conservative Q-Learning baseline.",
+                "weakness": "The low-quality comparison may omit an EqualAL baseline.",
                 "negative_type": "unfair_or_weak_baseline",
                 "required_evidence_type": "baseline_or_comparison",
                 "quote_grounding_mode": "absence_or_requirement_gap",
-                "missing_or_weak_items": ["Conservative Q-Learning baseline"],
+                "missing_or_weak_items": [
+                    "same-setting comparison against paper-named EqualAL baseline"
+                ],
                 "observed_inventory": [
                     {
                         "quote": inventory_quote,
                         "locator": "Table 2",
-                        "observed_items": ["CDiffuser", "baseline performance", "Kitchen low-quality datasets"],
+                        "observed_items": ["HALO", "baseline performance", "Kitchen low-quality datasets"],
                     }
                 ],
                 "status": "pending_absence_audit",
                 "source_of_expectation": "reviewer_candidate",
+                "discovery_origin": "critique_payload_menu_selected",
+                "entity_source": "paper_named_related_method",
+                "review_issue_candidate_menu_item": {
+                    "candidate_menu_id": "rim-c1-mb-equalal",
+                    "claim_id": "claim-1",
+                    "issue_type": "unfair_or_weak_baseline",
+                    "required_evidence_type": "baseline_or_comparison",
+                    "expected_entity": "same-setting comparison against paper-named EqualAL baseline",
+                    "verifier_target_entity": "same-setting comparison against paper-named EqualAL baseline",
+                    "entity_source": "paper_named_related_method",
+                    "source": "deterministic_paper_named_baseline_menu",
+                    "paper_named_baseline_name": "EqualAL",
+                    "paper_named_baseline_expectation_quote": expectation_quote,
+                    "counterevidence_search_terms": ["EqualAL", "paper-named"],
+                },
             }
         ],
         "flaw_candidates": [],
@@ -14142,7 +14160,7 @@ def test_review_issue_bundle_rejects_candidate_introduced_efficiency_gap_without
     assert hygiene["verified_review_issue_count"] == 0
 
 
-def test_review_issue_bundle_rejects_speedup_claim_when_inventory_lacks_resource_measurement():
+def test_review_issue_bundle_accepts_speedup_claim_when_inventory_lacks_resource_measurement():
     claim = "The adaptive decoding method achieves higher speedup than baselines while preserving output quality."
     inventory_quote = "Table 2 reports acceptance rate and output quality for adaptive decoding baselines."
     state = {
@@ -14180,9 +14198,10 @@ def test_review_issue_bundle_rejects_speedup_claim_when_inventory_lacks_resource
 
     hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
 
-    assert hygiene["obligation_grounded_review_issue_count"] == 0
-    assert hygiene["verified_review_issue_count"] == 0
-    assert hygiene["obligation_grounded_review_issue_type_counts"].get("efficiency_cost_gap", 0) == 0
+    assert hygiene["obligation_grounded_review_issue_count"] == 1
+    assert hygiene["verified_review_issue_count"] == 1
+    assert hygiene["obligation_grounded_review_issue_type_counts"]["efficiency_cost_gap"] == 1
+    assert hygiene["review_issue_cluster_type_counts"]["efficiency_cost_gap"] == 1
 
 
 def test_review_issue_bundle_accepts_quantitative_gap_when_inventory_is_qualitative():
@@ -15585,6 +15604,40 @@ def test_p32_precision_scope_counterevidence_rejects_generic_heldout_method_fami
             review_state_mod._review_issue_full_text_counterevidence_reason(
                 bundle,
                 {"paper_text": f"{claim}\n\n{paper_suffix}"},
+                neg_type=neg_type,
+            )
+            == "full_text_evaluation_or_scope_counterevidence"
+        )
+
+
+def test_p32_precision_scope_counterevidence_rejects_ft3d_source_train_multi_target_eval():
+    claim = "The method demonstrates cross-dataset generalization, performing well on datasets it was not trained on."
+    paper_text = (
+        f"{claim} "
+        "We train our model only with the FlyingThings3D (FT3D) dataset. "
+        "At test time, we evaluate on four VOS benchmarks: DAVIS2016, "
+        "SegTrackV2, FBMS59, and DAVIS2017-motion. "
+        "The results show that the model generalizes well to unseen datasets."
+    )
+
+    for neg_type in ("missing_robustness_or_generalization", "scope_overclaim"):
+        bundle = {
+            "issue_type": neg_type,
+            "missing_or_mismatch": {
+                "entity": "held-out or coverage evaluation for cross-dataset",
+                "items": [
+                    "held-out or coverage evaluation for cross-dataset",
+                    "held-out or coverage evaluation for FlyingThings3D",
+                ],
+            },
+            "claim_anchor": {"quote": claim},
+            "source_of_expectation": "reviewer_candidate",
+        }
+
+        assert (
+            review_state_mod._review_issue_full_text_counterevidence_reason(
+                bundle,
+                {"paper_text": paper_text},
                 neg_type=neg_type,
             )
             == "full_text_evaluation_or_scope_counterevidence"
@@ -19130,6 +19183,45 @@ def test_p32_precision_ablation_counterevidence_catches_global_encoder_architect
             "quote": (
                 "LogoRA proposes a novel local-global representation alignment "
                 "framework using a two-branch encoder."
+            )
+        },
+        "source_of_expectation": "reviewer_candidate",
+    }
+
+    assert (
+        review_state_mod._review_issue_full_text_counterevidence_reason(
+            bundle,
+            {"paper_text": paper_text},
+            neg_type="missing_ablation",
+        )
+        == "full_text_ablation_counterevidence"
+    )
+
+
+def test_p32_precision_ablation_counterevidence_catches_logora_self_attention_architecture_table():
+    decoy_target_mentions = " ".join(
+        "The fusion module uses self-attention to model feature dependencies."
+        for _ in range(24)
+    )
+    paper_text = (
+        "LogoRA introduces a novel two-branch encoder with local and global "
+        "branches for time series feature extraction and an alignment mechanism. "
+        f"{decoy_target_mentions} "
+        "Ablation studies of model architecture. "
+        "The table includes TCN, Transformer, PatchTST, Transformer + TCN, "
+        "Global Encoder + TCN, Global Encoder + Local Encoder, and LogoRA."
+    )
+    bundle = {
+        "issue_type": "missing_ablation",
+        "missing_or_mismatch": {
+            "entity": "feature dependencies by self-attention mechanism",
+            "items": ["feature dependencies by self-attention mechanism"],
+        },
+        "claim_anchor": {
+            "quote": (
+                "LogoRA introduces a novel two-branch encoder with local and "
+                "global branches for time series feature extraction and an "
+                "alignment mechanism."
             )
         },
         "source_of_expectation": "reviewer_candidate",

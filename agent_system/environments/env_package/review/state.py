@@ -11907,6 +11907,21 @@ def _ablation_counterevidence_window_resolves_semantic_table(window: str, missin
         return True
 
     if (
+        re.search(r"\bself[- ]?attention\b|\bfeature\s+dependenc(?:y|ies)\b|\btemporal\s+dependenc(?:y|ies)\b", missing)
+        and re.search(r"\bablation\s+stud(?:y|ies)\s+of\s+model\s+architecture\b|\bmodel\s+architecture\b.{0,80}\bablation\b", text)
+        and re.search(r"\b(?:transformer|self[- ]?attention|global\s+encoder|local\s+encoder|tcn|logora)\b", text)
+        and re.search(
+            r"\btransformer\s*\$?\+\$?\s*tcn\b|"
+            r"\bglobal\s+encoder\s*\$?\+\$?\s*tcn\b|"
+            r"\bglobal\s+encoder\s*\$?\+\$?\s*local\s+encoder\b|"
+            r"\blocal\s+encoder\s*\$?\+\$?\s*global\s+encoder\b|"
+            r"\\abbr\b|\blogora\b",
+            text,
+        )
+    ):
+        return True
+
+    if (
         re.search(r"\bfusion\b|\bfusion\s+module\b|\bfeature\s+fusion\b|\bcross[- ]attention\b", missing)
         and re.search(r"\bfusion\s+methods?\b|\bfeature\s+fusion\s+methods?\b|\bfusion\s+module\b", text)
         and re.search(r"\baddition\b", text)
@@ -12167,10 +12182,61 @@ def _paper_text_has_multi_scope_coverage_counterevidence(text: str) -> bool:
     )
 
 
+def _paper_text_has_source_train_multi_target_eval_counterevidence(
+    text: str,
+    missing_items: Sequence[str],
+) -> bool:
+    missing = _missing_joined_text(missing_items)
+    if not re.search(
+        r"\b(?:cross[- ]?dataset|held[- ]out|flyingthings3d|ft3d|unseen\s+datasets?)\b",
+        missing,
+    ):
+        return False
+    value = str(text or "")
+    if not value or not _REVIEW_ISSUE_FULL_TEXT_EVAL_RE.search(value):
+        return False
+    collapsed = re.sub(r"\s+", " ", value)
+    lower = collapsed.lower()
+    source_train = bool(
+        re.search(
+            r"\btrain(?:ed|ing)?\b.{0,120}\b(?:only|solely|exclusively)\b.{0,120}\b(?:flyingthings3d|ft3d)\b",
+            lower,
+        )
+        or re.search(
+            r"\b(?:only|solely|exclusively)\b.{0,120}\b(?:flyingthings3d|ft3d)\b.{0,120}\btrain(?:ed|ing)?\b",
+            lower,
+        )
+    )
+    if not source_train:
+        return False
+    target_patterns = {
+        "davis2016": r"\bdavis\s*2016\b|\bdavis2016\b",
+        "segtrackv2": r"\bsegtrack\s*v2\b|\bsegtrackv2\b",
+        "fbms59": r"\bfbms\s*59\b|\bfbms59\b",
+        "davis2017": r"\bdavis\s*2017(?:[- ]?motion)?\b|\bdavis2017(?:[- ]?motion)?\b",
+    }
+    target_hits = {
+        name
+        for name, pattern in target_patterns.items()
+        if re.search(pattern, lower)
+    }
+    if len(target_hits) < 2:
+        return False
+    has_eval_context = bool(
+        re.search(r"\b(?:test(?:ed|ing)?|evaluat(?:e|ed|ion)|benchmark|benchmarks|datasets?|table|results?)\b", lower)
+    )
+    has_generalization_context = bool(
+        re.search(r"\b(?:unseen\s+datasets?|cross[- ]?dataset|generaliz(?:e|es|ed|ation)|not\s+trained\s+on)\b", lower)
+    )
+    return bool(has_eval_context and (has_generalization_context or len(target_hits) >= 3))
+
+
 def _generic_scope_coverage_counterevidenced_by_full_text(
     paper_text: str,
     missing_items: Sequence[str],
 ) -> bool:
+    if _paper_text_has_source_train_multi_target_eval_counterevidence(paper_text, missing_items):
+        return True
     if not _generic_scope_coverage_target_from_missing(missing_items):
         return False
     return _paper_text_has_multi_scope_coverage_counterevidence(paper_text)

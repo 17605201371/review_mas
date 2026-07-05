@@ -1,0 +1,101 @@
+{
+  "latest_run": {
+    "run_base": "mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok2048_20260706_010029",
+    "jsonl": "mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok2048_20260706_010029.jsonl",
+    "jsonl_exists": true,
+    "jsonl_lines": 20,
+    "log": "mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok2048_20260706_010029.log",
+    "log_exists": true,
+    "pid": "28558",
+    "running": false,
+    "pid_file_exists": true
+  },
+  "latest_pointers": {
+    ".latest_hardneg20_dashboard": "P32_CLEAN_R3_PRECISION_RECOMPUTE_20260706_010000_HARDNEG20_DASHBOARD.md",
+    ".latest_hardneg20_review_issue_cases": "P32_CLEAN_R3_PRECISION_RECOMPUTE_20260706_010000_REVIEW_ISSUE_CASE_TABLE.md",
+    ".latest_hardneg20_recovery_case": "P32_CLEAN_R3_PRECISION_RECOMPUTE_20260706_010000_RECOVERY_CASE_TABLE.md",
+    ".latest_hardneg20_log": "mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok2048_20260706_010029.log"
+  },
+  "entry_gate": {
+    "path": "P32_CLEAN_R3_PRECISION_RECOMPUTE_20260706_010000_ENTRY_GATE_WITH_MANUAL_AUDIT.json",
+    "exists": true,
+    "machine_gate_status": "PASS",
+    "manual_gate_status": "PASS",
+    "blocking_issues": [],
+    "headline_metrics": {
+      "verified_review_issue_count": 17,
+      "verified_review_issue_cluster_recomputed_count": 9,
+      "quote_duplicate_merged_verified_review_issue_cluster_count": 9,
+      "critique_payload_verified_cluster_count": 6,
+      "critique_direct_verified_cluster_count": 6,
+      "critique_selected_existing_seed_cluster_count": 0,
+      "verified_review_issue_cluster_origin_critique_payload_count": 5,
+      "mark_contested_commit_count": 16,
+      "verified_issue_cluster_without_recovery_count": 0,
+      "candidate_menu_item_verified_count": 6,
+      "candidate_menu_item_failed_count": 7
+    },
+    "manual_audit_summary": {
+      "system_clusters": 9,
+      "critique_origin_clusters": 6,
+      "manual_A_clusters": 3,
+      "manual_B_clusters": 4,
+      "manual_A_B_clusters": 7,
+      "manual_C_clusters": 2,
+      "manual_D_clusters": 0,
+      "manual_MERGE_clusters": 0,
+      "unfilled_clusters": 0,
+      "manual_A_B_clusters_by_origin": {
+        "critique_payload": 5,
+        "deterministic_seed": 2
+      },
+      "manual_D_clusters_by_origin": {},
+      "cluster_count_by_origin": {
+        "critique_payload": 6,
+        "deterministic_seed": 3
+      },
+      "critique_origin_manual_A_B_clusters": 5,
+      "deterministic_seed_manual_A_B_clusters": 2,
+      "critique_origin_D_clusters": 0,
+      "status": "PASS",
+      "blocking_issues": []
+    }
+  },
+  "manual_validation": {
+    "path": "P32_CLEAN_R3_PRECISION_RECOMPUTE_20260706_010000_MANUAL_AUDIT_VALIDATION.json",
+    "exists": true,
+    "summary": {
+      "system_clusters": 9,
+      "critique_origin_clusters": 6,
+      "manual_A_clusters": 3,
+      "manual_B_clusters": 4,
+      "manual_A_B_clusters": 7,
+      "manual_C_clusters": 2,
+      "manual_D_clusters": 0,
+      "manual_MERGE_clusters": 0,
+      "unfilled_clusters": 0,
+      "manual_A_B_clusters_by_origin": {
+        "critique_payload": 5,
+        "deterministic_seed": 2
+      },
+      "manual_D_clusters_by_origin": {},
+      "cluster_count_by_origin": {
+        "critique_payload": 6,
+        "deterministic_seed": 3
+      },
+      "critique_origin_manual_A_B_clusters": 5,
+      "deterministic_seed_manual_A_B_clusters": 2,
+      "critique_origin_D_clusters": 0,
+      "status": "PASS",
+      "blocking_issues": []
+    }
+  },
+  "api_preflight": {
+    "status": "not_run",
+    "ok": false,
+    "error": ""
+  },
+  "pipeline_command": "scripts/p31_6_full20_pipeline.sh --launch --wait --update-latest",
+  "next_action": "P31.6 gate appears ready for P32 review; verify manual audit provenance before entering P32.",
+  "p32_entry_ready": true
+}

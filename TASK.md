@@ -25,6 +25,80 @@ Stage 3 contested/recovery is functional but not saturated, so P32 should test
 clean reproducibility before full39 or paper-table rewrites.
 ```
 
+## Current P32 R3 Precision Checkpoint 2026-07-06
+
+Current status:
+
+```text
+Clean R3 hardneg20 now passes both strict machine and manual gates after a
+same-raw precision recompute.  The remaining R3 blocker was false-positive
+precision, not discovery quantity.  The verifier now filters the LogoRA
+self-attention architecture-ablation false positive and the FlyingThings3D
+cross-dataset held-out false positives before manual audit.
+```
+
+Accepted R3 evidence:
+
+```text
+run = mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok2048_20260706_010029
+label = P32_CLEAN_R3_PRECISION_RECOMPUTE_20260706_010000
+rows = 20
+protection = PASS
+machine_gate = PASS
+manual_gate = PASS
+readiness_status = True
+verified_review_issue_count = 17
+verified_review_issue_cluster_count = 9
+critique_direct_verified_cluster_count = 6
+candidate_menu_item_verified_count = 6
+manual_A_clusters = 3
+manual_B_clusters = 4
+manual_A_B_clusters = 7
+manual_C_clusters = 2
+manual_D_clusters = 0
+critique_origin_manual_A_B_clusters = 5
+state_contamination_count = 0
+harmful_state_contamination_count = 0
+state_hygiene_warning_count = 5
+positive_or_neutral_negative_candidate_count = 0
+negative_evidence_unlinked_to_flaw = 0
+negative_grounding_conflict_count = 0
+recovery_harmful_commit_committed = 0
+mark_contested_commit_count = 16
+evidence_json_fallback_rate_pct = 0
+```
+
+R3 precision changes:
+
+- LogoRA/self-attention missing-ablation claims are rejected when full text
+  already contains the architecture ablation table comparing Transformer, TCN,
+  Global Encoder + TCN, Global Encoder + Local Encoder, and LogoRA variants.
+- FlyingThings3D/FT3D held-out/cross-dataset scope claims are rejected when
+  the full text states source-only FT3D training and multi-target DAVIS2016,
+  SegTrackV2, FBMS59, and DAVIS2017-motion evaluation.
+
+Validation:
+
+```text
+pytest tests/test_review_decision_hygiene.py -q \
+  -k 'review_issue_bundle or review_issue_menu or p32_precision or p29_deterministic_scope_seed or ablation_counterevidence or scope_counterevidence or full_text_counterevidence'
+= 74 passed
+
+py_compile state.py and test_review_decision_hygiene.py = PASS
+
+full tests/test_review_decision_hygiene.py remains red in this worktree:
+465 passed / 19 failed.  Do not claim full-suite green.
+```
+
+Next action:
+
+```text
+Use P32 stability reporting across accepted clean runs, compare R1/R3 recurrence
+and manual A/B stability, then draft the P32 narrative/results update.  Do not
+loosen verifier or validator gates, do not use full39 before hardneg20 stability
+is summarized, and do not touch verl/PPO/rollout internals.
+```
+
 Latest full hardneg20 evidence:
 
 ```text

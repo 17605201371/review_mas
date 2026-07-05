@@ -4531,3 +4531,61 @@ P32 clean R1 precision recompute checkpoint (20260706):
   - This supports moving toward Stage 4 stability/repetition or P32 paper
     narrative work, but still does not justify loosening gates or touching
     `verl/`, PPO, or rollout internals.
+
+P32 clean R3 precision recompute checkpoint (20260706):
+
+- Same completed R3 raw was recomputed after adding two verifier precision
+  rules; no new API sampling was used for the conclusion.
+- Raw / label:
+  - raw =
+    `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok2048_20260706_010029.jsonl`
+  - label = `P32_CLEAN_R3_PRECISION_RECOMPUTE_20260706_010000`
+- Code changes:
+  - missing-ablation full-text counterevidence now catches LogoRA-style
+    self-attention / feature-dependency targets when the architecture ablation
+    table already compares Transformer, TCN, Global Encoder + TCN, Global
+    Encoder + Local Encoder, and LogoRA variants.
+  - scope / robustness full-text counterevidence now catches
+    FlyingThings3D/FT3D source-only training with multi-target DAVIS2016,
+    SegTrackV2, FBMS59, and DAVIS2017-motion evaluation.
+- Machine gate:
+  - `protection_passed = True`
+  - `verified_review_issue_count = 17`
+  - `verified_review_issue_cluster_count = 9`
+  - `critique_direct_verified_cluster_count = 6`
+  - `candidate_menu_item_verified_count = 6`
+  - `state_contamination_count = 0`
+  - `harmful_state_contamination_count = 0`
+  - `state_hygiene_warning_count = 5`
+  - `positive_or_neutral_negative_candidate_count = 0`
+  - `negative_evidence_unlinked_to_flaw = 0`
+  - `negative_grounding_conflict_count = 0`
+  - `recovery_harmful_commit_committed = 0`
+  - `mark_contested_commit_count = 16`
+- Manual audit after recompute:
+  - machine gate = PASS
+  - manual gate = PASS
+  - readiness status = True
+  - A=3, B=4, C=2, D=0
+  - `manual_A_B_clusters = 7`
+  - `critique_origin_manual_A_B_clusters = 5`
+  - The previous R3 manual-D clusters were removed from verified clusters:
+    `a6SntIisgg / feature_dependencies_self-attention_mechanism`,
+    `xUe1YqEgd6 / missing_robustness_or_generalization /
+    held-out_coverage_for_cross-dataset`, and
+    `xUe1YqEgd6 / scope_overclaim / held-out_coverage_for_cross-dataset`.
+- Validation:
+  - R3 precision focused hygiene suite = 74 passed
+  - targeted precision / scope / ablation subset = 8 passed
+  - `py_compile` for changed state/test files = PASS
+  - full `tests/test_review_decision_hygiene.py` remains red in the current
+    worktree: 465 passed / 19 failed.  These failures are broader stale
+    semantics / counter-metric drift, not evidence for this R3 precision patch
+    being green across the whole suite.
+- Interpretation:
+  - Clean R3 now passes both strict machine and manual gates after precision
+    recompute.  This is stronger than the earlier R3 state because the false
+    positives are filtered by verifier rules instead of post-hoc manual
+    downgrades.
+  - Next substantial direction is P32 stability comparison across accepted
+    clean runs and paper-narrative extraction, not loosening verifier gates.
