@@ -317,11 +317,12 @@ def build_report(args: argparse.Namespace) -> Tuple[Dict[str, Any], int]:
             blocking.append(f"{name}: actual {actual}, required {required}")
 
     add_check("dashboard_protection_passed", bool(dashboard.get("protection_passed")), True, bool(dashboard.get("protection_passed")))
+    direct_critique_clusters = _as_int(metrics.get("critique_direct_verified_cluster_count"))
     add_check(
-        "critique_payload_verified_cluster_count",
-        _as_int(metrics.get("critique_payload_verified_cluster_count")),
+        "critique_direct_verified_cluster_count",
+        direct_critique_clusters,
         f">= {args.min_critique_clusters}",
-        _as_int(metrics.get("critique_payload_verified_cluster_count")) >= args.min_critique_clusters,
+        direct_critique_clusters >= args.min_critique_clusters,
     )
     add_check(
         "candidate_menu_item_verified_count",

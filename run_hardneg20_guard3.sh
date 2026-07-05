@@ -80,7 +80,7 @@ fi
 API_MAX_WORKERS="${API_MAX_WORKERS:-4}"
 API_MAX_RETRIES="${API_MAX_RETRIES:-5}"
 API_TIMEOUT="${API_TIMEOUT:-600}"
-MAX_TOKENS="${MAX_TOKENS:-768}"
+MAX_TOKENS="${MAX_TOKENS:-2048}"
 API_PREFLIGHT="${DRMAS_API_PREFLIGHT:-1}"
 
 # P27 review-issue bundle pipeline.  These flags keep direct quote-grounded

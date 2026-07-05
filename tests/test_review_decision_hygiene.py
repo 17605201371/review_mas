@@ -5146,17 +5146,21 @@ def test_decision_hygiene_emits_state_contamination_targets_and_gate_counts():
     hygiene = build_decision_hygiene_view(state)["decision_hygiene"]
     type_counts = hygiene["state_contamination_type_counts"]
     gate_counts = hygiene["recovery_target_gate_counts"]
+    warning_type_counts = hygiene["state_hygiene_warning_type_counts"]
+    warning_gate_counts = hygiene["state_hygiene_warning_gate_counts"]
 
-    assert hygiene["state_contamination_count"] >= 3
+    assert hygiene["state_contamination_count"] == 1
+    assert hygiene["state_contamination_count_legacy"] >= 3
     assert type_counts.get("unsupported_with_strong_support", 0) == 0
-    assert type_counts["stale_gap_persistence"] == 1
     assert type_counts["unsupported_flaw_escalation"] == 1
-    assert type_counts["negative_evidence_overclaim"] == 1
+    assert warning_type_counts["stale_gap_persistence"] == 1
+    assert warning_type_counts["negative_evidence_overclaim"] == 1
     assert gate_counts["real_target"] >= 1
-    assert gate_counts["weak_target"] >= 2
+    assert warning_gate_counts["weak_target"] >= 2
     assert hygiene["repairable_contamination_target_count"] >= 1
     assert hygiene["conservative_contamination_target_count"] >= 2
     assert all(item.get("target_gate_label") for item in hygiene["state_contamination_targets"])
+    assert all(item.get("target_gate_label") for item in hygiene["state_hygiene_warning_targets"])
 
 
 def test_decision_hygiene_does_not_count_minor_assessment_limitation_as_overclaim():
@@ -5251,12 +5255,14 @@ def test_decision_hygiene_localizes_zero_real_support_as_review_target():
 
     hygiene = build_decision_hygiene_view(state)["decision_hygiene"]
     zero_real_targets = [
-        item for item in hygiene["state_contamination_targets"]
+        item for item in hygiene["state_hygiene_warning_targets"]
         if item.get("error_type") == "zero_real_support"
     ]
 
     assert hygiene["real_strong_support_total"] == 0
-    assert hygiene["state_contamination_type_counts"]["zero_real_support"] == 1
+    assert hygiene["state_contamination_count"] == 0
+    assert hygiene["state_contamination_count_legacy"] == 1
+    assert hygiene["state_hygiene_warning_type_counts"]["zero_real_support"] == 1
     assert zero_real_targets
     assert zero_real_targets[0]["target_gate_label"] == "weak_target"
     assert "verified support candidate" in zero_real_targets[0]["evidence_context"]
@@ -11756,14 +11762,12 @@ def test_paper_named_prior_method_can_seed_missing_baseline_issue():
 
 
 def test_merge_review_state_materializes_verified_review_issue_bundle_for_recovery():
-    claim = "The method compares favorably against baselines on Benchmark-X."
-    inventory_quote = (
-        "Table 1 compares Ours with BERT baselines on Benchmark-X and reports accuracy "
-        "and F1 metrics for each method."
-    )
+    claim = "The RankHead module improves ranking accuracy on Benchmark-X."
+    support_quote = "Table 1 reports RankHead module accuracy results on Benchmark-X for Ours and BERT baselines."
+    ablation_inventory_quote = "Table 2: Ablation study comparing Full model, w/o encoder, and w/o decoder on Benchmark-X."
     merged = merge_review_state(
         {
-            "paper_text": f"{claim}\n\n{inventory_quote}",
+            "paper_text": f"{claim}\n\n{support_quote}\n\n{ablation_inventory_quote}",
             "claims": [],
             "evidence_map": [],
             "flaw_candidates": [],
@@ -11776,30 +11780,27 @@ def test_merge_review_state_materializes_verified_review_issue_bundle_for_recove
                     "claim_id": "claim-1",
                     "claim": claim,
                     "claim_kind": "paper_extracted",
-                    "claim_type": "comparison",
-                    "coverage_tags": ["empirical", "comparison"],
+                    "claim_type": "method",
                     "importance": "high",
                     "status": "supported",
+                    "claim_obligations": ["ablation_or_component"],
                 }
             ],
-            "review_issue_candidates": [
+            "evidence_map": [
                 {
-                    "candidate_id": "reviewer-neg-candidate-gpt4-live",
+                    "evidence_id": "evidence-support-rankhead",
                     "claim_id": "claim-1",
-                    "weakness": "The comparison omits the named GPT-4 baseline.",
-                    "issue_type": "missing_baseline",
-                    "required_evidence_type": "baseline_or_comparison",
-                    "quote_grounding_mode": "absence_or_requirement_gap",
-                    "missing_or_weak_items": ["GPT-4 baseline"],
-                    "observed_inventory": [
-                        {
-                            "quote": inventory_quote,
-                            "locator": "Table 1",
-                            "observed_items": ["Ours", "BERT baselines", "Benchmark-X"],
-                        }
-                    ],
-                    "source_of_expectation": "reviewer_candidate",
-                    "status": "pending_absence_audit",
+                    "raw_quote": support_quote,
+                    "evidence": support_quote,
+                    "source_locator": "Table 1",
+                    "stance": "supports",
+                    "strength": "strong",
+                    "binding_status": "bound_real_claim",
+                    "verified_grounding_label": "paper_grounded_exact",
+                    "verified_quote_match_type": "exact",
+                    "verified_source_span_start": len(claim) + 2,
+                    "verified_source_span_end": len(claim) + 2 + len(support_quote) - 1,
+                    "semantic_grounding_label": "semantic_support_verified",
                 }
             ],
         },
@@ -11822,6 +11823,90 @@ def test_merge_review_state_materializes_verified_review_issue_bundle_for_recove
     assert merged["review_issues"][0]["verification_status"] == "verified_review_issue"
     assert merged["review_issues"][0]["recovery_status"] == "open"
     assert issue_evidence[0]["evidence_id"] in merged["review_issues"][0]["evidence_ids"]
+
+
+def test_review_issue_cluster_relation_marks_rebuilt_issue_contested_without_exact_id():
+    claim = "The RankHead module improves ranking accuracy on Benchmark-X."
+    support_quote = "Table 1 reports RankHead module accuracy results on Benchmark-X for Ours and BERT baselines."
+    ablation_inventory_quote = "Table 2: Ablation study comparing Full model, w/o encoder, and w/o decoder on Benchmark-X."
+    state = {
+        "paper_text": f"{claim}\n\n{support_quote}\n\n{ablation_inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "method",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["ablation_or_component"],
+                "supporting_evidence_ids": ["e-support"],
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "e-support",
+                "claim_id": "claim-1",
+                "evidence": support_quote,
+                "raw_quote": support_quote,
+                "source": "Table 1",
+                "source_locator": "Table 1",
+                "strength": "strong",
+                "stance": "supports",
+                "binding_status": "bound_real_claim",
+                "verified_grounding_label": "paper_grounded_exact",
+                "verified_quote_match_type": "exact",
+                "verified_source_span_start": len(claim) + 2,
+                "verified_source_span_end": len(claim) + 2 + len(support_quote) - 1,
+                "semantic_grounding_label": "semantic_support_verified",
+                "support_source_bucket": "empirical_result",
+            }
+        ],
+        "reviewer_negative_candidates": [],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+    first_view = build_decision_hygiene_view(copy.deepcopy(state))
+    first_hygiene = first_view["decision_hygiene"]
+    bundle_item = first_hygiene["review_issue_bundle_items"][0]
+    stale_absence_id = "evidence-reviewer-absence-stale-rankhead-ablation"
+
+    assert first_hygiene["verified_issue_without_recovery_count"] == 1
+    assert bundle_item["evidence_id"] != stale_absence_id
+
+    state["contested_relations"] = [
+        {
+            "relation_id": "contested-stale-review-issue-cluster",
+            "claim_id": "claim-1",
+            "negative_evidence_ids": [stale_absence_id],
+            "support_evidence_ids": ["e-support"],
+            "final_view": "potential_concern",
+            "status": "contested",
+            "negative_evidence_basis": "review_issue_bundle",
+            "review_issue_cluster_keys": [
+                {
+                    "claim_id": "claim-1",
+                    "issue_type": bundle_item["issue_type"],
+                    "issue_cluster_target": bundle_item["issue_cluster_target"],
+                }
+            ],
+        }
+    ]
+
+    rebuilt = build_decision_hygiene_view(copy.deepcopy(state))
+    hygiene = rebuilt["decision_hygiene"]
+    review_issue = next(
+        item for item in rebuilt["review_issues"]
+        if item.get("source") == "obligation_grounded_review_issue"
+    )
+
+    assert hygiene["verified_issue_without_recovery_count"] == 0
+    assert hygiene["verified_issue_cluster_without_recovery_count"] == 0
+    assert review_issue["recovery_status"] == "contested"
+    assert review_issue["contested_relation_ids"] == ["contested-stale-review-issue-cluster"]
+    assert rebuilt["claims"][0]["status"] == "supported"
 
 
 def test_review_issue_bundle_flaw_materialization_survives_non_audit_id_collision():
@@ -13943,6 +14028,98 @@ def test_selected_menu_candidate_matching_seed_cluster_counts_as_critique_select
     assert metrics["critique_selected_verified_by_existing_cluster_count"] == 1
 
 
+def test_selected_menu_candidate_with_bundle_failure_does_not_align_to_seed_cluster():
+    menu_id = "rim-c1-ma-recurrent-draft-model"
+    candidate = {
+        "candidate_id": "review-issue-candidate-selected-menu-1",
+        "candidate_menu_id": menu_id,
+        "review_issue_candidate_menu_item": {
+            "candidate_menu_id": menu_id,
+            "claim_id": "claim-1",
+            "issue_type": "missing_ablation",
+            "required_evidence_type": "ablation_or_component",
+            "verifier_target_entity": "recurrent draft model",
+            "expected_entity": "component-isolation ablation for recurrent neural network",
+            "observed_inventory": [
+                {
+                    "quote": "The draft head uses recurrent inputs from historical tokens.",
+                    "locator": "Method",
+                    "observed_items": ["recurrent", "draft"],
+                    "inventory_type": "component_anchor",
+                }
+            ],
+        },
+        "claim_id": "claim-1",
+        "negative_type": "missing_ablation",
+        "missing_or_weak_items": ["recurrent draft model"],
+        "observed_inventory": [
+            {
+                "quote": "The draft head uses recurrent inputs from historical tokens.",
+                "locator": "Method",
+                "observed_items": ["recurrent", "draft"],
+                "inventory_type": "component_anchor",
+            }
+        ],
+        "source": "critique_selected_menu_item",
+        "discovery_origin": "critique_payload_menu_selected",
+    }
+    metrics = review_state_mod._review_issue_candidate_funnel_metrics(
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-1",
+                    "claim": "ReDrafter uses a recurrent draft model for speculative decoding.",
+                    "claim_kind": "paper_extracted",
+                    "status": "supported",
+                }
+            ],
+            "reviewer_negative_candidates": [candidate],
+            "review_issue_candidate_bundle_failures": [
+                {
+                    "candidate_id": "review-issue-candidate-selected-menu-1",
+                    "candidate_menu_id": menu_id,
+                    "stop_stage": "bundle_verification",
+                    "rejection_reason": "selected_menu_candidate_not_admissible_in_current_gap",
+                    "selected_missing_items": ["recurrent draft model"],
+                }
+            ],
+        },
+        [
+            {
+                "claim_id": "claim-1",
+                "reviewer_negative_candidate_id": "reviewer-seed-claim-1-missing-ablation",
+                "negative_evidence_type": "missing_ablation",
+                "review_issue_type": "missing_ablation",
+                "review_issue_bundle": {
+                    "discovery_origin": "deterministic_component_ablation_seed",
+                    "review_issue_slot": "missing_ablation",
+                    "missing_or_mismatch": {
+                        "entity": "component-isolation ablation for recurrent neural network",
+                        "items": ["component-isolation ablation for recurrent neural network"],
+                    },
+                    "observed_inventory": [
+                        {
+                            "quote": "The draft head uses recurrent inputs from historical tokens.",
+                            "locator": "Method",
+                            "observed_items": ["recurrent", "draft"],
+                            "inventory_type": "component_anchor",
+                        }
+                    ],
+                },
+            }
+        ],
+    )
+
+    assert metrics["candidate_menu_item_verified_count"] == 0
+    assert metrics["candidate_menu_item_verified_by_existing_cluster_count"] == 0
+    assert metrics["critique_payload_verified_cluster_count"] == 0
+    assert metrics["critique_selected_existing_seed_cluster_count"] == 0
+    assert metrics["candidate_menu_item_failed_count"] == 1
+    assert metrics["candidate_menu_item_failed_by_reason"] == {
+        "selected_menu_candidate_not_admissible_in_current_gap": 1
+    }
+
+
 def test_selected_menu_candidate_without_snapshot_does_not_align_to_seed_cluster():
     menu_id = "rim-c1-ma-recurrent-draft-model"
     metrics = review_state_mod._review_issue_candidate_funnel_metrics(
@@ -14156,6 +14333,55 @@ def test_selected_menu_candidate_filtered_from_current_menu_gets_specific_failur
     assert failed["stop_stage"] == "menu_lookup_or_quality_filter"
 
 
+def test_selected_menu_candidate_rebound_preserves_snapshot_claim_id():
+    candidate = {
+        "candidate_id": "review-issue-candidate-selected-menu-1",
+        "candidate_menu_id": "rim-c3-mb-recent-gnn-or-graph-transformer",
+        "claim_id": "claim-3",
+        "weakness": (
+            "Verify whether the paper leaves recent GNN or graph-transformer "
+            "baselines on the same graph benchmarks uncovered."
+        ),
+        "negative_type": "missing_baseline",
+        "required_evidence_type": "baseline_or_comparison",
+        "source": "critique_selected_menu_item",
+        "discovery_origin": "critique_payload_menu_selected",
+        "review_issue_candidate_menu_item": {
+            "candidate_menu_id": "rim-c3-mb-recent-gnn-or-graph-transformer",
+            "claim_id": "claim-3",
+            "issue_type": "missing_baseline",
+            "expected_entity": "recent GNN or graph-transformer baselines on the same graph benchmarks",
+        },
+    }
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-2",
+                "claim": "The paper compares graph-transformer baselines on graph benchmarks.",
+                "claim_kind": "paper_extracted",
+                "claim_type": "empirical",
+                "claim_obligations": ["baseline_or_comparison"],
+            },
+            {
+                "claim_id": "claim-3",
+                "claim": "The proposed method is parameter-efficient and comparable to baselines.",
+                "claim_kind": "paper_extracted",
+                "claim_type": "empirical",
+                "claim_obligations": ["baseline_or_comparison"],
+            },
+        ]
+    }
+
+    assert (
+        review_state_mod._review_issue_candidate_rebound_claim_id(
+            candidate,
+            state,
+            "baseline_or_comparison",
+        )
+        == "claim-3"
+    )
+
+
 def test_selected_menu_candidate_with_snapshot_survives_current_menu_lookup_miss(monkeypatch):
     claim = "The proposed decoder uses an acceptance prediction head to improve draft quality."
     inventory_quote = "Table 3: Ablation study reports variants without reranking and without the draft scorer."
@@ -14231,6 +14457,110 @@ def test_selected_menu_candidate_with_snapshot_survives_current_menu_lookup_miss
     assert hygiene["verified_review_issue_count"] == 1
     assert hygiene["critique_payload_verified_cluster_count"] == 1
     assert hygiene["candidate_menu_item_verified_count"] == 1
+
+
+def test_selected_menu_candidate_materializes_own_verified_bundle_without_seed_shadow():
+    claim = "The proposed decoder uses an acceptance prediction head to improve draft quality."
+    inventory_quote = "Table 3: Ablation study reports variants without reranking and without the draft scorer."
+    menu_id = "review-issue-menu-claim-1-missing-ablation-acceptance-prediction-head"
+    menu_snapshot = {
+        "candidate_menu_id": menu_id,
+        "claim_id": "claim-1",
+        "issue_type": "missing_ablation",
+        "required_evidence_type": "ablation_or_component",
+        "expected_entity": "component-isolation ablation for acceptance prediction head",
+        "verifier_target_entity": "acceptance prediction head",
+        "entity_source": "method_component",
+        "source": "deterministic_component_ablation_menu",
+        "review_issue_slot": "ablation_component",
+        "observed_inventory": [
+            {
+                "inventory_id": "inv-ablation-1",
+                "quote": inventory_quote,
+                "locator": "Table 3",
+                "observed_items": ["without reranking", "without draft scorer"],
+                "inventory_type": "ablation",
+            }
+        ],
+        "target_quality_hint": "high",
+        "target_quality_reason": "missing_ablation_target_named_mechanism",
+        "counterevidence_search_terms": ["acceptance prediction head", "acceptance head"],
+    }
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "method",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["ablation_or_component"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "reviewer-seed-candidate-claim-1-acceptance",
+                "claim_id": "claim-1",
+                "claim": claim,
+                "weakness": "The claim may lack component-isolation ablation for acceptance prediction head.",
+                "negative_type": "missing_ablation",
+                "required_evidence_type": "ablation_or_component",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["component-isolation ablation for acceptance prediction head"],
+                "observed_inventory": menu_snapshot["observed_inventory"],
+                "status": "pending_absence_audit",
+                "source": "runner_seed_blueprint",
+                "discovery_origin": "runner_seed_blueprint",
+            },
+            {
+                "candidate_id": "review-issue-candidate-selected-menu-1",
+                "candidate_menu_id": menu_id,
+                "review_issue_candidate_menu_item": menu_snapshot,
+                "claim_id": "claim-1",
+                "claim": claim,
+                "weakness": "The ablation table does not isolate the acceptance prediction head.",
+                "negative_type": "missing_ablation",
+                "required_evidence_type": "ablation_or_component",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["acceptance prediction head"],
+                "observed_inventory": menu_snapshot["observed_inventory"],
+                "status": "pending_absence_audit",
+                "source": "critique_selected_menu_item",
+                "discovery_origin": "critique_payload_menu_selected",
+                "source_of_expectation": "reviewer_candidate",
+            },
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    view = build_decision_hygiene_view(copy.deepcopy(state))
+    hygiene = view["decision_hygiene"]
+    issue_records = [
+        item for item in view["evidence_map"]
+        if item.get("review_issue_source") == "obligation_grounded_review_issue"
+    ]
+
+    assert hygiene["verified_review_issue_count"] >= 1
+    assert hygiene["critique_direct_verified_cluster_count"] >= 1
+    assert not any(
+        item.get("review_issue_bundle", {}).get("selected_menu_shadowed_verified_seed")
+        for item in issue_records
+    )
+    selected_records = [
+        item for item in issue_records
+        if item.get("reviewer_negative_candidate_id") == "review-issue-candidate-selected-menu-1"
+        and item.get("candidate_menu_id") == menu_id
+    ]
+    assert selected_records
+    assert selected_records[0].get("review_issue_bundle", {}).get("discovery_origin") == (
+        "critique_payload_menu_selected"
+    )
 
 
 def test_review_issue_selector_menu_prioritizes_verifier_survival_over_slot_coverage():
@@ -16055,6 +16385,109 @@ def test_lower_is_better_metric_improvement_is_not_negative_result_claim_mismatc
     assessment = _assess_review_negative_relation(state, evidence)
     assert assessment["review_negative_label"] == "not_negative_evidence"
     assert assessment["review_negative_reason"] == "lower_is_better_metric_improvement_support"
+
+
+def test_positive_or_neutral_negative_rejection_is_not_active_candidate_when_unlinked():
+    quote = (
+        "the average EER for the 1,000 devices in the federated model, within the same "
+        "system but without a secure aggregator, is 2.36. This reflects an 8.57% "
+        "relative improvement in EER compared to the baseline unsupervised system. "
+        "However, with the secure aggregator, the outcome is less favorable than baseline."
+    )
+    evidence = {
+        "evidence_id": "evidence-comparison-1",
+        "claim_id": "claim-2",
+        "raw_quote": quote,
+        "evidence": "Table shows federated model without secure aggregator improves EER over baseline.",
+        "source": "Comparison section, Figure 2",
+        "source_locator": "Table 1",
+        "stance": "contradicts",
+        "strength": "strong",
+        "negative_evidence_type": "missing_baseline",
+        "verified_grounding_label": "paper_grounded_exact",
+        "verified_quote_match_type": "full_paper_exact_substring",
+        "verified_source_span_start": 0,
+        "verified_source_span_end": len(quote),
+        "semantic_grounding_label": "semantic_negative_verified",
+    }
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-2",
+                "claim": "The secure federated aggregation setup improves speaker verification error rates.",
+                "claim_kind": "paper_extracted",
+            }
+        ],
+        "paper_text": quote,
+        "evidence_map": [evidence],
+        "flaw_candidates": [],
+    }
+
+    assessment = _assess_review_negative_relation(state, evidence)
+    assert assessment["review_negative_label"] == "positive_or_neutral_support"
+    assert assessment["review_negative_reason"] == "quote_describes_addressing_or_positive_result"
+
+    hygiene = build_decision_hygiene_view(state)["decision_hygiene"]
+    assert hygiene["review_negative_label_counts"]["positive_or_neutral_support"] == 1
+    assert hygiene["semantic_negative_rejected_by_review_relation_count"] == 1
+    assert hygiene["positive_or_neutral_negative_rejected_count"] == 1
+    assert hygiene["positive_or_neutral_negative_unlinked_rejected_count"] == 1
+    assert hygiene["positive_or_neutral_negative_candidate_count"] == 0
+    assert hygiene["review_negative_verified_count"] == 0
+    assert not _is_grounded_paper_negative_evidence_record(evidence, state)
+
+
+def test_positive_or_neutral_negative_rejection_linked_to_flaw_is_downgraded_not_active():
+    quote = (
+        "the average EER for the federated model without a secure aggregator is 2.36, "
+        "an 8.57% relative improvement compared to the baseline unsupervised system."
+    )
+    evidence = {
+        "evidence_id": "evidence-positive-linked",
+        "claim_id": "claim-1",
+        "raw_quote": quote,
+        "evidence": quote,
+        "source": "Table 1",
+        "source_locator": "Table 1",
+        "stance": "contradicts",
+        "strength": "strong",
+        "negative_evidence_type": "missing_baseline",
+        "verified_grounding_label": "paper_grounded_exact",
+        "verified_quote_match_type": "full_paper_exact_substring",
+        "verified_source_span_start": 0,
+        "verified_source_span_end": len(quote),
+        "semantic_grounding_label": "semantic_negative_verified",
+    }
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The federated model improves speaker verification error rates.",
+                "claim_kind": "paper_extracted",
+            }
+        ],
+        "paper_text": quote,
+        "evidence_map": [evidence],
+        "flaw_candidates": [
+            {
+                "flaw_id": "flaw-positive-linked",
+                "status": "candidate",
+                "related_claim_ids": ["claim-1"],
+                "evidence_ids": ["evidence-positive-linked"],
+                "negative_evidence_ids": ["evidence-positive-linked"],
+                "description": "Incorrectly treats an improvement quote as a missing-baseline flaw.",
+            }
+        ],
+    }
+
+    view = build_decision_hygiene_view(state)
+    hygiene = view["decision_hygiene"]
+    assert hygiene["positive_or_neutral_negative_rejected_count"] == 1
+    assert hygiene["positive_or_neutral_negative_candidate_count"] == 0
+    assert hygiene["negative_evidence_semantic_rejected_count"] == 1
+    assert hygiene["review_negative_verified_count"] == 0
+    assert view["flaw_candidates"][0]["status"] == "downgraded"
+    assert view["flaw_candidates"][0]["hygiene_status_reason"] == "semantic_rejected_negative_anchor"
 
 
 def test_missing_baseline_target_gate_rejects_generic_or_truncated_targets():

@@ -10,6 +10,105 @@ Goal:
 - Improve Critique payload integration without relaxing the verifier.
 - Keep direct quote-grounded negative evidence strict; optimize obligation-grounded verified review issue bundles and safe `mark_contested` recovery.
 
+## Current P31.11 Checkpoint 2026-07-05
+
+P31.11 turns the Critique selector path into a more functional direct candidate
+bridge, while keeping verifier and final-view guards strict.
+
+Fresh run/artifacts:
+
+```text
+raw = mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok2048_20260705_030000.jsonl
+dashboard = P31_11_FRESH_DIRECT_BRIDGE_20260705_030000_HARDNEG20_DASHBOARD.md/json
+case table = P31_11_FRESH_DIRECT_BRIDGE_20260705_030000_REVIEW_ISSUE_CASE_TABLE.md/json
+recovery table = P31_11_FRESH_DIRECT_BRIDGE_20260705_030000_RECOVERY_CASE_TABLE.md/json
+entry gate = P31_11_FRESH_DIRECT_BRIDGE_20260705_030000_ENTRY_GATE_AUDIT.md/json
+```
+
+Current facts:
+
+```text
+protection = PASS
+verified_review_issue_count = 21
+verified_review_issue_cluster_count = 18
+review_negative_verified_count = 1
+critique_payload_verified_cluster_count = 2
+critique_direct_verified_cluster_count = 2
+candidate_menu_item_count = 14
+candidate_menu_item_used_count = 14
+candidate_menu_item_verified_count = 2
+positive_or_neutral_negative_candidate_count = 0
+positive_or_neutral_negative_rejected_count = 1
+state_contamination_count = 0
+state_contamination_count_legacy = 15
+state_hygiene_warning_count = 15
+mark_contested_commit_count = 11
+verified_issue_cluster_without_recovery_count = 9
+```
+
+Implemented:
+
+- Critique-selected menu ids are materialized as real `reviewer_negative_candidates`.
+- Selected menu candidates preserve their snapshot claim id instead of being
+  rebound to another claim and silently dropped.
+- Selector now prioritizes high-quality verifier-survivable candidates before
+  using slot diversity to fill remaining menu space.
+- Seed top-up remains separate from direct Critique attribution.
+- Positive/neutral negative-looking records are rejected diagnostics, not active
+  protection failures.
+- `state_contamination_count` now reports hard contamination only; weak target
+  lifecycle issues remain in warning counters.
+- Positive-context review-negative guard no longer rejects true baseline-beats-
+  proposed negative results, while explicit lower-is-better metric improvements
+  still reject as positive/neutral support.
+
+Validation:
+
+```text
+focused hygiene/gate selector suite = 11 passed
+runner selected-menu/discovery suite = 18 passed
+py_compile = PASS
+broader 3-file suite = 765 passed / 31 failed
+sample3 MiMo hardneg smoke = completed 3/3 rows
+```
+
+Sample3 smoke:
+
+```text
+run = p31_11_sample3_direct_bridge_20260705_114014.jsonl
+rows = 3
+protection = PASS
+verified_review_issue_count = 1
+verified_review_issue_cluster_count = 1
+candidate_menu_item_count = 5
+candidate_menu_item_used_count = 5
+candidate_menu_item_verified_count = 0
+critique_direct_verified_cluster_count = 0
+state_contamination_count = 0
+```
+
+Interpretation: the real API path now materializes selected-menu candidates,
+but this 3-row sample did not produce a verifier-surviving Critique menu
+candidate.  Failures were strict verifier/quality outcomes:
+`missing_entity_already_observed_in_inventory`, `generic_item`, and
+`selected_menu_item_not_in_current_menu_or_filtered`.  Treat this as a supply
+and selector-quality signal, not a reason to loosen verification.
+
+Entry gate remains blocked on real functional quantity:
+
+```text
+critique_direct_verified_cluster_count = 2 < 3
+case_table_critique_origin_cluster_count = 2 < 3
+```
+
+Next step:
+
+```text
+Do not relax verifier gates.  Audit the remaining review-issue bundle boundary
+failures only where they affect selector supply, then run a fresh hardneg20 to
+test whether direct Critique verified clusters reach >=3.
+```
+
 ## Current P31.9 Checkpoint 2026-07-05
 
 P31.9 is an audit/instrumentation pass over the latest fresh P31.8 full20 raw run, not a new API run.

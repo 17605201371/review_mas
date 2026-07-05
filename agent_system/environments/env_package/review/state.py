@@ -1948,6 +1948,7 @@ def _coverage_item_is_specific_for_type(text: str, neg_type: str) -> bool:
                 r"orthogonal|orthogonality|regulari[sz]ation|regulari[sz]er)\b",
                 specificity_text,
             )
+            or re.search(r"\b(?:recurrent\s+draft\s+model|draft\s+model)\b", specificity_text)
             or re.search(r"\b[A-Z]{2,}[A-Za-z0-9_-]*\b|\d", value)
         )
     if neg_type in {"insufficient_evaluation", "missing_robustness_or_generalization", "scope_overclaim"}:
@@ -2476,6 +2477,63 @@ def _review_issue_cluster_id_for_record(record: Dict[str, Any]) -> str:
     paper_hint = str(record.get("paper_id") or "")
     neg_type, target = _review_issue_cluster_signature_for_record(record)
     return _slugify("review-issue-cluster", f"{paper_hint}-{neg_type}-{target or claim_id}", 0)
+
+
+def _review_issue_relation_cluster_key_for_record(record: Dict[str, Any]) -> Tuple[str, str, str]:
+    if not isinstance(record, dict):
+        return ("", "", "")
+    bundle = record.get("review_issue_bundle") if isinstance(record.get("review_issue_bundle"), dict) else {}
+    if not bundle:
+        return ("", "", "")
+    source = str(record.get("source") or "").strip()
+    review_issue_source = str(record.get("review_issue_source") or bundle.get("review_issue_source") or "").strip()
+    if source != ABSENCE_AUDIT_SOURCE and review_issue_source != REVIEW_ISSUE_BUNDLE_SOURCE:
+        return ("", "", "")
+    claim_id = str(record.get("claim_id") or bundle.get("claim_id") or "").strip()
+    neg_type = _canonical_negative_evidence_type(
+        record.get("negative_evidence_type")
+        or record.get("review_issue_type")
+        or bundle.get("negative_evidence_type")
+        or bundle.get("review_issue_type")
+        or bundle.get("issue_type")
+        or bundle.get("negative_type")
+    ) or _negative_evidence_type_for_record(record)
+    target = _review_issue_normalized_cluster_target(bundle, neg_type)
+    if not claim_id or not neg_type or not target or target == "unspecified_target":
+        return ("", "", "")
+    return (claim_id, neg_type, target)
+
+
+def _normalize_review_issue_relation_cluster_key(value: Any) -> Tuple[str, str, str]:
+    if isinstance(value, dict):
+        claim_id = str(value.get("claim_id") or "").strip()
+        neg_type = _canonical_negative_evidence_type(
+            value.get("issue_type")
+            or value.get("negative_evidence_type")
+            or value.get("review_issue_type")
+            or value.get("negative_type")
+        )
+        target = _normalize_text(
+            value.get("issue_cluster_target")
+            or value.get("cluster_target")
+            or value.get("target"),
+            max_length=180,
+        )
+        if claim_id and neg_type and target:
+            return (claim_id, neg_type, target)
+    if isinstance(value, str):
+        parts = [part.strip() for part in value.split("|", 2)]
+        if len(parts) == 3 and all(parts):
+            return (parts[0], _canonical_negative_evidence_type(parts[1]), parts[2])
+    return ("", "", "")
+
+
+def _review_issue_relation_cluster_key_payload(key: Tuple[str, str, str]) -> Dict[str, str]:
+    return {
+        "claim_id": key[0],
+        "issue_type": key[1],
+        "issue_cluster_target": key[2],
+    }
 
 
 def _review_issue_observed_inventory_text(bundle: Dict[str, Any]) -> str:
@@ -3939,6 +3997,11 @@ _METRIC_IMPROVEMENT_CUE_RE = re.compile(
     r"decreas(?:e|es|ed)|lower|smaller|better|outperform(?:s|ed)?)\b",
     re.IGNORECASE,
 )
+_EXPLICIT_METRIC_IMPROVEMENT_CUE_RE = re.compile(
+    r"\b(?:improv(?:e|es|ed|ement)|relative\s+improvement|reduc(?:e|es|ed|tion)|"
+    r"decreas(?:e|es|ed))\b",
+    re.IGNORECASE,
+)
 
 
 def _review_negative_quote_is_positive_metric_improvement(quote: str, neg_type: str) -> bool:
@@ -3963,6 +4026,11 @@ def _review_negative_quote_is_positive_metric_improvement(quote: str, neg_type: 
         )
         and re.search(r"\b(?:lower|reduc|improv|better)\b", text, re.IGNORECASE)
     )
+
+
+def _review_negative_quote_has_explicit_metric_improvement_context(quote: str) -> bool:
+    text = str(quote or "")
+    return bool(_LOWER_IS_BETTER_METRIC_RE.search(text) and _EXPLICIT_METRIC_IMPROVEMENT_CUE_RE.search(text))
 
 
 def _has_review_negative_semantic_intent(evidence: Dict[str, Any]) -> bool:
@@ -4147,15 +4215,29 @@ def _assess_review_negative_relation(state: Dict[str, Any], evidence: Dict[str, 
         )
     )
 
+    own_method_underperforms = bool(_OWN_METHOD_WORSE_THAN_BASELINE_RE.search(quote))
+    direct_contradiction_phrase = bool(_NEG_TYPE_DIRECT_CONTRADICTION_RE.search(quote))
     if _REVIEW_NEGATIVE_POSITIVE_CONTEXT_RE.search(quote):
-        return _review_negative_assessment("positive_or_neutral_support", "quote_describes_addressing_or_positive_result", relation_score)
+        if _review_negative_quote_has_explicit_metric_improvement_context(quote):
+            return _review_negative_assessment(
+                "positive_or_neutral_support",
+                "quote_describes_addressing_or_positive_result",
+                relation_score,
+            )
+        if not (
+            own_method_underperforms
+            or concrete_gap
+            or table_scope_absence_negative
+            or comparison_invalidation
+            or direct_contradiction_phrase
+        ):
+            return _review_negative_assessment("positive_or_neutral_support", "quote_describes_addressing_or_positive_result", relation_score)
     if prior_work_negative_context:
         return _review_negative_assessment("prior_work_limitation", "quote_describes_prior_or_external_work", relation_score)
     if _REVIEW_NEGATIVE_RESOURCE_CONTEXT_RE.search(quote):
         if not concrete_gap:
             return _review_negative_assessment("resource_or_scope_context", "resource_context_without_current_paper_gap", relation_score)
 
-    own_method_underperforms = bool(_OWN_METHOD_WORSE_THAN_BASELINE_RE.search(quote))
     # Route A: a paper quote is a reviewer-discovered negative ONLY if it contradicts the
     # paper's own claim — (1) the paper's own method underperforms a baseline/SOTA ("data
     # contradicts the headline claim"), (2) a concrete reviewer evidence gap on THIS paper
@@ -4164,7 +4246,6 @@ def _assess_review_negative_relation(state: Dict[str, Any], evidence: Dict[str, 
     # tradeoff results (negative-looking but supporting the paper's OWN argument) match none
     # of these and fall through to paper_observation. Deterministic missing-evidence
     # coverage is also carried separately by the Route-3 verified_coverage_gap.
-    direct_contradiction_phrase = bool(_NEG_TYPE_DIRECT_CONTRADICTION_RE.search(quote))
     contradicts_paper_claim = (
         own_method_underperforms
         or concrete_gap
@@ -6986,6 +7067,24 @@ def _review_issue_candidate_rebound_claim_id(
     """Return a safer claim id when the candidate's own text points elsewhere."""
 
     original_claim_id = str(candidate.get("claim_id") or "").strip()
+    menu_id = str(candidate.get("candidate_menu_id") or "").strip()
+    selected_menu_pointer = bool(
+        menu_id
+        and (
+            str(candidate.get("discovery_origin") or "").startswith("critique_payload_menu")
+            or str(candidate.get("source") or "") == "critique_selected_menu_item"
+            or str(candidate.get("candidate_id") or "").startswith("review-issue-candidate-selected-menu")
+        )
+    )
+    if selected_menu_pointer:
+        snapshot = candidate.get("review_issue_candidate_menu_item")
+        snapshot_claim_id = (
+            str(snapshot.get("claim_id") or "").strip()
+            if isinstance(snapshot, dict)
+            and str(snapshot.get("candidate_menu_id") or "").strip() == menu_id
+            else ""
+        )
+        return snapshot_claim_id or original_claim_id
     candidate_text = _normalize_text(
         " ".join(
             str(candidate.get(field) or "")
@@ -13002,6 +13101,7 @@ def _sync_verified_review_issues(view: Dict[str, Any]) -> Dict[str, Any]:
 
     contested_relation_ids_by_issue: Dict[str, List[str]] = defaultdict(list)
     contested_relation_ids_by_evidence: Dict[str, List[str]] = defaultdict(list)
+    contested_relation_ids_by_cluster_key: Dict[Tuple[str, str, str], List[str]] = defaultdict(list)
     for relation in view.get("contested_relations", []) or []:
         if not isinstance(relation, dict):
             continue
@@ -13020,6 +13120,46 @@ def _sync_verified_review_issues(view: Dict[str, Any]) -> Dict[str, Any]:
             evidence_id = str(evidence_id or "").strip()
             if evidence_id and relation_id not in contested_relation_ids_by_evidence[evidence_id]:
                 contested_relation_ids_by_evidence[evidence_id].append(relation_id)
+        safe_review_issue_relation = (
+            str(relation.get("negative_evidence_basis") or "").strip()
+            in {"review_issue_bundle", "reviewer_absence_audit"}
+            or bool(relation.get("review_issue_bundle_ids"))
+            or any(
+                str(evidence_id or "").strip().startswith("evidence-reviewer-absence-")
+                for evidence_id in relation.get("negative_evidence_ids", []) or []
+            )
+        )
+        if not safe_review_issue_relation:
+            continue
+        relation_cluster_keys: List[Tuple[str, str, str]] = []
+        for raw_key in relation.get("review_issue_cluster_keys", []) or []:
+            cluster_key = _normalize_review_issue_relation_cluster_key(raw_key)
+            if cluster_key[0]:
+                relation_cluster_keys.append(cluster_key)
+        for evidence_id in relation.get("negative_evidence_ids", []) or []:
+            evidence = evidence_by_id.get(str(evidence_id or "").strip())
+            cluster_key = _review_issue_relation_cluster_key_for_record(evidence or {})
+            if cluster_key[0]:
+                relation_cluster_keys.append(cluster_key)
+        issue_ids = {
+            str(issue_id or "").strip()
+            for issue_id in relation.get("review_issue_bundle_ids", []) or []
+            if str(issue_id or "").strip()
+        }
+        if issue_ids:
+            for evidence in evidence_by_id.values():
+                if not isinstance(evidence, dict):
+                    continue
+                bundle = evidence.get("review_issue_bundle") if isinstance(evidence.get("review_issue_bundle"), dict) else {}
+                issue_id = str(evidence.get("review_issue_id") or bundle.get("issue_id") or "").strip()
+                if issue_id not in issue_ids:
+                    continue
+                cluster_key = _review_issue_relation_cluster_key_for_record(evidence)
+                if cluster_key[0]:
+                    relation_cluster_keys.append(cluster_key)
+        for cluster_key in dict.fromkeys(relation_cluster_keys):
+            if relation_id not in contested_relation_ids_by_cluster_key[cluster_key]:
+                contested_relation_ids_by_cluster_key[cluster_key].append(relation_id)
 
     def _issue_record_from_obligation_evidence(evidence: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         if not _is_obligation_grounded_review_issue_evidence_record(evidence, view):
@@ -13115,6 +13255,9 @@ def _sync_verified_review_issues(view: Dict[str, Any]) -> Dict[str, Any]:
         relation_ids = list(contested_relation_ids_by_issue.get(issue_id, []))
         for evidence_id in evidence_ids:
             relation_ids.extend(contested_relation_ids_by_evidence.get(evidence_id, []))
+        cluster_key = _review_issue_relation_cluster_key_for_record(evidence)
+        if cluster_key[0]:
+            relation_ids.extend(contested_relation_ids_by_cluster_key.get(cluster_key, []))
         relation_ids = list(dict.fromkeys(relation_ids))
         existing = dict(existing_by_id.get(issue_id) or {})
         merged = {**existing, **record}
@@ -13656,8 +13799,19 @@ def _select_review_issue_candidate_menu_items(
             slot_counts[_review_issue_slot_for_type(issue_type)] += 1
         return True
 
-    # First pass: preserve slot diversity so a high-ranked missing-ablation item
-    # does not crowd out baseline/protocol/scope candidates from the Critique menu.
+    # First pass: keep verifier-survivable high-quality candidates together.
+    # Slot coverage should not replace concrete targets that are most likely to
+    # survive the bundle verifier.
+    for item in ranked_items:
+        if len(selected) >= max_items:
+            break
+        quality_hint = str(item.get("target_quality_hint") or "").lower()
+        if quality_hint != "high":
+            continue
+        _try_select(item)
+
+    # Second pass: preserve slot diversity among the remaining candidates so a
+    # single issue family does not crowd out baseline/protocol/scope options.
     for item in ranked_items:
         if len(selected) >= max_items:
             break
@@ -14212,56 +14366,63 @@ def _review_issue_candidate_funnel_metrics(
     selected_menu_verified_ids_by_cluster: set[str] = set()
     selected_menu_verified_cluster_keys: set[Tuple[str, str, str]] = set()
     selected_menu_verified_cluster_details: Dict[Tuple[str, str, str], Dict[str, Any]] = {}
-    for candidate in candidates:
-        if not isinstance(candidate, dict):
-            continue
+    verified_selected_menu_ids: set[str] = set(verified_menu_ids)
+
+    def _record_selected_menu_cluster_alignment(
+        candidate: Dict[str, Any],
+        cluster_key: Tuple[str, str, str],
+        *,
+        attribution_mode: str = "",
+    ) -> bool:
+        if not isinstance(candidate, dict) or not cluster_key[0] or cluster_key not in verified_cluster_keys:
+            return False
         menu_id = str(candidate.get("candidate_menu_id") or "").strip()
-        if not menu_id:
-            continue
-        cluster_key = _selected_menu_candidate_cluster_key(candidate)
-        if cluster_key[0] and cluster_key in verified_cluster_keys:
-            selected_menu_verified_ids_by_cluster.add(menu_id)
-            selected_menu_verified_cluster_keys.add(cluster_key)
-            detail = selected_menu_verified_cluster_details.setdefault(
-                cluster_key,
-                {
-                    "claim_id": cluster_key[0],
-                    "issue_type": cluster_key[1],
-                    "issue_cluster_key": f"{cluster_key[1]}|{cluster_key[2]}",
-                    "issue_cluster_target": cluster_key[2],
-                    "candidate_menu_ids": [],
-                    "candidate_ids": [],
-                    "discovery_origin": "critique_payload_menu_selected",
-                    "attribution_mode": "selected_menu_matches_existing_verified_cluster",
-                },
-            )
-            if menu_id not in detail["candidate_menu_ids"]:
-                detail["candidate_menu_ids"].append(menu_id)
-            candidate_id = str(candidate.get("candidate_id") or "").strip()
-            if candidate_id and candidate_id not in detail["candidate_ids"]:
-                detail["candidate_ids"].append(candidate_id)
-    verified_selected_menu_ids = verified_menu_ids | selected_menu_verified_ids_by_cluster
-    metrics["candidate_menu_item_count"] = len(candidate_menu_ids | verified_menu_ids_any_origin | selected_menu_verified_ids_by_cluster)
-    metrics["candidate_menu_item_verified_count"] = len(verified_selected_menu_ids)
-    metrics["candidate_menu_item_any_origin_verified_count"] = len(verified_menu_ids_any_origin | selected_menu_verified_ids_by_cluster)
-    metrics["candidate_menu_item_verified_by_existing_cluster_count"] = len(
-        selected_menu_verified_ids_by_cluster - verified_menu_ids
-    )
-    metrics["critique_direct_verified_cluster_count"] = len(direct_critique_verified_cluster_keys)
-    metrics["critique_selected_existing_seed_cluster_count"] = len(
-        selected_menu_verified_cluster_keys - direct_critique_verified_cluster_keys
-    )
-    metrics["critique_selected_verified_cluster_count"] = len(
-        direct_critique_verified_cluster_keys | selected_menu_verified_cluster_keys
-    )
-    metrics["critique_payload_verified_cluster_count"] = len(
-        direct_critique_verified_cluster_keys | selected_menu_verified_cluster_keys
-    )
-    metrics["critique_selected_verified_by_existing_cluster_count"] = int(
-        metrics["critique_selected_existing_seed_cluster_count"]
-    )
+        candidate_id = str(candidate.get("candidate_id") or "").strip()
+        if not menu_id or not candidate_id.startswith("review-issue-candidate"):
+            return False
+        selected_menu_verified_ids_by_cluster.add(menu_id)
+        selected_menu_verified_cluster_keys.add(cluster_key)
+        verified_selected_menu_ids.add(menu_id)
+        detail = selected_menu_verified_cluster_details.setdefault(
+            cluster_key,
+            {
+                "claim_id": cluster_key[0],
+                "issue_type": cluster_key[1],
+                "issue_cluster_key": f"{cluster_key[1]}|{cluster_key[2]}",
+                "issue_cluster_target": cluster_key[2],
+                "candidate_menu_ids": [],
+                "candidate_ids": [],
+                "discovery_origin": "critique_payload_menu_selected",
+                "attribution_mode": attribution_mode
+                or (
+                    "critique_direct_verified_cluster"
+                    if cluster_key in direct_critique_verified_cluster_keys
+                    else "selected_menu_admissible_existing_verified_cluster"
+                ),
+            },
+        )
+        if menu_id not in detail["candidate_menu_ids"]:
+            detail["candidate_menu_ids"].append(menu_id)
+        if candidate_id and candidate_id not in detail["candidate_ids"]:
+            detail["candidate_ids"].append(candidate_id)
+        if (
+            cluster_key in direct_critique_verified_cluster_keys
+            and detail.get("attribution_mode") != "critique_direct_verified_cluster"
+        ):
+            detail["attribution_mode"] = "critique_direct_verified_cluster"
+        return True
+
     used_menu_ids: set[str] = set()
     if not candidates:
+        metrics["candidate_menu_item_count"] = len(candidate_menu_ids | verified_menu_ids_any_origin)
+        metrics["candidate_menu_item_verified_count"] = len(verified_menu_ids)
+        metrics["candidate_menu_item_any_origin_verified_count"] = len(verified_menu_ids_any_origin)
+        metrics["candidate_menu_item_verified_by_existing_cluster_count"] = 0
+        metrics["critique_direct_verified_cluster_count"] = len(direct_critique_verified_cluster_keys)
+        metrics["critique_selected_existing_seed_cluster_count"] = 0
+        metrics["critique_selected_verified_cluster_count"] = len(direct_critique_verified_cluster_keys)
+        metrics["critique_payload_verified_cluster_count"] = len(direct_critique_verified_cluster_keys)
+        metrics["critique_selected_verified_by_existing_cluster_count"] = 0
         result = dict(metrics)
         result["candidate_menu_item_used_count"] = 0
         result["critique_payload_bundle_built_count"] = int(metrics.get("critique_payload_verified_count", 0))
@@ -14390,9 +14551,24 @@ def _review_issue_candidate_funnel_metrics(
             metrics["critique_payload_gap_count"] += 1
         elif candidate_id:
             metrics["review_issue_candidate_other_origin_count"] += 1
+        selected_candidate_cluster_key = (
+            _selected_menu_candidate_cluster_key(candidate)
+            if candidate_menu_id and candidate_is_critique_payload
+            else ("", "", "")
+        )
         if candidate_id and candidate_id in verified_candidate_ids:
+            _record_selected_menu_cluster_alignment(
+                candidate,
+                selected_candidate_cluster_key,
+                attribution_mode="critique_direct_verified_cluster",
+            )
             continue
-        if candidate_menu_id and candidate_menu_id in selected_menu_verified_ids_by_cluster:
+        if candidate_menu_id and candidate_menu_id in verified_menu_ids:
+            _record_selected_menu_cluster_alignment(
+                candidate,
+                selected_candidate_cluster_key,
+                attribution_mode="critique_direct_verified_cluster",
+            )
             continue
         if _review_issue_candidate_is_retrieval_gap(candidate):
             metrics["review_issue_candidate_retrieval_gap_rejected"] += 1
@@ -14473,6 +14649,11 @@ def _review_issue_candidate_funnel_metrics(
         if neg_type in _COVERAGE_BASELINE_NEGATIVE_TYPES:
             # Full baseline specificity is enforced by bundle verification.  The
             # funnel only labels obvious non-verified candidates.
+            if (
+                not (bundle_failure_by_candidate.get(candidate_id) or bundle_failure_by_menu.get(candidate_menu_id))
+                and _record_selected_menu_cluster_alignment(candidate, selected_candidate_cluster_key)
+            ):
+                continue
             _record_candidate_rejection("not_verified_by_bundle", stop_stage="bundle_verification_or_not_materialized")
             continue
         if neg_type == "missing_ablation":
@@ -14497,7 +14678,36 @@ def _review_issue_candidate_funnel_metrics(
                     metrics["review_issue_candidate_generic_item_rejected"] += 1
                 _record_candidate_rejection(reason or "missing_ablation_target_rejected", stop_stage="target_quality_guard")
                 continue
+        if (
+            not (bundle_failure_by_candidate.get(candidate_id) or bundle_failure_by_menu.get(candidate_menu_id))
+            and _record_selected_menu_cluster_alignment(candidate, selected_candidate_cluster_key)
+        ):
+            continue
         _record_candidate_rejection("not_verified_by_bundle", stop_stage="bundle_verification_or_not_materialized")
+    metrics["candidate_menu_item_count"] = len(
+        candidate_menu_ids | verified_menu_ids_any_origin | selected_menu_verified_ids_by_cluster
+    )
+    metrics["candidate_menu_item_verified_count"] = len(verified_selected_menu_ids)
+    metrics["candidate_menu_item_any_origin_verified_count"] = len(
+        verified_menu_ids_any_origin | selected_menu_verified_ids_by_cluster
+    )
+    metrics["candidate_menu_item_verified_by_existing_cluster_count"] = len(
+        selected_menu_verified_ids_by_cluster - verified_menu_ids
+    )
+    metrics["critique_direct_verified_cluster_count"] = len(direct_critique_verified_cluster_keys)
+    metrics["critique_selected_existing_seed_cluster_count"] = len(
+        selected_menu_verified_cluster_keys - direct_critique_verified_cluster_keys
+    )
+    metrics["critique_selected_verified_cluster_count"] = len(
+        direct_critique_verified_cluster_keys | selected_menu_verified_cluster_keys
+    )
+    metrics["critique_payload_verified_cluster_count"] = len(
+        direct_critique_verified_cluster_keys | selected_menu_verified_cluster_keys
+    )
+    metrics["critique_selected_verified_by_existing_cluster_count"] = int(
+        metrics["critique_selected_existing_seed_cluster_count"]
+    )
+
     result = dict(metrics)
     result["candidate_menu_item_used_count"] = len(used_menu_ids)
     result["critique_payload_bundle_built_count"] = int(metrics.get("critique_payload_verified_count", 0))
@@ -15417,6 +15627,42 @@ def _add_reviewer_absence_audit_artifacts(
             })
         )
 
+    def _gap_cluster_key(gap: Dict[str, Any]) -> Tuple[str, str, str]:
+        claim_id = str(gap.get("claim_id") or "").strip()
+        neg_types = _gap_negative_type_list(gap)
+        neg_type = neg_types[0] if neg_types else ""
+        missing_values = _normalize_list_of_strings(
+            gap.get("reviewer_negative_candidate_missing_items")
+            or gap.get("coverage_missing_items")
+            or gap.get("missing_or_weak_items"),
+            max_items=6,
+            max_length=160,
+        )
+        if not claim_id or not neg_type or not missing_values:
+            return ("", "", "")
+        observed_inventory = _normalize_review_issue_observed_inventory_items(
+            gap.get("reviewer_negative_candidate_observed_inventory")
+        )
+        menu_item = gap.get("review_issue_candidate_menu_item")
+        if not observed_inventory and isinstance(menu_item, dict):
+            observed_inventory = _normalize_review_issue_observed_inventory_items(
+                menu_item.get("observed_inventory")
+            )
+        bundle = {
+            "missing_or_mismatch": {
+                "entity": missing_values[0],
+                "items": missing_values,
+            },
+            "observed_inventory": observed_inventory,
+            "claim_anchor": {
+                "quote": str(gap.get("claim") or ""),
+            },
+        }
+        target = _review_issue_normalized_cluster_target(bundle, neg_type)
+        if not target or target == "unspecified_target":
+            return ("", "", "")
+        return (claim_id, neg_type, target)
+
     def _gap_dedupe_key(gap: Dict[str, Any]) -> Tuple[str, str, str, str]:
         return (
             str(gap.get("claim_id") or ""),
@@ -15505,6 +15751,7 @@ def _add_reviewer_absence_audit_artifacts(
         item_requirements = set(_gap_requirement_list(item))
         item_negative_types = set(_gap_negative_type_list(item))
         item_missing_keys = set(_gap_missing_item_keys(item))
+        item_cluster_key = _gap_cluster_key(item)
         if not item_claim_id or not item_requirements:
             return
         overlapping_existing = next(
@@ -15522,6 +15769,11 @@ def _add_reviewer_absence_audit_artifacts(
                     not item_missing_keys
                     or not _gap_missing_item_keys(existing)
                     or item_missing_keys.intersection(_gap_missing_item_keys(existing))
+                    or (
+                        item_cluster_key[0]
+                        and item_cluster_key == _gap_cluster_key(existing)
+                        and _gap_candidate_priority_tier(item) == _gap_candidate_priority_tier(existing)
+                    )
                 )
             ),
             None,
@@ -15585,6 +15837,7 @@ def _add_reviewer_absence_audit_artifacts(
         if len(gap_items) >= max_gap_items:
             break
         _append_or_merge_gap(item, candidate_priority=False)
+
     if not gap_items:
         review_issue_sync = _sync_verified_review_issues(view)
         return {
@@ -15779,6 +16032,14 @@ def _add_reviewer_absence_audit_artifacts(
             if not review_issue_bundle:
                 _record_review_issue_bundle_failure(gap, requirement, neg_type)
                 continue
+            effective_candidate_id = str(
+                review_issue_bundle.get("reviewer_negative_candidate_id") or candidate_id
+            ).strip()
+            effective_candidate_weakness = _normalize_text(
+                review_issue_bundle.get("reviewer_negative_candidate") or candidate_weakness,
+                max_length=220,
+            )
+            effective_coverage_missing_items = candidate_missing_items
             evidence_id = _slugify(
                 "evidence-reviewer-absence",
                 f"{claim_id}-{requirement}-{neg_type}",
@@ -15835,7 +16096,7 @@ def _add_reviewer_absence_audit_artifacts(
                 "audit_basis": "claim_requirement_vs_verified_support",
                 "missing_requirement": requirement,
                 "coverage_gap_missing_requirements": requirements,
-                "coverage_missing_items": candidate_missing_items,
+                "coverage_missing_items": effective_coverage_missing_items,
                 "candidate_introduced_review_obligation": bool(gap.get("candidate_introduced_review_obligation")),
                 "coverage_observed_items": [
                     str(item.get("locator") or item.get("evidence_id") or "")
@@ -15845,8 +16106,8 @@ def _add_reviewer_absence_audit_artifacts(
                 "observed_inventory_evidence_ids": review_issue_bundle.get("observed_inventory_evidence_ids", [])[:6],
                 "available_support_ids": list(gap.get("available_support_ids") or [])[:6],
                 "final_view_layer": "obligation_grounded_review_issue",
-                "reviewer_negative_candidate_id": candidate_id,
-                "reviewer_negative_candidate": candidate_weakness,
+                "reviewer_negative_candidate_id": effective_candidate_id,
+                "reviewer_negative_candidate": effective_candidate_weakness,
             }
             if evidence_id in existing_evidence_ids:
                 existing_record = existing_evidence_by_id.get(evidence_id)
@@ -18896,6 +19157,24 @@ def _state_contamination_targets(
     return records[:80]
 
 
+_HARD_STATE_CONTAMINATION_ERROR_TYPES = frozenset(
+    {
+        "unsupported_with_strong_support",
+        "unsupported_flaw_escalation",
+        "evidence_misbinding",
+        "meta_leakage",
+        "stale_flaw_persistence",
+        "harmful_recovery_risk",
+    }
+)
+
+
+def _is_hard_state_contamination_target(item: Dict[str, Any]) -> bool:
+    if not isinstance(item, dict):
+        return False
+    return str(item.get("error_type") or "") in _HARD_STATE_CONTAMINATION_ERROR_TYPES
+
+
 def _negative_grounding_conflict_is_semantic_rejection(conflict: Dict[str, Any]) -> bool:
     if not isinstance(conflict, dict):
         return False
@@ -19496,6 +19775,12 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
         for conflict in final_negative_grounding_conflicts
         if not _negative_grounding_conflict_is_semantic_rejection(conflict)
     ]
+    rejected_review_negative_ids_linked_to_flaw = {
+        str(conflict.get("evidence_id") or "").strip()
+        for conflict in final_negative_grounding_conflicts
+        if str(conflict.get("reason") or "") == "negative_evidence_id_not_review_negative"
+        and str(conflict.get("evidence_id") or "").strip()
+    }
 
     support_quality = _decision_real_strong_support_quality(view)
     support_survival_trace = _build_support_survival_trace(view)
@@ -19516,16 +19801,26 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
         stale_gap_records,
         active_negative_grounding_conflicts,
     )
-    contamination_type_counts = _type_counts(contamination_targets, "error_type")
-    contamination_gate_counts = _gate_counts(contamination_targets)
+    hard_contamination_targets = [
+        item for item in contamination_targets if _is_hard_state_contamination_target(item)
+    ]
+    state_hygiene_warning_targets = [
+        item for item in contamination_targets if not _is_hard_state_contamination_target(item)
+    ]
+    contamination_type_counts = _type_counts(hard_contamination_targets, "error_type")
+    contamination_type_counts_legacy = _type_counts(contamination_targets, "error_type")
+    state_hygiene_warning_type_counts = _type_counts(state_hygiene_warning_targets, "error_type")
+    contamination_gate_counts = _gate_counts(hard_contamination_targets)
+    contamination_gate_counts_legacy = _gate_counts(contamination_targets)
+    state_hygiene_warning_gate_counts = _gate_counts(state_hygiene_warning_targets)
     repairable_target_count = sum(
         1
-        for item in contamination_targets
+        for item in hard_contamination_targets
         if str(item.get("target_gate_label") or "") == "real_target"
     )
     conservative_target_count = sum(
         1
-        for item in contamination_targets
+        for item in state_hygiene_warning_targets
         if str(item.get("target_gate_label") or "") == "weak_target"
     )
     diagnosis_pending_type_counts = dict(requirement_audit.get("claim_requirement_missing_type_counts", {}) or {})
@@ -19555,6 +19850,8 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
     semantic_negative_rejected_by_review_relation_count = 0
     quote_bank_salvage_generated_negative_count = 0
     scope_limitation_as_verified_negative_count = 0
+    positive_or_neutral_rejected_signatures: set[Tuple[str, str, str, str]] = set()
+    positive_or_neutral_active_candidate_signatures: set[Tuple[str, str, str, str]] = set()
     review_negative_false_positive_samples: List[Dict[str, Any]] = []
     for record in view.get("evidence_map", []) or []:
         if not isinstance(record, dict) or not _is_paper_negative_evidence_record(record):
@@ -19577,6 +19874,11 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
             if signature not in review_negative_label_signatures[review_label]:
                 review_negative_label_signatures[review_label].add(signature)
                 review_negative_label_counts[review_label] += 1
+            if review_label == "positive_or_neutral_support":
+                positive_or_neutral_rejected_signatures.add(signature)
+                evidence_id = str(record.get("evidence_id") or "").strip()
+                if evidence_id and evidence_id in rejected_review_negative_ids_linked_to_flaw:
+                    positive_or_neutral_active_candidate_signatures.add(signature)
         if (
             semantic_label == "semantic_negative_verified"
             and review_label not in {REVIEW_NEGATIVE_VERIFIED_LABEL, REVIEW_NEGATIVE_ABSENCE_AUDIT_LABEL}
@@ -19824,6 +20126,11 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
         view,
         list(review_issue_records_by_signature.values()),
     )
+    evidence_by_id_for_recovery = {
+        str(item.get("evidence_id") or ""): item
+        for item in view.get("evidence_map", []) or []
+        if isinstance(item, dict) and str(item.get("evidence_id") or "")
+    }
     contested_review_issue_ids = {
         str(issue_id or "").strip()
         for relation in view.get("contested_relations", []) or []
@@ -19838,20 +20145,83 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
         for evidence_id in relation.get("negative_evidence_ids", []) or []
         if str(evidence_id or "").strip()
     }
+    contested_review_issue_cluster_keys: set[Tuple[str, str, str]] = set()
+    contested_review_issue_cluster_signatures: set[Tuple[str, str]] = set()
+    for relation in view.get("contested_relations", []) or []:
+        if not isinstance(relation, dict):
+            continue
+        safe_review_issue_relation = (
+            str(relation.get("negative_evidence_basis") or "").strip()
+            in {"review_issue_bundle", "reviewer_absence_audit"}
+            or bool(relation.get("review_issue_bundle_ids"))
+            or any(
+                str(evidence_id or "").strip().startswith("evidence-reviewer-absence-")
+                for evidence_id in relation.get("negative_evidence_ids", []) or []
+            )
+        )
+        if not safe_review_issue_relation:
+            continue
+        for raw_key in relation.get("review_issue_cluster_keys", []) or []:
+            cluster_key = _normalize_review_issue_relation_cluster_key(raw_key)
+            if cluster_key[0]:
+                contested_review_issue_cluster_keys.add(cluster_key)
+                contested_review_issue_cluster_signatures.add((cluster_key[1], cluster_key[2]))
+        for evidence_id in relation.get("negative_evidence_ids", []) or []:
+            evidence = evidence_by_id_for_recovery.get(str(evidence_id or "").strip())
+            cluster_key = _review_issue_relation_cluster_key_for_record(evidence or {})
+            if cluster_key[0]:
+                contested_review_issue_cluster_keys.add(cluster_key)
+                contested_review_issue_cluster_signatures.add((cluster_key[1], cluster_key[2]))
+        issue_ids = {
+            str(issue_id or "").strip()
+            for issue_id in relation.get("review_issue_bundle_ids", []) or []
+            if str(issue_id or "").strip()
+        }
+        if issue_ids:
+            for evidence in evidence_by_id_for_recovery.values():
+                if not isinstance(evidence, dict):
+                    continue
+                bundle = evidence.get("review_issue_bundle") if isinstance(evidence.get("review_issue_bundle"), dict) else {}
+                issue_id = str(evidence.get("review_issue_id") or bundle.get("issue_id") or "").strip()
+                if issue_id not in issue_ids:
+                    continue
+                cluster_key = _review_issue_relation_cluster_key_for_record(evidence)
+                if cluster_key[0]:
+                    contested_review_issue_cluster_keys.add(cluster_key)
+                    contested_review_issue_cluster_signatures.add((cluster_key[1], cluster_key[2]))
+
+    def _review_issue_bundle_item_cluster_key(item: Dict[str, Any]) -> Tuple[str, str, str]:
+        if not isinstance(item, dict):
+            return ("", "", "")
+        claim_id = str(item.get("claim_id") or "").strip()
+        neg_type = _canonical_negative_evidence_type(item.get("issue_type"))
+        target = _normalize_text(item.get("issue_cluster_target"), max_length=180)
+        if not target:
+            raw_key = str(item.get("issue_cluster_key") or "")
+            parts = [part.strip() for part in raw_key.split("|", 1)]
+            if len(parts) == 2:
+                neg_type = neg_type or _canonical_negative_evidence_type(parts[0])
+                target = parts[1]
+        if not claim_id or not neg_type or not target:
+            return ("", "", "")
+        return (claim_id, neg_type, target)
+
     verified_issue_without_recovery_count = sum(
         1
         for item in review_issue_bundle_items
         if str(item.get("issue_id") or "") not in contested_review_issue_ids
         and str(item.get("evidence_id") or "") not in contested_review_issue_evidence_ids
+        and _review_issue_bundle_item_cluster_key(item) not in contested_review_issue_cluster_keys
     )
     verified_issue_cluster_without_recovery_count = 0
-    for records in review_issue_cluster_records.values():
+    for cluster_signature, records in review_issue_cluster_records.items():
         cluster_recovered = any(
             str(record.get("review_issue_id") or record.get("review_issue_bundle", {}).get("issue_id") or "") in contested_review_issue_ids
             or str(record.get("evidence_id") or "") in contested_review_issue_evidence_ids
+            or _review_issue_relation_cluster_key_for_record(record) in contested_review_issue_cluster_keys
             for record in records
             if isinstance(record, dict)
-        )
+        ) or cluster_signature in contested_review_issue_cluster_signatures
         if not cluster_recovered:
             verified_issue_cluster_without_recovery_count += 1
     coverage_gap_not_already_flaw_claim_ids = verified_coverage_gap_claim_ids - reviewer_absence_claim_ids
@@ -20044,16 +20414,22 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
         "verified_limitation_negative_flaw_count": len(set(fid for fid in limitation_negative_flaw_ids if fid)),
         "negative_evidence_type_counts": dict(negative_evidence_type_counts),
         "negative_flaw_not_upgraded_reason_counts": dict(negative_flaw_not_upgraded_reasons),
-        "state_contamination_count": len(contamination_targets),
+        "state_contamination_count": len(hard_contamination_targets),
         "state_contamination_count_legacy": len(contamination_targets),
         "harmful_state_contamination_count": 0,
         "repairable_state_warning_count": repairable_target_count,
         "conservative_state_warning_count": conservative_target_count,
-        "state_hygiene_warning_count": conservative_target_count,
+        "state_hygiene_warning_count": len(state_hygiene_warning_targets),
         "weak_target_warning_count": conservative_target_count,
-        "state_contamination_targets": contamination_targets,
+        "state_contamination_targets": hard_contamination_targets,
+        "state_contamination_targets_legacy": contamination_targets,
+        "state_hygiene_warning_targets": state_hygiene_warning_targets,
         "state_contamination_type_counts": contamination_type_counts,
+        "state_contamination_type_counts_legacy": contamination_type_counts_legacy,
+        "state_hygiene_warning_type_counts": state_hygiene_warning_type_counts,
         "recovery_target_gate_counts": contamination_gate_counts,
+        "recovery_target_gate_counts_legacy": contamination_gate_counts_legacy,
+        "state_hygiene_warning_gate_counts": state_hygiene_warning_gate_counts,
         "repairable_contamination_target_count": repairable_target_count,
         "conservative_contamination_target_count": conservative_target_count,
         "blocked_fallback_contamination_target_count": contamination_gate_counts.get("fallback_target", 0),
@@ -20064,7 +20440,12 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
         "paper_text_negative_candidate_count": paper_text_review_negative_count,
         "author_limitation_only_count": int(review_negative_label_counts.get("author_limitation_only", 0)),
         "prior_work_limitation_count": int(review_negative_label_counts.get("prior_work_limitation", 0)),
-        "positive_or_neutral_negative_candidate_count": int(review_negative_label_counts.get("positive_or_neutral_support", 0)),
+        "positive_or_neutral_negative_candidate_count": len(positive_or_neutral_active_candidate_signatures),
+        "positive_or_neutral_negative_rejected_count": len(positive_or_neutral_rejected_signatures),
+        "positive_or_neutral_negative_unlinked_rejected_count": max(
+            0,
+            len(positive_or_neutral_rejected_signatures) - len(positive_or_neutral_active_candidate_signatures),
+        ),
         "resource_or_scope_context_negative_candidate_count": int(review_negative_label_counts.get("resource_or_scope_context", 0)),
         "semantic_negative_without_review_relation_count": semantic_negative_without_review_relation_count,
         "semantic_negative_rejected_by_review_relation_count": semantic_negative_rejected_by_review_relation_count,
@@ -20497,6 +20878,17 @@ def normalize_review_update_payload(payload: Any, required_fields: Optional[Iter
         evidence_json_prompt_chars = max(0, int(payload.get("evidence_json_prompt_chars", 0) or 0))
     except (TypeError, ValueError):
         evidence_json_prompt_chars = 0
+    recovery_patch_like = bool(
+        _normalize_text(payload.get("action")) == "apply_recovery_patch"
+        or _normalize_text(payload.get("recovery_patch_operation"), max_length=80)
+        or _normalize_text(payload.get("target_type"))
+        or _normalize_text(payload.get("target_id"))
+        or _normalize_text(payload.get("new_status"))
+    )
+    raw_supporting_evidence_ids = _normalize_list_of_strings(payload.get("supporting_evidence_ids"))
+    if recovery_patch_like:
+        raw_supporting_evidence_ids.extend(_normalize_list_of_strings(payload.get("negative_evidence_ids")))
+        raw_supporting_evidence_ids.extend(_normalize_list_of_strings(payload.get("evidence_ids")))
 
     normalized_payload = {
         "claims": claims[:8],
@@ -20522,7 +20914,7 @@ def normalize_review_update_payload(payload: Any, required_fields: Optional[Iter
         "old_status": _normalize_text(payload.get("old_status")),
         "new_status": _normalize_text(payload.get("new_status")),
         "supporting_evidence_ids": _strip_synthetic_recovery_markers(
-            _normalize_list_of_strings(payload.get("supporting_evidence_ids"))
+            list(dict.fromkeys(raw_supporting_evidence_ids))
         ),
         "conflict_note_ids": _normalize_list_of_strings(payload.get("conflict_note_ids")),
         "reason_for_change": _normalize_text(payload.get("reason_for_change")),
@@ -21870,6 +22262,12 @@ def _apply_recovery_update(state: Dict[str, Any], payload: Dict[str, Any]) -> Di
                 "final_view": str((relation_payload or {}).get("final_view") or "potential_concern"),
                 "status": "contested",
             }
+            relation_type = str((relation_payload or {}).get("relation_type") or "").strip()
+            if relation_type:
+                relation["relation_type"] = relation_type
+            negative_evidence_basis = str((relation_payload or {}).get("negative_evidence_basis") or "").strip()
+            if negative_evidence_basis:
+                relation["negative_evidence_basis"] = negative_evidence_basis
             review_issue_bundle_ids = [
                 str(item or "").strip()
                 for item in ((relation_payload or {}).get("review_issue_bundle_ids") or [])
@@ -21877,6 +22275,35 @@ def _apply_recovery_update(state: Dict[str, Any], payload: Dict[str, Any]) -> Di
             ]
             if review_issue_bundle_ids:
                 relation["review_issue_bundle_ids"] = list(dict.fromkeys(review_issue_bundle_ids))[:4]
+            relation_cluster_keys: List[Tuple[str, str, str]] = []
+            for raw_key in (relation_payload or {}).get("review_issue_cluster_keys", []) or []:
+                cluster_key = _normalize_review_issue_relation_cluster_key(raw_key)
+                if cluster_key[0]:
+                    relation_cluster_keys.append(cluster_key)
+            for evidence_id in evidence_ids:
+                cluster_key = _review_issue_relation_cluster_key_for_record(
+                    evidence_lookup.get(str(evidence_id or "").strip()) or {}
+                )
+                if cluster_key[0]:
+                    relation_cluster_keys.append(cluster_key)
+            if review_issue_bundle_ids:
+                issue_id_set = set(review_issue_bundle_ids)
+                for evidence in evidence_lookup.values():
+                    if not isinstance(evidence, dict):
+                        continue
+                    bundle = evidence.get("review_issue_bundle") if isinstance(evidence.get("review_issue_bundle"), dict) else {}
+                    issue_id = str(evidence.get("review_issue_id") or bundle.get("issue_id") or "").strip()
+                    if issue_id not in issue_id_set:
+                        continue
+                    cluster_key = _review_issue_relation_cluster_key_for_record(evidence)
+                    if cluster_key[0]:
+                        relation_cluster_keys.append(cluster_key)
+            relation_cluster_keys = list(dict.fromkeys(relation_cluster_keys))
+            if relation_cluster_keys:
+                relation["review_issue_cluster_keys"] = [
+                    _review_issue_relation_cluster_key_payload(cluster_key)
+                    for cluster_key in relation_cluster_keys[:4]
+                ]
             existing = list(merged.get("contested_relations", []) or [])
             existing_keys = {
                 (
@@ -24522,17 +24949,17 @@ def _render_critique_state_slice(
             "Quote-bank entries are grounding material, not flaw triggers. If a diagnosis lacks verified negative evidence, keep it candidate with grounding_status=diagnosis_pending_verification."
         )
     if review_issue_discovery_required and _REVIEW_ISSUE_BUNDLE_ENABLED:
-        review_issue_targets = _hard_negative_diagnosis_targets(state, claims=claims, max_items=8)
+        review_issue_targets = _hard_negative_diagnosis_targets(state, claims=claims, max_items=12)
         critique_slice["review_issue_discovery_target_summary"] = _review_issue_discovery_target_summary(
             review_issue_targets,
-            max_items=3,
+            max_items=4,
         )
         critique_slice["review_issue_discovery_targets_omitted_for_prompt_compaction"] = True
         selector_menu = _review_issue_candidate_selector_menu(
             review_issue_targets,
-            max_items=10,
-            max_per_claim=2,
-            max_per_type=3,
+            max_items=12,
+            max_per_claim=3,
+            max_per_type=4,
         )
         if selector_menu:
             critique_slice["review_issue_candidate_selector_menu"] = selector_menu
@@ -25251,7 +25678,7 @@ def render_critique_observation(task: Dict[str, Any], manager_payload: Optional[
     if review_issue_discovery_turn and isinstance(snapshot_menu, list) and snapshot_menu:
         critique_slice["review_issue_candidate_selector_menu"] = [
             item for item in snapshot_menu if isinstance(item, dict)
-        ][:8]
+        ][:12]
     focus = manager_payload.get("focus", "")
     critique_context, critique_context_meta = _render_evidence_context_with_meta(
         task,
@@ -25304,7 +25731,7 @@ def render_critique_observation(task: Dict[str, Any], manager_payload: Optional[
                 "# Review Issue Candidate Selector Menu\n"
                 f"{json.dumps({'review_issue_candidate_selector_menu': critique_slice.get('review_issue_candidate_selector_menu', [])}, ensure_ascii=False, indent=2)}\n\n"
                 "# Selector Menu Rules\n"
-                "First inspect this compact menu. Output selected_menu_items as the primary channel; each selected item only needs candidate_menu_id, decision=selected, rationale, and confidence. "
+                "First inspect this compact menu. Output selected_menu_items as the primary channel; select up to 3 safe paper-auditable items when available. Each selected item only needs candidate_menu_id, decision=selected, rationale, and confidence. "
                 "Only select ids copied from review_issue_candidate_selector_menu / review_issue_candidate_menu, normally starting with rim-c; never select rim-evidence ids, quote ids, evidence ids, claim ids, or invented ids. "
                 "Do not paraphrase a menu item while omitting its id. The runner will expand selected ids into verifier-ready candidates using current state. "
                 "Use free-form candidates only when no menu item fits and you can provide claim_anchor, target_entity, issue_type, expected_evidence, observed_inventory, possible_counterevidence_aliases, and why_existing_inventory_does_not_cover.\n\n"
@@ -25326,7 +25753,7 @@ def render_critique_observation(task: Dict[str, Any], manager_payload: Optional[
             "When review_issue_candidate_selector_menu or review_issue_candidate_menu is present, select a menu item by copying candidate_menu_id; do not rewrite it into a long candidate object. "
             "Use review_issue_contrast_hints to compare missing requirements against observed inventory anchors; these hints are not evidence. "
             "Treat this as reviewer hypothesis generation: propose specific absence/coverage candidates for later verification even when the paper does not contain a negative quote. "
-            "Select at most two safe menu ids; do not force slot coverage. Leave unsafe slots unselected or reject them briefly. "
+            "Select up to three safe menu ids; do not force slot coverage. Leave unsafe slots unselected or reject them briefly. "
             "For baseline/protocol/reproducibility issues, name the exact baseline family, protocol dimension, hyperparameter/split/detail, or setting to check. "
             "When paper_evaluation_inventory or the paper context shows what was evaluated, include observed_inventory with a copied quote/list/table anchor and locator. "
             "If you output freeform_review_issue_candidates, also mirror only those free-form items in review_issue_candidates for backward compatibility. "
@@ -25587,6 +26014,7 @@ def _is_grounded_paper_negative_evidence_record(item: Dict[str, Any], state: Dic
         and _REVIEW_NEGATIVE_POSITIVE_CONTEXT_RE.search(quote_blob)
         and not _REVIEW_NEGATIVE_CONCRETE_GAP_RE.search(quote_blob)
         and not _SEMANTIC_NEGATIVE_TERMS_RE.search(quote_blob)
+        and not _OWN_METHOD_WORSE_THAN_BASELINE_RE.search(quote_blob)
         and not _comparison_invalidation_is_current_paper_issue(quote_blob)
     ):
         return False
@@ -26083,6 +26511,7 @@ def _explicit_negative_potential_false_positive_reason(record: Dict[str, Any]) -
         _REVIEW_NEGATIVE_POSITIVE_CONTEXT_RE.search(quote)
         and not concrete_gap
         and not _SEMANTIC_NEGATIVE_TERMS_RE.search(quote)
+        and not _OWN_METHOD_WORSE_THAN_BASELINE_RE.search(quote)
     ):
         return "positive_or_neutral_support"
     if _REVIEW_NEGATIVE_RESOURCE_CONTEXT_RE.search(quote) and not concrete_gap:

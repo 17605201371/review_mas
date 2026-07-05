@@ -262,11 +262,13 @@ Do not relax this by using model judgment. Direct quote-grounded negatives and o
 
 # Candidate Sources
 1. Prefer `review_issue_candidate_selector_menu` when present. Treat it as the primary selector, not background text:
-   inspect every visible menu item, select 1-2 safe paper-auditable items when available, and reject unsafe items briefly.
+   inspect every visible menu item, select up to 3 safe paper-auditable items when available, and reject unsafe items briefly.
    Select only `candidate_menu_id` values copied from `review_issue_candidate_selector_menu` / `review_issue_candidate_menu`;
+   copy `candidate_menu_id` exactly;
    they normally start with `rim-c`. Never put `rim-evidence-*`, quote ids, evidence ids, claim ids, or invented ids in
    `selected_menu_items`.
    For a selected item, only `candidate_menu_id`, `decision="selected"`, `rationale`, and `confidence` are required.
+   Always list every selected menu id in `selected_menu_items`.
    The runner expands visible menu ids back into pending candidates using current state; selected ids still must pass
    the strict verifier.
 2. If the full `review_issue_candidate_menu`, `entity_level_claim_obligations`, `issue_candidate_blueprints`,

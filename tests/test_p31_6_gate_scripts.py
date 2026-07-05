@@ -37,6 +37,8 @@ def _dashboard(path, critique_clusters=3, protection_passed=True):
                     "verified_review_issue_cluster_recomputed_count": critique_clusters,
                     "quote_duplicate_merged_verified_review_issue_cluster_count": critique_clusters,
                     "critique_payload_verified_cluster_count": critique_clusters,
+                    "critique_direct_verified_cluster_count": critique_clusters,
+                    "critique_selected_existing_seed_cluster_count": 0,
                     "candidate_menu_item_verified_count": critique_clusters,
                     "verified_review_issue_cluster_origin_critique_payload_count": critique_clusters,
                     "verified_review_issue_cluster_origin_deterministic_seed_count": 0,
@@ -118,7 +120,7 @@ def test_entry_gate_fails_when_critique_origin_cluster_count_below_threshold(tmp
     assert report["machine_gate_status"] == "FAIL"
     assert report["manual_gate_status"] == "REQUIRED"
     assert len(report["critique_origin_clusters"]) == 2
-    assert any("critique_payload_verified_cluster_count" in issue for issue in report["blocking_issues"])
+    assert any("critique_direct_verified_cluster_count" in issue for issue in report["blocking_issues"])
 
 
 def test_manual_audit_template_and_validation_pass_for_three_ab_clusters(tmp_path):

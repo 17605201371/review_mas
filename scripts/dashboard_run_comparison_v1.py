@@ -1024,12 +1024,6 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
         rows, "critique_selected_existing_seed_cluster_count"
     ) or out["critique_selected_verified_by_existing_cluster_count"]
     out["critique_direct_verified_cluster_count"] = _sum(rows, "critique_direct_verified_cluster_count")
-    if not out["critique_direct_verified_cluster_count"]:
-        out["critique_direct_verified_cluster_count"] = max(
-            0,
-            out["critique_payload_verified_cluster_count"]
-            - out["critique_selected_existing_seed_cluster_count"],
-        )
     out["deterministic_seed_verified_cluster_count"] = _sum(rows, "deterministic_seed_verified_cluster_count")
     out["candidate_menu_item_count"] = _sum(rows, "candidate_menu_item_count")
     out["candidate_menu_item_used_count"] = _sum(rows, "candidate_menu_item_used_count")
@@ -1134,6 +1128,8 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     out["author_limitation_only_count"] = _sum(rows, "author_limitation_only_count")
     out["prior_work_limitation_count"] = _sum(rows, "prior_work_limitation_count")
     out["positive_or_neutral_negative_candidate_count"] = _sum(rows, "positive_or_neutral_negative_candidate_count")
+    out["positive_or_neutral_negative_rejected_count"] = _sum(rows, "positive_or_neutral_negative_rejected_count")
+    out["positive_or_neutral_negative_unlinked_rejected_count"] = _sum(rows, "positive_or_neutral_negative_unlinked_rejected_count")
     out["resource_or_scope_context_negative_candidate_count"] = _sum(rows, "resource_or_scope_context_negative_candidate_count")
     out["semantic_negative_without_review_relation_count"] = _sum(rows, "semantic_negative_without_review_relation_count")
     out["semantic_negative_rejected_by_review_relation_count"] = _sum(rows, "semantic_negative_rejected_by_review_relation_count")
@@ -1221,10 +1217,12 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
 
     # --- state contamination / target localization ---------------------
     contamination_type_counts: Counter = Counter()
+    warning_type_counts: Counter = Counter()
     target_gate_counts: Counter = Counter()
     for row in rows:
         hygiene = _hygiene(row)
         contamination_type_counts.update(hygiene.get("state_contamination_type_counts") or {})
+        warning_type_counts.update(hygiene.get("state_hygiene_warning_type_counts") or {})
         target_gate_counts.update(hygiene.get("recovery_target_gate_counts") or {})
     out["state_contamination_count"] = _sum(rows, "state_contamination_count")
     out["state_contamination_count_legacy"] = _sum(rows, "state_contamination_count_legacy")
@@ -1249,6 +1247,7 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
         "harmful_recovery_risk",
     ):
         out[f"contamination_{error_type}"] = int(contamination_type_counts.get(error_type, 0))
+        out[f"warning_{error_type}"] = int(warning_type_counts.get(error_type, 0))
     for gate_label in ("real_target", "weak_target", "fallback_target", "empty_target"):
         out[f"target_gate_{gate_label}"] = int(target_gate_counts.get(gate_label, 0))
 
@@ -1323,6 +1322,7 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     review_issue_seed_topup_turns = 0
     review_issue_seed_topup_candidate_count = 0
     seed_topup_after_critique_failure_count = 0
+    review_issue_seed_topup_shadowed_by_existing_cluster_count = 0
     critique_only_seed_skipped_turns = 0
     selected_menu_recovery_event_keys: set[Tuple[int, int, int]] = set()
     seed_topup_event_keys: set[Tuple[int, int, int]] = set()
@@ -1347,7 +1347,8 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
 
     def _record_review_issue_seed_flags(worker: Dict[str, Any], event_key: Tuple[int, int, int]) -> None:
         nonlocal review_issue_seed_topup_turns, review_issue_seed_topup_candidate_count
-        nonlocal seed_topup_after_critique_failure_count, critique_only_seed_skipped_turns
+        nonlocal seed_topup_after_critique_failure_count, review_issue_seed_topup_shadowed_by_existing_cluster_count
+        nonlocal critique_only_seed_skipped_turns
         if not isinstance(worker, dict) or worker.get("agent_id") != "Critique Agent":
             return
         if event_key in seed_topup_event_keys:
@@ -1367,6 +1368,13 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
                 )
             except (TypeError, ValueError):
                 pass
+        try:
+            review_issue_seed_topup_shadowed_by_existing_cluster_count += max(
+                0,
+                int(worker.get("review_issue_seed_topup_shadowed_by_existing_cluster_count") or 0),
+            )
+        except (TypeError, ValueError):
+            pass
         if worker.get("review_issue_seed_fallback_skipped_for_critique_only_eval"):
             critique_only_seed_skipped_turns += 1
 
@@ -1486,6 +1494,7 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     out["review_issue_seed_topup_turns"] = review_issue_seed_topup_turns
     out["review_issue_seed_topup_candidate_count"] = review_issue_seed_topup_candidate_count
     out["seed_topup_after_critique_failure_count"] = seed_topup_after_critique_failure_count
+    out["review_issue_seed_topup_shadowed_by_existing_cluster_count"] = review_issue_seed_topup_shadowed_by_existing_cluster_count
     out["critique_only_seed_skipped_turns"] = critique_only_seed_skipped_turns
     out["critique_prompt_chars_max"] = max(critique_prompt_chars) if critique_prompt_chars else 0
     out["critique_prompt_chars_median"] = (
@@ -1833,9 +1842,13 @@ def _case_audit(rows: List[Dict[str, Any]], metrics: Dict[str, Any], issues: Lis
         contamination_counts = hygiene.get("state_contamination_type_counts") or {}
         if not isinstance(contamination_counts, dict):
             contamination_counts = {}
+        warning_counts = hygiene.get("state_hygiene_warning_type_counts") or {}
+        if not isinstance(warning_counts, dict):
+            warning_counts = {}
 
         state_contamination_count = int(hygiene.get("state_contamination_count") or 0)
         harmful_state_contamination_count = int(hygiene.get("harmful_state_contamination_count") or 0)
+        state_hygiene_warning_count = int(hygiene.get("state_hygiene_warning_count") or 0)
         clean_state = state_contamination_count == 0 and harmful_state_contamination_count == 0
 
         safe_block_turns = [
@@ -1927,7 +1940,9 @@ def _case_audit(rows: List[Dict[str, Any]], metrics: Dict[str, Any], issues: Lis
             "hygiene_case_reasons": reasons,
             "state_contamination_count": state_contamination_count,
             "harmful_state_contamination_count": harmful_state_contamination_count,
+            "state_hygiene_warning_count": state_hygiene_warning_count,
             "contamination_type_counts": contamination_counts,
+            "state_hygiene_warning_type_counts": warning_counts,
             "gap_status_counts": dict(gap_status_counts),
             "unresolved_reason_counts": dict(unresolved_reason_counts),
             "recovery_attempted_turns": sum(1 for tl in turns if tl.get("recovery_attempted")),
@@ -2045,6 +2060,7 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "review_issue_seed_topup_turns",
         "review_issue_seed_topup_candidate_count",
         "seed_topup_after_critique_failure_count",
+        "review_issue_seed_topup_shadowed_by_existing_cluster_count",
         "critique_only_seed_skipped_turns",
         "critique_prompt_chars_median",
         "critique_prompt_chars_max",
@@ -2261,6 +2277,8 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "author_limitation_only_count",
         "prior_work_limitation_count",
         "positive_or_neutral_negative_candidate_count",
+        "positive_or_neutral_negative_rejected_count",
+        "positive_or_neutral_negative_unlinked_rejected_count",
         "resource_or_scope_context_negative_candidate_count",
         "semantic_negative_without_review_relation_count",
         "semantic_negative_rejected_by_review_relation_count",
@@ -2345,6 +2363,9 @@ GROUP_DEFS: List[Tuple[str, List[str]]] = [
         "contamination_meta_leakage",
         "contamination_stale_flaw_persistence",
         "contamination_harmful_recovery_risk",
+        "warning_zero_real_support",
+        "warning_stale_gap_persistence",
+        "warning_negative_evidence_overclaim",
         "target_gate_real_target",
         "target_gate_weak_target",
         "target_gate_fallback_target",

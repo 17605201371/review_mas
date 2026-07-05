@@ -2558,6 +2558,93 @@ def test_review_issue_seed_candidates_from_targets_are_candidates_only():
     assert not any("flaw_id" in seed for seed in seeds)
 
 
+def test_review_issue_selector_snapshot_exposes_runner_seed_candidates(monkeypatch):
+    inventory = {
+        "inventory_id": "inv-rankhead-ablation",
+        "quote": "Table 2: Ablation study comparing Full model, w/o encoder, and w/o decoder on Benchmark-X.",
+        "locator": "Table 2",
+        "observed_items": ["Full model", "w/o encoder", "w/o decoder"],
+        "inventory_type": "ablation",
+    }
+
+    def fake_targets(state, claims=None, max_items=12):
+        return [
+            {
+                "claim_id": "claim-1",
+                "claim": "The RankHead module improves ranking accuracy on Benchmark-X.",
+                "review_issue_candidate_menu": [],
+            }
+        ]
+
+    def fake_seed_candidates(state, max_candidates=12):
+        return [
+            {
+                "candidate_id": "reviewer-seed-candidate-claim-1-rankhead",
+                "claim_id": "claim-1",
+                "claim": "The RankHead module improves ranking accuracy on Benchmark-X.",
+                "weakness": "The claim may lack component-isolation ablation for RankHead module.",
+                "negative_type": "missing_ablation",
+                "required_evidence_type": "ablation_or_component",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["component-isolation ablation for RankHead module"],
+                "observed_inventory": [inventory],
+                "status": "pending_absence_audit",
+                "source": "runner_seed_blueprint",
+                "discovery_origin": "runner_seed_blueprint",
+            }
+        ]
+
+    monkeypatch.setattr(review_runner_mod, "_hard_negative_diagnosis_targets", fake_targets)
+    monkeypatch.setattr(review_runner_mod, "_seed_review_issue_candidates_from_targets", fake_seed_candidates)
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The RankHead module improves ranking accuracy on Benchmark-X.",
+            }
+        ],
+        "evidence_map": [],
+    }
+    manager_payload = review_runner_mod._attach_review_issue_selector_snapshot(
+        {"review_issue_discovery_required": True},
+        state,
+    )
+    menu = manager_payload["review_issue_candidate_selector_menu_snapshot"]
+    selected_id = menu[0]["candidate_menu_id"]
+    payload = normalize_review_update_payload(
+        {
+            "selected_menu_items": [
+                {
+                    "candidate_menu_id": selected_id,
+                    "decision": "selected",
+                    "rationale": "seed item is now visible to Critique",
+                }
+            ]
+        }
+    )
+    trace = {}
+
+    updated = _maybe_seed_review_issue_discovery_payload(
+        "Critique Agent",
+        payload,
+        state,
+        manager_payload,
+        trace_worker=trace,
+    )
+
+    selected_candidates = [
+        item for item in updated["reviewer_negative_candidates"]
+        if item.get("candidate_menu_id") == selected_id
+    ]
+    assert selected_id.startswith("rim-c1-ma-")
+    assert menu[0]["source"] == "runner_seed_blueprint"
+    assert selected_candidates
+    assert selected_candidates[0]["candidate_id"].startswith("review-issue-candidate-selected-menu")
+    assert trace["review_issue_selected_menu_recovery_used"] is True
+    assert len(updated["reviewer_negative_candidates"]) == 1
+    assert "review_issue_seed_fallback_used" not in trace
+
+
 def test_review_issue_menu_decisions_are_preserved_by_normalizer():
     payload = normalize_review_update_payload(
         {
@@ -2627,6 +2714,7 @@ def test_review_issue_discovery_recovers_selected_menu_items_before_seed_topup()
 
 
 def test_review_issue_discovery_recovers_selected_per_claim_menu_item_outside_selector(monkeypatch):
+    selector_args = {}
     menu_items = [
         {
             "candidate_menu_id": f"rim-c1-ma-target-{idx}",
@@ -2648,15 +2736,25 @@ def test_review_issue_discovery_recovers_selected_per_claim_menu_item_outside_se
         for idx in range(7)
     ]
 
+    def fake_targets(state, claims=None, max_items=8):
+        selector_args["target_max_items"] = max_items
+        return [{"review_issue_candidate_menu": menu_items}]
+
+    def fake_selector(targets, max_items=12, max_per_claim=2, max_per_type=3):
+        selector_args["selector_max_items"] = max_items
+        selector_args["selector_max_per_claim"] = max_per_claim
+        selector_args["selector_max_per_type"] = max_per_type
+        return menu_items[:6]
+
     monkeypatch.setattr(
         review_runner_mod,
         "_hard_negative_diagnosis_targets",
-        lambda state, claims=None, max_items=8: [{"review_issue_candidate_menu": menu_items}],
+        fake_targets,
     )
     monkeypatch.setattr(
         review_runner_mod,
         "_review_issue_candidate_selector_menu",
-        lambda targets, max_items=12, max_per_claim=2, max_per_type=3: menu_items[:6],
+        fake_selector,
     )
     payload = normalize_review_update_payload(
         {
@@ -2689,6 +2787,12 @@ def test_review_issue_discovery_recovers_selected_per_claim_menu_item_outside_se
     assert recovered[0]["discovery_origin"] == "critique_payload_menu_selected"
     assert trace["review_issue_selected_menu_recovery_used"] is True
     assert trace["review_issue_selected_menu_recovered_count"] == 1
+    assert selector_args == {
+        "target_max_items": 12,
+        "selector_max_items": 12,
+        "selector_max_per_claim": 3,
+        "selector_max_per_type": 4,
+    }
 
 
 def test_review_issue_discovery_seed_topup_when_critique_returns_no_candidates():
@@ -2708,6 +2812,80 @@ def test_review_issue_discovery_seed_topup_when_critique_returns_no_candidates()
     assert trace["review_issue_seed_fallback_used"] is True
     assert seeded["evidence_map"] == []
     assert seeded["flaw_candidates"] == []
+
+
+def test_review_issue_discovery_seed_topup_skips_semantic_duplicate_selected_menu(monkeypatch):
+    inventory = {
+        "quote": "ReDrafter uses a recurrent neural network (RNN) as the draft model for speculative decoding.",
+        "locator": "Section 3",
+        "observed_items": ["RNN", "draft model"],
+        "inventory_type": "component_anchor",
+    }
+    payload = normalize_review_update_payload(
+        {
+            "reviewer_negative_candidates": [
+                {
+                    "candidate_id": "review-issue-candidate-selected-menu-1",
+                    "candidate_menu_id": "rim-c1-ma-recurrent-draft-model",
+                    "review_issue_candidate_menu_item": {
+                        "candidate_menu_id": "rim-c1-ma-recurrent-draft-model",
+                        "claim_id": "claim-1",
+                        "issue_type": "missing_ablation",
+                        "required_evidence_type": "ablation_or_component",
+                        "expected_entity": "component-isolation ablation for recurrent neural network",
+                        "verifier_target_entity": "recurrent draft model",
+                        "observed_inventory": [inventory],
+                    },
+                    "claim_id": "claim-1",
+                    "claim": "ReDrafter uses an RNN as the draft model.",
+                    "weakness": "Verify whether the recurrent draft model lacks an isolation ablation.",
+                    "negative_type": "missing_ablation",
+                    "required_evidence_type": "ablation_or_component",
+                    "quote_grounding_mode": "absence_or_requirement_gap",
+                    "missing_or_weak_items": ["recurrent draft model"],
+                    "observed_inventory": [inventory],
+                    "status": "pending_absence_audit",
+                    "source": "critique_selected_menu_item",
+                    "discovery_origin": "critique_payload_menu_selected",
+                }
+            ]
+        }
+    )
+
+    def fake_seed_candidates(state, max_candidates=12):
+        return [
+            {
+                "candidate_id": "reviewer-seed-candidate-claim-1-rnn",
+                "claim_id": "claim-1",
+                "claim": "ReDrafter uses an RNN as the draft model.",
+                "weakness": "The claim may lack component-isolation ablation for recurrent neural network.",
+                "negative_type": "missing_ablation",
+                "required_evidence_type": "ablation_or_component",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["component-isolation ablation for recurrent neural network"],
+                "observed_inventory": [inventory],
+                "status": "pending_absence_audit",
+                "source": "runner_seed_blueprint",
+                "discovery_origin": "runner_seed_blueprint",
+            }
+        ]
+
+    monkeypatch.setattr(review_runner_mod, "_seed_review_issue_candidates_from_targets", fake_seed_candidates)
+    trace = {}
+
+    updated = _maybe_seed_review_issue_discovery_payload(
+        "Critique Agent",
+        payload,
+        {"claims": [{"claim_id": "claim-1", "claim": "ReDrafter uses an RNN as the draft model."}]},
+        {"review_issue_discovery_required": True},
+        trace_worker=trace,
+    )
+
+    candidates = updated.get("reviewer_negative_candidates") or []
+    assert len(candidates) == 1
+    assert candidates[0]["candidate_id"] == "review-issue-candidate-selected-menu-1"
+    assert trace["review_issue_seed_topup_shadowed_by_existing_cluster_count"] == 1
+    assert "review_issue_seed_fallback_used" not in trace
 
 
 def test_review_issue_discovery_critique_only_eval_skips_seed_topup(monkeypatch):

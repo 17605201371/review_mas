@@ -769,44 +769,41 @@ def test_mark_contested_patch_commits_without_claim_status_downgrade(mock_state)
 
 
 def test_mark_contested_persists_reviewer_absence_audit_snapshot():
-    absence_id = "evidence-reviewer-absence-claim-1-baseline-or-comparison"
+    claim = "The RankHead module improves ranking accuracy on Benchmark-X."
+    support_quote = "Table 1 reports RankHead module accuracy results on Benchmark-X for Ours and BERT baselines."
+    ablation_inventory_quote = "Table 2: Ablation study comparing Full model, w/o encoder, and w/o decoder on Benchmark-X."
+    absence_id = "evidence-reviewer-absence-claim-1-ablation-or-component-mi"
     state = {
+        "paper_text": f"{claim}\n\n{support_quote}\n\n{ablation_inventory_quote}",
         "claims": [
             {
                 "claim_id": "claim-1",
-                "claim": "The paper compares the method to the GPT-4 baseline.",
+                "claim": claim,
                 "claim_kind": "paper_extracted",
-                "claim_type": "other",
+                "claim_type": "method",
                 "importance": "high",
                 "status": "supported",
+                "claim_obligations": ["ablation_or_component"],
             }
         ],
-        "reviewer_negative_candidates": [
-            {
-                "candidate_id": "reviewer-neg-candidate-gpt4-baseline",
-                "claim_id": "claim-1",
-                "weakness": "The comparison claim lacks verified evidence for the GPT-4 baseline.",
-                "negative_type": "missing_baseline",
-                "required_evidence_type": "baseline_or_comparison",
-                "quote_grounding_mode": "absence_or_requirement_gap",
-                "missing_or_weak_items": ["GPT-4 baseline"],
-                "status": "pending_absence_audit",
-            }
-        ],
+        "reviewer_negative_candidates": [],
         "evidence_map": [
             {
                 "evidence_id": "e-support",
                 "claim_id": "claim-1",
-                "evidence": "The abstract states that the method improves performance on Benchmark-X.",
-                "raw_quote": "The method improves performance on Benchmark-X.",
-                "source": "Abstract",
-                "source_locator": "Abstract",
+                "evidence": support_quote,
+                "raw_quote": support_quote,
+                "source": "Table 1",
+                "source_locator": "Table 1",
                 "strength": "strong",
                 "stance": "supports",
                 "binding_status": "bound_real_claim",
                 "verified_grounding_label": "paper_grounded_exact",
+                "verified_quote_match_type": "exact",
+                "verified_source_span_start": len(claim) + 2,
+                "verified_source_span_end": len(claim) + 2 + len(support_quote) - 1,
                 "semantic_grounding_label": "semantic_support_verified",
-                "support_source_bucket": "abstract",
+                "support_source_bucket": "empirical_result",
             }
         ],
         "flaw_candidates": [],
@@ -847,10 +844,11 @@ def test_mark_contested_persists_reviewer_absence_audit_snapshot():
     assert absence_record["source"] == "reviewer_absence_audit"
     assert absence_record["absence_audit_snapshot_at_recovery_commit"] is True
     assert new_state["contested_relations"][0]["negative_evidence_ids"] == [absence_id]
+    assert new_state["contested_relations"][0]["negative_evidence_basis"] == "reviewer_absence_audit"
 
     hygiene = build_decision_hygiene_view(copy.deepcopy(new_state))["decision_hygiene"]
     assert hygiene["reviewer_absence_verified_count"] == 1
-    assert hygiene["reviewer_absence_verified_type_counts"]["missing_baseline"] == 1
+    assert hygiene["reviewer_absence_verified_type_counts"]["missing_ablation"] == 1
 
 
 def test_mark_contested_duplicate_relation_is_blocked_as_no_effect(mock_state):

@@ -11,6 +11,8 @@ RECOVERY_SHAPE_KEYS = {
     "old_status",
     "new_status",
     "supporting_evidence_ids",
+    "negative_evidence_ids",
+    "evidence_ids",
     "conflict_note_ids",
     "reason_for_change",
     "resolution_expectation",
@@ -91,6 +93,8 @@ def looks_like_recovery_payload(payload: Any) -> bool:
             _normalize_text(payload.get("new_status"), max_length=64),
             _normalize_text(payload.get("blocked_reason"), max_length=400),
             _normalize_list_of_strings(payload.get("supporting_evidence_ids")),
+            _normalize_list_of_strings(payload.get("negative_evidence_ids")),
+            _normalize_list_of_strings(payload.get("evidence_ids")),
             _normalize_list_of_strings(payload.get("conflict_note_ids"), max_length=80),
             _normalize_list_of_strings(payload.get("missing_requirements")),
         ]
@@ -105,6 +109,9 @@ def parse_recovery_payload(payload: Any) -> Dict[str, Any]:
     old_status = _normalize_text(raw_payload.get("old_status"), max_length=64).lower()
     new_status = _normalize_text(raw_payload.get("new_status"), max_length=64).lower()
     supporting_evidence_ids = _normalize_list_of_strings(raw_payload.get("supporting_evidence_ids"))
+    supporting_evidence_ids.extend(_normalize_list_of_strings(raw_payload.get("negative_evidence_ids")))
+    supporting_evidence_ids.extend(_normalize_list_of_strings(raw_payload.get("evidence_ids")))
+    supporting_evidence_ids = list(dict.fromkeys(supporting_evidence_ids))
     conflict_note_ids = _normalize_list_of_strings(raw_payload.get("conflict_note_ids"), max_length=80)
     reason_for_change = _normalize_text(raw_payload.get("reason_for_change"), max_length=240)
     resolution_expectation = _normalize_text(raw_payload.get("resolution_expectation"), max_length=32).lower()

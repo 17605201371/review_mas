@@ -3422,3 +3422,90 @@ preempted before a selector menu exists or before the selector turn is cleanly
 executed.  Next pass should introduce an explicit review_issue_discovery phase
 or turn reservation, not another verifier or prompt relaxation.
 ```
+
+## 2026-07-05 P31.11 direct Critique selector bridge checkpoint
+
+Implemented a functional bridge from Critique selector menu choices to verified
+review issue candidates without relaxing verifier gates:
+
+- Runner expands selected `candidate_menu_id` values into real
+  `reviewer_negative_candidates`.
+- Selected menu candidates now preserve the copied menu snapshot claim id, so a
+  candidate selected from `claim-3` is not rebound to a different claim and
+  dropped before bundle verification.
+- The selector prioritizes high-quality verifier-survivable menu items before
+  using slot diversity to fill remaining menu capacity.
+- Seed top-up remains separate from direct Critique attribution.
+- Positive/neutral negative-looking records are counted as rejected diagnostics;
+  active `positive_or_neutral_negative_candidate_count` stays limited to linked
+  active false-negative candidates.
+- `state_contamination_count` now means hard contamination only; weak target
+  lifecycle records remain visible under warning/legacy counters.
+- The review-negative positive-context guard was narrowed so true
+  baseline-beats-proposed negative results survive, while explicit
+  lower-is-better metric improvements still reject as positive/neutral support.
+
+Fresh hardneg20 raw:
+
+```text
+mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok2048_20260705_030000.jsonl
+```
+
+Current metrics:
+
+```text
+protection_passed = True
+verified_review_issue_count = 21
+verified_review_issue_cluster_count = 18
+review_negative_verified_count = 1
+critique_payload_verified_cluster_count = 2
+critique_direct_verified_cluster_count = 2
+candidate_menu_item_verified_count = 2
+positive_or_neutral_negative_candidate_count = 0
+positive_or_neutral_negative_rejected_count = 1
+state_contamination_count = 0
+state_contamination_count_legacy = 15
+state_hygiene_warning_count = 15
+mark_contested_commit_count = 11
+```
+
+Validation:
+
+```text
+focused hygiene/gate selector suite = 11 passed
+runner selected-menu/discovery suite = 18 passed
+py_compile = PASS
+broader 3-file suite = 765 passed / 31 failed
+```
+
+Sample smoke after the selector fix:
+
+```text
+run = p31_11_sample3_direct_bridge_20260705_114014.jsonl
+rows = 3
+verified_review_issue_count = 1
+verified_review_issue_cluster_count = 1
+candidate_menu_item_count = 5
+candidate_menu_item_used_count = 5
+candidate_menu_item_verified_count = 0
+critique_direct_verified_cluster_count = 0
+state_contamination_count = 0
+```
+
+The sample confirms the live API path can render and materialize selected-menu
+candidates.  It did not produce a verified Critique menu candidate on these
+three papers: failures were `missing_entity_already_observed_in_inventory`,
+`generic_item`, and `selected_menu_item_not_in_current_menu_or_filtered`.
+Conclusion: continue improving selector/menu supply quality and diagnostics;
+do not loosen the verifier.
+
+Entry gate still fails for the real remaining functional gap:
+
+```text
+critique_direct_verified_cluster_count 2 < 3
+case_table_critique_origin_cluster_count 2 < 3
+```
+
+Next direction: keep verifier strict, audit remaining review-issue bundle
+boundary failures only where they affect selector supply, then run a fresh
+hardneg20 to see whether direct Critique verified clusters reach >=3.

@@ -30,7 +30,10 @@ from agent_system.environments.env_package.review.state import (
     _classify_negative_evidence_type,
     _hard_negative_diagnosis_targets,
     _missing_ablation_target_quality,
+    _review_issue_candidate_menu_id,
     _review_issue_candidate_selector_menu,
+    _review_issue_normalized_cluster_target,
+    _review_issue_slot_for_type,
     build_turn_action,
     build_decision_hygiene_view,
     infer_final_decision,
@@ -2878,13 +2881,61 @@ def _seed_items_from_review_issue_blueprint(target: Dict[str, Any], blueprint: D
     return [f"specific verification item for {primary}"] if primary else []
 
 
+def _review_issue_candidate_semantic_cluster_key(candidate: Dict[str, Any]) -> Tuple[str, str, str]:
+    if not isinstance(candidate, dict):
+        return ("", "", "")
+    claim_id = str(candidate.get("claim_id") or "").strip()
+    issue_type = str(candidate.get("negative_type") or candidate.get("issue_type") or "").strip()
+    missing_items = [
+        _candidate_text(item, 160)
+        for item in (candidate.get("missing_or_weak_items") or [])
+        if _candidate_text(item, 160)
+    ]
+    if not claim_id or not issue_type or not missing_items:
+        return ("", "", "")
+    observed_inventory = candidate.get("observed_inventory")
+    if not isinstance(observed_inventory, list):
+        observed_inventory = []
+    menu_item = candidate.get("review_issue_candidate_menu_item")
+    if not observed_inventory and isinstance(menu_item, dict):
+        snapshot_inventory = menu_item.get("observed_inventory")
+        if isinstance(snapshot_inventory, list):
+            observed_inventory = snapshot_inventory
+        else:
+            anchor = menu_item.get("inventory_anchor") if isinstance(menu_item.get("inventory_anchor"), dict) else {}
+            if anchor:
+                observed_inventory = [
+                    {
+                        "quote": _candidate_text(anchor.get("quote") or menu_item.get("inventory_quote"), 260),
+                        "locator": _candidate_text(anchor.get("locator") or menu_item.get("inventory_locator"), 120),
+                        "observed_items": list(anchor.get("observed_items") or []),
+                        "inventory_type": str(anchor.get("inventory_type") or menu_item.get("inventory_type") or ""),
+                    }
+                ]
+    bundle = {
+        "missing_or_mismatch": {
+            "entity": missing_items[0],
+            "items": missing_items,
+        },
+        "observed_inventory": observed_inventory,
+        "claim_anchor": {"quote": str(candidate.get("claim") or "")},
+    }
+    try:
+        target = _review_issue_normalized_cluster_target(bundle, issue_type)
+    except Exception:
+        target = ""
+    if not target or target == "unspecified_target":
+        target = "|".join(item.lower() for item in missing_items)
+    return (claim_id, issue_type, target)
+
+
 def _seed_review_issue_candidates_from_targets(
     state: Dict[str, Any],
     *,
     max_candidates: int = 12,
 ) -> List[Dict[str, Any]]:
     try:
-        targets = _hard_negative_diagnosis_targets(state or {}, claims=(state or {}).get("claims"), max_items=8)
+        targets = _hard_negative_diagnosis_targets(state or {}, claims=(state or {}).get("claims"), max_items=12)
     except Exception:
         targets = []
     candidates: List[Dict[str, Any]] = []
@@ -2998,13 +3049,134 @@ def _seed_review_issue_candidates_from_targets(
     return candidates[:max_candidates]
 
 
-def _selector_menu_lookup_from_state(state: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
-    targets = _hard_negative_diagnosis_targets(state or {}, claims=(state or {}).get("claims", []), max_items=8)
+def _menu_item_from_seed_review_issue_candidate(candidate: Dict[str, Any], index: int) -> Dict[str, Any]:
+    if not isinstance(candidate, dict):
+        return {}
+    claim_id = str(candidate.get("claim_id") or "").strip()
+    issue_type = str(candidate.get("negative_type") or candidate.get("issue_type") or "").strip()
+    required = str(candidate.get("required_evidence_type") or "").strip()
+    missing_items = [
+        _candidate_text(item, 160)
+        for item in (candidate.get("missing_or_weak_items") or [])
+        if _candidate_text(item, 160)
+    ]
+    observed_inventory = [
+        item for item in (candidate.get("observed_inventory") or [])
+        if isinstance(item, dict) and _candidate_text(item.get("quote"), 260)
+    ]
+    if not claim_id or not issue_type or not required or not missing_items or not observed_inventory:
+        return {}
+    expected = missing_items[0]
+    if issue_type == "missing_ablation":
+        quality_bundle = {
+            "missing_or_mismatch": {"entity": expected, "items": missing_items},
+            "observed_inventory": observed_inventory,
+            "claim_anchor": {"quote": str(candidate.get("claim") or "")},
+        }
+        quality = _missing_ablation_target_quality(quality_bundle)
+        if str(quality.get("quality") or "") in {"", "low", "reject"}:
+            return {}
+    else:
+        quality = {}
+    source = str(candidate.get("source") or candidate.get("discovery_origin") or "runner_seed_selector_menu")
+    inventory0 = observed_inventory[0]
+    return {
+        "candidate_menu_id": _review_issue_candidate_menu_id(claim_id, issue_type, expected, index),
+        "claim_id": claim_id,
+        "obligation_id": str(candidate.get("obligation_id") or ""),
+        "issue_type": issue_type,
+        "required_evidence_type": required,
+        "expected_entity": expected,
+        "verifier_target_entity": expected,
+        "entity_source": str(candidate.get("entity_source") or ""),
+        "source": source if source.startswith("runner_seed") else f"runner_seed_selector_menu:{source}",
+        "review_issue_slot": str(candidate.get("review_issue_slot") or _review_issue_slot_for_type(issue_type)),
+        "inventory_id": str(inventory0.get("inventory_id") or ""),
+        "inventory_quote": _candidate_text(inventory0.get("quote"), 260),
+        "inventory_locator": _candidate_text(inventory0.get("locator"), 120),
+        "inventory_type": _candidate_text(inventory0.get("inventory_type"), 80),
+        "observed_inventory": observed_inventory[:2],
+        "target_quality_hint": str(quality.get("quality") or ""),
+        "target_quality_reason": str(quality.get("reason") or ""),
+        "why_review_worthy": _candidate_text(
+            candidate.get("weakness") or f"Runner seed found a verifier-ready review issue target: {expected}.",
+            90,
+        ),
+        "counterevidence_search_terms": list(candidate.get("possible_counterevidence_terms") or missing_items)[:8],
+        "counterevidence_aliases": list(candidate.get("possible_counterevidence_terms") or missing_items)[:8],
+    }
+
+
+def _seed_review_issue_candidate_menu_items_from_state(
+    state: Dict[str, Any],
+    *,
+    max_items: int = 12,
+) -> List[Dict[str, Any]]:
+    seeded = _seed_review_issue_candidates_from_targets(state or {}, max_candidates=max_items)
+    if not seeded:
+        return []
+    normalized = normalize_review_update_payload({"reviewer_negative_candidates": seeded})
+    candidates = normalized.get("reviewer_negative_candidates", [])
+    items: List[Dict[str, Any]] = []
+    seen_clusters: set[Tuple[str, str, str]] = set()
+    for candidate in candidates:
+        if not isinstance(candidate, dict):
+            continue
+        cluster_key = _review_issue_candidate_semantic_cluster_key(candidate)
+        if cluster_key[0] and cluster_key in seen_clusters:
+            continue
+        menu_item = _menu_item_from_seed_review_issue_candidate(candidate, len(items) + 1)
+        if not menu_item:
+            continue
+        if cluster_key[0]:
+            seen_clusters.add(cluster_key)
+        items.append(menu_item)
+        if len(items) >= max_items:
+            break
+    return items
+
+
+def _augmented_review_issue_selector_menu_from_state(
+    state: Dict[str, Any],
+    *,
+    target_max_items: int = 12,
+    selector_max_items: int = 12,
+    selector_max_per_claim: int = 3,
+    selector_max_per_type: int = 4,
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    targets = _hard_negative_diagnosis_targets(
+        state or {},
+        claims=(state or {}).get("claims", []),
+        max_items=target_max_items,
+    )
+    seed_menu_items = _seed_review_issue_candidate_menu_items_from_state(
+        state or {},
+        max_items=selector_max_items,
+    )
+    augmented_targets = list(targets or [])
+    if seed_menu_items:
+        augmented_targets.append(
+            {
+                "claim_id": "__runner_seed_selector_menu__",
+                "review_issue_candidate_menu": seed_menu_items,
+            }
+        )
     visible_menu = _review_issue_candidate_selector_menu(
-        targets,
-        max_items=10,
-        max_per_claim=2,
-        max_per_type=3,
+        augmented_targets,
+        max_items=selector_max_items,
+        max_per_claim=selector_max_per_claim,
+        max_per_type=selector_max_per_type,
+    )
+    return augmented_targets, visible_menu
+
+
+def _selector_menu_lookup_from_state(state: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    targets, visible_menu = _augmented_review_issue_selector_menu_from_state(
+        state or {},
+        target_max_items=12,
+        selector_max_items=12,
+        selector_max_per_claim=3,
+        selector_max_per_type=4,
     )
     # The Critique prompt renders both the compact selector menu and each
     # target's short per-claim menu.  A selected id is safe to recover if it is
@@ -3038,12 +3210,12 @@ def _attach_review_issue_selector_snapshot(
     if manager_payload.get("review_issue_candidate_selector_menu_snapshot"):
         return manager_payload
     try:
-        targets = _hard_negative_diagnosis_targets(state or {}, claims=(state or {}).get("claims", []), max_items=8)
-        selector_menu = _review_issue_candidate_selector_menu(
-            targets,
-            max_items=10,
-            max_per_claim=2,
-            max_per_type=3,
+        _targets, selector_menu = _augmented_review_issue_selector_menu_from_state(
+            state or {},
+            target_max_items=12,
+            selector_max_items=12,
+            selector_max_per_claim=3,
+            selector_max_per_type=4,
         )
     except Exception:
         selector_menu = []
@@ -3236,6 +3408,7 @@ def _maybe_seed_review_issue_discovery_payload(
     if not seed_candidates:
         return worker_payload
     seen: set[Tuple[str, str, str]] = set()
+    seen_semantic_clusters: set[Tuple[str, str, str]] = set()
     for candidate in existing_candidates:
         if not isinstance(candidate, dict):
             continue
@@ -3246,20 +3419,32 @@ def _maybe_seed_review_issue_discovery_payload(
                 "|".join(str(item or "").strip().lower() for item in candidate.get("missing_or_weak_items") or []),
             )
         )
+        semantic_key = _review_issue_candidate_semantic_cluster_key(candidate)
+        if semantic_key[0]:
+            seen_semantic_clusters.add(semantic_key)
     top_up: List[Dict[str, Any]] = []
+    shadowed_by_existing_count = 0
     for candidate in seed_candidates:
         key = (
             str(candidate.get("claim_id") or ""),
             str(candidate.get("negative_type") or candidate.get("issue_type") or ""),
             "|".join(str(item or "").strip().lower() for item in candidate.get("missing_or_weak_items") or []),
         )
+        semantic_key = _review_issue_candidate_semantic_cluster_key(candidate)
         if key in seen:
             continue
+        if semantic_key[0] and semantic_key in seen_semantic_clusters:
+            shadowed_by_existing_count += 1
+            continue
         seen.add(key)
+        if semantic_key[0]:
+            seen_semantic_clusters.add(semantic_key)
         top_up.append(candidate)
         if len(existing_candidates) + len(top_up) >= target_candidate_count:
             break
     if not top_up:
+        if trace_worker is not None and shadowed_by_existing_count:
+            trace_worker["review_issue_seed_topup_shadowed_by_existing_cluster_count"] = shadowed_by_existing_count
         return worker_payload
     updated = copy.deepcopy(worker_payload)
     updated["reviewer_negative_candidates"] = (list(existing_candidates) + top_up)[:target_candidate_count]
@@ -3273,6 +3458,8 @@ def _maybe_seed_review_issue_discovery_payload(
         trace_worker["review_issue_seed_candidate_count"] = len(top_up)
         if existing_candidates:
             trace_worker["seed_topup_after_critique_failure_count"] = len(top_up)
+        if shadowed_by_existing_count:
+            trace_worker["review_issue_seed_topup_shadowed_by_existing_cluster_count"] = shadowed_by_existing_count
         trace_worker["review_issue_seed_candidate_ids"] = [
             str(item.get("candidate_id") or "") for item in top_up
         ]
@@ -3292,6 +3479,7 @@ def _worker_payload_trace_flags(trace_worker: Dict[str, Any]) -> Dict[str, Any]:
         "review_issue_seed_fallback_used",
         "review_issue_seed_candidate_count",
         "review_issue_seed_candidate_ids",
+        "review_issue_seed_topup_shadowed_by_existing_cluster_count",
         "review_issue_seed_fallback_skipped_for_critique_only_eval",
         "critique_only_discovery_eval",
         "seed_topup_after_critique_failure_count",
@@ -3749,7 +3937,7 @@ def build_worker_observation(task: Dict[str, Any], manager_payload: Dict[str, An
         review_issue_discovery_block = (
             "# Review Issue Discovery Mode\n"
             "review_issue_discovery_required=true\n"
-            "Primary task: act like a peer reviewer and select 1-2 safe items from review_issue_candidate_selector_menu. "
+            "Primary task: act like a peer reviewer and select up to 3 safe items from review_issue_candidate_selector_menu. "
             "Output selected_menu_items with copied candidate_menu_id values; the runner expands valid ids for later verification. "
             "Do not output verified evidence, claim status changes, or recovery patches. "
             "Only output full review_issue_candidates as a fallback when no menu item fits and the free-form issue has a real claim, concrete target, copied inventory anchor, and counterevidence terms. "
