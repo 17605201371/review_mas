@@ -64,6 +64,7 @@ P32 entry artifact:
 ```text
 P32_ENTRY_AUDIT_20260705.md
 P32_CLEAN_R1_ATTEMPT_20260705_224419_STATUS.md
+scripts/p32_clean_full20_pipeline.sh
 scripts/p32_stability_report.py
 ```
 
@@ -143,6 +144,16 @@ verified issue recovery coverage
 After balance is restored, rerun P32 clean hardneg20 run 1 from scratch with
 the same configuration.
 
+Recommended launch command:
+
+```text
+DRMAS_JSON_RESPONSE_FORMAT=on MAX_TOKENS=2048 API_MAX_WORKERS=4 \
+  scripts/p32_clean_full20_pipeline.sh --launch --run-id R1 --update-latest
+```
+
+If API instability appears after balance is restored, retry with
+`API_MAX_WORKERS=2`; do not lower `MAX_TOKENS`.
+
 Do not use the older 1536-token P32 setting; current project constraints and
 fresh-run evidence require 2048.  Do not relax verifier or validator gates.
 ```
@@ -151,7 +162,9 @@ Validation after adding the P32 stability tool:
 
 ```text
 py_compile scripts/p32_stability_report.py tests/test_p31_6_gate_scripts.py = PASS
-pytest tests/test_p31_6_gate_scripts.py -q = 8 passed
+scripts/p32_clean_full20_pipeline.sh --launch --run-id R1 --label P32_TEST_R1 --dry-run = PASS
+MAX_TOKENS=1536 scripts/p32_clean_full20_pipeline.sh ... --dry-run = rejected as expected
+pytest tests/test_p31_6_gate_scripts.py -q = 10 passed
 real artifact dry check =
   P31_6_FRESH_20260705_205654 included, rows=20
   P32_CLEAN_R1_ATTEMPT_20260705_224419 excluded, rows=16

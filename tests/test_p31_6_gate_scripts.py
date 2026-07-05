@@ -1,7 +1,9 @@
 import argparse
 import importlib.util
 import json
+import os
 from pathlib import Path
+import subprocess
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -481,3 +483,53 @@ def test_p32_stability_report_counts_recurrent_ab_clusters(tmp_path, monkeypatch
     assert recurrent["paper-0|reproducibility_gap|target-0"] == 2
     critique_recurrent = report["recurrence"]["critique_origin_accepted_clusters"]
     assert critique_recurrent["paper-1|reproducibility_gap|target-1"] == 2
+
+
+def test_p32_clean_pipeline_dry_run_uses_standard_runtime():
+    result = subprocess.run(
+        [
+            "bash",
+            str(REPO_ROOT / "scripts/p32_clean_full20_pipeline.sh"),
+            "--launch",
+            "--run-id",
+            "R1",
+            "--label",
+            "P32_TEST_R1",
+            "--dry-run",
+        ],
+        cwd=REPO_ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "DRMAS_JSON_RESPONSE_FORMAT=on" in result.stdout
+    assert "MAX_TOKENS=2048" in result.stdout
+    assert "--label P32_TEST_R1" in result.stdout
+    assert "--min-lines 20" in result.stdout
+
+
+def test_p32_clean_pipeline_rejects_short_max_tokens():
+    env = dict(os.environ)
+    env["MAX_TOKENS"] = "1536"
+    result = subprocess.run(
+        [
+            "bash",
+            str(REPO_ROOT / "scripts/p32_clean_full20_pipeline.sh"),
+            "--launch",
+            "--run-id",
+            "R1",
+            "--label",
+            "P32_TEST_R1",
+            "--dry-run",
+        ],
+        cwd=REPO_ROOT,
+        text=True,
+        capture_output=True,
+        env=env,
+        check=False,
+    )
+
+    assert result.returncode == 2
+    assert "P32 requires MAX_TOKENS=2048" in result.stderr

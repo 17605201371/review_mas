@@ -107,9 +107,14 @@ Interpretation:
   jsonl row evidence, summarizes A/B count statistics, D rate, pairwise cluster
   Jaccard, same-paper/same-target recurrence, Critique-origin recurrence, and
   harmful recovery.  Default P32 threshold remains 3 complete runs.
+- Added `scripts/p32_clean_full20_pipeline.sh` as the P32 launch wrapper around
+  the existing P31.6 full20 pipeline.  It enforces
+  `DRMAS_JSON_RESPONSE_FORMAT=on`, `MAX_TOKENS=2048`, 20-row minimum, stable
+  `P32_CLEAN_<RUN_ID>_<timestamp>` labels, and optional stability-report
+  generation.  It rejects shorter token settings such as 1536.
 - Validation for the stability tool: `tests/test_p31_6_gate_scripts.py` passed
-  8/8; live artifact dry check included the 20/20 P31.6 run and excluded the
-  16/20 P32 attempt.
+  10/10 after adding the P32 clean-run wrapper tests; live artifact dry check
+  included the 20/20 P31.6 run and excluded the 16/20 P32 attempt.
 - Do not jump to full39, do not touch `verl/`, and do not relax verifier or
   validator gates.
 
