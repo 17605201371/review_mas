@@ -3580,3 +3580,35 @@ positive_or_neutral_negative_candidate_count = 0
 - Current conclusion: response-format `on` is freshly smoke-validated on 3
   papers with fallback rate 0, but the requested live on/off A/B is incomplete
   until account balance is restored.
+
+P31.12 JSON response-format A/B completed after balance top-up (20260705):
+
+```text
+on run  = p31_12_jsonfmt_on_sample3_20260705_121250
+off run = p31_12_jsonfmt_off_sample3_20260705_123405
+
+on:
+  rows = 3
+  evidence_json_valid_turns = 10
+  evidence_json_fallback_turns = 0
+  evidence_json_fallback_rate_pct = 0
+  evidence_json_no_json_object_turns = 0
+  api_success_calls = 41
+  raw_chars_avg = 2503
+  raw_chars_max = 5989
+
+off:
+  rows = 3
+  evidence_json_valid_turns = 2
+  evidence_json_fallback_turns = 10
+  evidence_json_fallback_rate_pct = 83
+  evidence_json_no_json_object_turns = 0
+  api_success_calls = 44
+  raw_chars_avg = 5733
+  raw_chars_max = 9809
+```
+
+Conclusion: P0 is validated.  MiMo needs `response_format=json_object`
+(`DRMAS_JSON_RESPONSE_FORMAT=on` or default `auto`) for this pipeline; turning
+it off immediately restores the high fallback regime.  Continue downstream
+Critique selector/menu supply work only under the response-format-on/auto path.

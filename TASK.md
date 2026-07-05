@@ -928,4 +928,19 @@ Follow-up:
     jsonl has 0 rows.
   - P0 is partially revalidated for response_format=on, but the requested live
     on/off A/B remains incomplete until account balance is restored.
+
+Final A/B after balance top-up:
+  - DRMAS_JSON_RESPONSE_FORMAT=off completed:
+      run = p31_12_jsonfmt_off_sample3_20260705_123405
+      rows = 3
+      evidence_json_valid_turns = 2
+      evidence_json_fallback_turns = 10
+      evidence_json_fallback_rate_pct = 83
+      evidence_json_no_json_object_turns = 0
+  - Direct comparison:
+      on:  evidence_json_fallback_rate_pct = 0   (10 valid / 0 fallback)
+      off: evidence_json_fallback_rate_pct = 83  (2 valid / 10 fallback)
+  - Conclusion: P0 is validated.  Keep response_format=json_object enabled
+    for MiMo; downstream selector/menu work can continue only under the
+    response-format-on/auto path.
 ```
