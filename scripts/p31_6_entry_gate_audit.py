@@ -431,6 +431,19 @@ def build_report(args: argparse.Namespace) -> Tuple[Dict[str, Any], int]:
     for case in cases:
         if isinstance(case, dict):
             origin_counter[str(case.get("reviewer_candidate_kind") or "unknown")] += 1
+    notes = [
+        (
+            "Machine and manual gates pass for this audit scope; paper-ready claims still require carrying the listed manual labels and wording caveats into the narrative."
+            if manual_gate_status == "PASS" else
+            "Machine PASS is not paper-ready approval; manual A/B audit of the listed Critique-origin clusters is still required."
+        ),
+        "The red-flag scan is lexical only and should be treated as triage, not a verifier.",
+        (
+            "P32 entry remains blocked if a later full-scope gate fails or manual audit finds external-baseline, retrieval/context, author-limitation, or other false positives."
+            if manual_gate_status == "PASS" else
+            "P32 entry remains blocked if the machine gate fails or manual audit finds external-baseline, retrieval/context, author-limitation, or other false positives."
+        ),
+    ]
 
     report = {
         "inputs": {
@@ -469,11 +482,7 @@ def build_report(args: argparse.Namespace) -> Tuple[Dict[str, Any], int]:
         "reviewer_candidate_kind_counts": dict(origin_counter),
         "critique_origin_clusters": critique_cluster_records,
         "red_flags": flags,
-        "notes": [
-            "Machine PASS is not paper-ready approval; manual A/B audit of the listed Critique-origin clusters is still required.",
-            "The red-flag scan is lexical only and should be treated as triage, not a verifier.",
-            "P32 entry remains blocked if the machine gate fails or manual audit finds external-baseline, retrieval/context, author-limitation, or other false positives.",
-        ],
+        "notes": notes,
     }
     return report, 0 if not blocking else 1
 

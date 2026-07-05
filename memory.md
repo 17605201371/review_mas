@@ -47,14 +47,14 @@ Missing-baseline, missing-ablation, insufficient-evaluation, and reproducibility
 
 ## Current Review Issue Logic
 
-### 2026-07-05 P31.28 post-fix Critique-origin 5-paper sample
+### 2026-07-05 P31.28 post-fix Critique-origin 5-paper sample + Stage 3 scheduler patch
 
 Post-fix sample:
 
 - input: `p31_28_postfix_critique5_input.parquet`
 - raw: `p31_28_postfix_critique5_20260705_185055.jsonl`
 - artifacts: `P31_28_POSTFIX_CRITIQUE5_20260705_185055_*`
-- rows: 5/5; machine gate PASS; manual gate REQUIRED.
+- rows: 5/5; machine gate PASS; manual gate PASS.
 - `evidence_json_fallback_rate_pct=0`, `state_contamination_count=0`.
 - `verified_review_issue_count=13`, cluster count=11.
 - `critique_direct_verified_cluster_count=4`, `candidate_menu_item_verified_count=4`.
@@ -66,22 +66,47 @@ Important audit result:
 
 - The SPOT false positive is fixed in the fresh API path:
   `including_loss_verified=False` for `9zEBK3E9bX`.
-- The post-fix Critique-origin clusters are:
-  - `GE6iywJtsV / graph_control_module`
-  - `NnExMNiTHw / acceptance_prediction_head`
-  - `QAgwFiIY4p / coordinates_without_information_loss`
-  - `YXn76HMetm / equalal_baseline`
-- Do not reuse the pre-fix Graphormer manual judgment for post-fix QAg; the
-  verified Critique-origin issue changed and needs its own audit.
+- Manual Critique-origin-only audit labels:
+  - A: `GE6iywJtsV / graph_control_module`
+  - B: `NnExMNiTHw / acceptance_prediction_head`
+  - C: `QAgwFiIY4p / coordinates_without_information_loss`
+  - B: `YXn76HMetm / equalal_baseline`
+- Manual validation: 3 A/B, 1 C, 0 D, 0 unfilled.  Entry gate now reports
+  machine PASS and manual PASS when supplied with
+  `P31_28_POSTFIX_CRITIQUE5_ONLY_MANUAL_AUDIT_VALIDATION_20260705_185055.json`.
+- Do not reuse the pre-fix Graphormer manual judgment for post-fix QAg.  The
+  post-fix QAg issue is a weak/over-specific C and must not be counted as a
+  paper-facing Stage 2 success.
 
 Interpretation:
 
 - Stage 2 remains functional after removing the 9z false positive: direct
-  Critique clusters are still >=3 and protection is clean.
-- Paper-ready precision is still not proven because manual gate remains
-  required.
-- Stage 3 remains incomplete: recovery/contested is live but leaves many
-  verified issue clusters without recovery.
+  Critique clusters are still >=3, protection is clean, and the manual
+  Critique-origin gate passes on the 5-paper post-fix sample.
+- This is small-sample evidence only.  It is not yet a hardneg20/full39 paper
+  claim.
+- Stage 3 remains incomplete, but the next failure mode is now sharper:
+  recovery should distinguish open issues that need same-claim support first
+  from already supported-but-contested issues that should enter `mark_contested`.
+
+Implemented Stage 3 scheduler patch:
+
+- Added `s4_verified_review_issue_support_recheck_bridge` in
+  `review_manager_policy.py`.  Open verified review issues with no same-claim
+  verified positive support now get one targeted `request_evidence_recheck`
+  before recovery, instead of burning a blocked patch turn.
+- Removed the phase blocker from the verified review issue recovery bridge, so
+  eligible supported-but-contested review issues can route to
+  `challenge_previous_hypothesis` even when `phase=recovery`.
+- P31.28 probe with current code:
+  - `NnExMNiTHw` routes to `s4_verified_review_issue_recovery_bridge`;
+  - `GE6iywJtsV` routes to support recheck first;
+  - `YXn76HMetm` stays out of contested because claim-3 is already
+    `unsupported`.
+- Validation: new policy tests 3 passed; neighbor selector/recovery policy
+  tests 5 passed; `py_compile` passed.  A broader old recovery-bundle
+  targeted selection still exposes pre-existing fixture/materialization
+  failures and should not be reported as green.
 
 ### 2026-07-05 P31.27 hardneg20 Stage 2 machine pass + SPOT false-positive fix
 

@@ -1526,6 +1526,107 @@ def _verified_review_issue_contested_recovery_claim_ids(state: Dict[str, Any], *
     return selected
 
 
+def _recent_review_issue_support_recheck_claim_ids(
+    recent_turn_logs: Optional[Sequence[Dict[str, Any]]] = None,
+) -> set[str]:
+    claim_ids: set[str] = set()
+    for turn in list(recent_turn_logs or [])[-3:]:
+        if not isinstance(turn, dict):
+            continue
+        if str(turn.get("policy_source") or "") != "s4_verified_review_issue_support_recheck_bridge":
+            continue
+        for claim_id in turn.get("target_claim_ids", []) or []:
+            text = str(claim_id or "").strip()
+            if text:
+                claim_ids.add(text)
+    return claim_ids
+
+
+def _verified_review_issue_support_recheck_claim_ids(
+    state: Dict[str, Any],
+    recent_turn_logs: Optional[Sequence[Dict[str, Any]]] = None,
+    *,
+    limit: int = 2,
+) -> List[str]:
+    """Pick open verified review-issue claims that need support before contested recovery.
+
+    A contested relation is only meaningful when a verified issue challenges an
+    otherwise supported claim.  If the issue exists but the same claim lacks
+    verified positive support, spend one evidence recheck on that claim instead
+    of immediately entering a recovery patch that can only block.
+    """
+    if not _diagpending_recovery_policy_enabled():
+        return []
+    issue_state = state or {}
+    review_issues = [
+        item for item in issue_state.get("review_issues", []) or []
+        if isinstance(item, dict)
+    ]
+    if not review_issues:
+        try:
+            issue_state = build_decision_hygiene_view(dict(state or {}))
+            review_issues = [
+                item for item in issue_state.get("review_issues", []) or []
+                if isinstance(item, dict)
+            ]
+        except Exception:
+            review_issues = []
+    if not review_issues:
+        return []
+
+    existing_contested_issue_ids = {
+        str(issue_id or "").strip()
+        for relation in (state or {}).get("contested_relations", []) or []
+        if isinstance(relation, dict)
+        for issue_id in relation.get("review_issue_bundle_ids", []) or []
+        if str(issue_id or "").strip()
+    }
+    existing_contested_evidence_ids = {
+        str(evidence_id or "").strip()
+        for relation in (state or {}).get("contested_relations", []) or []
+        if isinstance(relation, dict)
+        for evidence_id in relation.get("negative_evidence_ids", []) or []
+        if str(evidence_id or "").strip()
+    }
+    recently_rechecked = _recent_review_issue_support_recheck_claim_ids(recent_turn_logs)
+    claim_lookup = {
+        str(item.get("claim_id") or "").strip(): item
+        for item in (state or {}).get("claims", []) or []
+        if isinstance(item, dict) and str(item.get("claim_id") or "").strip()
+    }
+    selected: List[str] = []
+    for issue in review_issues:
+        issue_id = str(issue.get("issue_id") or "").strip()
+        claim_id = str(issue.get("claim_id") or "").strip()
+        if not issue_id or not claim_id:
+            continue
+        if claim_id in recently_rechecked:
+            continue
+        if str(issue.get("verification_status") or "").strip() != "verified_review_issue":
+            continue
+        if str(issue.get("recovery_status") or "").strip().lower() in {"contested", "resolved", "downgraded", "retracted"}:
+            continue
+        evidence_ids = [
+            str(item or "").strip()
+            for item in issue.get("evidence_ids", []) or []
+            if str(item or "").strip()
+        ]
+        if issue_id in existing_contested_issue_ids or any(eid in existing_contested_evidence_ids for eid in evidence_ids):
+            continue
+        claim = claim_lookup.get(claim_id)
+        if not _claim_item_is_recovery_usable(claim or {}, require_claim_text=True):
+            continue
+        if str((claim or {}).get("status") or "").strip().lower() not in _RECOVERY_ELIGIBLE_CLAIM_STATUSES:
+            continue
+        if _claim_verified_positive_support_ids_for_policy(state, claim_id):
+            continue
+        if claim_id not in selected:
+            selected.append(claim_id)
+        if len(selected) >= limit:
+            break
+    return selected
+
+
 def _absence_audit_contested_recovery_claim_ids(state: Dict[str, Any], *, limit: int = 2) -> List[str]:
     if not _diagpending_recovery_policy_enabled():
         return []
@@ -2749,7 +2850,6 @@ def apply_finalize_policy(
             and verified_issue_recovery_claim_ids
             and "challenge_previous_hypothesis" in allowed_actions
             and payload.get("action_type") not in auto_finalize_blocked_actions
-            and str(payload.get("phase") or state.get("phase") or "").strip().lower() != "recovery"
         ):
             payload["decision"] = "continue"
             payload["action_type"] = "challenge_previous_hypothesis"
@@ -2767,6 +2867,34 @@ def apply_finalize_policy(
             payload["policy_notes"] = list(dict.fromkeys(policy_notes))[:8]
             payload["focus"] = payload.get("focus") or "Record supported-but-contested relations for verified review issue bundles."
             payload["selected_agents"] = pick_workers_for_action("challenge_previous_hypothesis", worker_ids, worker_limit) or list(worker_ids[:worker_limit])
+            return payload, list(payload.get("selected_agents", []))
+        verified_issue_support_recheck_claim_ids = _verified_review_issue_support_recheck_claim_ids(
+            state,
+            recent_logs,
+            limit=_NEGATIVE_TARGET_CLAIM_LIMIT,
+        )
+        if (
+            mode == "s4"
+            and verified_issue_support_recheck_claim_ids
+            and "request_evidence_recheck" in allowed_actions
+            and payload.get("action_type") not in auto_finalize_blocked_actions
+        ):
+            payload["decision"] = "continue"
+            payload["action_type"] = "request_evidence_recheck"
+            payload["effective_action_type"] = "request_evidence_recheck"
+            payload["target_claim_ids"] = verified_issue_support_recheck_claim_ids[:_NEGATIVE_TARGET_CLAIM_LIMIT]
+            payload["target_flaw_ids"] = []
+            payload["target_evidence_ids"] = []
+            payload["final_decision"] = "undecided"
+            payload["final_report"] = ""
+            payload["policy_source"] = "s4_verified_review_issue_support_recheck_bridge"
+            policy_notes = list(payload.get("policy_notes", []))
+            policy_notes.append(
+                "Open verified review issue bundles without same-claim positive support are routed to evidence recheck before contested recovery."
+            )
+            payload["policy_notes"] = list(dict.fromkeys(policy_notes))[:8]
+            payload["focus"] = payload.get("focus") or "Ground positive support for claims that already have verified review issue bundles."
+            payload["selected_agents"] = pick_workers_for_action("request_evidence_recheck", worker_ids, worker_limit) or list(worker_ids[:worker_limit])
             return payload, list(payload.get("selected_agents", []))
 
         if (
@@ -3259,7 +3387,6 @@ def apply_manager_policy_fallback(
         and verified_issue_recovery_claim_ids
         and "challenge_previous_hypothesis" in allowed_actions
         and action_type in {"verify_evidence", "request_evidence_recheck", "analyze_flaws", "summarize_progress", "finalize"}
-        and str(payload.get("phase") or state.get("phase") or "").strip().lower() != "recovery"
         and not review_issue_discovery_untried
     ):
         policy_source = "s4_verified_review_issue_recovery_bridge"
@@ -3270,6 +3397,27 @@ def apply_manager_policy_fallback(
         payload["target_flaw_ids"] = []
         payload["target_evidence_ids"] = []
         action_type = "challenge_previous_hypothesis"
+    verified_issue_support_recheck_claim_ids = _verified_review_issue_support_recheck_claim_ids(
+        state,
+        recent_turn_logs,
+        limit=_NEGATIVE_TARGET_CLAIM_LIMIT,
+    )
+    if (
+        mode == "s4"
+        and not verified_issue_recovery_claim_ids
+        and verified_issue_support_recheck_claim_ids
+        and "request_evidence_recheck" in allowed_actions
+        and action_type in {"verify_evidence", "request_evidence_recheck", "analyze_flaws", "summarize_progress", "finalize", "challenge_previous_hypothesis"}
+        and not review_issue_discovery_untried
+    ):
+        policy_source = "s4_verified_review_issue_support_recheck_bridge"
+        policy_notes.append(
+            "S4 routes open verified review issue bundles without same-claim positive support to evidence recheck before contested recovery."
+        )
+        payload["target_claim_ids"] = verified_issue_support_recheck_claim_ids[:_NEGATIVE_TARGET_CLAIM_LIMIT]
+        payload["target_flaw_ids"] = []
+        payload["target_evidence_ids"] = []
+        action_type = "request_evidence_recheck"
     # Mainline-Final-Integrated P0-2: hard-negative discovery override.
     # Placed AFTER ``evidence_progress_override`` and ``flaw_progress_override``
     # so it can re-route turns where the manager would otherwise spend the

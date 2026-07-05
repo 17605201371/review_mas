@@ -1,0 +1,137 @@
+{
+  "run_label": "P31_28_POSTFIX_CRITIQUE5_20260705_185055",
+  "source_entry_gate": "P31_28_POSTFIX_CRITIQUE5_20260705_185055_ENTRY_GATE_AUDIT.json",
+  "audit_boundary": "Manual audit of Critique-origin verified review-issue clusters. Labels are cluster-level paper-readiness judgments from case-table evidence; final paper claims should still be spot-checked against the original paper text.",
+  "thresholds": {
+    "min_critique_origin_A_B_clusters": 3,
+    "manual_D_clusters_allowed": 0,
+    "unfilled_clusters_allowed": 0
+  },
+  "summary": {
+    "system_clusters": 4,
+    "critique_origin_clusters": 4,
+    "manual_A_clusters": 1,
+    "manual_B_clusters": 2,
+    "manual_A_B_clusters": 3,
+    "manual_C_clusters": 1,
+    "manual_D_clusters": 0,
+    "manual_MERGE_clusters": 0,
+    "unfilled_clusters": 0,
+    "manual_A_B_clusters_by_origin": {
+      "critique_payload": 3
+    },
+    "manual_D_clusters_by_origin": {},
+    "cluster_count_by_origin": {
+      "critique_payload": 4
+    },
+    "critique_origin_manual_A_B_clusters": 3,
+    "deterministic_seed_manual_A_B_clusters": 0,
+    "critique_origin_D_clusters": 0,
+    "status": "PASS",
+    "blocking_issues": []
+  },
+  "findings": [],
+  "clusters": [
+    {
+      "label": "A",
+      "paper_id": "GE6iywJtsV",
+      "issue_type": "missing_ablation",
+      "target_entity": "graph_control_module",
+      "cluster_target": "graph_control_module",
+      "issue_cluster_key": "GE6iywJtsV|obligation_grounded_review_issue|missing_ablation|graph_control_module",
+      "origin": "critique_payload",
+      "claim_ids": [
+        "claim-1"
+      ],
+      "missing_or_mismatch": "graph control module",
+      "claim_anchor": "Diff-Shape introduces a novel constrained diffusion model that integrates a Graph Convolutional Network (GrCN) to condition generation on 3D shape constraints for de novo drug design.",
+      "inventory_or_quote_locator": "paper component inventory #1",
+      "inventory_or_quote": "This approach allowed ControlNet to learn a diverse range of conditional models.(Zhang et al., 2023) Inspired by ControlNet, we introduce a novel diffusion model called Diff-Shape, which combines a pre-trained uncondi...",
+      "manual_decision": "Keep as paper-facing Critique-origin issue.",
+      "manual_merge_target": "",
+      "raw_paper_evidence_checked": "Paper text repeatedly defines Diff-Shape/GrCN as using a zero-weighted graph control module for shape-conditioned 3D molecular generation.",
+      "counterevidence_checked": "Searches for ablation/without graph/without Graph Control in the paper text found no component-isolation ablation for the graph control module.",
+      "paper_facing_usable": "yes",
+      "false_positive_categories": [],
+      "wording_caution": "Phrase as missing component-isolation ablation for the Graph ControlNet/graph control module, not as direct negative evidence.",
+      "downgrade_reason": "",
+      "reason": "Central method component is locatable in the paper and tied to the main constrained-generation claim; no paper-text counterevidence showed an ablation isolating that component."
+    },
+    {
+      "label": "B",
+      "paper_id": "NnExMNiTHw",
+      "issue_type": "missing_ablation",
+      "target_entity": "acceptance_prediction_head",
+      "cluster_target": "acceptance_prediction_head",
+      "issue_cluster_key": "NnExMNiTHw|obligation_grounded_review_issue|missing_ablation|acceptance_prediction_head",
+      "origin": "critique_payload",
+      "claim_ids": [
+        "claim-1",
+        "claim-2"
+      ],
+      "missing_or_mismatch": "our trained prediction head; component-isolation ablation for of the acceptance prediction head",
+      "claim_anchor": "The paper formulates the choice of candidate length K as a Markov Decision Process (MDP).",
+      "inventory_or_quote_locator": "paper component inventory #1",
+      "inventory_or_quote": "We augment the draft model with a trained acceptance prediction head to predict the conditional acceptance probability of the candidate tokens.",
+      "manual_decision": "Keep as defensible paper-facing concern with cautious wording.",
+      "manual_merge_target": "",
+      "raw_paper_evidence_checked": "Paper text states SpecDec++ augments the draft model with a trained acceptance prediction head and attributes adaptive candidate length performance to it.",
+      "counterevidence_checked": "Searches for ablation/without acceptance/prediction-head ablation found no component-isolation ablation for the trained acceptance prediction head.",
+      "paper_facing_usable": "yes, with caution",
+      "false_positive_categories": [],
+      "wording_caution": "Tie the concern to empirical attribution of adaptive decoding gains; do not imply the theoretical MDP/threshold proof itself requires an ablation.",
+      "downgrade_reason": "",
+      "reason": "The trained prediction head is a concrete method component and no ablation was found, but the cluster spans MDP/theory claims, so it is best framed as an attribution/evaluation concern rather than a flaw in the theory."
+    },
+    {
+      "label": "C",
+      "paper_id": "QAgwFiIY4p",
+      "issue_type": "missing_ablation",
+      "target_entity": "coordinates_without_information_loss",
+      "cluster_target": "coordinates_without_information_loss",
+      "issue_cluster_key": "QAgwFiIY4p|obligation_grounded_review_issue|missing_ablation|coordinates_without_information_loss",
+      "origin": "critique_payload",
+      "claim_ids": [
+        "claim-1"
+      ],
+      "missing_or_mismatch": "y coordinates without information loss",
+      "claim_anchor": "The paper introduces a novel graph-to-set conversion method (PSRD) that bijectively transforms interconnected nodes into a set of independent points using coordinates derived from the Laplacian matrix, and then uses a...",
+      "inventory_or_quote_locator": "paper component inventory #1",
+      "inventory_or_quote": "Secondly, for Transformer, a specific set encoder, we provide a novel and principled approach to inj",
+      "manual_decision": "Do not use as paper-facing Stage 2 success; keep only as diagnosis of over-specific target extraction.",
+      "manual_merge_target": "",
+      "raw_paper_evidence_checked": "Paper text contains the phrase that interlinked nodes are transformed into independent points and supplementary coordinates without information loss, supported nearby by SRD/PSRD theorem statements.",
+      "counterevidence_checked": "Searches found theory/theorem support for the lossless coordinate claim and only unrelated ablation mentions from prior Graph Transformer discussion; no direct empirical ablation target is clearly defined.",
+      "paper_facing_usable": "no",
+      "false_positive_categories": [],
+      "wording_caution": "If discussed, reframe as a possible need for empirical sensitivity analysis of coordinate parameterization, not a missing ablation of “coordinates without information loss”.",
+      "downgrade_reason": "Target is an over-specific/property phrase rather than a clean component or baseline; the claim is primarily theoretical and has theorem-style support.",
+      "reason": "The paper-grounded phrase is real, but the selected missing-ablation target is not a natural component-level obligation. This is weak diagnostic evidence, not a paper-ready verified Critique discovery."
+    },
+    {
+      "label": "B",
+      "paper_id": "YXn76HMetm",
+      "issue_type": "missing_baseline",
+      "target_entity": "equalal_baseline",
+      "cluster_target": "equalal_baseline",
+      "issue_cluster_key": "YXn76HMetm|obligation_grounded_review_issue|missing_baseline|equalal_baseline",
+      "origin": "critique_payload",
+      "claim_ids": [
+        "claim-3"
+      ],
+      "missing_or_mismatch": "same-setting comparison against paper-named EqualAL baseline",
+      "claim_anchor": "The paper performs a fair empirical comparison of HALO against baselines like EqualAL, demonstrating its effectiveness.",
+      "inventory_or_quote_locator": "Table: results table",
+      "inventory_or_quote": "approach on a novel dataset, as shown in Table \\ref{tab:results_table}c. \\subsection{Ablation study} \\label{sec:ablation} \\input{tables/ablation_tables} We begin by conducting an oracular study using ground-truth labels,",
+      "manual_decision": "Keep as defensible paper-facing concern with same-setting caveat.",
+      "manual_merge_target": "",
+      "raw_paper_evidence_checked": "Paper text names EqualAL in related active-learning semantic-segmentation work and later claims broad SOTA comparisons for HALO on GTAV/SYNTHIA/ACDC active/domain-adaptation settings.",
+      "counterevidence_checked": "Searches found EqualAL only in related work; result/comparison windows mention RIPU, D2ADA, Labor/PixelPick context and supervised DA but no EqualAL result table comparison.",
+      "paper_facing_usable": "yes, with caution",
+      "false_positive_categories": [],
+      "wording_caution": "Say the paper omits an EqualAL-style active-learning segmentation comparison or adaptation, rather than asserting EqualAL is definitely same-protocol ADA SOTA.",
+      "downgrade_reason": "",
+      "reason": "EqualAL is paper-named and relevant to AL segmentation, while the empirical comparison section appears not to include it. The concern is defensible but protocol comparability needs careful wording."
+    }
+  ]
+}

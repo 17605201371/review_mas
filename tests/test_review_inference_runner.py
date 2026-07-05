@@ -11617,6 +11617,162 @@ def test_fallback_recovery_patch_marks_verified_review_issue_bundle_contested(mo
     assert new_state["review_issues"][0]["recovery_status"] == "contested"
 
 
+def _review_issue_without_same_claim_support_state():
+    issue_id = "review-issue-claim-1-baseline"
+    evidence_id = "evidence-reviewer-absence-claim-1-baseline-or-comparison"
+    return {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "HALO provides a fair comparison against active-learning segmentation baselines.",
+                "claim_kind": "paper_extracted",
+                "claim_type": "empirical",
+                "coverage_tags": ["empirical", "comparison"],
+                "importance": "high",
+                "status": "supported",
+            }
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": evidence_id,
+                "claim_id": "claim-1",
+                "stance": "missing",
+                "strength": "review_issue",
+                "source": "reviewer_absence_audit",
+                "review_issue_source": "obligation_grounded_review_issue",
+                "review_issue_verification_status": "verified_review_issue",
+                "review_issue_id": issue_id,
+                "review_negative_label": "review_negative_absence_audit_verified",
+                "verified_grounding_label": "paper_absence_audit_verified",
+                "absence_audit_verified": True,
+                "audit_basis": "claim_requirement_vs_verified_support",
+                "negative_evidence_type": "missing_baseline",
+                "raw_quote": "missing/mismatch: same-setting comparison against paper-named EqualAL baseline",
+            }
+        ],
+        "review_issues": [
+            {
+                "issue_id": issue_id,
+                "claim_id": "claim-1",
+                "issue_type": "missing_baseline",
+                "issue_cluster_target": "equalal_baseline",
+                "verification_status": "verified_review_issue",
+                "recovery_status": "open",
+                "source": "obligation_grounded_review_issue",
+                "evidence_ids": [evidence_id],
+            }
+        ],
+        "flaw_candidates": [],
+        "contested_relations": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+
+def test_verified_review_issue_without_support_routes_to_support_recheck(monkeypatch):
+    monkeypatch.setattr(review_manager_policy_mod, "_REVIEW_ISSUE_BUNDLE_ENABLED", True)
+    state = _review_issue_without_same_claim_support_state()
+
+    assert review_manager_policy_mod._absence_audit_contested_recovery_claim_ids(state) == []
+    assert review_manager_policy_mod._verified_review_issue_support_recheck_claim_ids(state) == ["claim-1"]
+
+    payload = review_manager_policy_mod.apply_manager_policy_fallback(
+        {
+            "decision": "continue",
+            "action_type": "challenge_previous_hypothesis",
+            "effective_action_type": "challenge_previous_hypothesis",
+            "policy_source": "manager_model",
+            "selected_agents": ["Critique Agent"],
+        },
+        state,
+        mode="s4",
+        worker_ids=["Claim Agent", "Evidence Agent", "Critique Agent"],
+        worker_limit=2,
+        recent_turn_logs=[
+            {
+                "turn_id": 1,
+                "action_type": "extract_claims",
+                "effective_action_type": "extract_claims",
+            }
+        ],
+    )
+
+    assert payload["policy_source"] == "s4_verified_review_issue_support_recheck_bridge"
+    assert payload["action_type"] == "request_evidence_recheck"
+    assert payload["effective_action_type"] == "request_evidence_recheck"
+    assert payload["target_claim_ids"] == ["claim-1"]
+    assert payload["target_flaw_ids"] == []
+    assert "Evidence Agent" in payload["selected_agents"]
+
+
+def test_verified_review_issue_support_recheck_does_not_loop(monkeypatch):
+    monkeypatch.setattr(review_manager_policy_mod, "_REVIEW_ISSUE_BUNDLE_ENABLED", True)
+    state = _review_issue_without_same_claim_support_state()
+    recent_logs = [
+        {
+            "turn_id": 6,
+            "policy_source": "s4_verified_review_issue_support_recheck_bridge",
+            "action_type": "request_evidence_recheck",
+            "effective_action_type": "request_evidence_recheck",
+            "target_claim_ids": ["claim-1"],
+        }
+    ]
+
+    assert review_manager_policy_mod._verified_review_issue_support_recheck_claim_ids(state, recent_logs) == []
+
+
+def test_verified_review_issue_recovery_bridge_runs_inside_recovery_phase(monkeypatch):
+    monkeypatch.setattr(review_manager_policy_mod, "_REVIEW_ISSUE_BUNDLE_ENABLED", True)
+    state = _review_issue_without_same_claim_support_state()
+    state["phase"] = "recovery"
+    state["phase_turn_index"] = 2
+    state["claims"][0]["supporting_evidence_ids"] = ["e-support"]
+    state["evidence_map"].append(
+        {
+            "evidence_id": "e-support",
+            "claim_id": "claim-1",
+            "stance": "supports",
+            "strength": "strong",
+            "raw_quote": "HALO is compared against active-learning semantic segmentation baselines.",
+            "source_locator": "Results",
+            "binding_status": "bound_real_claim",
+            "verified_grounding_label": "paper_grounded_exact",
+            "semantic_grounding_label": "semantic_support_verified",
+        }
+    )
+
+    assert review_manager_policy_mod._absence_audit_contested_recovery_claim_ids(state) == ["claim-1"]
+
+    payload = review_manager_policy_mod.apply_manager_policy_fallback(
+        {
+            "decision": "continue",
+            "action_type": "summarize_progress",
+            "effective_action_type": "summarize_progress",
+            "policy_source": "manager_model",
+            "phase": "recovery",
+            "selected_agents": [],
+        },
+        state,
+        mode="s4",
+        worker_ids=["Claim Agent", "Evidence Agent", "Critique Agent"],
+        worker_limit=2,
+        recent_turn_logs=[
+            {
+                "turn_id": 6,
+                "phase_after_action": "recovery",
+                "action_type": "request_evidence_recheck",
+                "effective_action_type": "request_evidence_recheck",
+            }
+        ],
+    )
+
+    assert payload["policy_source"] == "s4_verified_review_issue_recovery_bridge"
+    assert payload["action_type"] == "challenge_previous_hypothesis"
+    assert payload["target_claim_ids"] == ["claim-1"]
+    assert payload["target_flaw_ids"] == []
+
+
 def test_model_claim_downgrade_with_review_issue_bundle_rebuilds_to_contested(monkeypatch):
     monkeypatch.setattr(review_runner_mod, "_DIAGPENDING_RECOVERY_ENABLED", True)
     claim = "LG-FL outperforms baseline FL methods such as FedAvg and FedProx on heterogeneous data."

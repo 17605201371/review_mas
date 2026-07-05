@@ -15,10 +15,10 @@ Goal:
 Current stage:
 
 ```text
-Stage 2 has post-fix small-sample runtime evidence.  The SPOT / 9z
+Stage 2 has post-fix small-sample runtime + manual evidence.  The SPOT / 9z
 `including_loss` false positive no longer verifies, and the 5-paper
-Critique-origin sample still passes the machine gate with 4 direct
-Critique-selected clusters.
+Critique-origin sample passes both the machine gate and the Critique-origin
+manual gate.
 ```
 
 Post-fix sample:
@@ -30,7 +30,7 @@ label = P31_28_POSTFIX_CRITIQUE5_20260705_185055
 rows = 5
 papers = 9zEBK3E9bX, GE6iywJtsV, NnExMNiTHw, QAgwFiIY4p, YXn76HMetm
 machine_gate = PASS
-manual_gate = REQUIRED
+manual_gate = PASS
 evidence_json_fallback_rate_pct = 0
 state_contamination_count = 0
 verified_review_issue_count = 13
@@ -53,33 +53,73 @@ Key audit facts:
 including_loss_verified = False
 red_flags = []
 selected_menu_failures = 0
+manual_critique_origin_A_B_clusters = 3
+manual_D_clusters = 0
 critique_origin_clusters =
-  GE6iywJtsV / missing_ablation / graph_control_module
-  NnExMNiTHw / missing_ablation / acceptance_prediction_head
-  QAgwFiIY4p / missing_ablation / coordinates_without_information_loss
-  YXn76HMetm / missing_baseline / equalal_baseline
+  A: GE6iywJtsV / missing_ablation / graph_control_module
+  B: NnExMNiTHw / missing_ablation / acceptance_prediction_head
+  C: QAgwFiIY4p / missing_ablation / coordinates_without_information_loss
+  B: YXn76HMetm / missing_baseline / equalal_baseline
+manual_audit =
+  P31_28_POSTFIX_CRITIQUE5_ONLY_MANUAL_AUDIT_20260705_185055.{json,md}
+manual_validation =
+  P31_28_POSTFIX_CRITIQUE5_ONLY_MANUAL_AUDIT_VALIDATION_20260705_185055.{json,md}
 ```
 
 Interpretation:
 
 ```text
 The false-positive guard works in a fresh API path: removing 9z/including_loss
-did not collapse the Stage 2 machine gate.  However, the Critique-origin set is
-not identical to the pre-fix manual preaudit set: QAg now verifies a
-coordinates/information-loss ablation issue rather than the earlier Graphormer
-baseline issue.  Manual A/B audit is still required before paper-ready claims.
+did not collapse the Stage 2 machine gate.  Manual audit keeps the QAg
+coordinates/information-loss item as C, not paper-facing evidence, but the
+remaining GE/Nn/YXn Critique-origin clusters still give 3 A/B and 0 D.  Stage 2
+is therefore small-sample paper-ready, not yet full hardneg20/full39-ready.
 
 Stage 3 remains the next functional bottleneck.  In the post-fix sample,
 `mark_contested_commit_count=3` but `verified_issue_cluster_without_recovery=6`.
+The Stage 3 audit found two separate cases:
+  - GE has open verified issues but no same-claim verified positive support, so
+    it should first get a support recheck rather than a forced contested mark.
+  - Nn has an eligible supported-but-contested claim, but the recovery bridge
+    was blocked by `phase=recovery` and stayed on evidence recheck.
+  - YXn claim-3 is already unsupported, so it is not a supported-but-contested
+    target even though the manual issue is B.
 ```
 
 Next step:
 
 ```text
-Either manually audit the 4 post-fix Critique-origin clusters, or run a fresh
-hardneg20 to confirm the same pattern at full hard-negative scope.  If direct
-Critique clusters remain >=3 with clean protection, shift the implementation
-focus to contested relation / recovery coverage.
+Run a fresh 5-paper sample or hardneg20 after the Stage 3 scheduler patch.  The
+expected functional change is that open verified review issues without same-claim
+support get one `request_evidence_recheck`, while already supported verified
+issues can enter `s4_verified_review_issue_recovery_bridge` even inside the
+recovery phase.  Do not relax verifier/validator gates.
+```
+
+Implemented after manual audit:
+
+- Added `s4_verified_review_issue_support_recheck_bridge`: open verified review
+  issue bundles that lack same-claim verified positive support get one targeted
+  `request_evidence_recheck` instead of a guaranteed blocked recovery patch.
+- Removed the recovery-phase blocker from the verified review issue recovery
+  bridge, so eligible supported-but-contested claims can still route to
+  `challenge_previous_hypothesis` while `phase=recovery`.
+- P31.28 probe after the patch:
+  - `NnExMNiTHw` now routes to `s4_verified_review_issue_recovery_bridge`.
+  - `GE6iywJtsV` routes to support recheck first.
+  - `YXn76HMetm` does not route to contested because claim-3 is already
+    `unsupported`.
+
+Validation:
+
+```text
+manual audit validation = PASS
+entry gate with manual validation = machine PASS / manual PASS
+new support-recheck policy tests = 3 passed
+neighbor selector/recovery policy tests = 5 passed
+py_compile review_manager_policy.py + tests/test_review_inference_runner.py = PASS
+known unrelated targeted recovery bundle tests still fail on missing issue
+materialization in their fixture; do not count them as this patch's regression.
 ```
 
 ## Previous P31.27 Checkpoint 2026-07-05
