@@ -868,3 +868,48 @@ Next:
   existing full20 raw run.  A fresh API full20 can be run later for final
   confirmation, but do not reopen verifier relaxation.
 ```
+
+P31.12 current task update (20260705):
+
+```text
+Current priority:
+  AGENTS.md makes evidence JSON reliability the P0 gate.  Existing fresh full20
+  and sample3 dashboards show evidence_json_fallback_rate_pct=0, but the
+  requested DRMAS_JSON_RESPONSE_FORMAT on/off live A/B could not be completed
+  because the current MiMo key returned 401 authentication failure.
+
+Completed offline:
+  - Audited sample3 selected-menu failures.
+  - Fixed funnel telemetry so a selected menu candidate with a valid copied
+    review_issue_candidate_menu_item snapshot is not mislabeled as
+    selected_menu_item_not_in_current_menu_or_filtered merely because the
+    current recomputed menu is empty.
+  - Preserved merged candidate_menu_ids / reviewer_negative_candidate_ids in
+    review-issue gap metadata, so bundle failure telemetry is attributed to
+    every selected menu id merged into the same gap.
+  - Recomputed sample3 artifacts:
+      P31_12_SAMPLE3_MENU_FAILURE_RECOMPUTE_20260705_120426_*
+
+Sample3 telemetry after fix:
+  candidate_menu_item_failed_selected_menu_item_not_in_current_menu_or_filtered = 0
+  candidate_menu_item_failed_by_reason =
+    missing_entity_already_observed_in_inventory: 2
+    generic_item: 1
+    full_text_evaluation_or_scope_counterevidence: 1
+    not_verified_by_bundle: 1
+
+Validation:
+  focused hygiene/gate selector suite = 12 passed
+  runner selected-menu/discovery suite = 18 passed
+  py_compile state.py/test_review_decision_hygiene.py = PASS
+  broader 3-file suite = 767 passed / 30 failed
+
+Next:
+  1. With a valid MiMo key, rerun the DRMAS_JSON_RESPONSE_FORMAT on/off sample
+     A/B before claiming the P0 is freshly validated.
+  2. Then improve Critique selector/menu supply quality based on the now-real
+     failure mix: already-observed, generic target, full-text counterevidence,
+     and not-materialized bundle candidates.
+  3. Do not loosen verifier/validator gates and do not enter P32 until the
+     fresh hardneg20 gate is satisfied.
+```

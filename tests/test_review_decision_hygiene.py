@@ -14184,6 +14184,63 @@ def test_selected_menu_candidate_without_snapshot_does_not_align_to_seed_cluster
     assert metrics["candidate_menu_item_failed_count"] == 1
 
 
+def test_selected_menu_candidate_with_snapshot_without_bundle_detail_is_not_filtered():
+    menu_id = "rim-c1-sr-per-dataset-result-for-the-claim"
+    metrics = review_state_mod._review_issue_candidate_funnel_metrics(
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-1",
+                    "claim": "The method improves theorem proving on Benchmark-X.",
+                    "claim_kind": "paper_extracted",
+                    "status": "supported",
+                }
+            ],
+            "reviewer_negative_candidates": [
+                {
+                    "candidate_id": "review-issue-candidate-selected-menu-1",
+                    "candidate_menu_id": menu_id,
+                    "review_issue_candidate_menu_item": {
+                        "candidate_menu_id": menu_id,
+                        "claim_id": "claim-1",
+                        "issue_type": "insufficient_evaluation",
+                        "required_evidence_type": "empirical_result",
+                        "expected_entity": "per-dataset result for the claim's stated task",
+                        "observed_inventory": [
+                            {
+                                "quote": "Table 1 reports aggregate theorem proving accuracy.",
+                                "locator": "Table 1",
+                                "observed_items": ["Benchmark-X"],
+                            }
+                        ],
+                    },
+                    "claim_id": "claim-1",
+                    "negative_type": "insufficient_evaluation",
+                    "required_evidence_type": "empirical_result",
+                    "missing_or_weak_items": ["per-dataset result for the claim's stated task"],
+                    "observed_inventory": [
+                        {
+                            "quote": "Table 1 reports aggregate theorem proving accuracy.",
+                            "locator": "Table 1",
+                            "observed_items": ["Benchmark-X"],
+                        }
+                    ],
+                    "source": "critique_selected_menu_item",
+                    "discovery_origin": "critique_payload_menu_selected",
+                }
+            ],
+        },
+        [],
+    )
+
+    assert metrics["candidate_menu_item_verified_count"] == 0
+    assert metrics["candidate_menu_item_failed_count"] == 1
+    assert metrics["candidate_menu_item_failed_by_reason"] == {"not_verified_by_bundle": 1}
+    assert metrics["candidate_menu_item_failed_by_stage"] == {
+        "bundle_verification_or_not_materialized": 1
+    }
+
+
 def test_menu_generation_omits_missing_ablation_when_inventory_already_ablates_target():
     claim = "ReDrafter's gains are driven by the dynamic tree attention module."
     inventory_quote = (

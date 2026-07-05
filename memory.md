@@ -3509,3 +3509,47 @@ case_table_critique_origin_cluster_count 2 < 3
 Next direction: keep verifier strict, audit remaining review-issue bundle
 boundary failures only where they affect selector supply, then run a fresh
 hardneg20 to see whether direct Critique verified clusters reach >=3.
+
+P31.12 selected-menu failure telemetry audit (20260705):
+
+- Tried to start the required `DRMAS_JSON_RESPONSE_FORMAT=on` live sample A/B
+  first, but MiMo returned `401 authentication failure`; no valid sample rows
+  were produced.  Existing dashboards still show `evidence_json_fallback_rate_pct=0`,
+  but a fresh on/off A/B remains blocked until the API key is valid.
+- Fixed selected-menu failure attribution in
+  `agent_system/environments/env_package/review/state.py`:
+  - A selected menu candidate with a valid copied
+    `review_issue_candidate_menu_item` snapshot no longer gets mislabeled as
+    `selected_menu_item_not_in_current_menu_or_filtered` solely because the
+    current recomputed menu lookup is empty.
+  - Merged review-issue gaps now preserve `candidate_menu_ids`,
+    `reviewer_negative_candidate_ids`, and menu snapshots so bundle failure
+    telemetry can be assigned to every selected menu item merged into the gap.
+- Added regression:
+  `test_selected_menu_candidate_with_snapshot_without_bundle_detail_is_not_filtered`.
+- Recomputed sample3 artifacts:
+  `P31_12_SAMPLE3_MENU_FAILURE_RECOMPUTE_20260705_120426_*`.
+- Final sample3 menu-failure distribution:
+
+```text
+candidate_menu_item_failed_selected_menu_item_not_in_current_menu_or_filtered = 0
+candidate_menu_item_failed_by_reason =
+  missing_entity_already_observed_in_inventory: 2
+  generic_item: 1
+  full_text_evaluation_or_scope_counterevidence: 1
+  not_verified_by_bundle: 1
+```
+
+- Validation:
+
+```text
+focused hygiene/gate selector suite = 12 passed
+runner selected-menu/discovery suite = 18 passed
+py_compile state.py and tests/test_review_decision_hygiene.py = PASS
+broader 3-file suite = 767 passed / 30 failed
+```
+
+Conclusion: the sample3 blocker is no longer a stale-menu diagnostic problem.
+It is a real menu supply / selector quality problem.  Next work should use the
+failure mix above to improve concrete verifier-survivable menu targets after
+the JSON response-format A/B is rerun with a valid MiMo key.

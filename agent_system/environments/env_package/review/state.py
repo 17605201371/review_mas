@@ -14458,6 +14458,26 @@ def _review_issue_candidate_funnel_metrics(
                 max_length=160,
             )
 
+        def _candidate_has_valid_menu_snapshot() -> bool:
+            if not candidate_menu_id:
+                return False
+            snapshot = candidate.get("review_issue_candidate_menu_item")
+            if not isinstance(snapshot, dict):
+                return False
+            if str(snapshot.get("candidate_menu_id") or "").strip() != candidate_menu_id:
+                return False
+            snapshot_claim_id = str(snapshot.get("claim_id") or "").strip()
+            candidate_claim_id = str(candidate.get("claim_id") or "").strip()
+            if snapshot_claim_id and candidate_claim_id and snapshot_claim_id != candidate_claim_id:
+                return False
+            snapshot_type = _canonical_negative_evidence_type(snapshot.get("issue_type"))
+            candidate_type = _canonical_negative_evidence_type(
+                candidate.get("negative_type")
+                or candidate.get("issue_type")
+                or candidate.get("review_issue_type")
+            )
+            return not snapshot_type or not candidate_type or snapshot_type == candidate_type
+
         def _record_candidate_rejection(reason: str, *, stop_stage: str = "candidate_screen") -> None:
             detail: Dict[str, Any] = {}
             if str(reason or "") == "not_verified_by_bundle":
@@ -14476,6 +14496,7 @@ def _review_issue_candidate_funnel_metrics(
                         str(candidate.get("discovery_origin") or "").startswith("critique_payload_menu")
                         or str(candidate.get("source") or "") == "critique_selected_menu_item"
                     )
+                    and not _candidate_has_valid_menu_snapshot()
                 ):
                     reason = "selected_menu_item_not_in_current_menu_or_filtered"
                     stop_stage = "menu_lookup_or_quality_filter"
@@ -15156,6 +15177,12 @@ def _reviewer_candidate_absence_gap_items(
             gap["review_issue_candidate_menu_item"] = menu_item
         elif candidate_menu_id:
             gap["candidate_menu_id"] = candidate_menu_id
+        if candidate_id:
+            gap["reviewer_negative_candidate_ids"] = [candidate_id]
+        if gap.get("candidate_menu_id"):
+            gap["candidate_menu_ids"] = [str(gap.get("candidate_menu_id") or "")]
+        if isinstance(gap.get("review_issue_candidate_menu_item"), dict):
+            gap["review_issue_candidate_menu_items"] = [gap.get("review_issue_candidate_menu_item")]
         gap["discovery_origin"] = str(
             candidate.get("discovery_origin")
             or ("critique_payload_menu_bound" if menu_item else "")
@@ -15692,6 +15719,37 @@ def _add_reviewer_absence_audit_artifacts(
             return 2
         return 0
 
+    def _append_unique_text(target: Dict[str, Any], field: str, value: Any, *, max_items: int = 12) -> None:
+        text = str(value or "").strip()
+        if not text:
+            return
+        current = [str(item) for item in (target.get(field) or []) if str(item or "").strip()]
+        if text not in current:
+            current.append(text)
+        target[field] = current[:max_items]
+
+    def _merge_menu_snapshots(target: Dict[str, Any], incoming: Dict[str, Any], *, max_items: int = 12) -> None:
+        snapshots: List[Dict[str, Any]] = []
+        seen_menu_ids: set[str] = set()
+
+        def _add(snapshot: Any) -> None:
+            if not isinstance(snapshot, dict):
+                return
+            menu_id = str(snapshot.get("candidate_menu_id") or "").strip()
+            if not menu_id or menu_id in seen_menu_ids:
+                return
+            snapshots.append(snapshot)
+            seen_menu_ids.add(menu_id)
+
+        for snapshot in target.get("review_issue_candidate_menu_items") or []:
+            _add(snapshot)
+        _add(target.get("review_issue_candidate_menu_item"))
+        for snapshot in incoming.get("review_issue_candidate_menu_items") or []:
+            _add(snapshot)
+        _add(incoming.get("review_issue_candidate_menu_item"))
+        if snapshots:
+            target["review_issue_candidate_menu_items"] = snapshots[:max_items]
+
     def _merge_reviewer_candidate_gap_metadata(existing: Dict[str, Any], incoming: Dict[str, Any]) -> None:
         for field in (
             "reviewer_negative_candidate_id",
@@ -15708,6 +15766,15 @@ def _add_reviewer_absence_audit_artifacts(
         ):
             if incoming.get(field) and not existing.get(field):
                 existing[field] = incoming.get(field)
+        for value in incoming.get("reviewer_negative_candidate_ids") or []:
+            _append_unique_text(existing, "reviewer_negative_candidate_ids", value)
+        _append_unique_text(existing, "reviewer_negative_candidate_ids", incoming.get("reviewer_negative_candidate_id"))
+        for value in incoming.get("candidate_menu_ids") or []:
+            _append_unique_text(existing, "candidate_menu_ids", value)
+        _append_unique_text(existing, "candidate_menu_ids", incoming.get("candidate_menu_id"))
+        if existing.get("candidate_menu_id"):
+            _append_unique_text(existing, "candidate_menu_ids", existing.get("candidate_menu_id"))
+        _merge_menu_snapshots(existing, incoming)
         if incoming.get("missing_negative_types"):
             existing["missing_negative_types"] = list(dict.fromkeys(
                 list(incoming.get("missing_negative_types") or [])
@@ -15919,6 +15986,29 @@ def _add_reviewer_absence_audit_artifacts(
         candidate_menu_id = str(gap.get("candidate_menu_id") or "").strip()
         if not candidate_menu_id and not candidate_id.startswith("review-issue-candidate"):
             return
+        candidate_ids = _normalize_list_of_strings(
+            gap.get("reviewer_negative_candidate_ids"),
+            max_items=12,
+            max_length=140,
+        )
+        if candidate_id and candidate_id not in candidate_ids:
+            candidate_ids.insert(0, candidate_id)
+        menu_ids = _normalize_list_of_strings(
+            gap.get("candidate_menu_ids"),
+            max_items=12,
+            max_length=140,
+        )
+        if candidate_menu_id and candidate_menu_id not in menu_ids:
+            menu_ids.insert(0, candidate_menu_id)
+        if not menu_ids:
+            menu_ids = [candidate_menu_id]
+        menu_item_by_id: Dict[str, Dict[str, Any]] = {}
+        for item in gap.get("review_issue_candidate_menu_items") or []:
+            if isinstance(item, dict) and str(item.get("candidate_menu_id") or "").strip():
+                menu_item_by_id.setdefault(str(item.get("candidate_menu_id") or "").strip(), item)
+        primary_menu_item = gap.get("review_issue_candidate_menu_item")
+        if isinstance(primary_menu_item, dict) and str(primary_menu_item.get("candidate_menu_id") or "").strip():
+            menu_item_by_id.setdefault(str(primary_menu_item.get("candidate_menu_id") or "").strip(), primary_menu_item)
         reason = str(gap.get("review_issue_bundle_rejection_reason") or "not_verified_by_bundle").strip()
         stop_stage = str(
             gap.get("review_issue_bundle_stop_stage")
@@ -15940,52 +16030,63 @@ def _add_reviewer_absence_audit_artifacts(
                 menu_item.get("observed_inventory")
             )
         observed0 = observed_inventory[0] if observed_inventory else {}
-        key = (
-            candidate_id,
-            candidate_menu_id,
-            str(requirement or ""),
-            _canonical_negative_evidence_type(neg_type),
-        )
-        if key in bundle_failure_seen:
-            return
-        bundle_failure_seen.add(key)
         counterevidence_reason = (
             reason
             if "counterevidence" in reason or reason.startswith("full_text_")
             else ""
         )
-        if len(view["review_issue_candidate_bundle_failures"]) >= 80:
-            return
-        view["review_issue_candidate_bundle_failures"].append(
-            {
-                "candidate_id": candidate_id,
-                "candidate_menu_id": candidate_menu_id,
-                "claim_id": str(gap.get("claim_id") or ""),
-                "issue_type": _canonical_negative_evidence_type(neg_type),
-                "required_evidence_type": _canonical_required_evidence_type(requirement),
-                "review_issue_slot": str(gap.get("review_issue_slot") or _review_issue_slot_for_type(neg_type)),
-                "obligation_id": str(gap.get("claim_obligation_id") or gap.get("obligation_id") or ""),
-                "selected_missing_items": missing[:4],
-                "resolved_expected_entity": missing[0] if missing else "",
-                "stop_stage": stop_stage,
-                "rejection_reason": reason,
-                "counterevidence_reason": counterevidence_reason,
-                "candidate_obligation_relevance_basis": (
-                    gap.get("candidate_obligation_relevance_basis")
-                    if isinstance(gap.get("candidate_obligation_relevance_basis"), dict)
-                    else {}
-                ),
-                "inventory_anchor_summary": {
-                    "locator": _normalize_text(observed0.get("locator"), max_length=80),
-                    "quote": _normalize_text(observed0.get("quote"), max_length=160),
-                    "observed_items": _normalize_list_of_strings(
-                        observed0.get("observed_items"),
-                        max_items=4,
-                        max_length=80,
+        for index, failure_menu_id in enumerate(menu_ids):
+            if len(view["review_issue_candidate_bundle_failures"]) >= 80:
+                return
+            failure_candidate_id = candidate_ids[index] if index < len(candidate_ids) else candidate_id
+            failure_missing = list(missing)
+            menu_item = menu_item_by_id.get(failure_menu_id)
+            if isinstance(menu_item, dict):
+                expected = _normalize_text(
+                    menu_item.get("verifier_target_entity") or menu_item.get("expected_entity"),
+                    max_length=160,
+                )
+                if expected:
+                    failure_missing = [expected]
+            key = (
+                failure_candidate_id,
+                failure_menu_id,
+                str(requirement or ""),
+                _canonical_negative_evidence_type(neg_type),
+            )
+            if key in bundle_failure_seen:
+                continue
+            bundle_failure_seen.add(key)
+            view["review_issue_candidate_bundle_failures"].append(
+                {
+                    "candidate_id": failure_candidate_id,
+                    "candidate_menu_id": failure_menu_id,
+                    "claim_id": str(gap.get("claim_id") or ""),
+                    "issue_type": _canonical_negative_evidence_type(neg_type),
+                    "required_evidence_type": _canonical_required_evidence_type(requirement),
+                    "review_issue_slot": str(gap.get("review_issue_slot") or _review_issue_slot_for_type(neg_type)),
+                    "obligation_id": str(gap.get("claim_obligation_id") or gap.get("obligation_id") or ""),
+                    "selected_missing_items": failure_missing[:4],
+                    "resolved_expected_entity": failure_missing[0] if failure_missing else "",
+                    "stop_stage": stop_stage,
+                    "rejection_reason": reason,
+                    "counterevidence_reason": counterevidence_reason,
+                    "candidate_obligation_relevance_basis": (
+                        gap.get("candidate_obligation_relevance_basis")
+                        if isinstance(gap.get("candidate_obligation_relevance_basis"), dict)
+                        else {}
                     ),
-                },
-            }
-        )
+                    "inventory_anchor_summary": {
+                        "locator": _normalize_text(observed0.get("locator"), max_length=80),
+                        "quote": _normalize_text(observed0.get("quote"), max_length=160),
+                        "observed_items": _normalize_list_of_strings(
+                            observed0.get("observed_items"),
+                            max_items=4,
+                            max_length=80,
+                        ),
+                    },
+                }
+            )
 
     for gap_index, gap in enumerate(gap_items, 1):
         claim_id = str(gap.get("claim_id") or "").strip()
