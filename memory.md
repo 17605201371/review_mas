@@ -3937,3 +3937,45 @@ P31.17 Stage 2 paper-named baseline provenance checkpoint:
   - if Graphormer/EqualAL-style selected-menu candidates verify cleanly with
     protection still passing, proceed to a fresh hardneg20;
   - keep direct Critique-origin counts separate from deterministic seeds.
+
+P31.24 Stage 2 selected-menu recovery checkpoint (20260705):
+
+- Fixed a real selected-menu materialization gap:
+  - Critique `selected_menu_items` are now recovered whenever the copied
+    `candidate_menu_id` resolves against the current selector menu, even if the
+    turn was routed through the older freeform selector flag and did not retain
+    `review_issue_discovery_required` in the logged manager payload.
+  - Seed top-up still requires the formal review-issue discovery turn; the
+    relaxed condition is only for recovering copied selected menu ids.
+  - Selected-menu candidate rationale now prefers the menu item's structured
+    `why_review_worthy` and strips `...[truncated]`, so model selection
+    rationales or prompt-compaction artifacts cannot make normalizer treat a
+    menu candidate as a retrieval/context gap.
+- Runner selector supply also accepts component-ablation seed targets when
+  `ReviewState` exposes concrete component anchors; this is supply only and
+  still flows through strict bundle verification.
+- Validation:
+  - `py_compile review_runner.py tests/test_review_inference_runner.py = PASS`
+  - runner selector/menu focused suite = 14 passed
+  - hygiene/gate focused suite = 24 passed
+  - offline replay of P31.23 WNxl selected-menu payload now appends a
+    `critique_payload_menu_selected` candidate with preserved `candidate_menu_id`.
+- Live sample:
+  - run = `p31_24_selected_menu_recovery_sample3_20260705_171944`
+  - rows = 3, sample papers = ye3NrNrYOY, WNxlJJIEVj, uOrfve3prk
+  - protection = PASS
+  - evidence_json_fallback_rate_pct = 0
+  - state_contamination_count = 0
+  - candidate_menu_item_count = 3
+  - candidate_menu_item_used_count = 3
+  - candidate_menu_item_verified_count = 0
+  - candidate_menu_item_failed_count = 3
+  - failure reasons:
+    `missing_entity_already_observed_in_inventory` = 2,
+    `observed_inventory_missing` = 1.
+- Interpretation: the functional path now reaches the strict verifier in a
+  fresh API sample; verifier rejection is real and should not be bypassed.
+  Stage 2 remains incomplete because this sample produced no verified direct
+  Critique clusters.  Next work should improve selector supply/ranking so
+  visible menu items are concrete verifier-survivable issues, not already
+  covered inventory checks.

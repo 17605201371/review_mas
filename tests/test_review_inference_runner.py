@@ -2558,6 +2558,43 @@ def test_review_issue_seed_candidates_from_targets_are_candidates_only():
     assert not any("flaw_id" in seed for seed in seeds)
 
 
+def test_review_issue_seed_candidates_skip_limitation_boundary_claims(monkeypatch):
+    inventory = {
+        "inventory_id": "inv-long-range",
+        "quote": "Experiments cover substructure counting and graph property prediction benchmarks.",
+        "locator": "Experiments",
+        "inventory_type": "metric",
+        "observed_items": ["substructure counting", "graph property prediction"],
+    }
+
+    def fake_targets(state, claims=None, max_items=12):
+        return [
+            {
+                "claim_id": "claim-scope",
+                "claim": "The evaluation covers expressivity, efficiency, and generality.",
+                "claim_type": "limitation_or_boundary",
+                "coverage_tags": ["scope", "limitation", "empirical"],
+                "paper_evaluation_inventory": [inventory],
+                "issue_candidate_blueprints": [
+                    {
+                        "required_evidence_type": "empirical_result",
+                        "issue_type": "insufficient_evaluation",
+                        "candidate_missing_item_examples": ["coverage or held-out evaluation for long-range"],
+                    }
+                ],
+            }
+        ]
+
+    monkeypatch.setattr(review_runner_mod, "_hard_negative_diagnosis_targets", fake_targets)
+
+    seeds = review_runner_mod._seed_review_issue_candidates_from_targets(
+        {"claims": [{"claim_id": "claim-scope"}]},
+        max_candidates=4,
+    )
+
+    assert seeds == []
+
+
 def test_review_issue_selector_snapshot_exposes_runner_seed_candidates(monkeypatch):
     inventory = {
         "inventory_id": "inv-rankhead-ablation",
@@ -2643,6 +2680,126 @@ def test_review_issue_selector_snapshot_exposes_runner_seed_candidates(monkeypat
     assert trace["review_issue_selected_menu_recovery_used"] is True
     assert len(updated["reviewer_negative_candidates"]) == 1
     assert "review_issue_seed_fallback_used" not in trace
+
+
+def test_selected_runner_seed_menu_candidate_preserves_claim_for_normalizer():
+    menu_item = review_runner_mod._menu_item_from_seed_review_issue_candidate(
+        {
+            "claim_id": "claim-3",
+            "claim": "PST has superior expressivity for long-range graph tasks.",
+            "negative_type": "missing_robustness_or_generalization",
+            "required_evidence_type": "robustness_or_generalization",
+            "missing_or_weak_items": ["ACDC rainy-night held-out domain evaluation"],
+            "observed_inventory": [
+                {
+                    "inventory_id": "paper-inventory-1",
+                    "quote": "Theoretically, PST exhibits superior expressivity for long-range shortest path distance tasks compared to existing GNNs.",
+                    "locator": "paper inventory #1",
+                    "inventory_type": "baseline",
+                    "observed_items": ["PST", "GNNs"],
+                }
+            ],
+            "source": "runner_seed_blueprint",
+            "review_issue_slot": "scope_or_robustness",
+        },
+        1,
+    )
+    candidate = review_runner_mod._candidate_from_selected_menu_item(
+        menu_item,
+        {
+            "candidate_menu_id": menu_item["candidate_menu_id"],
+            "decision": "selected",
+            "rationale": "The selected menu item is claim-bound and inventory-anchored.",
+            "confidence": 0.75,
+        },
+        1,
+    )
+
+    normalized = normalize_review_update_payload({"reviewer_negative_candidates": [candidate]})
+
+    assert menu_item["claim"] == "PST has superior expressivity for long-range graph tasks."
+    assert normalized["reviewer_negative_candidates"]
+    assert normalized["reviewer_negative_candidates"][0]["claim"] == menu_item["claim"]
+    assert normalized["reviewer_negative_candidates"][0]["candidate_menu_id"] == menu_item["candidate_menu_id"]
+
+
+def test_selected_menu_unique_long_prefix_recovers_visible_menu_item():
+    menu = {
+        "rim-c3-mb-same-setting-comparison-against-equalal": {
+            "candidate_menu_id": "rim-c3-mb-same-setting-comparison-against-equalal",
+            "claim_id": "claim-3",
+            "claim": "HALO outperforms active learning baselines under domain shift.",
+            "issue_type": "missing_baseline",
+            "required_evidence_type": "baseline_or_comparison",
+            "expected_entity": "same-setting comparison against paper-named EqualAL baseline",
+            "inventory_anchor": {
+                "inventory_id": "inv-equalal",
+                "quote": "For the case of AL in semantic segmentation, EqualAL incorporates self-consistency.",
+                "locator": "Related Work",
+                "inventory_type": "related_method",
+                "observed_items": ["EqualAL"],
+            },
+            "paper_named_baseline_name": "EqualAL",
+            "paper_named_baseline_expectation_quote": "For the case of AL in semantic segmentation, EqualAL incorporates self-consistency.",
+            "source": "deterministic_paper_named_baseline_menu",
+        }
+    }
+
+    resolved_id, item = review_runner_mod._resolve_selected_review_issue_menu_item(
+        "rim-c3-mb-same-setting-comparison-against",
+        menu,
+    )
+
+    assert resolved_id == "rim-c3-mb-same-setting-comparison-against-equalal"
+    assert item["paper_named_baseline_name"] == "EqualAL"
+    assert review_runner_mod._resolve_selected_review_issue_menu_item("rim-c3", menu) == ("", {})
+    ambiguous_menu = {
+        **menu,
+        "rim-c3-mb-same-setting-comparison-against-labor": {
+            **menu["rim-c3-mb-same-setting-comparison-against-equalal"],
+            "candidate_menu_id": "rim-c3-mb-same-setting-comparison-against-labor",
+        },
+    }
+    assert review_runner_mod._resolve_selected_review_issue_menu_item(
+        "rim-c3-mb-same-setting-comparison-against",
+        ambiguous_menu,
+    ) == ("", {})
+
+
+def test_review_issue_seed_menu_filters_generic_coverage_or_held_out_target(monkeypatch):
+    inventory = {
+        "inventory_id": "paper-inventory-1",
+        "quote": "Theoretically, PST exhibits superior expressivity for long-range shortest path distance tasks compared to existing GNNs.",
+        "locator": "paper inventory #1",
+        "inventory_type": "baseline",
+        "observed_items": ["PST", "GNNs"],
+    }
+
+    def fake_targets(state, claims=None, max_items=12):
+        return [
+            {
+                "claim_id": "claim-3",
+                "claim": "PST counts substructures on synthetic graphs, surpassing expressive GNN baselines like PPGN.",
+                "claim_type": "empirical",
+                "paper_evaluation_inventory": [inventory],
+                "issue_candidate_blueprints": [
+                    {
+                        "required_evidence_type": "robustness_or_generalization",
+                        "issue_type": "missing_robustness_or_generalization",
+                        "candidate_missing_item_examples": ["coverage or held-out evaluation for PPGN"],
+                    }
+                ],
+            }
+        ]
+
+    monkeypatch.setattr(review_runner_mod, "_hard_negative_diagnosis_targets", fake_targets)
+
+    seeds = review_runner_mod._seed_review_issue_candidates_from_targets(
+        {"claims": [{"claim_id": "claim-3"}]},
+        max_candidates=4,
+    )
+
+    assert seeds == []
 
 
 def test_review_issue_menu_decisions_are_preserved_by_normalizer():
@@ -3403,6 +3560,7 @@ def test_review_issue_discovery_uses_critique_prompt():
     assert "copy `candidate_menu_id` exactly" in review_prompts_mod.REVIEW_ISSUE_DISCOVERY_PROMPT
     assert "Treat it as the primary selector" in review_prompts_mod.REVIEW_ISSUE_DISCOVERY_PROMPT
     assert "Always list every selected menu id in `selected_menu_items`" in review_prompts_mod.REVIEW_ISSUE_DISCOVERY_PROMPT
+    assert "do not leave both `selected_menu_items` and `rejected_menu_items` empty" in review_prompts_mod.REVIEW_ISSUE_DISCOVERY_PROMPT
     assert "Never put `rim-evidence-*`" in review_prompts_mod.REVIEW_ISSUE_DISCOVERY_PROMPT
     assert "Do not invent an external list of well-known baselines" in review_prompts_mod.REVIEW_ISSUE_DISCOVERY_PROMPT
 
@@ -3439,6 +3597,320 @@ def test_empty_review_issue_selector_snapshot_downgrades_selector_prompt(monkeyp
     assert downgraded["freeform_reviewer_negative_stage"] == "selector_discovery_skipped_no_menu"
     assert _resolve_prompt_template("Critique Agent", downgraded) != review_prompts_mod.REVIEW_ISSUE_DISCOVERY_PROMPT
     assert "review_issue_candidate_selector_menu ids" in downgraded["focus"]
+
+
+def test_visible_augmented_selector_menu_upgrades_pre_recovery_turn(monkeypatch):
+    menu_item = {
+        "candidate_menu_id": "rim-c2-mb-graphormer",
+        "claim_id": "claim-2",
+        "issue_type": "missing_baseline",
+        "required_evidence_type": "baseline_or_comparison",
+        "expected_entity": "Graphormer",
+        "source": "runner_seed_blueprint",
+    }
+    monkeypatch.setattr(review_runner_mod.review_policy, "_TARGETED_NEGATIVE_SEARCH_ENABLED", True)
+    monkeypatch.setattr(review_runner_mod.review_policy, "_positive_inventory_ready", lambda state: True)
+    monkeypatch.setattr(review_runner_mod, "_freeform_reviewer_negative_enabled", lambda: True)
+    monkeypatch.setattr(
+        review_runner_mod,
+        "_augmented_review_issue_selector_menu_from_state",
+        lambda state, **kwargs: ([{"review_issue_candidate_menu": [menu_item]}], [menu_item]),
+    )
+
+    upgraded = review_runner_mod._maybe_upgrade_visible_review_issue_discovery_turn(
+        {
+            "decision": "continue",
+            "action_type": "challenge_previous_hypothesis",
+            "effective_action_type": "challenge_previous_hypothesis",
+            "policy_source": "s4_verified_review_issue_recovery_bridge",
+            "policy_notes": ["recovery would otherwise run first"],
+            "phase": "normal_review",
+            "selected_agents": ["Critique Agent", "Evidence Agent"],
+            "negative_evidence_binding_retry_required": True,
+        },
+        {
+            "claims": [{"claim_id": "claim-2", "claim": "The model improves graph learning."}],
+            "evidence_map": [
+                {
+                    "evidence_id": "evidence-1",
+                    "claim_id": "claim-2",
+                    "stance": "supports",
+                    "strength": "strong",
+                    "binding_status": "bound_real_claim",
+                    "verified_grounding_label": "paper_grounded_exact",
+                    "semantic_grounding_label": "semantic_support_verified",
+                }
+            ],
+            "reviewer_negative_candidates": [],
+        },
+        mode="s4",
+        worker_ids=["Claim Agent", "Evidence Agent", "Critique Agent"],
+        worker_limit=2,
+        recent_turn_logs=[],
+        step=3,
+        turn_cap=7,
+    )
+
+    assert upgraded["policy_source"] == "review_issue_discovery_override"
+    assert upgraded["review_issue_discovery_required"] is True
+    assert upgraded["freeform_reviewer_negative_discovery_required"] is True
+    assert upgraded["action_type"] == "analyze_flaws"
+    assert upgraded["selected_agents"] == ["Critique Agent"]
+    assert upgraded["negative_evidence_binding_retry_required"] is False
+    assert upgraded["target_claim_ids"] == ["claim-2"]
+    assert upgraded["review_issue_candidate_selector_menu_snapshot"][0]["candidate_menu_id"] == "rim-c2-mb-graphormer"
+    assert "visible augmented review_issue_candidate_selector_menu" in upgraded["policy_notes"][-1]
+
+
+def test_runner_seed_supply_includes_component_ablation_targets(monkeypatch):
+    monkeypatch.setattr(review_runner_mod, "_hard_negative_diagnosis_targets", lambda *args, **kwargs: [])
+    monkeypatch.setattr(
+        review_runner_mod,
+        "_review_issue_component_ablation_seed_targets",
+        lambda view, claim, max_items=2: [
+            {
+                "missing_item": "component-isolation ablation for graph information injection without information loss",
+                "component_phrase": "graph information injection",
+                "observed_inventory": [
+                    {
+                        "quote": "Secondly, for Transformer, a specific set encoder, we provide a novel and principled approach to inject graph information losslessly.",
+                        "locator": "Method section",
+                        "inventory_id": "component-anchor-1",
+                        "inventory_type": "component_anchor",
+                        "observed_items": ["graph information", "losslessly"],
+                    }
+                ],
+            }
+        ],
+    )
+
+    seeds = review_runner_mod._seed_review_issue_candidates_from_targets(
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-1",
+                    "claim": "The paper introduces a graph-to-set method that injects graph information losslessly.",
+                    "claim_type": "method",
+                }
+            ]
+        },
+        max_candidates=4,
+    )
+
+    assert len(seeds) == 1
+    assert seeds[0]["negative_type"] == "missing_ablation"
+    assert seeds[0]["required_evidence_type"] == "ablation_or_component"
+    assert seeds[0]["source"] == "runner_seed_component_ablation"
+    assert seeds[0]["entity_source"] == "method_component"
+    assert "graph information injection" in seeds[0]["missing_or_weak_items"][0]
+
+
+def test_selector_style_recovery_bridge_standardizes_to_review_issue_discovery(monkeypatch):
+    menu_item = {
+        "candidate_menu_id": "rim-c1-ma-lossless-injection",
+        "claim_id": "claim-1",
+        "issue_type": "missing_ablation",
+        "required_evidence_type": "ablation_or_component",
+        "expected_entity": "component-isolation ablation for graph information injection without information loss",
+        "target_quality_hint": "high",
+        "source": "runner_seed_component_ablation",
+    }
+    monkeypatch.setattr(review_runner_mod.review_policy, "_TARGETED_NEGATIVE_SEARCH_ENABLED", True)
+    monkeypatch.setattr(review_runner_mod.review_policy, "_positive_inventory_ready", lambda state: True)
+    monkeypatch.setattr(review_runner_mod, "_freeform_reviewer_negative_enabled", lambda: True)
+    monkeypatch.setattr(
+        review_runner_mod,
+        "_augmented_review_issue_selector_menu_from_state",
+        lambda state, **kwargs: ([{"review_issue_candidate_menu": [menu_item]}], [menu_item]),
+    )
+
+    standardized = review_runner_mod._standardize_selector_style_review_issue_discovery_turn(
+        {
+            "decision": "continue",
+            "action_type": "analyze_flaws",
+            "effective_action_type": "analyze_flaws",
+            "policy_source": "s4_verified_review_issue_recovery_bridge",
+            "policy_notes": ["bridge selected Critique"],
+            "phase": "normal_review",
+            "selected_agents": ["Critique Agent"],
+            "freeform_reviewer_negative_discovery_required": True,
+            "freeform_reviewer_negative_enabled": True,
+            "freeform_reviewer_negative_stage": "candidate_discovery",
+            "focus": "Select ids from review_issue_candidate_selector_menu.",
+        },
+        {
+            "claims": [{"claim_id": "claim-1", "claim": "The model improves graph learning."}],
+            "evidence_map": [
+                {
+                    "evidence_id": "evidence-1",
+                    "claim_id": "claim-1",
+                    "stance": "supports",
+                    "strength": "strong",
+                    "binding_status": "bound_real_claim",
+                    "verified_grounding_label": "paper_grounded_exact",
+                    "semantic_grounding_label": "semantic_support_verified",
+                }
+            ],
+            "reviewer_negative_candidates": [],
+        },
+        mode="s4",
+        worker_ids=["Claim Agent", "Evidence Agent", "Critique Agent"],
+        worker_limit=2,
+        recent_turn_logs=[],
+        step=3,
+        turn_cap=7,
+    )
+
+    assert standardized["policy_source"] == "review_issue_discovery_bridge_standardized"
+    assert standardized["review_issue_discovery_original_policy_source"] == "s4_verified_review_issue_recovery_bridge"
+    assert standardized["review_issue_discovery_required"] is True
+    assert standardized["freeform_reviewer_negative_discovery_required"] is True
+    assert standardized["selected_agents"] == ["Critique Agent"]
+    assert standardized["target_claim_ids"] == ["claim-1"]
+    assert standardized["review_issue_candidate_selector_menu_snapshot"][0]["candidate_menu_id"] == "rim-c1-ma-lossless-injection"
+    assert _resolve_prompt_template("Critique Agent", standardized) == review_prompts_mod.REVIEW_ISSUE_DISCOVERY_PROMPT
+
+
+def test_selected_menu_recovery_does_not_require_formal_discovery_flag(monkeypatch):
+    menu_item = {
+        "candidate_menu_id": "rim-c2-sr-held-out-coverage",
+        "claim_id": "claim-2",
+        "issue_type": "scope_overclaim",
+        "required_evidence_type": "scope_coverage",
+        "expected_entity": "held-out or coverage evaluation for low-return",
+        "verifier_target_entity": "held-out or coverage evaluation for low-return",
+        "source": "entity_claim_obligation_menu",
+        "review_issue_slot": "scope_or_robustness",
+        "observed_inventory": [
+            {
+                "quote": "Next, we construct high variance datasets and evaluate the performance of CDiffuser and baselines on them.",
+                "locator": "Comparison / Robustness excerpt #1",
+                "inventory_id": "evidence-1-turn-2",
+                "inventory_type": "baseline",
+            }
+        ],
+    }
+    monkeypatch.setattr(
+        review_runner_mod,
+        "_augmented_review_issue_selector_menu_from_state",
+        lambda state, **kwargs: ([{"review_issue_candidate_menu": [menu_item]}], [menu_item]),
+    )
+    trace = {}
+
+    payload = review_runner_mod._maybe_seed_review_issue_discovery_payload(
+        "Critique Agent",
+        {
+            "selected_menu_items": [
+                {
+                    "candidate_menu_id": "rim-c2-sr-held-out-coverage",
+                    "decision": "selected",
+                    "confidence": 0.8,
+                }
+            ],
+            "reviewer_negative_candidates": [],
+        },
+        {"claims": [{"claim_id": "claim-2", "claim": "The method handles low-return trajectories."}]},
+        {
+            "freeform_reviewer_negative_discovery_required": True,
+            "freeform_reviewer_negative_stage": "candidate_discovery",
+            "selected_agents": ["Critique Agent"],
+            "focus": "Select ids from review_issue_candidate_selector_menu.",
+        },
+        trace_worker=trace,
+    )
+
+    assert trace["review_issue_selected_menu_recovery_used"] is True
+    assert trace["review_issue_selected_menu_recovered_count"] == 1
+    assert "review_issue_seed_fallback_used" not in trace
+    assert payload["reviewer_negative_candidates"][0]["candidate_menu_id"] == "rim-c2-sr-held-out-coverage"
+    assert payload["reviewer_negative_candidates"][0]["discovery_origin"] == "critique_payload_menu_selected"
+
+
+def test_visible_augmented_selector_menu_waits_for_positive_inventory(monkeypatch):
+    menu_item = {
+        "candidate_menu_id": "rim-c2-mb-graphormer",
+        "claim_id": "claim-2",
+        "issue_type": "missing_baseline",
+        "required_evidence_type": "baseline_or_comparison",
+        "expected_entity": "Graphormer",
+        "source": "runner_seed_blueprint",
+    }
+    monkeypatch.setattr(review_runner_mod.review_policy, "_TARGETED_NEGATIVE_SEARCH_ENABLED", True)
+    monkeypatch.setattr(review_runner_mod.review_policy, "_positive_inventory_ready", lambda state: False)
+    monkeypatch.setattr(review_runner_mod, "_freeform_reviewer_negative_enabled", lambda: True)
+    monkeypatch.setattr(
+        review_runner_mod,
+        "_augmented_review_issue_selector_menu_from_state",
+        lambda state, **kwargs: ([{"review_issue_candidate_menu": [menu_item]}], [menu_item]),
+    )
+
+    unchanged = review_runner_mod._maybe_upgrade_visible_review_issue_discovery_turn(
+        {
+            "decision": "continue",
+            "action_type": "challenge_previous_hypothesis",
+            "effective_action_type": "challenge_previous_hypothesis",
+            "policy_source": "s4_verified_review_issue_recovery_bridge",
+            "phase": "normal_review",
+            "selected_agents": ["Critique Agent", "Evidence Agent"],
+        },
+        {
+            "claims": [{"claim_id": "claim-2", "claim": "The model improves graph learning."}],
+            "evidence_map": [],
+            "reviewer_negative_candidates": [],
+        },
+        mode="s4",
+        worker_ids=["Claim Agent", "Evidence Agent", "Critique Agent"],
+        worker_limit=2,
+        recent_turn_logs=[],
+        step=3,
+        turn_cap=7,
+    )
+
+    assert unchanged["policy_source"] == "s4_verified_review_issue_recovery_bridge"
+    assert "review_issue_discovery_required" not in unchanged
+
+
+def test_visible_augmented_selector_menu_does_not_repeat_recent_discovery(monkeypatch):
+    menu_item = {
+        "candidate_menu_id": "rim-c2-mb-graphormer",
+        "claim_id": "claim-2",
+        "issue_type": "missing_baseline",
+        "expected_entity": "Graphormer",
+    }
+    monkeypatch.setattr(review_runner_mod.review_policy, "_TARGETED_NEGATIVE_SEARCH_ENABLED", True)
+    monkeypatch.setattr(review_runner_mod.review_policy, "_positive_inventory_ready", lambda state: True)
+    monkeypatch.setattr(review_runner_mod, "_freeform_reviewer_negative_enabled", lambda: True)
+    monkeypatch.setattr(
+        review_runner_mod,
+        "_augmented_review_issue_selector_menu_from_state",
+        lambda state, **kwargs: ([{"review_issue_candidate_menu": [menu_item]}], [menu_item]),
+    )
+
+    unchanged = review_runner_mod._maybe_upgrade_visible_review_issue_discovery_turn(
+        {
+            "decision": "continue",
+            "action_type": "challenge_previous_hypothesis",
+            "effective_action_type": "challenge_previous_hypothesis",
+            "policy_source": "s4_verified_review_issue_recovery_bridge",
+            "phase": "normal_review",
+            "selected_agents": ["Critique Agent"],
+        },
+        {
+            "claims": [{"claim_id": "claim-2", "claim": "The model improves graph learning."}],
+            "evidence_map": [{"evidence_id": "evidence-1", "claim_id": "claim-2"}],
+            "reviewer_negative_candidates": [],
+        },
+        mode="s4",
+        worker_ids=["Claim Agent", "Evidence Agent", "Critique Agent"],
+        worker_limit=2,
+        recent_turn_logs=[{"policy_source": "review_issue_discovery_override"}],
+        step=4,
+        turn_cap=7,
+    )
+
+    assert unchanged["policy_source"] == "s4_verified_review_issue_recovery_bridge"
+    assert "review_issue_discovery_required" not in unchanged
+    assert "review_issue_candidate_selector_menu_snapshot" not in unchanged
 
 
 def test_worker_prompt_char_counts_survive_turn_action_normalization():

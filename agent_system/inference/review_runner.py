@@ -33,6 +33,7 @@ from agent_system.environments.env_package.review.state import (
     _review_issue_candidate_menu_quality_failure,
     _review_issue_candidate_menu_id,
     _review_issue_candidate_selector_menu,
+    _review_issue_component_ablation_seed_targets,
     _review_issue_missing_items_are_concrete,
     _review_issue_normalized_cluster_target,
     _review_issue_slot_for_type,
@@ -2997,6 +2998,8 @@ def _seed_review_issue_candidates_from_targets(
         missing_item: str,
         obligation_id: str = "",
         source: str = "runner_seed_blueprint",
+        observed_inventory: Optional[Sequence[Dict[str, Any]]] = None,
+        entity_source: str = "",
     ) -> None:
         nonlocal candidates
         claim_id = str(target.get("claim_id") or "").strip()
@@ -3005,11 +3008,20 @@ def _seed_review_issue_candidates_from_targets(
         missing_item = _candidate_text(missing_item, 160)
         if not claim_id or not issue_type or not requirement or not missing_item:
             return
+        claim_type = str(target.get("claim_type") or "").strip().lower()
+        if claim_type == "limitation_or_boundary":
+            return
         if issue_type not in seedable_types:
             return
         if type_counts.get(issue_type, 0) >= 2:
             return
-        inventory = _select_review_issue_seed_inventory(target, requirement, issue_type)
+        if observed_inventory is not None:
+            inventory = [
+                item for item in observed_inventory
+                if isinstance(item, dict) and _candidate_text(item.get("quote"), 260)
+            ][:3]
+        else:
+            inventory = _select_review_issue_seed_inventory(target, requirement, issue_type)
         if not inventory:
             return
         if _seed_review_issue_missing_item_quality_failure(
@@ -3050,6 +3062,7 @@ def _seed_review_issue_candidates_from_targets(
                 "source": source,
                 "review_issue_slot": _review_issue_slot_for_type(issue_type),
                 "discovery_origin": source,
+                "entity_source": entity_source or str(target.get("entity_source") or ""),
                 "status": "pending_absence_audit",
                 "confidence": 0.62,
                 "rationale": (
@@ -3090,6 +3103,34 @@ def _seed_review_issue_candidates_from_targets(
                 )
                 if len(candidates) >= max_candidates:
                     return candidates[:max_candidates]
+    for claim in (state or {}).get("claims", []) or []:
+        if not isinstance(claim, dict):
+            continue
+        claim_id = str(claim.get("claim_id") or "").strip()
+        if not claim_id:
+            continue
+        claim_type = str(claim.get("claim_type") or "").strip().lower()
+        if claim_type == "limitation_or_boundary":
+            continue
+        for target in _review_issue_component_ablation_seed_targets(state or {}, claim, max_items=2):
+            if not isinstance(target, dict):
+                continue
+            add_candidate(
+                {
+                    "claim_id": claim_id,
+                    "claim": claim.get("claim"),
+                    "claim_type": claim.get("claim_type"),
+                    "entity_source": "method_component",
+                },
+                issue_type="missing_ablation",
+                requirement="ablation_or_component",
+                missing_item=str(target.get("missing_item") or ""),
+                source="runner_seed_component_ablation",
+                observed_inventory=target.get("observed_inventory") or [],
+                entity_source="method_component",
+            )
+            if len(candidates) >= max_candidates:
+                return candidates[:max_candidates]
     return candidates[:max_candidates]
 
 
@@ -3127,6 +3168,7 @@ def _menu_item_from_seed_review_issue_candidate(candidate: Dict[str, Any], index
     return {
         "candidate_menu_id": _review_issue_candidate_menu_id(claim_id, issue_type, expected, index),
         "claim_id": claim_id,
+        "claim": _candidate_text(candidate.get("claim"), 240),
         "obligation_id": str(candidate.get("obligation_id") or ""),
         "issue_type": issue_type,
         "required_evidence_type": required,
@@ -3212,6 +3254,347 @@ def _augmented_review_issue_selector_menu_from_state(
         max_per_type=selector_max_per_type,
     )
     return augmented_targets, visible_menu
+
+
+def _review_issue_bundle_enabled() -> bool:
+    return os.environ.get("DRMAS_REVIEW_ISSUE_BUNDLE", "1").strip().lower() not in {
+        "0",
+        "false",
+        "off",
+        "no",
+    }
+
+
+def _targeted_negative_search_enabled() -> bool:
+    if hasattr(review_policy, "_TARGETED_NEGATIVE_SEARCH_ENABLED"):
+        return bool(getattr(review_policy, "_TARGETED_NEGATIVE_SEARCH_ENABLED"))
+    return os.environ.get("DRMAS_TARGETED_NEGATIVE_SEARCH", "").strip().lower() in {
+        "1",
+        "true",
+        "on",
+        "yes",
+    }
+
+
+def _review_issue_discovery_recently_attempted(recent_turn_logs: Sequence[Dict[str, Any]]) -> bool:
+    for turn in list(recent_turn_logs or [])[-5:]:
+        if not isinstance(turn, dict):
+            continue
+        if turn.get("review_issue_discovery_required") or turn.get("freeform_reviewer_negative_discovery_required"):
+            return True
+        if str(turn.get("policy_source") or "") in {
+            "review_issue_discovery_override",
+            "freeform_reviewer_negative_discovery_override",
+        }:
+            return True
+        if str(turn.get("freeform_reviewer_negative_stage") or "") == "candidate_discovery":
+            return True
+    helper = getattr(review_policy, "_has_recent_freeform_reviewer_negative_discovery", None)
+    if callable(helper):
+        try:
+            return bool(helper(recent_turn_logs))
+        except Exception:
+            pass
+    return False
+
+
+def _review_issue_pending_candidate_exists(state: Dict[str, Any]) -> bool:
+    helper = getattr(review_policy, "_has_pending_reviewer_negative_candidates", None)
+    if callable(helper):
+        try:
+            return bool(helper(state or {}))
+        except Exception:
+            pass
+    for item in (state or {}).get("reviewer_negative_candidates", []) or []:
+        if not isinstance(item, dict):
+            continue
+        status = str(item.get("status") or "pending_quote_verification").strip().lower()
+        if status in {
+            "pending_quote_verification",
+            "pending_absence_audit",
+            "pending_issue_bundle_verification",
+            "open",
+            "not_assessable",
+        }:
+            return True
+    return False
+
+
+def _review_issue_positive_inventory_ready(state: Dict[str, Any]) -> bool:
+    helper = getattr(review_policy, "_positive_inventory_ready", None)
+    if callable(helper):
+        try:
+            return bool(helper(state or {}))
+        except Exception:
+            pass
+    for item in (state or {}).get("evidence_map", []) or []:
+        if not isinstance(item, dict):
+            continue
+        stance = str(item.get("stance") or "").strip().lower()
+        strength = str(item.get("strength") or "").strip().lower()
+        if stance == "supports" and strength == "strong":
+            return True
+    return False
+
+
+def _review_issue_real_strong_support_count(state: Dict[str, Any]) -> int:
+    count = 0
+    for item in (state or {}).get("evidence_map", []) or []:
+        if not isinstance(item, dict):
+            continue
+        stance = str(item.get("stance") or "").strip().lower()
+        strength = str(item.get("strength") or "").strip().lower()
+        if stance != "supports" or strength != "strong":
+            continue
+        binding = str(item.get("binding_status") or "").strip().lower()
+        if binding and binding not in {"bound_real_claim", "bound", "verified"}:
+            continue
+        grounding = str(item.get("verified_grounding_label") or "").strip().lower()
+        semantic = str(item.get("semantic_grounding_label") or "").strip().lower()
+        if grounding and not grounding.startswith("paper_grounded"):
+            continue
+        if semantic and semantic not in {"semantic_support_verified", "semantic_verified", "support_verified"}:
+            continue
+        count += 1
+    return count
+
+
+def _maybe_upgrade_visible_review_issue_discovery_turn(
+    manager_payload: Dict[str, Any],
+    state: Dict[str, Any],
+    *,
+    mode: str,
+    worker_ids: Sequence[str],
+    worker_limit: int,
+    recent_turn_logs: Sequence[Dict[str, Any]],
+    step: int,
+    turn_cap: int,
+) -> Dict[str, Any]:
+    if not isinstance(manager_payload, dict) or not isinstance(state, dict):
+        return manager_payload
+    if manager_payload.get("review_issue_discovery_required"):
+        return manager_payload
+    if mode != "s4":
+        return manager_payload
+    if not (
+        _review_issue_bundle_enabled()
+        and _targeted_negative_search_enabled()
+        and (_freeform_reviewer_negative_enabled() or _review_issue_bundle_enabled())
+    ):
+        return manager_payload
+    if "Critique Agent" not in worker_ids:
+        return manager_payload
+    if turn_cap > 0 and step >= turn_cap:
+        return manager_payload
+    phase = str(manager_payload.get("phase") or state.get("phase") or "").strip().lower()
+    turn_mode = _normalize_turn_mode(manager_payload.get("turn_mode"))
+    if phase == "recovery" or turn_mode == "recovery_patch" or manager_payload.get("recovery_patch_mode_entered"):
+        return manager_payload
+    action_type = str(manager_payload.get("effective_action_type") or manager_payload.get("action_type") or "").strip()
+    if action_type not in {
+        "verify_evidence",
+        "request_evidence_recheck",
+        "analyze_flaws",
+        "summarize_progress",
+        "finalize",
+        "challenge_previous_hypothesis",
+        "ask_user_clarification",
+    }:
+        return manager_payload
+    if manager_payload.get("targeted_negative_search_no_task_blocked"):
+        return manager_payload
+    if not _review_issue_positive_inventory_ready(state):
+        return manager_payload
+    if _review_issue_real_strong_support_count(state) < 1:
+        return manager_payload
+    if _review_issue_pending_candidate_exists(state):
+        return manager_payload
+    if _review_issue_discovery_recently_attempted(recent_turn_logs):
+        return manager_payload
+    try:
+        _targets, selector_menu = _augmented_review_issue_selector_menu_from_state(
+            state or {},
+            target_max_items=12,
+            selector_max_items=12,
+            selector_max_per_claim=3,
+            selector_max_per_type=4,
+        )
+    except Exception:
+        selector_menu = []
+    if not selector_menu:
+        return manager_payload
+
+    updated = dict(manager_payload)
+    updated["decision"] = "continue"
+    updated["final_decision"] = "undecided"
+    updated["final_report"] = ""
+    updated["action_type"] = "analyze_flaws"
+    updated["effective_action_type"] = "analyze_flaws"
+    updated["phase"] = "normal_review"
+    updated["turn_mode"] = "normal_evidence"
+    updated["recovery_patch_mode_entered"] = False
+    updated["finalize_blocked_by_phase"] = False
+    updated["negative_evidence_formation_required"] = False
+    updated["targeted_negative_search_required"] = False
+    updated["negative_evidence_binding_retry_required"] = False
+    updated["compact_negative_pass_required"] = False
+    updated["hard_negative_diagnosis_required"] = False
+    updated["review_issue_discovery_required"] = True
+    updated["freeform_reviewer_negative_discovery_required"] = True
+    updated["freeform_reviewer_negative_enabled"] = True
+    updated["freeform_reviewer_negative_stage"] = "candidate_discovery"
+    updated["policy_source"] = "review_issue_discovery_override"
+    updated["selected_agents"] = [agent for agent in ["Critique Agent"] if agent in worker_ids][:worker_limit] or list(worker_ids[:1])
+    updated["review_issue_candidate_selector_menu_snapshot"] = copy.deepcopy(selector_menu)
+    updated["review_issue_candidate_selector_menu_snapshot_count"] = len(selector_menu)
+    updated.pop("review_issue_discovery_empty_selector_menu", None)
+    menu_claim_ids = [
+        str(item.get("claim_id") or "").strip()
+        for item in selector_menu
+        if isinstance(item, dict) and str(item.get("claim_id") or "").strip()
+    ]
+    if menu_claim_ids:
+        updated["target_claim_ids"] = list(dict.fromkeys(menu_claim_ids))[:2]
+    else:
+        updated["target_claim_ids"] = []
+    updated["target_flaw_ids"] = []
+    updated["target_evidence_ids"] = []
+    updated["target_hypotheses"] = []
+    updated["focus"] = (
+        "Act like a peer reviewer and select likely paper review issues from the visible review_issue_candidate_selector_menu. "
+        "Do not create verified negative evidence in this turn. Prefer selected_menu_items with copied candidate_menu_id values; "
+        "write full review_issue_candidates only as a free-form fallback when no menu item fits."
+    )
+    notes = list(updated.get("policy_notes") or [])
+    notes.append(
+        "Runner upgraded this turn to Critique selector discovery because the visible augmented review_issue_candidate_selector_menu had verifier-ready items."
+    )
+    updated["policy_notes"] = list(dict.fromkeys(notes))[:8]
+    return _apply_turn_mode(updated)
+
+
+def _is_selector_style_review_issue_discovery_turn(manager_payload: Dict[str, Any]) -> bool:
+    if not isinstance(manager_payload, dict):
+        return False
+    if manager_payload.get("review_issue_discovery_required"):
+        return False
+    if not manager_payload.get("freeform_reviewer_negative_discovery_required"):
+        return False
+    if str(manager_payload.get("freeform_reviewer_negative_stage") or "").strip() != "candidate_discovery":
+        return False
+    selected = {
+        str(agent or "").strip()
+        for agent in manager_payload.get("selected_agents", []) or []
+        if str(agent or "").strip()
+    }
+    if "Critique Agent" not in selected:
+        return False
+    focus_text = " ".join(
+        str(manager_payload.get(key) or "")
+        for key in ("focus", "rationale", "active_focus")
+    ).lower()
+    return (
+        "review_issue_candidate_selector_menu" in focus_text
+        or "selected_menu_items" in focus_text
+        or "candidate_menu_id" in focus_text
+    )
+
+
+def _standardize_selector_style_review_issue_discovery_turn(
+    manager_payload: Dict[str, Any],
+    state: Dict[str, Any],
+    *,
+    mode: str,
+    worker_ids: Sequence[str],
+    worker_limit: int,
+    recent_turn_logs: Sequence[Dict[str, Any]],
+    step: int,
+    turn_cap: int,
+) -> Dict[str, Any]:
+    if not _is_selector_style_review_issue_discovery_turn(manager_payload):
+        return manager_payload
+    if mode != "s4" or "Critique Agent" not in worker_ids:
+        return manager_payload
+    if not (
+        _review_issue_bundle_enabled()
+        and _targeted_negative_search_enabled()
+        and (_freeform_reviewer_negative_enabled() or _review_issue_bundle_enabled())
+    ):
+        return manager_payload
+    if turn_cap > 0 and step >= turn_cap:
+        return manager_payload
+    phase = str(manager_payload.get("phase") or state.get("phase") or "").strip().lower()
+    turn_mode = _normalize_turn_mode(manager_payload.get("turn_mode"))
+    if phase == "recovery" or turn_mode == "recovery_patch" or manager_payload.get("recovery_patch_mode_entered"):
+        return manager_payload
+    if not _review_issue_positive_inventory_ready(state):
+        return manager_payload
+    if _review_issue_real_strong_support_count(state) < 1:
+        return manager_payload
+    if _review_issue_pending_candidate_exists(state):
+        return manager_payload
+    if _review_issue_discovery_recently_attempted(recent_turn_logs):
+        return manager_payload
+    try:
+        _targets, selector_menu = _augmented_review_issue_selector_menu_from_state(
+            state or {},
+            target_max_items=12,
+            selector_max_items=12,
+            selector_max_per_claim=3,
+            selector_max_per_type=4,
+        )
+    except Exception:
+        selector_menu = []
+    if not selector_menu:
+        return manager_payload
+
+    updated = dict(manager_payload)
+    original_policy = str(updated.get("policy_source") or "")
+    if original_policy:
+        updated["review_issue_discovery_original_policy_source"] = original_policy
+    updated["decision"] = "continue"
+    updated["final_decision"] = "undecided"
+    updated["final_report"] = ""
+    updated["action_type"] = "analyze_flaws"
+    updated["effective_action_type"] = "analyze_flaws"
+    updated["phase"] = "normal_review"
+    updated["turn_mode"] = "normal_evidence"
+    updated["recovery_patch_mode_entered"] = False
+    updated["finalize_blocked_by_phase"] = False
+    updated["negative_evidence_formation_required"] = False
+    updated["targeted_negative_search_required"] = False
+    updated["negative_evidence_binding_retry_required"] = False
+    updated["compact_negative_pass_required"] = False
+    updated["hard_negative_diagnosis_required"] = False
+    updated["review_issue_discovery_required"] = True
+    updated["freeform_reviewer_negative_discovery_required"] = True
+    updated["freeform_reviewer_negative_enabled"] = True
+    updated["freeform_reviewer_negative_stage"] = "candidate_discovery"
+    updated["policy_source"] = "review_issue_discovery_bridge_standardized"
+    updated["selected_agents"] = [agent for agent in ["Critique Agent"] if agent in worker_ids][:worker_limit] or list(worker_ids[:1])
+    updated["review_issue_candidate_selector_menu_snapshot"] = copy.deepcopy(selector_menu)
+    updated["review_issue_candidate_selector_menu_snapshot_count"] = len(selector_menu)
+    updated.pop("review_issue_discovery_empty_selector_menu", None)
+    menu_claim_ids = [
+        str(item.get("claim_id") or "").strip()
+        for item in selector_menu
+        if isinstance(item, dict) and str(item.get("claim_id") or "").strip()
+    ]
+    updated["target_claim_ids"] = list(dict.fromkeys(menu_claim_ids))[:3]
+    updated["target_flaw_ids"] = []
+    updated["target_evidence_ids"] = []
+    updated["target_hypotheses"] = []
+    updated["focus"] = (
+        "Act like a peer reviewer and select likely paper review issues from the visible review_issue_candidate_selector_menu. "
+        "Do not create verified negative evidence in this turn. Prefer selected_menu_items with copied candidate_menu_id values; "
+        "write full review_issue_candidates only as a free-form fallback when no menu item fits."
+    )
+    notes = list(updated.get("policy_notes") or [])
+    notes.append(
+        "Standardized selector-style reviewer-negative discovery into the review_issue_discovery_required path with the augmented selector menu snapshot."
+    )
+    updated["policy_notes"] = list(dict.fromkeys(notes))[:8]
+    return _apply_turn_mode(updated)
 
 
 def _selector_menu_lookup_from_state(state: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
@@ -3322,14 +3705,17 @@ def _candidate_from_selected_menu_item(
             }
         ]
     issue_type = str(menu_item.get("issue_type") or "")
-    rationale = _candidate_text(selection.get("rationale") or menu_item.get("why_review_worthy"), 220)
+    rationale = _candidate_text(menu_item.get("why_review_worthy") or selection.get("rationale"), 220)
+    selection_rationale = _candidate_text(selection.get("rationale"), 220)
+    rationale = re.sub(r"\s*\.\.\.\[truncated\]\s*", " ", rationale).strip()
+    selection_rationale = re.sub(r"\s*\.\.\.\[truncated\]\s*", " ", selection_rationale).strip()
     return {
         "candidate_id": f"review-issue-candidate-selected-menu-{index}",
         "candidate_menu_id": menu_id,
         "review_issue_candidate_menu_item": copy.deepcopy(menu_item),
         "obligation_id": str(menu_item.get("obligation_id") or ""),
         "claim_id": str(menu_item.get("claim_id") or ""),
-        "claim": "",
+        "claim": _candidate_text(menu_item.get("claim") or menu_item.get("claim_text"), 240),
         "weakness": (
             f"Verify whether the paper leaves the review issue target uncovered: {expected}."
             if expected
@@ -3352,9 +3738,36 @@ def _candidate_from_selected_menu_item(
         "review_issue_slot": str(menu_item.get("review_issue_slot") or menu_item.get("slot") or ""),
         "entity_source": str(menu_item.get("entity_source") or ""),
         "rationale": rationale,
+        "selection_rationale": selection_rationale,
         "confidence": selection.get("confidence", 0.5),
         "status": "pending_absence_audit",
     }
+
+
+def _resolve_selected_review_issue_menu_item(
+    selected_menu_id: str,
+    menu_by_id: Dict[str, Dict[str, Any]],
+) -> Tuple[str, Dict[str, Any]]:
+    menu_id = str(selected_menu_id or "").strip()
+    if not menu_id:
+        return "", {}
+    exact = menu_by_id.get(menu_id)
+    if exact:
+        return menu_id, exact
+    if not menu_id.startswith("rim-c") or len(menu_id) < 24:
+        return "", {}
+    matches = [
+        (candidate_id, item)
+        for candidate_id, item in menu_by_id.items()
+        if isinstance(item, dict)
+        and (
+            candidate_id.startswith(menu_id)
+            or menu_id.startswith(candidate_id)
+        )
+    ]
+    if len(matches) != 1:
+        return "", {}
+    return matches[0]
 
 
 def _maybe_recover_selected_review_issue_menu_items(
@@ -3399,18 +3812,26 @@ def _maybe_recover_selected_review_issue_menu_items(
         menu_id = str(selection.get("candidate_menu_id") or "").strip()
         if not menu_id or menu_id in existing_menu_ids:
             continue
-        menu_item = menu_by_id.get(menu_id)
+        resolved_menu_id, menu_item = _resolve_selected_review_issue_menu_item(menu_id, menu_by_id)
         if not menu_item:
             missing_menu_ids.append(menu_id)
             continue
+        if resolved_menu_id in existing_menu_ids:
+            continue
+        resolved_selection = dict(selection)
+        resolved_selection["candidate_menu_id"] = resolved_menu_id
         recovered.append(
             _candidate_from_selected_menu_item(
                 menu_item,
-                selection,
+                resolved_selection,
                 len(existing_candidates) + len(recovered) + 1,
             )
         )
-        existing_menu_ids.add(menu_id)
+        existing_menu_ids.add(resolved_menu_id)
+        if trace_worker is not None and resolved_menu_id != menu_id:
+            trace_worker.setdefault("review_issue_selected_menu_prefix_resolutions", []).append(
+                {"selected_menu_id": menu_id, "resolved_menu_id": resolved_menu_id}
+            )
         if len(existing_candidates) + len(recovered) >= 12:
             break
     if not recovered:
@@ -3450,16 +3871,26 @@ def _maybe_seed_review_issue_discovery_payload(
 ) -> Dict[str, Any]:
     if worker_id != "Critique Agent":
         return worker_payload
-    if not isinstance(manager_payload, dict) or not manager_payload.get("review_issue_discovery_required"):
-        return worker_payload
     if not isinstance(worker_payload, dict):
         return worker_payload
-    worker_payload = _maybe_recover_selected_review_issue_menu_items(
-        worker_payload,
-        state or {},
-        manager_payload,
-        trace_worker=trace_worker,
+    formal_discovery_turn = bool(
+        isinstance(manager_payload, dict)
+        and manager_payload.get("review_issue_discovery_required")
     )
+    selected_menu_items = worker_payload.get("selected_menu_items")
+    has_selected_menu_items = isinstance(selected_menu_items, list) and any(
+        isinstance(item, dict) and str(item.get("candidate_menu_id") or "").strip()
+        for item in selected_menu_items
+    )
+    if has_selected_menu_items:
+        worker_payload = _maybe_recover_selected_review_issue_menu_items(
+            worker_payload,
+            state or {},
+            manager_payload if isinstance(manager_payload, dict) else None,
+            trace_worker=trace_worker,
+        )
+    if not formal_discovery_turn:
+        return worker_payload
     existing = worker_payload.get("reviewer_negative_candidates")
     existing_candidates = existing if isinstance(existing, list) else []
     if _critique_only_discovery_eval_enabled():
@@ -4012,6 +4443,7 @@ def build_worker_observation(task: Dict[str, Any], manager_payload: Dict[str, An
             "review_issue_discovery_required=true\n"
             "Primary task: act like a peer reviewer and select up to 3 safe items from review_issue_candidate_selector_menu. "
             "Output selected_menu_items with copied candidate_menu_id values; the runner expands valid ids for later verification. "
+            "When a selector menu is visible, do not leave both selected_menu_items and rejected_menu_items empty. "
             "Do not output verified evidence, claim status changes, or recovery patches. "
             "Only output full review_issue_candidates as a fallback when no menu item fits and the free-form issue has a real claim, concrete target, copied inventory anchor, and counterevidence terms. "
             "Reject generic, already-covered, retrieval/context, author-limitation, or stale menu items briefly.\n\n"
@@ -7812,6 +8244,16 @@ def run_review_episode(
                 worker_limit=worker_limit,
                 recent_turn_logs=obs.get("turn_logs", []),
             )
+            manager_payload = _maybe_upgrade_visible_review_issue_discovery_turn(
+                manager_payload,
+                obs["review_state"],
+                mode=plan["mode"],
+                worker_ids=worker_ids,
+                worker_limit=worker_limit,
+                recent_turn_logs=obs.get("turn_logs", []),
+                step=step,
+                turn_cap=turn_cap,
+            )
             manager_payload["_phase_step"] = step
             manager_payload["_phase_turn_cap"] = turn_cap
             manager_payload = _apply_recovery_phase_protocol(
@@ -7821,6 +8263,16 @@ def run_review_episode(
                 worker_ids=worker_ids,
                 worker_limit=worker_limit,
                 recent_turn_logs=obs.get("turn_logs", []),
+            )
+            manager_payload = _standardize_selector_style_review_issue_discovery_turn(
+                manager_payload,
+                obs["review_state"],
+                mode=plan["mode"],
+                worker_ids=worker_ids,
+                worker_limit=worker_limit,
+                recent_turn_logs=obs.get("turn_logs", []),
+                step=step,
+                turn_cap=turn_cap,
             )
             # R2: zero-real targeted retry (alters trajectory; last-resort before finalize).
             manager_payload = _maybe_zero_real_targeted_retry(
@@ -8223,6 +8675,16 @@ def run_review_batch(
                     worker_limit=worker_limit,
                     recent_turn_logs=obs.get("turn_logs", []),
                 )
+                manager_payload = _maybe_upgrade_visible_review_issue_discovery_turn(
+                    manager_payload,
+                    obs["review_state"],
+                    mode=plan["mode"],
+                    worker_ids=worker_ids,
+                    worker_limit=worker_limit,
+                    recent_turn_logs=obs.get("turn_logs", []),
+                    step=step,
+                    turn_cap=turn_cap,
+                )
                 manager_payload["_phase_step"] = step
                 manager_payload["_phase_turn_cap"] = turn_cap
                 manager_payload = _apply_recovery_phase_protocol(
@@ -8232,6 +8694,16 @@ def run_review_batch(
                     worker_ids=worker_ids,
                     worker_limit=worker_limit,
                     recent_turn_logs=obs.get("turn_logs", []),
+                )
+                manager_payload = _standardize_selector_style_review_issue_discovery_turn(
+                    manager_payload,
+                    obs["review_state"],
+                    mode=plan["mode"],
+                    worker_ids=worker_ids,
+                    worker_limit=worker_limit,
+                    recent_turn_logs=obs.get("turn_logs", []),
+                    step=step,
+                    turn_cap=turn_cap,
                 )
                 selected_workers = manager_payload.get("selected_agents", [])[:worker_limit]
                 manager_payload["selected_agents"] = selected_workers

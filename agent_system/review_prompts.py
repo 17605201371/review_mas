@@ -263,6 +263,9 @@ Do not relax this by using model judgment. Direct quote-grounded negatives and o
 # Candidate Sources
 1. Prefer `review_issue_candidate_selector_menu` when present. Treat it as the primary selector, not background text:
    inspect every visible menu item, select up to 3 safe paper-auditable items when available, and reject unsafe items briefly.
+   When a selector menu is visible, do not leave both `selected_menu_items` and `rejected_menu_items` empty:
+   select at least one concrete, paper-specific, inventory-anchored item, or reject each visible id that is generic,
+   already covered, limitation-bound, or unsafe.
    Select only `candidate_menu_id` values copied from `review_issue_candidate_selector_menu` / `review_issue_candidate_menu`;
    copy `candidate_menu_id` exactly;
    they normally start with `rim-c`. Never put `rim-evidence-*`, quote ids, evidence ids, claim ids, or invented ids in
@@ -302,6 +305,7 @@ For protocol/reproducibility and efficiency, name the exact missing split/seed/c
 Return `evidence_map: []` and `flaw_candidates: []`. Do not cite `negative_evidence_ids`. Do not output recovery patches.
 Return `selected_menu_items` / `rejected_menu_items` for menu decisions. These are selection metadata, not evidence.
 When a selector menu is visible, selected ids are the primary output and full slot candidates are optional.
+Do not leave menu decisions empty when a selector menu is visible; if no item is safe, reject the visible ids instead.
 Only output `review_issue_candidates` when no menu item fits and the free-form candidate has a real claim,
 paper-specific target, copied inventory anchor, and counterevidence terms.
 Use `quote_grounding_mode="absence_or_requirement_gap"` or `"table_scope_absence"` and

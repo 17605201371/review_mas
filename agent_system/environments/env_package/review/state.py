@@ -13711,8 +13711,9 @@ def _review_issue_candidate_menu_quality_failure(
         ):
             return "scope_menu_generic_target"
         if neg_type in {"missing_robustness_or_generalization", "scope_overclaim"} and re.fullmatch(
-            r"held[- ]out\s+(?:benchmark\s+or\s+stress\s+setting|robustness\s+or\s+scope\s+evaluation|"
-            r"dataset,\s+domain,\s+or\s+stress\s+setting)\s+for\s+.+",
+            r"(?:held[- ]out\s+(?:benchmark\s+or\s+stress\s+setting|robustness\s+or\s+scope\s+evaluation|"
+            r"dataset,\s+domain,\s+or\s+stress\s+setting)|coverage\s+or\s+held[- ]out\s+evaluation)"
+            r"\s+for\s+.+",
             expected_l,
         ):
             return "scope_menu_generic_target"
@@ -13991,6 +13992,7 @@ def _review_issue_candidate_menu_item(
             1,
         ),
         "claim_id": claim_id,
+        "claim": claim_text,
         "obligation_id": str(obligation.get("obligation_id") or ""),
         "issue_type": neg_type,
         "required_evidence_type": requirement,
@@ -14357,6 +14359,7 @@ def _compact_review_issue_candidate_menu_item(item: Dict[str, Any]) -> Dict[str,
     return {
         "candidate_menu_id": str(item.get("candidate_menu_id") or ""),
         "claim_id": str(item.get("claim_id") or ""),
+        "claim": _normalize_text(item.get("claim"), max_length=180),
         "slot": str(item.get("review_issue_slot") or _review_issue_slot_for_type(str(item.get("issue_type") or ""))),
         "issue_type": str(item.get("issue_type") or ""),
         "required_evidence_type": str(item.get("required_evidence_type") or ""),
@@ -26253,6 +26256,7 @@ def render_critique_observation(task: Dict[str, Any], manager_payload: Optional[
                 f"{json.dumps({'review_issue_candidate_selector_menu': critique_slice.get('review_issue_candidate_selector_menu', [])}, ensure_ascii=False, indent=2)}\n\n"
                 "# Selector Menu Rules\n"
                 "First inspect this compact menu. Output selected_menu_items as the primary channel; select up to 3 safe paper-auditable items when available. Each selected item only needs candidate_menu_id, decision=selected, rationale, and confidence. "
+                "Do not leave both selected_menu_items and rejected_menu_items empty when this menu is visible; select at least one concrete inventory-anchored item or reject unsafe visible ids. "
                 "Only select ids copied from review_issue_candidate_selector_menu / review_issue_candidate_menu, normally starting with rim-c; never select rim-evidence ids, quote ids, evidence ids, claim ids, or invented ids. "
                 "Do not paraphrase a menu item while omitting its id. The runner will expand selected ids into verifier-ready candidates using current state. "
                 "Use free-form candidates only when no menu item fits and you can provide claim_anchor, target_entity, issue_type, expected_evidence, observed_inventory, possible_counterevidence_aliases, and why_existing_inventory_does_not_cover.\n\n"

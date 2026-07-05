@@ -10,7 +10,82 @@ Goal:
 - Improve Critique payload integration without relaxing the verifier.
 - Keep direct quote-grounded negative evidence strict; optimize obligation-grounded verified review issue bundles and safe `mark_contested` recovery.
 
-## Current P31.17 Checkpoint 2026-07-05
+## Current P31.24 Checkpoint 2026-07-05
+
+Current stage:
+
+```text
+Stage 1 / ReviewState credibility remains protected on the current path.
+Stage 2 / real Critique-discovered review issues is active.
+The immediate bottleneck is no longer selected-menu id loss: copied
+candidate_menu_id values now materialize into verifier-ready candidates.  The
+remaining bottleneck is selector supply quality: fresh selected menu candidates
+are reaching the verifier but failing strict bundle checks.
+```
+
+Implemented:
+
+- Critique `selected_menu_items` recovery no longer depends exclusively on the
+  logged `review_issue_discovery_required` flag.  If a copied
+  `candidate_menu_id` resolves against the current selector menu, the runner
+  materializes it into a `critique_payload_menu_selected`
+  `reviewer_negative_candidate`.
+- Seed top-up remains gated on formal review-issue discovery; only copied menu
+  id recovery was widened.
+- Selected-menu materialization now uses structured menu rationale before model
+  selection rationale and strips `...[truncated]` prompt-compaction markers, so
+  retrieval/context-gap guards do not incorrectly drop menu-backed candidates.
+- Runner seed supply can include concrete component-ablation targets exposed by
+  ReviewState, still with strict bundle verification.
+
+Validation:
+
+```text
+py_compile review_runner.py/tests/test_review_inference_runner.py = PASS
+runner selector/menu focused suite = 14 passed
+hygiene/gate focused suite = 24 passed
+P31.23 WNxl offline selected-menu replay = recovered critique_payload_menu_selected candidate
+```
+
+Live sample:
+
+```text
+run = p31_24_selected_menu_recovery_sample3_20260705_171944
+rows = 3
+sample = ye3NrNrYOY, WNxlJJIEVj, uOrfve3prk
+protection = PASS
+evidence_json_fallback_rate_pct = 0
+state_contamination_count = 0
+candidate_menu_item_count = 3
+candidate_menu_item_used_count = 3
+candidate_menu_item_verified_count = 0
+candidate_menu_item_failed_count = 3
+candidate_menu_item_failed_by_reason =
+  missing_entity_already_observed_in_inventory: 2
+  observed_inventory_missing: 1
+critique_direct_verified_cluster_count = 0
+```
+
+Interpretation:
+
+```text
+The Critique-selected-menu -> verifier path is now functionally live in a fresh
+API sample, but this sample selected items that the strict verifier correctly
+rejected.  Do not relax verifier/validator gates.  The next Stage 2 work is
+selector supply/ranking: expose concrete paper-grounded items that are not
+already observed in inventory and have copied inventory anchors.
+```
+
+Next step:
+
+```text
+Audit failed selected menu items from P31.24 and P31.22/P31.23, improve supply
+filters/ranking for already-observed and missing-inventory cases, then rerun a
+3-paper sample.  Only after selected-menu verified_count is nonzero with clean
+protection should we run a fresh hardneg20.
+```
+
+## Previous P31.17 Checkpoint 2026-07-05
 
 Current stage:
 
