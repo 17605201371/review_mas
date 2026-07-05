@@ -141,8 +141,12 @@ harmful recovery count across included runs
 verified issue recovery coverage
 ```
 
-After balance is restored, rerun P32 clean hardneg20 run 1 from scratch with
-the same configuration.
+The 2026-07-05 23:21 attempt from clean worktree
+`/Users/zss/Downloads/zssmas-p32-clean-f0d2a30` at commit `f0d2a30` did not
+launch a background run.  MiMo preflight still returned `402 Insufficient
+account balance`, so no P32 clean jsonl was created and this is not counted.
+After balance/key state is fixed, rerun P32 clean hardneg20 run 1 from scratch
+with the same configuration.
 
 Recommended launch command:
 

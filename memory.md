@@ -115,6 +115,11 @@ Interpretation:
 - Validation for the stability tool: `tests/test_p31_6_gate_scripts.py` passed
   10/10 after adding the P32 clean-run wrapper tests; live artifact dry check
   included the 20/20 P31.6 run and excluded the 16/20 P32 attempt.
+- A 2026-07-05 23:21 P32 R1 launch attempt from clean detached worktree
+  `/Users/zss/Downloads/zssmas-p32-clean-f0d2a30` at commit `f0d2a30` failed
+  during MiMo preflight with `402 Insufficient account balance`.  It did not
+  create a background run or jsonl, so it is not P32 evidence.  Fix balance/key
+  state and rerun from scratch with the wrapper.
 - Do not jump to full39, do not touch `verl/`, and do not relax verifier or
   validator gates.
 
