@@ -3800,3 +3800,42 @@ candidate_menu_item_failed_by_reason =
   next major stage should improve selector attention and menu supply quality,
   then rerun a fresh hardneg20.  Do not treat this as a full20 pass and do not
   relax verifier/validator gates.
+
+P31.15 Stage 2 selector/attribution follow-up:
+
+- Fixed paper-named baseline menu supply for live-state failure modes:
+  - claims with `baseline_or_comparison` obligations and positive result
+    wording such as `best results` can now expose paper-named baseline menu
+    candidates;
+  - baseline comparison inventory anchors now accept result language such as
+    `outperforms all baselines`, `state-of-the-art`, `SOTA`, `improves`, and
+    plural `experiments/benchmarks/datasets`;
+  - paper-named baseline inventory skips anchors explicitly bound to another
+    claim and falls back to unbound full-paper evaluation/comparison anchors.
+- Fixed selected-menu vs seed shadowing:
+  - if a later Critique-selected menu candidate shares an evidence id with an
+    earlier deterministic absence-audit record, the selected candidate can
+    update the record while lower-priority seed records cannot overwrite it;
+  - duplicate verified review-issue representatives now prefer Critique-origin
+    records over deterministic seed records for the same signature.
+- Validation:
+  - focused hygiene/menu suite: `39 passed`
+  - runner selected-menu/discovery suite: `20 passed`
+  - hygiene/gate focused suite: `20 passed`
+  - `py_compile` passed for `state.py`, runner, dashboard, and gate scripts.
+- Live samples:
+  - `p31_14_paper_named_menu_sample3_20260705_145715` showed the attribution
+    bug: `EqualAL` was selected and could be verified, but stored as
+    `deterministic_paper_named_baseline_seed`.  Rebuilding the view after the
+    fix gives `critique_direct_verified_cluster_count=1` and
+    `critique_selected_existing_seed_cluster_count=0`.
+  - `p31_15_paper_named_menu_sample3_20260705_151151` protection stayed clean
+    (`evidence_json_fallback_rate_pct=0`, hard contamination/positive-neutral
+    active negatives/grounding conflicts all 0), but no menu items were selected
+    (`candidate_menu_item_used_count=0`).  HPu had a visible paper-named GPT-4
+    menu snapshot; YXn could generate current-code EqualAL/HFR menu items but
+    had no runtime selector snapshot.
+- Conclusion: Stage 2 supply and attribution are materially better, but direct
+  Critique discovery is still not stable enough for full20.  Next functional
+  direction is manager trigger / selector-attention reliability, not verifier
+  relaxation and not broader statistics.

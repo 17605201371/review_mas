@@ -1133,3 +1133,40 @@ Next major direction:
   Keep verifier/validator strict; do not count seed-origin or external-template
   targets as Critique discovery.
 ```
+
+P31.15 current Stage 2 task update (20260705):
+
+```text
+Completed in this step:
+  - Paper-named baseline menu supply now survives the live-state failure modes:
+      best-results claims with baseline obligations;
+      SOTA/improves/outperforms/all-baselines result anchors;
+      unbound full-paper comparison inventory when claim-bound inventory is
+      absent, while skipping inventory explicitly bound to another claim.
+  - Selected-menu attribution now outranks deterministic seed shadowing:
+      selected Critique menu records can update earlier absence-audit seed
+      evidence with the same evidence_id;
+      lower-priority seed records cannot overwrite selected records;
+      duplicate review-issue representative selection prefers Critique origin.
+
+Validation:
+  focused hygiene/menu suite = 39 passed
+  runner selected-menu/discovery suite = 20 passed
+  hygiene/gate focused suite = 20 passed
+  py_compile relevant files = PASS
+
+Live sample findings:
+  p31_14 showed the bug: EqualAL was selected and verifier-survivable but
+  attributed to deterministic_paper_named_baseline_seed.  Current-code rebuild
+  gives direct Critique = 1 for that raw.
+  p31_15 was a fresh live run after the attribution fix.  Protection stayed
+  clean, but candidate_menu_item_used_count=0: HPu had a visible GPT-4 menu
+  snapshot that Critique did not select, and YXn had current-code menu supply
+  but no runtime selector snapshot.
+
+Next major direction:
+  Do not run full20 yet.  Make manager trigger / selector attention reliable:
+  when verifier-ready menu items exist, a review-issue discovery turn should be
+  triggered and Critique should select/reject visible items explicitly.  Keep
+  all bundle verifier and hygiene gates strict.
+```

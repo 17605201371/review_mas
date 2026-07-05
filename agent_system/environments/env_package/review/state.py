@@ -8801,6 +8801,17 @@ def _review_issue_paper_inventory_for_bundle(
         normalized = {
             "evidence_id": str(item.get("evidence_id") or ""),
             "inventory_id": str(item.get("inventory_id") or ""),
+            "claim_id": str(item.get("claim_id") or ""),
+            "claim_ids": _normalize_list_of_strings(
+                item.get("claim_ids") or [item.get("claim_id")],
+                max_items=8,
+                max_length=80,
+            ),
+            "requirement_types": _normalize_required_evidence_types(
+                item.get("requirement_types") or [],
+                max_items=8,
+            ),
+            "inventory_type": _normalize_text(item.get("inventory_type"), max_length=80),
             "quote": quote,
             "locator": _normalize_text(item.get("locator"), max_length=120),
             "observed_items": _normalize_list_of_strings(item.get("observed_items"), max_items=10, max_length=80),
@@ -9239,16 +9250,17 @@ def _review_issue_baseline_comparison_inventory_anchor(item: Dict[str, Any]) -> 
         return False
     has_eval_anchor = bool(
         re.search(
-            r"\b(?:table|tab\.?|figure|fig\.?|result|results|evaluation|experiment|"
-            r"benchmark|accuracy|f1|auc|score|scores|metric|metrics|performance)\b",
+            r"\b(?:table|tab\.?|figure|fig\.?|results?|evaluations?|experiments?|"
+            r"benchmarks?|datasets?|accuracy|f1|auc|score|scores|metrics?|performances?)\b",
             text,
             re.IGNORECASE,
         )
     )
     has_comparison_anchor = bool(
         re.search(
-            r"\b(?:compare|compares|comparison|compared|against|outperform|outperforms|"
-            r"baseline|baselines|competitor|competitors)\b",
+            r"\b(?:compare|compares|comparison|compared|against|outperform(?:s|ed)?|"
+            r"improv(?:e|es|ed|ement|ements)?|surpass(?:es|ed)?|state[- ]of[- ]the[- ]art|"
+            r"sota|comparable|baseline|baselines|competitor|competitors)\b",
             text,
             re.IGNORECASE,
         )
@@ -9256,6 +9268,21 @@ def _review_issue_baseline_comparison_inventory_anchor(item: Dict[str, Any]) -> 
     if re.search(r"\bcompared\s+with\s+\([a-z]\)", text, re.IGNORECASE) and not re.search(r"\bbaseline|baselines\b", text, re.IGNORECASE):
         return False
     return bool(has_eval_anchor and has_comparison_anchor)
+
+
+def _review_issue_inventory_item_bound_to_other_claim(item: Dict[str, Any], claim_id: str) -> bool:
+    current = str(claim_id or "").strip()
+    if not current:
+        return False
+    item_claim_id = str((item or {}).get("claim_id") or "").strip()
+    item_claim_ids = {
+        str(value or "").strip()
+        for value in ((item or {}).get("claim_ids") or [])
+        if str(value or "").strip()
+    }
+    if item_claim_id:
+        item_claim_ids.add(item_claim_id)
+    return bool(item_claim_ids and current not in item_claim_ids)
 
 
 def _review_issue_paper_named_baseline_inventory(
@@ -9273,8 +9300,10 @@ def _review_issue_paper_named_baseline_inventory(
             requirement,
             "missing_baseline",
             missing_items=[],
-            max_items=max_items * 2,
+            max_items=max(max_items * 6, 12),
         ):
+            if _review_issue_inventory_item_bound_to_other_claim(item, claim_id):
+                continue
             if not _review_issue_baseline_comparison_inventory_anchor(item):
                 continue
             quote_key = _quote_bank_dedupe_key(str(item.get("quote") or ""))
@@ -9345,6 +9374,22 @@ def _claim_supports_paper_named_baseline_seed(claim: Dict[str, Any]) -> bool:
         re.search(r"\b(?:proposed|our|ours|this\s+(?:paper|work)|method|model|approach|system|framework)\b", lower)
         or _specific_surface_tokens(claim_text)
     )
+    claim_requirements = set(_claim_required_evidence_types(claim or {})) | set(
+        _normalize_required_evidence_types(
+            (claim or {}).get("claim_obligations") or (claim or {}).get("required_evidence_types"),
+            max_items=12,
+        )
+    )
+    has_baseline_obligation = "baseline_or_comparison" in claim_requirements
+    has_positive_result = bool(
+        re.search(
+            r"\b(?:outperform|outperforms|achiev(?:e|es|ed)|best\s+(?:result|results|"
+            r"performance|score|scores)|state[- ]of[- ]the[- ]art|sota|superior|"
+            r"improv(?:e|es|ed|ement)|favorable|favourable|competitive|"
+            r"narrows?\s+the\s+gap)\b",
+            lower,
+        )
+    )
     has_positive_comparison = bool(
         re.search(
             r"\b(?:outperform|outperforms|achiev(?:e|es|ed)|state[- ]of[- ]the[- ]art|sota|"
@@ -9353,7 +9398,7 @@ def _claim_supports_paper_named_baseline_seed(claim: Dict[str, Any]) -> bool:
         )
         and re.search(r"\b(?:baseline|baselines|compared|comparison|against|prior|existing|state[- ]of[- ]the[- ]art|sota)\b", lower)
     )
-    return bool(has_current_paper_subject and has_positive_comparison)
+    return bool(has_current_paper_subject and (has_positive_comparison or (has_baseline_obligation and has_positive_result)))
 
 
 def _paper_named_prior_baseline_seed_targets(
@@ -16023,7 +16068,6 @@ def _add_reviewer_absence_audit_artifacts(
                     or (
                         item_cluster_key[0]
                         and item_cluster_key == _gap_cluster_key(existing)
-                        and _gap_candidate_priority_tier(item) == _gap_candidate_priority_tier(existing)
                     )
                 )
             ),
@@ -16115,6 +16159,32 @@ def _add_reviewer_absence_audit_artifacts(
         for item in view.get("evidence_map", []) or []
         if isinstance(item, dict) and str(item.get("evidence_id") or "")
     }
+
+    def _absence_evidence_origin_priority(record: Dict[str, Any]) -> int:
+        if not isinstance(record, dict):
+            return 0
+        bundle = record.get("review_issue_bundle") if isinstance(record.get("review_issue_bundle"), dict) else {}
+        discovery_origin = str(bundle.get("discovery_origin") or "").strip()
+        candidate_id = str(
+            record.get("reviewer_negative_candidate_id")
+            or bundle.get("reviewer_negative_candidate_id")
+            or ""
+        ).strip()
+        source = str(record.get("source") or bundle.get("source") or "").strip()
+        if (
+            discovery_origin.startswith("critique_payload")
+            or candidate_id.startswith("review-issue-candidate")
+            or source == "critique_selected_menu_item"
+        ):
+            return 4
+        if candidate_id and not candidate_id.startswith("reviewer-seed"):
+            return 3
+        if discovery_origin.startswith("runner_seed") or discovery_origin.startswith("deterministic_"):
+            return 1
+        if candidate_id.startswith("reviewer-seed"):
+            return 1
+        return 0
+
     existing_flaw_ids = {
         str(item.get("flaw_id") or "")
         for item in view.get("flaw_candidates", []) or []
@@ -16333,8 +16403,6 @@ def _add_reviewer_absence_audit_artifacts(
             evidence_ids_for_flaw.append(evidence_id)
             readable_missing.append(_REQUIREMENT_LABELS.get(requirement, requirement.replace("_", " ")))
             neg_types_for_flaw.append(neg_type)
-            if evidence_id in existing_evidence_ids:
-                continue
             bundle_missing = review_issue_bundle.get("missing_or_mismatch")
             bundle_missing_items = _normalize_list_of_strings(
                 (bundle_missing or {}).get("items") if isinstance(bundle_missing, dict) else [],
@@ -16397,7 +16465,10 @@ def _add_reviewer_absence_audit_artifacts(
             if evidence_id in existing_evidence_ids:
                 existing_record = existing_evidence_by_id.get(evidence_id)
                 if isinstance(existing_record, dict) and str(existing_record.get("source") or "") == ABSENCE_AUDIT_SOURCE:
-                    existing_record.update(evidence_record)
+                    if _absence_evidence_origin_priority(evidence_record) >= _absence_evidence_origin_priority(existing_record):
+                        existing_record.update(evidence_record)
+                    else:
+                        continue
                 else:
                     continue
             else:
@@ -20216,11 +20287,36 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
             tuple(sorted(dict.fromkeys(missing_items))),
         )
 
+    def _review_issue_record_origin_priority(record: Dict[str, Any]) -> int:
+        bundle = record.get("review_issue_bundle") if isinstance(record.get("review_issue_bundle"), dict) else {}
+        discovery_origin = str(bundle.get("discovery_origin") or "").strip()
+        candidate_id = str(
+            record.get("reviewer_negative_candidate_id")
+            or bundle.get("reviewer_negative_candidate_id")
+            or ""
+        ).strip()
+        source = str(record.get("source") or bundle.get("source") or "").strip()
+        if (
+            discovery_origin.startswith("critique_payload")
+            or candidate_id.startswith("review-issue-candidate")
+            or source == "critique_selected_menu_item"
+        ):
+            return 4
+        if candidate_id and not candidate_id.startswith("reviewer-seed"):
+            return 3
+        if discovery_origin.startswith("runner_seed") or discovery_origin.startswith("deterministic_"):
+            return 1
+        if candidate_id.startswith("reviewer-seed"):
+            return 1
+        return 0
+
     review_issue_records_by_signature: Dict[Tuple[str, str, Tuple[str, ...]], Dict[str, Any]] = {}
     for record in review_issue_bundle_records:
         signature = _review_issue_bundle_signature(record)
         if signature[0] and signature[1] and signature[2]:
-            review_issue_records_by_signature.setdefault(signature, record)
+            existing = review_issue_records_by_signature.get(signature)
+            if not existing or _review_issue_record_origin_priority(record) > _review_issue_record_origin_priority(existing):
+                review_issue_records_by_signature[signature] = record
     review_issue_signatures = set(review_issue_records_by_signature)
     obligation_grounded_review_issue_count = len(review_issue_signatures)
     obligation_grounded_review_issue_claim_ids = {

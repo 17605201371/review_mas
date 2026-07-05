@@ -8955,6 +8955,304 @@ def test_paper_named_baseline_menu_supply_uses_eval_inventory_without_seed_expan
     assert any("GraphFormer" in item["expected_entity"] for item in menu)
 
 
+def test_paper_named_baseline_menu_supply_uses_baseline_obligation_for_best_result_claim():
+    claim = "Our model achieves the best results on the OrcaBench evaluation benchmark."
+    result_quote = (
+        "Our model achieves the best results on the OrcaBench evaluation benchmark "
+        "compared to general open-source models."
+    )
+    state = {
+        "paper_text": (
+            f"{claim}\n"
+            "\\section{Related Work} GPT-4~\\cite{gpt4} is a strong existing role-playing baseline.\n"
+            f"{result_quote}"
+        ),
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "empirical",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["empirical_result", "baseline_or_comparison"],
+            }
+        ],
+        "evaluation_inventory": {
+            "items": [
+                {
+                    "inventory_id": "claim-1-orcabench-comparison",
+                    "claim_id": "claim-1",
+                    "claim_ids": ["claim-1"],
+                    "quote": result_quote,
+                    "locator": "Results paragraph",
+                    "inventory_type": "baseline",
+                    "inventory_source": "verified_support_inventory",
+                    "requirement_types": ["baseline_or_comparison", "empirical_result"],
+                    "verified_grounding_label": "paper_grounded_exact",
+                    "verified_quote_match_type": "quote_bank_id_canonical",
+                }
+            ]
+        },
+        "evidence_map": [],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    menu = review_state_mod._review_issue_candidate_menu_for_claim(state, state["claims"][0], max_items=6)
+
+    assert any("GPT-4" in item["expected_entity"] for item in menu)
+    assert any(result_quote in item["inventory_quote"] for item in menu)
+
+
+def test_paper_named_baseline_menu_supply_prefers_unbound_result_inventory_over_other_claim_inventory():
+    claim = "PST achieves state-of-the-art performance on substructure counting tasks on synthetic graphs."
+    other_claim_quote = "Our PST uses fewer or comparable parameters than baselines across all datasets."
+    result_quote = (
+        "Extensive experiments verify these claims across synthetic datasets, graph property prediction datasets, "
+        "and long-range graph benchmarks. Specifically, PST outperforms all baselines on QM9 dataset."
+    )
+    state = {
+        "paper_text": (
+            f"{claim}\n"
+            "\\section{Related Work} Graphormer~\\cite{graphormer} is a strong existing graph Transformer baseline.\n"
+            f"{other_claim_quote}\n"
+            f"{result_quote}"
+        ),
+        "claims": [
+            {
+                "claim_id": "claim-2",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "empirical",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["empirical_result", "baseline_or_comparison"],
+            }
+        ],
+        "evaluation_inventory": {
+            "items": [
+                {
+                    "inventory_id": "other-claim-parameters",
+                    "claim_id": "claim-3",
+                    "claim_ids": ["claim-3"],
+                    "quote": other_claim_quote,
+                    "locator": "Efficiency paragraph",
+                    "inventory_type": "baseline",
+                    "inventory_source": "verified_support_inventory",
+                    "requirement_types": ["baseline_or_comparison", "empirical_result", "efficiency_cost"],
+                    "verified_grounding_label": "paper_grounded_exact",
+                    "verified_quote_match_type": "quote_bank_id_canonical",
+                },
+                {
+                    "inventory_id": "global-result-baselines",
+                    "quote": result_quote,
+                    "locator": "Results paragraph",
+                    "inventory_type": "baseline",
+                    "inventory_source": "paper_text_inventory",
+                    "requirement_types": ["baseline_or_comparison", "empirical_result"],
+                    "verified_grounding_label": "paper_grounded_exact",
+                    "verified_quote_match_type": "quote_bank_exact_substring",
+                },
+            ]
+        },
+        "evidence_map": [],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    targets = review_state_mod._paper_named_prior_baseline_seed_targets(
+        state,
+        state["claims"][0],
+        max_items=2,
+        allow_menu_supply_without_limited_comparison=True,
+    )
+
+    assert targets
+    assert targets[0]["missing_item"] == "same-setting comparison against paper-named Graphormer baseline"
+    assert result_quote in targets[0]["observed_inventory"][0]["quote"]
+    assert other_claim_quote not in targets[0]["observed_inventory"][0]["quote"]
+
+
+def test_paper_named_baseline_inventory_anchor_accepts_sota_improvement_result():
+    item = {
+        "quote": (
+            "HALO achieves state-of-the-art also in the SYNTHIA->CS case "
+            "(cf. Table 2), where it improves by +2.4% and +4.2%."
+        ),
+        "locator": "Table 2 results",
+        "observed_items": [],
+    }
+
+    assert review_state_mod._review_issue_baseline_comparison_inventory_anchor(item)
+
+
+def test_selected_paper_named_menu_updates_existing_seed_absence_evidence():
+    claim = "HALO improves over the RIPU baseline by +2.9% mIoU with a 5% budget on a novel dataset."
+    result_quote = (
+        "HALO sets a new state-of-the-art in active learning for semantic segmentation under domain shift "
+        "and it is the first active learning approach that surpasses the performance of supervised domain adaptation."
+    )
+    menu_id = "rim-c1-mb-same-setting-comparison-against"
+    missing_item = "same-setting comparison against paper-named EqualAL baseline"
+    evidence_id = review_state_mod._slugify(
+        "evidence-reviewer-absence",
+        "claim-1-baseline_or_comparison-missing_baseline",
+        11,
+    )
+    state = {
+        "paper_text": (
+            f"{claim}\n"
+            "The comparison is limited by only a single baseline comparison.\n"
+            "\\section{Related Work} EqualAL~\\cite{equalal} is a strong existing ADA baseline.\n"
+            f"{result_quote}"
+        ),
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "empirical",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["baseline_or_comparison", "empirical_result"],
+            }
+        ],
+        "evaluation_inventory": {
+            "items": [
+                {
+                    "inventory_id": "paper-inventory-3",
+                    "quote": result_quote,
+                    "locator": "paper inventory #3",
+                    "inventory_type": "baseline",
+                    "inventory_source": "paper_text_inventory",
+                    "requirement_types": ["baseline_or_comparison", "empirical_result"],
+                    "observed_items": ["HALO"],
+                    "verified_grounding_label": "paper_grounded_exact",
+                    "verified_quote_match_type": "quote_bank_exact_substring",
+                }
+            ]
+        },
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "review-issue-candidate-selected-menu-1",
+                "candidate_menu_id": menu_id,
+                "review_issue_candidate_menu_item": {
+                    "candidate_menu_id": menu_id,
+                    "claim_id": "claim-1",
+                    "issue_type": "missing_baseline",
+                    "required_evidence_type": "baseline_or_comparison",
+                    "expected_entity": missing_item,
+                    "verifier_target_entity": missing_item,
+                    "entity_source": "paper_named_related_method",
+                    "source": "deterministic_paper_named_baseline_menu",
+                    "review_issue_slot": "missing_baseline",
+                    "observed_inventory": [
+                        {
+                            "inventory_id": "paper-inventory-3",
+                            "quote": result_quote,
+                            "locator": "paper inventory #3",
+                            "inventory_type": "baseline",
+                            "observed_items": ["HALO"],
+                        }
+                    ],
+                    "counterevidence_search_terms": ["EqualAL", "paper-named"],
+                },
+                "claim_id": "claim-1",
+                "negative_type": "missing_baseline",
+                "required_evidence_type": "baseline_or_comparison",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": [missing_item],
+                "observed_inventory": [
+                    {
+                        "inventory_id": "paper-inventory-3",
+                        "quote": result_quote,
+                        "locator": "paper inventory #3",
+                        "inventory_type": "baseline",
+                        "observed_items": ["HALO"],
+                    }
+                ],
+                "source": "critique_selected_menu_item",
+                "discovery_origin": "critique_payload_menu_selected",
+                "source_of_expectation": "reviewer_candidate",
+                "status": "pending_absence_audit",
+                "weakness": f"Verify whether the paper leaves the review issue target uncovered: {missing_item}.",
+            }
+        ],
+        "evidence_map": [
+                {
+                    "evidence_id": evidence_id,
+                    "claim_id": "claim-1",
+                    "source": "reviewer_absence_audit",
+                    "stance": "missing",
+                    "strength": "missing",
+                    "binding_status": "bound_real_claim",
+                    "negative_evidence_type": "missing_baseline",
+                    "negative_evidence_actionability": "actionable_candidate",
+                    "semantic_grounding_label": "semantic_negative_verified",
+                    "verified_grounding_label": "paper_absence_audit_verified",
+                    "review_negative_label": "review_negative_absence_audit_verified",
+                    "review_negative_reason": "claim_requirement_vs_verified_support_absence",
+                    "absence_audit_verified": True,
+                    "quote_grounding_required": False,
+                    "no_direct_quote_expected": True,
+                    "review_issue_source": "obligation_grounded_review_issue",
+                    "review_issue_id": "review-issue-claim-1-baseline-or-comparison-s",
+                    "review_issue_verification_status": "verified_review_issue",
+                    "review_issue_grounding_label": "review_issue_bundle_verified",
+                    "review_issue_type": "missing_baseline",
+                    "reviewer_negative_candidate_id": "reviewer-seed-claim-1-missing-baseline",
+                    "candidate_menu_id": "",
+                "review_issue_bundle": {
+                    "issue_id": "review-issue-claim-1-baseline-or-comparison-s",
+                    "claim_id": "claim-1",
+                    "issue_type": "missing_baseline",
+                    "required_evidence_type": "baseline_or_comparison",
+                    "claim_anchor": {"claim_id": "claim-1", "quote": claim},
+                    "observed_inventory": [
+                        {
+                            "quote": result_quote,
+                            "locator": "paper inventory #3",
+                            "inventory_type": "baseline",
+                            "observed_items": ["HALO"],
+                        }
+                    ],
+                    "missing_or_mismatch": {"entity": missing_item, "items": [missing_item]},
+                    "source_of_expectation": "reviewer_candidate",
+                    "reviewer_negative_candidate_id": "reviewer-seed-claim-1-missing-baseline",
+                    "candidate_menu_id": "",
+                    "review_issue_slot": "missing_baseline",
+                    "discovery_origin": "deterministic_paper_named_baseline_seed",
+                    "verification_status": "verified_review_issue",
+                    "not_quote_negative": True,
+                },
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+    view = copy.deepcopy(state)
+    audit_view = copy.deepcopy(state)
+    audit_view["evidence_map"] = []
+    requirement_audit = review_state_mod._claim_requirement_audit(audit_view)
+
+    review_state_mod._add_reviewer_absence_audit_artifacts(view, requirement_audit)
+
+    updated = next(item for item in view["evidence_map"] if item.get("evidence_id") == evidence_id)
+    bundle = updated["review_issue_bundle"]
+    assert updated["reviewer_negative_candidate_id"] == "review-issue-candidate-selected-menu-1"
+    assert updated["candidate_menu_id"] == menu_id
+    assert bundle["reviewer_negative_candidate_id"] == "review-issue-candidate-selected-menu-1"
+    assert bundle["candidate_menu_id"] == menu_id
+    assert bundle["discovery_origin"] == "critique_payload_menu_selected"
+
+
 def test_paper_named_baseline_menu_supply_rejects_plain_related_citation():
     claim = "Our GraphReviewer method outperforms state-of-the-art baselines on Benchmark-X."
     state = {
