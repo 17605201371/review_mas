@@ -84,6 +84,9 @@ Latest authoritative fresh hardneg20:
 P32 entry artifact:
 
 - `P32_ENTRY_AUDIT_20260705.md`
+- `P32_CLEAN_R1_ATTEMPT_20260705_224419_STATUS.md` records the first P32
+  clean-run attempt as incomplete: 16/20 rows, stopped by MiMo `402
+  Insufficient account balance`, not counted as a P32 run.
 
 Interpretation:
 
@@ -95,6 +98,10 @@ Interpretation:
   `DRMAS_JSON_RESPONSE_FORMAT=on`, and `MAX_TOKENS=2048`.
 - The older P32 plan's `max_tokens=1536` is superseded by the current project
   constraint and validated fresh-run setting of 2048.
+- First P32 run attempt used `code_commit=e7735c5`, `code_dirty=clean`, and
+  `MAX_TOKENS=2048`, but failed due account balance after 16 rows.  Recharge
+  MiMo and rerun from scratch; do not postprocess or manually audit the partial
+  as a clean hardneg20.
 - Do not jump to full39, do not touch `verl/`, and do not relax verifier or
   validator gates.
 

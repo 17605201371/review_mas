@@ -63,6 +63,7 @@ P32 entry artifact:
 
 ```text
 P32_ENTRY_AUDIT_20260705.md
+P32_CLEAN_R1_ATTEMPT_20260705_224419_STATUS.md
 ```
 
 Key accepted manual clusters:
@@ -115,9 +116,17 @@ warnings = existing invalid escape warnings in tests only
 Next step:
 
 ```text
-Run API preflight, then launch P32 clean hardneg20 run 1 with:
+The first P32 clean-run attempt was launched with:
 DRMAS_JSON_RESPONSE_FORMAT=on, MAX_TOKENS=2048, API_MAX_WORKERS=4,
 max_turns=7, api_max_retries=8, api_timeout=600.
+
+It stopped at 16/20 rows because MiMo returned 402 Insufficient account
+balance.  This partial run is not counted and must not be postprocessed as P32
+clean evidence.
+
+After balance is restored, rerun P32 clean hardneg20 run 1 from scratch with
+the same configuration.
+
 Do not use the older 1536-token P32 setting; current project constraints and
 fresh-run evidence require 2048.  Do not relax verifier or validator gates.
 ```
