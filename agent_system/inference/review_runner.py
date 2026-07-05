@@ -30,8 +30,10 @@ from agent_system.environments.env_package.review.state import (
     _classify_negative_evidence_type,
     _hard_negative_diagnosis_targets,
     _missing_ablation_target_quality,
+    _review_issue_candidate_menu_quality_failure,
     _review_issue_candidate_menu_id,
     _review_issue_candidate_selector_menu,
+    _review_issue_missing_items_are_concrete,
     _review_issue_normalized_cluster_target,
     _review_issue_slot_for_type,
     build_turn_action,
@@ -2869,15 +2871,15 @@ def _seed_items_from_review_issue_blueprint(target: Dict[str, Any], blueprint: D
                 return [candidate]
         return []
     if issue_type in {"missing_robustness_or_generalization", "scope_overclaim"}:
-        return [f"held-out robustness or scope evaluation for {primary}"] if primary else []
+        return []
     if issue_type == "evaluation_protocol_risk":
         return [f"evaluation protocol details for {primary}"] if primary else []
     if issue_type == "efficiency_cost_gap":
         return [f"runtime, memory, or compute-cost measurement for {primary}"] if primary else []
     if issue_type == "reproducibility_gap":
         return [f"training or implementation details for {primary}"] if primary else []
-    if issue_type == "result_claim_mismatch":
-        return [f"result table matching the claimed effect for {primary}"] if primary else []
+    if issue_type in {"insufficient_evaluation", "result_claim_mismatch"}:
+        return []
     return [f"specific verification item for {primary}"] if primary else []
 
 
@@ -2929,6 +2931,40 @@ def _review_issue_candidate_semantic_cluster_key(candidate: Dict[str, Any]) -> T
     return (claim_id, issue_type, target)
 
 
+def _seed_review_issue_missing_item_quality_failure(
+    target: Dict[str, Any],
+    *,
+    issue_type: str,
+    missing_item: str,
+    observed_inventory: Sequence[Dict[str, Any]],
+    source: str,
+) -> str:
+    missing = _candidate_text(missing_item, 160)
+    if not missing:
+        return "empty_missing_item"
+    if not _review_issue_missing_items_are_concrete(issue_type, [missing]):
+        return "missing_item_not_concrete"
+    inventory_text = " ".join(
+        [str(item.get("quote") or "") for item in observed_inventory or [] if isinstance(item, dict)]
+        + [
+            " ".join(
+                _candidate_text(observed, 80)
+                for observed in (item.get("observed_items") or [])
+                if _candidate_text(observed, 80)
+            )
+            for item in observed_inventory or []
+            if isinstance(item, dict)
+        ]
+    )
+    return _review_issue_candidate_menu_quality_failure(
+        neg_type=issue_type,
+        expected_entity=missing,
+        claim_text=str((target or {}).get("claim") or ""),
+        inventory_text=inventory_text,
+        source=source,
+    )
+
+
 def _seed_review_issue_candidates_from_targets(
     state: Dict[str, Any],
     *,
@@ -2975,6 +3011,14 @@ def _seed_review_issue_candidates_from_targets(
             return
         inventory = _select_review_issue_seed_inventory(target, requirement, issue_type)
         if not inventory:
+            return
+        if _seed_review_issue_missing_item_quality_failure(
+            target,
+            issue_type=issue_type,
+            missing_item=missing_item,
+            observed_inventory=inventory,
+            source=source,
+        ):
             return
         key = (claim_id, issue_type, missing_item.lower())
         if key in seen:

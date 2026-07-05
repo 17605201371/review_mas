@@ -14185,7 +14185,8 @@ def test_selected_menu_candidate_without_snapshot_does_not_align_to_seed_cluster
 
 
 def test_selected_menu_candidate_with_snapshot_without_bundle_detail_is_not_filtered():
-    menu_id = "rim-c1-sr-per-dataset-result-for-the-claim"
+    menu_id = "rim-c1-sr-quantitative-result-for-benchmark-x"
+    missing_item = "quantitative result for Benchmark-X"
     metrics = review_state_mod._review_issue_candidate_funnel_metrics(
         {
             "claims": [
@@ -14205,7 +14206,7 @@ def test_selected_menu_candidate_with_snapshot_without_bundle_detail_is_not_filt
                         "claim_id": "claim-1",
                         "issue_type": "insufficient_evaluation",
                         "required_evidence_type": "empirical_result",
-                        "expected_entity": "per-dataset result for the claim's stated task",
+                        "expected_entity": missing_item,
                         "observed_inventory": [
                             {
                                 "quote": "Table 1 reports aggregate theorem proving accuracy.",
@@ -14217,7 +14218,7 @@ def test_selected_menu_candidate_with_snapshot_without_bundle_detail_is_not_filt
                     "claim_id": "claim-1",
                     "negative_type": "insufficient_evaluation",
                     "required_evidence_type": "empirical_result",
-                    "missing_or_weak_items": ["per-dataset result for the claim's stated task"],
+                    "missing_or_weak_items": [missing_item],
                     "observed_inventory": [
                         {
                             "quote": "Table 1 reports aggregate theorem proving accuracy.",
@@ -14942,6 +14943,152 @@ def test_review_issue_menu_rejects_malformed_based_reproducibility_target():
     )
 
     assert item == {}
+
+
+def test_review_issue_menu_rejects_multi_dimension_reproducibility_umbrella_target():
+    item = review_state_mod._review_issue_candidate_menu_item(
+        {},
+        {
+            "claim_id": "claim-1",
+            "claim": "CDiffuser improves decision-making performance on offline reinforcement learning tasks.",
+            "claim_kind": "paper_extracted",
+            "claim_type": "method",
+        },
+        issue_type="reproducibility_gap",
+        required_evidence_type="reproducibility_detail",
+        expected_entity="training hyperparameters, split, seed, code/config, or implementation detail for CDiffuser",
+        observed_inventory=[
+            {
+                "quote": "Section 3 describes the CDiffuser training framework and evaluation setup.",
+                "locator": "Section 3",
+                "inventory_type": "method",
+            }
+        ],
+        source="entity_claim_obligation_menu",
+        entity_source="claim_surface",
+    )
+
+    assert item == {}
+
+
+def test_review_issue_menu_quality_rejects_template_scope_and_result_placeholders():
+    assert (
+        review_state_mod._review_issue_candidate_menu_quality_failure(
+            neg_type="missing_robustness_or_generalization",
+            expected_entity="additional benchmark dataset matching the claim scope",
+            claim_text="The method generalizes across the claimed benchmark suite.",
+            inventory_text="Table 1 reports benchmark accuracy.",
+            source="runner_seed_blueprint",
+        )
+        == "scope_menu_generic_target"
+    )
+    assert (
+        review_state_mod._review_issue_candidate_menu_quality_failure(
+            neg_type="missing_robustness_or_generalization",
+            expected_entity="held-out benchmark or stress setting for NR-DCCA",
+            claim_text="NR-DCCA improves representation learning under the reported setting.",
+            inventory_text="Table 1 reports aggregate representation learning results.",
+            source="runner_seed_blueprint",
+        )
+        == "scope_menu_generic_target"
+    )
+    assert (
+        review_state_mod._review_issue_candidate_menu_quality_failure(
+            neg_type="insufficient_evaluation",
+            expected_entity="per-dataset result for the claim's stated task",
+            claim_text="The method improves theorem proving accuracy.",
+            inventory_text="Table 1 reports aggregate theorem proving accuracy.",
+            source="runner_seed_blueprint",
+        )
+        == "insufficient_evaluation_menu_generic_result_target"
+    )
+    for expected_entity in [
+        "metric result table for the claimed effect",
+        "EER result table for the claimed effect",
+        "quantitative result table or metric for RNN",
+        "quantitative result table or metric for OGL",
+    ]:
+        assert (
+            review_state_mod._review_issue_candidate_menu_quality_failure(
+                neg_type="insufficient_evaluation",
+                expected_entity=expected_entity,
+                claim_text="The method improves the reported empirical effect.",
+                inventory_text="Table 1 reports aggregate empirical results.",
+                source="entity_claim_obligation_menu",
+            )
+            == "insufficient_evaluation_menu_generic_result_target"
+        )
+    assert (
+        review_state_mod._review_issue_candidate_menu_quality_failure(
+            neg_type="missing_baseline",
+            expected_entity=r"same-setting comparison against ADA \citep{",
+            claim_text="The method compares against active learning baselines.",
+            inventory_text="Table 2 reports baseline comparisons.",
+            source="entity_claim_obligation_menu",
+        )
+        == "missing_baseline_menu_malformed_target"
+    )
+
+
+def test_entity_obligation_candidates_do_not_cast_dataset_or_metric_as_baseline_target():
+    obligations = review_state_mod._entity_level_claim_obligations_for_claim(
+        {
+            "claim_id": "claim-1",
+            "claim": (
+                "The model is compared with GSM8K and EER under the reported "
+                "weakly-supervised evaluation setup."
+            ),
+            "claim_kind": "paper_extracted",
+            "claim_type": "empirical",
+        },
+        requirements=["baseline_or_comparison"],
+    )
+
+    expected = " ".join(item.get("expected_entity", "") for item in obligations)
+    assert "GSM8K" not in expected
+    assert "EER" not in expected
+    assert "weakly-supervised" not in expected
+
+
+def test_entity_obligation_candidates_do_not_generate_primary_entity_scope_or_result_fallbacks():
+    claim = {
+        "claim_id": "claim-1",
+        "claim": "NR-DCCA improves representation learning with a proposed correlation objective.",
+        "claim_kind": "paper_extracted",
+        "claim_type": "empirical",
+    }
+
+    obligations = review_state_mod._entity_level_claim_obligations_for_claim(
+        claim,
+        requirements=["robustness_or_generalization", "empirical_result"],
+    )
+
+    expected = " ".join(item.get("expected_entity", "") for item in obligations)
+    assert "held-out dataset, domain, or stress setting for NR-DCCA" not in expected
+    assert "held-out benchmark or stress setting for NR-DCCA" not in expected
+    assert "quantitative result table or metric for NR-DCCA" not in expected
+    assert obligations == []
+
+
+def test_missing_ablation_quality_rejects_bare_temporal_descriptor_but_keeps_named_module():
+    bare = {
+        "issue_type": "missing_ablation",
+        "missing_or_mismatch": {"items": ["long-term"]},
+        "claim_anchor": {"quote": "The model uses long-term temporal cues."},
+        "observed_inventory": [{"quote": "The paper reports aggregate forecasting accuracy."}],
+    }
+    named = {
+        "issue_type": "missing_ablation",
+        "missing_or_mismatch": {"items": ["long-term modeling module"]},
+        "claim_anchor": {"quote": "The long-term modeling module is a core component."},
+        "observed_inventory": [{"quote": "The model includes a long-term modeling module."}],
+    }
+
+    assert _missing_ablation_target_quality(bare) == {
+        "quality": "reject",
+        "reason": "missing_ablation_target_generic_component",
+    }
+    assert _missing_ablation_target_quality(named)["quality"] in {"high", "medium"}
 
 
 def test_review_issue_menu_rejects_unlocatable_claim_anchor_when_paper_text_available():
@@ -16613,8 +16760,24 @@ def test_missing_baseline_target_gate_rejects_generic_or_truncated_targets():
 
     hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
 
+    assert _missing_baseline_target_specificity_failure(
+        {
+            "missing_or_mismatch": {
+                "entity": "same-setting comparison against high-retur",
+                "items": ["same-setting comparison against high-retur"],
+            }
+        }
+    ) == "missing_baseline_target_generic_or_truncated"
+    assert _missing_baseline_target_specificity_failure(
+        {
+            "missing_or_mismatch": {
+                "entity": "same-setting comparison against pre-training",
+                "items": ["same-setting comparison against pre-training"],
+            }
+        }
+    ) == "missing_baseline_target_generic_or_truncated"
     assert hygiene.get("verified_review_issue_count", 0) == 0
-    assert hygiene.get("review_issue_candidate_missing_baseline_target_rejected", 0) >= 1
+    assert hygiene.get("review_issue_candidate_rejected_by_reason", {}).get("generic_item", 0) >= 1
 
 
 def test_missing_baseline_target_gate_keeps_named_method_baselines():

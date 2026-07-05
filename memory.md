@@ -3612,3 +3612,73 @@ Conclusion: P0 is validated.  MiMo needs `response_format=json_object`
 (`DRMAS_JSON_RESPONSE_FORMAT=on` or default `auto`) for this pipeline; turning
 it off immediately restores the high fallback regime.  Continue downstream
 Critique selector/menu supply work only under the response-format-on/auto path.
+
+P31.13 menu-quality supply guard update (20260705):
+
+- Fresh response-format-on hardneg20 completed:
+
+```text
+raw = mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok2048_20260705_130323.jsonl
+artifacts = P31_6_FRESH_20260705_130323_*
+rows = 20
+evidence_json_valid_turns = 73
+evidence_json_fallback_turns = 0
+evidence_json_fallback_rate_pct = 0
+protection = PASS
+state_contamination_count = 0
+verified_review_issue_count = 16
+verified_review_issue_cluster_count = 13
+critique_direct_verified_cluster_count = 0
+critique_selected_existing_seed_cluster_count = 2
+candidate_menu_item_count = 16
+candidate_menu_item_used_count = 16
+candidate_menu_item_verified_count = 2
+```
+
+- Entry gate still failed for the real functional gap:
+
+```text
+critique_direct_verified_cluster_count = 0 < 3
+case_table_critique_origin_cluster_count = 2 < 3
+```
+
+- Failure audit showed the selected menu was dominated by verifier-hostile
+  template targets such as `quantitative result table or metric for RNN/OGL/EER`,
+  `metric result table for the claimed effect`, and `held-out benchmark or
+  stress setting for NR-DCCA`.
+- Implemented supply-side guards only:
+  - reject generic scope/result menu templates in
+    `_review_issue_candidate_menu_quality_failure`;
+  - stop `_review_issue_entity_obligation_candidates` from casting primary
+    method entities as missing scope/result obligations;
+  - stop `_seed_items_from_review_issue_blueprint` from fabricating generic
+    primary-entity scope/result fallbacks;
+  - reject bare temporal descriptors such as `long-term` as missing-ablation
+    components while keeping named modules/components eligible.
+- Offline recompute over the same raw:
+
+```text
+artifacts = P31_13_MENU_QUALITY_RECOMPUTE_20260705_130323_*
+verified_review_issue_count = 15
+verified_review_issue_cluster_count = 12
+critique_direct_verified_cluster_count = 0
+critique_selected_existing_seed_cluster_count = 2
+candidate_menu_item_verified_count = 2
+candidate_menu_item_failed_count = 14
+candidate_menu_item_failed_by_stage =
+  menu_quality_guard: 8
+  counterevidence: 2
+  claim_anchor: 2
+  bundle_verification_or_not_materialized: 1
+  concrete_item_check: 1
+state_contamination_count = 0
+positive_or_neutral_negative_candidate_count = 0
+negative_evidence_unlinked_to_flaw = 0
+negative_grounding_conflict_count = 0
+```
+
+Conclusion: this pass tightened menu supply and removed one generic verified
+cluster; it does not and cannot create new direct Critique discoveries from an
+old raw.  The next meaningful validation is a fresh response-format-on full20
+so Critique sees the new selector menu.  Do not loosen verifier/validator gates
+or count selected-existing seed clusters as direct Critique discovery.

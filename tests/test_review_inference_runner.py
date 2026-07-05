@@ -3271,6 +3271,99 @@ def test_review_issue_selector_menu_derives_inventory_without_cached_state_inven
     assert "Table 3 reports ablation variants without reranking and without the draft scorer." in observation
 
 
+def test_runner_seed_selector_filters_template_blueprint_items(monkeypatch):
+    target = {
+        "claim_id": "claim-1",
+        "claim": "The method reports aggregate theorem-proving results across the claimed benchmark suite.",
+        "paper_evaluation_inventory": [
+            {
+                "inventory_id": "inv-results",
+                "quote": "Table 1 reports aggregate theorem-proving accuracy on Benchmark-X.",
+                "locator": "Table 1",
+                "inventory_type": "metric",
+                "requirement_types": ["empirical_result", "robustness_or_generalization"],
+                "observed_items": ["Benchmark-X", "accuracy"],
+            }
+        ],
+        "issue_candidate_blueprints": [
+            {
+                "required_evidence_type": "robustness_or_generalization",
+                "issue_type": "missing_robustness_or_generalization",
+                "candidate_missing_item_examples": [
+                    "additional benchmark dataset matching the claim scope",
+                ],
+            },
+            {
+                "required_evidence_type": "empirical_result",
+                "issue_type": "insufficient_evaluation",
+                "candidate_missing_item_examples": [
+                    "per-dataset result for the claim's stated task",
+                    "metric result table for the claimed effect",
+                    "quantitative result table or metric for RNN",
+                ],
+            },
+        ],
+    }
+    monkeypatch.setattr(
+        review_runner_mod,
+        "_hard_negative_diagnosis_targets",
+        lambda state, claims=None, max_items=12: [target],
+    )
+
+    candidates = review_runner_mod._seed_review_issue_candidates_from_targets({}, max_candidates=4)
+
+    missing_items = [
+        item
+        for candidate in candidates
+        for item in candidate.get("missing_or_weak_items", [])
+    ]
+    assert "additional benchmark dataset matching the claim scope" not in missing_items
+    assert "per-dataset result for the claim's stated task" not in missing_items
+    assert "metric result table for the claimed effect" not in missing_items
+    assert "quantitative result table or metric for RNN" not in missing_items
+    assert candidates == []
+
+
+def test_runner_seed_selector_does_not_fabricate_primary_entity_scope_or_result_fallbacks():
+    target = {
+        "claim_id": "claim-1",
+        "claim": "NR-DCCA improves representation learning under the reported setting.",
+        "claim_surface_profile": {
+            "surface_entities": ["NR-DCCA"],
+            "components_or_mechanisms": ["NR-DCCA"],
+        },
+    }
+
+    scope_items = review_runner_mod._seed_items_from_review_issue_blueprint(
+        target,
+        {
+            "required_evidence_type": "robustness_or_generalization",
+            "issue_type": "missing_robustness_or_generalization",
+            "candidate_missing_item_examples": [],
+        },
+    )
+    result_items = review_runner_mod._seed_items_from_review_issue_blueprint(
+        target,
+        {
+            "required_evidence_type": "empirical_result",
+            "issue_type": "insufficient_evaluation",
+            "candidate_missing_item_examples": [],
+        },
+    )
+    mismatch_items = review_runner_mod._seed_items_from_review_issue_blueprint(
+        target,
+        {
+            "required_evidence_type": "empirical_result",
+            "issue_type": "result_claim_mismatch",
+            "candidate_missing_item_examples": [],
+        },
+    )
+
+    assert scope_items == []
+    assert result_items == []
+    assert mismatch_items == []
+
+
 def test_review_issue_discovery_uses_critique_prompt():
     payload = {"review_issue_discovery_required": True}
 

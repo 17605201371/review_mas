@@ -1845,6 +1845,9 @@ def _missing_ablation_target_is_non_component(text: str) -> bool:
         "representation",
         "pre-trained",
         "pretrained",
+        "pre-training",
+        "long-term",
+        "short-term",
         "training",
     }:
         return True
@@ -2198,6 +2201,8 @@ def _missing_ablation_target_quality(bundle: Dict[str, Any]) -> Dict[str, str]:
 
     if not target:
         return {"quality": "reject", "reason": "missing_ablation_target_empty"}
+    if lowered in {"long-term", "short-term", "pre-training", "pretraining"}:
+        return {"quality": "reject", "reason": "missing_ablation_target_generic_component"}
     if _MISSING_ABLATION_TARGET_WEAK_ACTION_RE.search(target.lower()):
         return {"quality": "reject", "reason": "missing_ablation_target_weak_action"}
     if _missing_ablation_target_is_malformed_fragment(target):
@@ -13418,6 +13423,27 @@ def _review_issue_candidate_menu_quality_failure(
         return "empty_expected_entity"
 
     if neg_type in {"missing_robustness_or_generalization", "scope_overclaim", "insufficient_evaluation"}:
+        if re.fullmatch(
+            r"additional\s+benchmark\s+dataset\s+matching\s+the\s+claim\s+scope",
+            expected_l,
+        ):
+            return "scope_menu_generic_target"
+        if neg_type in {"missing_robustness_or_generalization", "scope_overclaim"} and re.fullmatch(
+            r"held[- ]out\s+(?:benchmark\s+or\s+stress\s+setting|robustness\s+or\s+scope\s+evaluation|"
+            r"dataset,\s+domain,\s+or\s+stress\s+setting)\s+for\s+.+",
+            expected_l,
+        ):
+            return "scope_menu_generic_target"
+        if neg_type == "insufficient_evaluation" and re.fullmatch(
+            r"(?:specific\s+)?metric\s+table\s+for\s+the\s+named\s+benchmark|"
+            r"per[- ]dataset\s+result\s+for\s+the\s+claim'?s\s+stated\s+task|"
+            r"(?:[a-z0-9_-]+\s+)?metric\s+result\s+table\s+for\s+the\s+claimed\s+effect|"
+            r"[a-z0-9_-]+\s+result\s+table\s+for\s+the\s+claimed\s+effect|"
+            r"quantitative\s+result\s+table\s+or\s+metric\s+for\s+"
+            r"(?:the\s+claim'?s\s+stated\s+task|the\s+claimed\s+empirical\s+effect|[a-z0-9_-]+)",
+            expected_l,
+        ):
+            return "insufficient_evaluation_menu_generic_result_target"
         if re.search(r"\bstate[- ]of[- ]the[- ]art\b", expected_l):
             return "scope_menu_generic_target"
         if re.fullmatch(
@@ -13455,6 +13481,8 @@ def _review_issue_candidate_menu_quality_failure(
             return "efficiency_cost_menu_without_resource_anchor"
 
     if neg_type in {"missing_baseline", "unfair_or_weak_baseline"}:
+        if re.search(r"\\cite[tp]?\s*\{|\{[^}]*$", expected):
+            return "missing_baseline_menu_malformed_target"
         paper_named_match = re.search(r"\bpaper[- ]named\s+([a-z][a-z0-9_-]*)\s+baseline\b", expected_l)
         if paper_named_match and paper_named_match.group(1) in {
             "labor",
@@ -13516,6 +13544,14 @@ def _review_issue_candidate_menu_quality_failure(
                 context_l,
             )
         )
+        if generic_repro_target and (
+            expected_l.count(",") >= 2
+            or re.search(
+                r"\bhyperparameters?,\s*split,\s*seed,\s*code/?config,\s*or\s+implementation\s+details?\b",
+                expected_l,
+            )
+        ):
+            return "reproducibility_menu_multi_dimension_umbrella_target"
         if generic_repro_target and theory_context and not empirical_anchor:
             return "reproducibility_menu_theory_context"
 
@@ -16975,15 +17011,11 @@ def _review_issue_entity_obligation_candidates(
     elif requirement in {"robustness_or_generalization", "scope_coverage"}:
         for item in profile.get("datasets_or_benchmarks") or []:
             raw.append((f"held-out or coverage evaluation for {item}", "claim_scope"))
-        if primary_entity:
-            raw.append((f"held-out dataset, domain, or stress setting for {primary_entity}", "claim_surface"))
     elif requirement == "empirical_result":
         for item in profile.get("datasets_or_benchmarks") or []:
             raw.append((f"quantitative result table for {item}", "claim_scope"))
         for item in profile.get("metrics_or_protocols") or []:
             raw.append((f"{item} result table for the claimed effect", "claim_surface"))
-        if primary_entity:
-            raw.append((f"quantitative result table or metric for {primary_entity}", "claim_surface"))
     elif requirement == "evaluation_protocol":
         for item in profile.get("metrics_or_protocols") or []:
             raw.append((f"{item} reporting protocol or comparability setting", "protocol_claim"))
@@ -17016,6 +17048,14 @@ def _review_issue_entity_obligation_candidates(
         if _review_issue_missing_item_is_generic_requirement_label(entity):
             continue
         if not _review_issue_missing_items_are_concrete(neg_type, [entity]):
+            continue
+        if _review_issue_candidate_menu_quality_failure(
+            neg_type=neg_type,
+            expected_entity=entity,
+            claim_text=claim_text,
+            inventory_text="",
+            source=f"entity_claim_obligation:{source}",
+        ):
             continue
         key = entity.lower()
         if key in seen:
@@ -17252,11 +17292,7 @@ def _review_issue_candidate_blueprints_for_claim(
             )
         )
     if "robustness_or_generalization" in active_reqs or "scope_coverage" in active_reqs:
-        scope_examples = [
-            "out-of-domain / cross-domain test setting",
-            "additional benchmark dataset matching the claim scope",
-            "stress or corruption robustness condition",
-        ]
+        scope_examples = []
         for item in reversed(claim_surface_profile.get("datasets_or_benchmarks", [])[:3]):
             scope_examples.insert(0, f"coverage or held-out evaluation for {item}")
         blueprints.append(
@@ -17264,8 +17300,7 @@ def _review_issue_candidate_blueprints_for_claim(
                 "robustness_or_generalization",
                 "missing_robustness_or_generalization",
                 "Name the exact held-out domain, dataset, stress condition, or scale setting absent from the inventory.",
-                scope_examples
-                + ([f"held-out benchmark or stress setting for {primary_entity}"] if primary_entity else []),
+                scope_examples,
                 priority=78,
             )
         )
@@ -17288,10 +17323,7 @@ def _review_issue_candidate_blueprints_for_claim(
             )
         )
     if "empirical_result" in active_reqs:
-        empirical_examples = [
-            "specific metric table for the named benchmark",
-            "per-dataset result for the claim's stated task",
-        ]
+        empirical_examples = []
         for item in reversed(claim_surface_profile.get("datasets_or_benchmarks", [])[:2]):
             empirical_examples.insert(0, f"quantitative result for {item}")
         for item in reversed(claim_surface_profile.get("metrics_or_protocols", [])[:2]):
@@ -17311,10 +17343,7 @@ def _review_issue_candidate_blueprints_for_claim(
                 "empirical_result",
                 "insufficient_evaluation",
                 "Name the concrete result, metric, dataset, or comparison dimension not supported by the observed inventory.",
-                [
-                    "specific metric table for the named benchmark",
-                    "per-dataset result for the claim's stated task",
-                ],
+                [],
                 priority=60,
             )
         )

@@ -10,6 +10,82 @@ Goal:
 - Improve Critique payload integration without relaxing the verifier.
 - Keep direct quote-grounded negative evidence strict; optimize obligation-grounded verified review issue bundles and safe `mark_contested` recovery.
 
+## Current P31.13 Checkpoint 2026-07-05
+
+P0 MiMo JSON reliability is validated and downstream work is back on the
+Critique selector/menu supply path.
+
+Latest fresh full20:
+
+```text
+raw = mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok2048_20260705_130323.jsonl
+artifacts = P31_6_FRESH_20260705_130323_*
+rows = 20
+evidence_json_valid_turns = 73
+evidence_json_fallback_turns = 0
+evidence_json_fallback_rate_pct = 0
+protection = PASS
+state_contamination_count = 0
+verified_review_issue_count = 16
+verified_review_issue_cluster_count = 13
+critique_direct_verified_cluster_count = 0
+critique_selected_existing_seed_cluster_count = 2
+candidate_menu_item_verified_count = 2
+```
+
+Gate status:
+
+```text
+machine_gate = FAIL
+critique_direct_verified_cluster_count = 0 < 3
+case_table_critique_origin_cluster_count = 2 < 3
+```
+
+Implemented in the current code pass:
+
+- Filter generic scope/result menu templates before they reach bundle
+  verification, including `quantitative result table or metric for <entity>`,
+  `metric/result table for the claimed effect`, and `held-out benchmark or
+  stress setting for <entity>`.
+- Remove primary-entity scope/result fallbacks from entity obligations and
+  runner seed blueprint fallback.
+- Reject bare temporal descriptors such as `long-term` as missing-ablation
+  components while keeping named modules/components eligible.
+
+Offline recompute over the same raw:
+
+```text
+artifacts = P31_13_MENU_QUALITY_RECOMPUTE_20260705_130323_*
+verified_review_issue_count = 15
+verified_review_issue_cluster_count = 12
+critique_direct_verified_cluster_count = 0
+critique_selected_existing_seed_cluster_count = 2
+candidate_menu_item_verified_count = 2
+candidate_menu_item_failed_by_stage =
+  menu_quality_guard: 8
+  counterevidence: 2
+  claim_anchor: 2
+  bundle_verification_or_not_materialized: 1
+  concrete_item_check: 1
+```
+
+Validation:
+
+```text
+focused state/menu tests = 31 passed
+focused runner selected-menu tests = 20 passed
+focused hygiene/gate suite = 16 passed
+py_compile state.py/review_runner.py/test files = PASS
+```
+
+Next step:
+
+```text
+Run a fresh response-format-on hardneg20 from current code.  Old-raw recompute
+can only relabel or remove stale/template candidates; it cannot prove direct
+Critique discovery because Critique already selected the old menu.
+```
+
 ## Current P31.11 Checkpoint 2026-07-05
 
 P31.11 turns the Critique selector path into a more functional direct candidate
