@@ -9074,8 +9074,23 @@ def test_paper_named_baseline_menu_supply_prefers_unbound_result_inventory_over_
 
     assert targets
     assert targets[0]["missing_item"] == "same-setting comparison against paper-named Graphormer baseline"
+    assert targets[0]["baseline_name"] == "Graphormer"
+    assert "Graphormer" in targets[0]["expectation_quote"]
+    assert targets[0]["expectation_grounding_label"] in review_state_mod.VERIFIED_PAPER_GROUNDED_LABELS
     assert result_quote in targets[0]["observed_inventory"][0]["quote"]
     assert other_claim_quote not in targets[0]["observed_inventory"][0]["quote"]
+
+    menu = review_state_mod._review_issue_candidate_menu_for_claim(state, state["claims"][0], max_items=6)
+    graphormer_item = next(
+        item
+        for item in menu
+        if item.get("expected_entity") == "same-setting comparison against paper-named Graphormer baseline"
+    )
+    assert graphormer_item["paper_named_baseline_name"] == "Graphormer"
+    assert "Graphormer" in graphormer_item["paper_named_baseline_expectation_quote"]
+    compact = review_state_mod._compact_review_issue_candidate_menu_item(graphormer_item)
+    assert compact["paper_named_baseline_name"] == "Graphormer"
+    assert "Graphormer" in compact["paper_named_baseline_expectation_quote"]
 
 
 def test_paper_named_baseline_inventory_anchor_accepts_sota_improvement_result():
@@ -9251,6 +9266,106 @@ def test_selected_paper_named_menu_updates_existing_seed_absence_evidence():
     assert bundle["reviewer_negative_candidate_id"] == "review-issue-candidate-selected-menu-1"
     assert bundle["candidate_menu_id"] == menu_id
     assert bundle["discovery_origin"] == "critique_payload_menu_selected"
+
+
+def test_selected_paper_named_graphormer_menu_verifies_without_related_work_counterevidence():
+    claim = "PST achieves state-of-the-art performance on substructure counting tasks on synthetic graphs."
+    result_quote = "Table 2 compares PST with GIN and GCN on QM9 and reports higher accuracy for PST."
+    missing_item = "same-setting comparison against paper-named Graphormer baseline"
+    menu_id = "rim-c2-mb-same-setting-comparison-against"
+    state = {
+        "paper_text": (
+            f"{claim}\n"
+            "The comparison is limited by only a single baseline comparison.\n"
+            "\\section{Related Work} Graphormer~\\cite{graphormer} is a strong existing graph Transformer baseline.\n"
+            f"{result_quote}"
+        ),
+        "claims": [
+            {
+                "claim_id": "claim-2",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "empirical",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["empirical_result", "baseline_or_comparison"],
+            }
+        ],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "review-issue-candidate-selected-menu-1",
+                "candidate_menu_id": menu_id,
+                "review_issue_candidate_menu_item": {
+                    "candidate_menu_id": menu_id,
+                    "claim_id": "claim-2",
+                    "issue_type": "missing_baseline",
+                    "required_evidence_type": "baseline_or_comparison",
+                    "expected_entity": missing_item,
+                    "verifier_target_entity": missing_item,
+                    "entity_source": "paper_named_related_method",
+                    "source": "deterministic_paper_named_baseline_menu",
+                    "review_issue_slot": "missing_baseline",
+                    "paper_named_baseline_name": "Graphormer",
+                    "paper_named_baseline_expectation_quote": (
+                        "\\section{Related Work} Graphormer~\\cite{graphormer} "
+                        "is a strong existing graph Transformer baseline."
+                    ),
+                    "paper_named_baseline_expectation_grounding_label": "paper_grounded_exact",
+                    "observed_inventory": [
+                        {
+                            "inventory_id": "global-result-baselines",
+                            "quote": result_quote,
+                            "locator": "Table 2",
+                            "inventory_type": "baseline",
+                            "observed_items": ["PST", "GIN", "GCN"],
+                        }
+                    ],
+                    "counterevidence_search_terms": ["Graphormer", "paper-named"],
+                },
+                "claim_id": "claim-2",
+                "negative_type": "missing_baseline",
+                "required_evidence_type": "baseline_or_comparison",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": [missing_item],
+                "observed_inventory": [
+                    {
+                        "inventory_id": "global-result-baselines",
+                        "quote": result_quote,
+                        "locator": "Table 2",
+                        "inventory_type": "baseline",
+                        "observed_items": ["PST", "GIN", "GCN"],
+                    }
+                ],
+                "source": "critique_selected_menu_item",
+                "discovery_origin": "critique_payload_menu_selected",
+                "source_of_expectation": "reviewer_candidate",
+                "status": "pending_absence_audit",
+                "weakness": f"Verify whether the paper leaves the review issue target uncovered: {missing_item}.",
+            }
+        ],
+        "evidence_map": [],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    view = build_decision_hygiene_view(copy.deepcopy(state))
+    hygiene = view["decision_hygiene"]
+    verified = [
+        item for item in view["evidence_map"]
+        if item.get("review_issue_verification_status") == "verified_review_issue"
+    ]
+
+    assert hygiene["verified_review_issue_count"] == 1
+    assert hygiene["candidate_menu_item_verified_count"] == 1
+    assert hygiene["candidate_menu_item_failed_count"] == 0
+    assert hygiene["critique_direct_verified_cluster_count"] == 1
+    assert verified[0]["candidate_menu_id"] == menu_id
+    bundle = verified[0]["review_issue_bundle"]
+    assert bundle["paper_named_baseline_name"] == "Graphormer"
+    assert bundle["review_issue_candidate_menu_item"]["paper_named_baseline_name"] == "Graphormer"
+    assert "Related Work" not in bundle["observed_inventory"][0]["quote"]
 
 
 def test_paper_named_baseline_menu_supply_rejects_plain_related_citation():
@@ -12183,7 +12298,7 @@ def test_paper_named_prior_method_can_seed_missing_baseline_issue():
     assert hygiene["claim_obligation_review_issue_count"] == 0
     assert hygiene["reviewer_candidate_review_issue_count"] == 1
     assert bundle_items[0]["source_of_expectation"] == "reviewer_candidate"
-    assert "LAVT" in bundle_items[0]["missing_or_mismatch"]
+    assert "LAVT" in bundle_items[0]["missing_or_mismatch"]["entity"]
 
 
 def test_merge_review_state_materializes_verified_review_issue_bundle_for_recovery():
@@ -17438,6 +17553,61 @@ def test_missing_baseline_target_gate_keeps_named_method_baselines():
     }
 
     assert _missing_baseline_target_specificity_failure(bundle) == ""
+
+
+def test_missing_baseline_target_gate_accepts_paper_named_method_with_menu_provenance():
+    target = "same-setting comparison against paper-named Graphormer baseline"
+    bundle = {
+        "missing_or_mismatch": {"entity": target, "items": [target]},
+        "source_of_expectation": "reviewer_candidate",
+        "discovery_origin": "critique_payload_menu_selected",
+        "entity_source": "paper_named_related_method",
+        "review_issue_candidate_menu_item": {
+            "candidate_menu_id": "rim-c2-mb-same-setting-comparison-against",
+            "claim_id": "claim-2",
+            "issue_type": "missing_baseline",
+            "required_evidence_type": "baseline_or_comparison",
+            "expected_entity": target,
+            "verifier_target_entity": target,
+            "entity_source": "paper_named_related_method",
+            "source": "deterministic_paper_named_baseline_menu",
+            "paper_named_baseline_name": "Graphormer",
+            "paper_named_baseline_expectation_quote": (
+                "Related Work. Graphormer~\\cite{graphormer} is a strong existing graph Transformer baseline."
+            ),
+            "counterevidence_search_terms": ["Graphormer", "paper-named"],
+        },
+    }
+    unproven_bundle = {"missing_or_mismatch": {"entity": target, "items": [target]}}
+    spurious_target = "same-setting comparison against paper-named Labor baseline"
+    spurious_bundle = {
+        "missing_or_mismatch": {"entity": spurious_target, "items": [spurious_target]},
+        "source_of_expectation": "reviewer_candidate",
+        "discovery_origin": "critique_payload_menu_selected",
+        "entity_source": "paper_named_related_method",
+        "review_issue_candidate_menu_item": {
+            "candidate_menu_id": "rim-c1-mb-same-setting-comparison-against",
+            "expected_entity": spurious_target,
+            "verifier_target_entity": spurious_target,
+            "entity_source": "paper_named_related_method",
+            "source": "deterministic_paper_named_baseline_menu",
+            "paper_named_baseline_name": "Labor",
+            "paper_named_baseline_expectation_quote": (
+                "Related Work. Labor~\\cite{labor} is mentioned near prior methods."
+            ),
+            "counterevidence_search_terms": ["Labor", "paper-named"],
+        },
+    }
+
+    assert _missing_baseline_target_specificity_failure(bundle) == ""
+    assert (
+        _missing_baseline_target_specificity_failure(unproven_bundle)
+        == "missing_baseline_target_generic_or_truncated"
+    )
+    assert (
+        _missing_baseline_target_specificity_failure(spurious_bundle)
+        == "missing_baseline_target_generic_or_truncated"
+    )
 
 
 def test_ogl_direction_cluster_target_normalizes_to_orthogonal_gradient_learning():

@@ -3890,3 +3890,50 @@ P31.16 Stage 2 manager trigger / selector-menu checkpoint:
   timing when menus exist but recovery/binding routes consume the turn.  Do not
   relax verifier/validator gates and do not count deterministic seed clusters
   as Critique discovery.
+
+P31.17 Stage 2 paper-named baseline provenance checkpoint:
+
+- Fixed the QAgwFiIY4p/Graphormer selected-menu failure mode without relaxing
+  generic baseline guards:
+  - paper-named baseline menu items now carry
+    `paper_named_baseline_name`, expectation quote, locator, and grounding
+    label through compact selector snapshots and normalized selected-menu
+    candidates;
+  - missing-baseline target specificity accepts single-word paper-named method
+    targets such as `Graphormer` only when bundle/menu provenance proves the
+    exact method name from a grounded paper context;
+  - spurious ordinary words such as `Labor` and external graph-family template
+    targets remain rejected.
+- Fixed the next verifier bottleneck for paper-named targets:
+  - Related Work mentions of the paper-named method are no longer treated as
+    current observed comparison inventory for missing-baseline bundle
+    verification;
+  - current comparison/result anchors such as Table/result comparison quotes
+    still remain eligible observed inventory.
+- Deterministic paper-named seed supply now uses the same conservative
+  no-limited-cue path as selector menu supply: it still requires a grounded
+  related/prior method context plus a concrete current comparison inventory
+  that omits the named method.
+- Validation:
+  - `graphormer or paper_named`: `12 passed`
+  - hygiene/gate selected-menu focused suite: `27 passed`
+  - runner selected-menu/discovery focused suite: `21 passed`
+  - `py_compile` for `state.py`, `test_review_decision_hygiene.py`, and
+    `review_runner.py`: PASS
+  - `git diff --check`: PASS
+- Live sample attempt:
+  - attempted run:
+    `p31_17_paper_named_provenance_sample3_20260705_160710.jsonl`
+  - result: not started past manager calls because MiMo returned
+    `401 Authentication Fails` for the currently loaded key ending `b5zO`.
+  - No fresh sample metrics can be claimed from this attempt.
+- Broader validation caveat:
+  - full `tests/test_review_decision_hygiene.py` currently reports
+    `444 passed / 23 failed`; sampled failures include old metric-key/schema
+    assertions and unrelated review-issue behaviors.  The P31.17 claim is
+    limited to the focused suites above, not full-file green.
+- Next:
+  - rerun the 3-paper sample after the active MiMo key is corrected;
+  - if Graphormer/EqualAL-style selected-menu candidates verify cleanly with
+    protection still passing, proceed to a fresh hardneg20;
+  - keep direct Critique-origin counts separate from deterministic seeds.

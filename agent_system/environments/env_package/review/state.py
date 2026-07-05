@@ -254,6 +254,19 @@ def _normalize_review_issue_candidate_menu_snapshot(value: Any) -> Dict[str, Any
         "target_quality_hint": _normalize_text(value.get("target_quality_hint"), max_length=40),
         "target_quality_reason": _normalize_text(value.get("target_quality_reason"), max_length=120),
         "why_review_worthy": _normalize_text(value.get("why_review_worthy"), max_length=160),
+        "paper_named_baseline_name": _normalize_text(value.get("paper_named_baseline_name"), max_length=80),
+        "paper_named_baseline_expectation_quote": _normalize_text(
+            value.get("paper_named_baseline_expectation_quote"),
+            max_length=300,
+        ),
+        "paper_named_baseline_expectation_locator": _normalize_text(
+            value.get("paper_named_baseline_expectation_locator"),
+            max_length=120,
+        ),
+        "paper_named_baseline_expectation_grounding_label": _normalize_text(
+            value.get("paper_named_baseline_expectation_grounding_label"),
+            max_length=80,
+        ),
         "counterevidence_search_terms": _normalize_list_of_strings(
             value.get("counterevidence_search_terms") or value.get("counterevidence_aliases"),
             max_items=8,
@@ -2885,6 +2898,79 @@ def _missing_baseline_target_text(text: str) -> str:
     return re.sub(r"\s+", " ", value)
 
 
+def _paper_named_baseline_name_from_target(text: str) -> str:
+    value = _normalize_text(text, max_length=180)
+    if not value:
+        return ""
+    match = re.search(
+        r"\bpaper[- ]named\s+([A-Z][A-Za-z0-9_-]{2,}(?:[-+][A-Za-z0-9]+)?)\b",
+        value,
+    )
+    if match:
+        return _normalize_text(match.group(1), max_length=80)
+    return ""
+
+
+def _paper_named_baseline_bundle_proves_target_name(bundle: Dict[str, Any], raw: str, target: str) -> bool:
+    name = _paper_named_baseline_name_from_target(raw) or _paper_named_baseline_name_from_target(target)
+    if not name:
+        return False
+    lowered = name.lower()
+    if lowered in {"labor", "labour", "paper", "prior", "related", "work", "method", "model", "network"}:
+        return False
+    if lowered in _PAPER_NAMED_BASELINE_NAME_STOPWORDS or _PAPER_NAMED_BASELINE_DATASET_NAME_RE.search(name):
+        return False
+
+    menu_item = bundle.get("review_issue_candidate_menu_item") if isinstance(bundle, dict) else {}
+    if not isinstance(menu_item, dict):
+        menu_item = {}
+    source_text = " ".join(
+        str(value or "")
+        for value in [
+            bundle.get("discovery_origin") if isinstance(bundle, dict) else "",
+            bundle.get("entity_source") if isinstance(bundle, dict) else "",
+            bundle.get("source_of_expectation") if isinstance(bundle, dict) else "",
+            menu_item.get("source"),
+            menu_item.get("entity_source"),
+        ]
+    ).lower()
+    if "paper_named" not in source_text and "related_method" not in source_text:
+        return False
+
+    expected_blob = " ".join(
+        str(value or "")
+        for value in [
+            raw,
+            target,
+            menu_item.get("expected_entity"),
+            menu_item.get("verifier_target_entity"),
+            bundle.get("paper_named_baseline_name") if isinstance(bundle, dict) else "",
+            menu_item.get("paper_named_baseline_name"),
+            " ".join(str(term or "") for term in menu_item.get("counterevidence_search_terms") or []),
+        ]
+    )
+    if not _text_contains_surface_marker(expected_blob, name):
+        return False
+
+    proven_name = _normalize_text(
+        menu_item.get("paper_named_baseline_name")
+        or menu_item.get("baseline_name")
+        or (bundle.get("paper_named_baseline_name") if isinstance(bundle, dict) else ""),
+        max_length=80,
+    )
+    expectation_quote = _normalize_text(
+        menu_item.get("paper_named_baseline_expectation_quote")
+        or menu_item.get("expectation_quote")
+        or (bundle.get("paper_named_baseline_expectation_quote") if isinstance(bundle, dict) else ""),
+        max_length=300,
+    )
+    if not proven_name or not expectation_quote:
+        return False
+    if proven_name.lower() != lowered:
+        return False
+    return _paper_named_baseline_name_is_usable(proven_name, expectation_quote, "", "")
+
+
 def _missing_baseline_target_specificity_failure(bundle: Dict[str, Any]) -> str:
     missing = bundle.get("missing_or_mismatch") if isinstance(bundle, dict) else {}
     raw_items: List[str] = []
@@ -2905,6 +2991,8 @@ def _missing_baseline_target_specificity_failure(bundle: Dict[str, Any]) -> str:
             return "missing_baseline_target_generic_or_truncated"
         if lowered.endswith("-") or re.search(r"\b(?:retur|distillatio|pre-trainin|compariso)\b", lowered):
             return "missing_baseline_target_generic_or_truncated"
+        if _paper_named_baseline_bundle_proves_target_name(bundle, raw, target):
+            continue
         if re.fullmatch(r"[A-Z]{2,10}(?:-[A-Z0-9]+)?", target) and target.lower() not in {
             "fl",
             "gnn",
@@ -8824,6 +8912,9 @@ def _review_issue_paper_inventory_for_bundle(
             "observed_inventory": [normalized],
             "missing_or_mismatch": _review_issue_missing_entity_for_requirement(requirement, missing_items or []),
         }
+        if _canonical_negative_evidence_type(neg_type) in _COVERAGE_BASELINE_NEGATIVE_TYPES:
+            if not _review_issue_baseline_comparison_inventory_anchor(normalized):
+                continue
         if not _review_issue_observed_inventory_relevant_for_type(tentative_bundle, neg_type):
             continue
         results.append(normalized)
@@ -9485,7 +9576,8 @@ def _paper_named_prior_baseline_seed_targets(
             if not _coverage_item_is_specific_for_type(missing_item, "missing_baseline"):
                 continue
             expectation_verification = _verify_quote_against_reference(context, body, 0)
-            if expectation_verification.get("verified_grounding_label") not in VERIFIED_PAPER_GROUNDED_LABELS:
+            expectation_grounding_label = str(expectation_verification.get("verified_grounding_label") or "")
+            if expectation_grounding_label not in VERIFIED_PAPER_GROUNDED_LABELS:
                 continue
             results.append(
                 {
@@ -9494,6 +9586,7 @@ def _paper_named_prior_baseline_seed_targets(
                     "observed_inventory": observed_inventory,
                     "expectation_quote": _normalize_text(context, max_length=260),
                     "expectation_locator": _paper_inventory_locator_for_quote(context, pos + 1),
+                    "expectation_grounding_label": expectation_grounding_label,
                 }
             )
             if len(results) >= max_items:
@@ -13148,9 +13241,29 @@ def _build_review_issue_bundle_from_gap(
     }
     if candidate_relevance_basis:
         bundle["candidate_obligation_relevance_basis"] = candidate_relevance_basis
+    for provenance_key in (
+        "paper_named_baseline_name",
+        "paper_named_baseline_expectation_quote",
+        "paper_named_baseline_expectation_locator",
+        "paper_named_baseline_expectation_grounding_label",
+    ):
+        provenance_value = _normalize_text(gap.get(provenance_key), max_length=300)
+        if provenance_value:
+            bundle[provenance_key] = provenance_value
     menu_item = gap.get("review_issue_candidate_menu_item")
     if isinstance(menu_item, dict):
         bundle["review_issue_candidate_menu_item"] = menu_item
+        for provenance_key in (
+            "paper_named_baseline_name",
+            "paper_named_baseline_expectation_quote",
+            "paper_named_baseline_expectation_locator",
+            "paper_named_baseline_expectation_grounding_label",
+        ):
+            if bundle.get(provenance_key):
+                continue
+            provenance_value = _normalize_text(menu_item.get(provenance_key), max_length=300)
+            if provenance_value:
+                bundle[provenance_key] = provenance_value
     possible_counterevidence_terms = _normalize_list_of_strings(
         gap.get("possible_counterevidence_terms")
         or (menu_item.get("counterevidence_search_terms") if isinstance(menu_item, dict) else []),
@@ -13770,6 +13883,7 @@ def _review_issue_candidate_menu_item(
     source: str,
     obligation: Optional[Dict[str, Any]] = None,
     entity_source: str = "",
+    paper_named_baseline: Optional[Dict[str, Any]] = None,
     max_inventory_items: int = 2,
 ) -> Dict[str, Any]:
     claim_id = str((claim or {}).get("claim_id") or "").strip()
@@ -13869,7 +13983,7 @@ def _review_issue_candidate_menu_item(
     expectation_terms = sorted(_review_issue_candidate_expectation_terms([expected], neg_type))[:8]
     if expected not in expectation_terms:
         expectation_terms = [expected] + expectation_terms
-    return {
+    result = {
         "candidate_menu_id": _review_issue_candidate_menu_id(
             claim_id,
             neg_type,
@@ -13901,6 +14015,21 @@ def _review_issue_candidate_menu_item(
         "counterevidence_search_terms": expectation_terms[:8],
         "counterevidence_aliases": expectation_terms[:8],
     }
+    if neg_type in _COVERAGE_BASELINE_NEGATIVE_TYPES and isinstance(paper_named_baseline, dict):
+        baseline_name = _normalize_text(paper_named_baseline.get("baseline_name"), max_length=80)
+        expectation_quote = _normalize_text(paper_named_baseline.get("expectation_quote"), max_length=300)
+        if baseline_name and expectation_quote:
+            result["paper_named_baseline_name"] = baseline_name
+            result["paper_named_baseline_expectation_quote"] = expectation_quote
+            result["paper_named_baseline_expectation_locator"] = _normalize_text(
+                paper_named_baseline.get("expectation_locator"),
+                max_length=120,
+            )
+            result["paper_named_baseline_expectation_grounding_label"] = _normalize_text(
+                paper_named_baseline.get("expectation_grounding_label"),
+                max_length=80,
+            )
+    return result
 
 
 def _review_issue_candidate_menu_id(
@@ -14161,6 +14290,7 @@ def _review_issue_candidate_menu_for_claim(
                 observed_inventory=target.get("observed_inventory") or [],
                 source="deterministic_paper_named_baseline_menu",
                 entity_source="paper_named_related_method",
+                paper_named_baseline=target,
             )
         )
     for target in _review_issue_scope_or_robustness_seed_targets(view or {}, claim, max_items=2):
@@ -14241,6 +14371,19 @@ def _compact_review_issue_candidate_menu_item(item: Dict[str, Any]) -> Dict[str,
         "target_quality_hint": _normalize_text(item.get("target_quality_hint"), max_length=40),
         "target_quality_reason": _normalize_text(item.get("target_quality_reason"), max_length=120),
         "why_review_worthy": _normalize_text(item.get("why_review_worthy"), max_length=90),
+        "paper_named_baseline_name": _normalize_text(item.get("paper_named_baseline_name"), max_length=80),
+        "paper_named_baseline_expectation_quote": _normalize_text(
+            item.get("paper_named_baseline_expectation_quote"),
+            max_length=300,
+        ),
+        "paper_named_baseline_expectation_locator": _normalize_text(
+            item.get("paper_named_baseline_expectation_locator"),
+            max_length=120,
+        ),
+        "paper_named_baseline_expectation_grounding_label": _normalize_text(
+            item.get("paper_named_baseline_expectation_grounding_label"),
+            max_length=80,
+        ),
         "inventory_anchor": {
             "inventory_id": str(item.get("inventory_id") or inventory0.get("inventory_id") or ""),
             "locator": _normalize_text(item.get("inventory_locator") or inventory0.get("locator"), max_length=60),
@@ -15590,7 +15733,12 @@ def _deterministic_reviewer_seed_absence_gap_items(
                 if len(results) >= max_items:
                     return results
         if claim and len(results) < max_items:
-            for target in _paper_named_prior_baseline_seed_targets(view, claim, max_items=2):
+            for target in _paper_named_prior_baseline_seed_targets(
+                view,
+                claim,
+                max_items=2,
+                allow_menu_supply_without_limited_comparison=True,
+            ):
                 missing_item = _normalize_text(target.get("missing_item"), max_length=140)
                 if not missing_item:
                     continue
@@ -15632,8 +15780,10 @@ def _deterministic_reviewer_seed_absence_gap_items(
                 )
                 gap["reviewer_negative_candidate_missing_items"] = [missing_item]
                 gap["reviewer_negative_candidate_observed_inventory"] = target.get("observed_inventory") or []
+                gap["paper_named_baseline_name"] = target.get("baseline_name") or ""
                 gap["paper_named_baseline_expectation_quote"] = target.get("expectation_quote") or ""
                 gap["paper_named_baseline_expectation_locator"] = target.get("expectation_locator") or ""
+                gap["paper_named_baseline_expectation_grounding_label"] = target.get("expectation_grounding_label") or ""
                 gap["audit_basis"] = "deterministic_paper_named_baseline_seed_vs_comparison_inventory_absence"
                 gap["final_view_layer"] = "reviewer_candidate_absence_audit"
                 results.append(gap)

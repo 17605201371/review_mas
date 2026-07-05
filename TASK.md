@@ -10,6 +10,74 @@ Goal:
 - Improve Critique payload integration without relaxing the verifier.
 - Keep direct quote-grounded negative evidence strict; optimize obligation-grounded verified review issue bundles and safe `mark_contested` recovery.
 
+## Current P31.17 Checkpoint 2026-07-05
+
+Current stage:
+
+```text
+Stage 1 / ReviewState credibility remains protected for the current path.
+Stage 2 / real Critique-discovered negatives is active.
+The immediate bottleneck was Graphormer-style paper-named baseline targets:
+Critique selected the menu item, but bundle verification treated the method
+name as generic/truncated and then could confuse Related Work mentions with
+current comparison inventory.
+```
+
+Implemented:
+
+- Paper-named baseline selector/menu provenance now survives the full selected
+  menu path:
+  - `paper_named_baseline_name`
+  - `paper_named_baseline_expectation_quote`
+  - `paper_named_baseline_expectation_locator`
+  - `paper_named_baseline_expectation_grounding_label`
+- Missing-baseline specificity now accepts single-word paper-named method
+  targets such as `Graphormer` only when the bundle/menu provenance proves the
+  exact grounded paper context.
+- Related Work paper-named mentions are excluded from current observed
+  comparison inventory for missing-baseline bundle verification; table/result
+  comparison anchors remain valid inventory.
+- Deterministic paper-named seed supply now shares the selector menu's
+  conservative no-limited-cue supply path, while attribution remains separate
+  from direct Critique-origin metrics.
+
+Validation:
+
+```text
+py_compile state.py/test_review_decision_hygiene.py/review_runner.py = PASS
+graphormer or paper_named suite = 12 passed
+hygiene/gate selected-menu focused suite = 27 passed
+runner selected-menu/discovery focused suite = 21 passed
+git diff --check = PASS
+```
+
+Live sample status:
+
+```text
+attempted run = p31_17_paper_named_provenance_sample3_20260705_160710.jsonl
+status = blocked before useful rows
+reason = MiMo 401 Authentication Fails for currently loaded key ending b5zO
+```
+
+Known validation caveat:
+
+```text
+full tests/test_review_decision_hygiene.py is not green in this worktree:
+444 passed / 23 failed.
+Do not claim full-file green from P31.17; current evidence is the focused
+suite set above.
+```
+
+Next step:
+
+```text
+Fix/refresh the active MiMo key, rerun the 3-paper sample, and inspect whether
+QAgwFiIY4p/Graphormer now becomes a direct Critique-origin verified issue.
+If the sample shows clean protection and at least two verifier-surviving
+selected-menu clusters, run a fresh hardneg20.  Do not loosen verifier gates or
+merge deterministic seed clusters into Critique-origin counts.
+```
+
 ## Current P31.13 Checkpoint 2026-07-05
 
 P0 MiMo JSON reliability is validated and downstream work is back on the
