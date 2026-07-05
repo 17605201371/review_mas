@@ -1,0 +1,226 @@
+{
+  "input": "p31_30_bridge_guard_critique5_20260705_193123.jsonl",
+  "summary": {
+    "bucket::verified_review_issue_repair": 5,
+    "operation::mark_contested": 5,
+    "effective_repair_turns": 5,
+    "effective_repair_not_verified_negative_repair": 5,
+    "turns_with_verified_review_issue_bundle_evidence": 6,
+    "evidence_bucket::obligation_grounded_review_issue": 6,
+    "bucket::attempted_not_committed": 2,
+    "operation::reject_patch": 1,
+    "case_rows": 7
+  },
+  "cases": [
+    {
+      "paper_id": "GE6iywJtsV",
+      "turn_id": 6,
+      "narrative_bucket": "verified_review_issue_repair",
+      "recovery_layer": "hygiene_delta_improved",
+      "effective_repair": true,
+      "committed": true,
+      "operation": "mark_contested",
+      "target_type": "claim",
+      "target_id": "claim-1",
+      "target_text": "Diff-Shape is a novel constrained diffusion model for shape-based de novo drug design.",
+      "old_status": "supported",
+      "new_status": "supported",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [
+        "evidence-reviewer-absence-claim-1-ablation-or-component-mi"
+      ],
+      "evidence_buckets": {
+        "obligation_grounded_review_issue": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-reviewer-absence-claim-1-ablation-or-component-mi",
+          "bucket": "obligation_grounded_review_issue",
+          "negative_type": "missing_ablation",
+          "review_negative_label": "review_negative_absence_audit_verified",
+          "trusted_grounding": false,
+          "locator": "Claim-matched evidence excerpt #1",
+          "raw_quote": "missing/mismatch: graph control module; component-isolation ablation for with a graph control module; observed inventory: In Diff-Shape method, a novel equivariant neural network architecture,named Graph ControllNet (GrCN), was proposed and it composed an unconditioned..."
+        }
+      ]
+    },
+    {
+      "paper_id": "GE6iywJtsV",
+      "turn_id": 7,
+      "narrative_bucket": "verified_review_issue_repair",
+      "recovery_layer": "hygiene_delta_improved",
+      "effective_repair": true,
+      "committed": true,
+      "operation": "mark_contested",
+      "target_type": "claim",
+      "target_id": "claim-2",
+      "target_text": "The model uses a Graph Convolutional Network (GrCN) architecture and implements shape conditioning.",
+      "old_status": "supported",
+      "new_status": "supported",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [
+        "evidence-reviewer-absence-claim-2-ablation-or-component-mi"
+      ],
+      "evidence_buckets": {
+        "obligation_grounded_review_issue": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-reviewer-absence-claim-2-ablation-or-component-mi",
+          "bucket": "obligation_grounded_review_issue",
+          "negative_type": "missing_ablation",
+          "review_negative_label": "review_negative_absence_audit_verified",
+          "trusted_grounding": false,
+          "locator": "paper component inventory #1",
+          "raw_quote": "missing/mismatch: consisting of a constrain module; observed inventory: Inspired by the well-known ControlNet for conditioned image generation, supposing an unconditioned 3D molecule generative model was already trained..."
+        }
+      ]
+    },
+    {
+      "paper_id": "NnExMNiTHw",
+      "turn_id": 3,
+      "narrative_bucket": "verified_review_issue_repair",
+      "recovery_layer": "hygiene_delta_improved",
+      "effective_repair": true,
+      "committed": true,
+      "operation": "mark_contested",
+      "target_type": "claim",
+      "target_id": "claim-1",
+      "target_text": "SpecDec++ formulates the choice of candidate length K as a Markov Decision Process and provides theoretical analysis for its optimal policy.",
+      "old_status": "partially_supported",
+      "new_status": "partially_supported",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [
+        "evidence-reviewer-absence-claim-1-ablation-or-component-mi"
+      ],
+      "evidence_buckets": {
+        "obligation_grounded_review_issue": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-reviewer-absence-claim-1-ablation-or-component-mi",
+          "bucket": "obligation_grounded_review_issue",
+          "negative_type": "missing_ablation",
+          "review_negative_label": "review_negative_absence_audit_verified",
+          "trusted_grounding": false,
+          "locator": "Comparison / Robustness excerpt #1",
+          "raw_quote": "missing/mismatch: acceptance prediction head; component-isolation ablation for trained acceptance prediction head; observed inventory: Compared with the baseline speculative decoding (SpecDec) with fixed candidate lengths, by adaptively determining the candidate lengths via a train..."
+        }
+      ]
+    },
+    {
+      "paper_id": "NnExMNiTHw",
+      "turn_id": 5,
+      "narrative_bucket": "verified_review_issue_repair",
+      "recovery_layer": "hygiene_delta_improved",
+      "effective_repair": true,
+      "committed": true,
+      "operation": "mark_contested",
+      "target_type": "claim",
+      "target_id": "claim-2",
+      "target_text": "The architecture uses a neural network to predict the candidate length K based on context.",
+      "old_status": "supported",
+      "new_status": "supported",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [
+        "evidence-reviewer-absence-claim-2-ablation-or-component-mi"
+      ],
+      "evidence_buckets": {
+        "obligation_grounded_review_issue": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-reviewer-absence-claim-2-ablation-or-component-mi",
+          "bucket": "obligation_grounded_review_issue",
+          "negative_type": "missing_ablation",
+          "review_negative_label": "review_negative_absence_audit_verified",
+          "trusted_grounding": false,
+          "locator": "Section: SpecDec++: Theory and Algorithm",
+          "raw_quote": "missing/mismatch: acceptance prediction head; observed inventory: Algorithm} \\label{sec:method} \\newcommand{\\Hid}{{\\boldsymbol{e}}} \\begin{figure}[t] \\centering \\includegraphics[width=1\\textwidth]{figs/main.pdf} \\..."
+        }
+      ]
+    },
+    {
+      "paper_id": "QAgwFiIY4p",
+      "turn_id": 5,
+      "narrative_bucket": "attempted_not_committed",
+      "recovery_layer": "",
+      "effective_repair": false,
+      "committed": false,
+      "operation": "",
+      "target_type": "",
+      "target_id": "",
+      "target_text": "",
+      "old_status": "",
+      "new_status": "",
+      "failure_code": "",
+      "supporting_evidence_ids": [],
+      "evidence_buckets": {},
+      "evidence": []
+    },
+    {
+      "paper_id": "QAgwFiIY4p",
+      "turn_id": 7,
+      "narrative_bucket": "attempted_not_committed",
+      "recovery_layer": "patch_validated",
+      "effective_repair": false,
+      "committed": false,
+      "operation": "reject_patch",
+      "target_type": "claim",
+      "target_id": "claim-3",
+      "target_text": "The proposed method achieves strong empirical performance, for example on substructure counting tasks measured by Mean Absolute Error (MAE).",
+      "old_status": "partially_supported",
+      "new_status": "partially_supported",
+      "failure_code": "EVIDENCE_SEMANTIC_MISMATCH",
+      "supporting_evidence_ids": [
+        "evidence-reviewer-absence-claim-3-baseline-or-comparison-m"
+      ],
+      "evidence_buckets": {
+        "obligation_grounded_review_issue": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-reviewer-absence-claim-3-baseline-or-comparison-m",
+          "bucket": "obligation_grounded_review_issue",
+          "negative_type": "missing_baseline",
+          "review_negative_label": "review_negative_absence_audit_verified",
+          "trusted_grounding": false,
+          "locator": "paper inventory #11",
+          "raw_quote": "missing/mismatch: same-setting comparison against paper-named Graphormer baseline; observed inventory: Extensive experiments verify these claims across synthetic datasets, graph property prediction datasets, and long-range graph benchmarks. Specifica..."
+        }
+      ]
+    },
+    {
+      "paper_id": "YXn76HMetm",
+      "turn_id": 5,
+      "narrative_bucket": "verified_review_issue_repair",
+      "recovery_layer": "hygiene_delta_improved",
+      "effective_repair": true,
+      "committed": true,
+      "operation": "mark_contested",
+      "target_type": "claim",
+      "target_id": "claim-3",
+      "target_text": "HALO outperforms key baselines (e.g., EqualAL, RIPU) in semantic segmentation under domain shift, as shown in Table 1c.",
+      "old_status": "supported",
+      "new_status": "supported",
+      "failure_code": "SUCCESS",
+      "supporting_evidence_ids": [
+        "evidence-reviewer-absence-claim-3-baseline-or-comparison-m"
+      ],
+      "evidence_buckets": {
+        "obligation_grounded_review_issue": 1
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-reviewer-absence-claim-3-baseline-or-comparison-m",
+          "bucket": "obligation_grounded_review_issue",
+          "negative_type": "missing_baseline",
+          "review_negative_label": "review_negative_absence_audit_verified",
+          "trusted_grounding": false,
+          "locator": "Table: main ablation",
+          "raw_quote": "missing/mismatch: same-setting comparison against paper-named PixelPick baseline; same-setting comparison against paper-named EqualAL baseline; observed inventory: HALO demonstrates a substantial improvement of +10.4\\% compared to methods (a) and (b) in Table \\ref{tab:main-ablation}."
+        }
+      ]
+    }
+  ]
+}

@@ -4130,3 +4130,63 @@ P31.25/P31.26 Stage 2 selector supply and menu-id fidelity checkpoint (20260705)
 - Interpretation: selected-menu quality improved, but Stage 2 is not complete.
   The next sample must be rerun after the id-collision fix before claiming
   direct Critique cluster improvement or moving to hardneg20.
+
+P31.29/P31.30 bridge-guard sample checkpoint (20260705):
+
+- P31.29 exposed a real scheduler regression from the newly added
+  support-recheck bridge:
+  - run = `p31_29_stage3_support_bridge_critique5_20260705_191746`
+  - machine gate = FAIL
+  - `critique_direct_verified_cluster_count = 1`
+  - `candidate_menu_item_count = 1`
+  - `candidate_menu_item_verified_count = 1`
+  - `mark_contested_commit_count = 3`
+  - `state_contamination_count = 0`
+  - `recovery_no_effect_commit = 0`
+  - `recovery_harmful_commit_risk = 0`
+  - diagnosis: recovery/support scheduling improved contested repair but could
+    fire before Critique review-issue discovery had been attempted, leaving the
+    run dominated by deterministic seed issues.
+- Fix:
+  - added `_review_issue_discovery_untried_for_recovery_bridge`;
+  - the finalize-policy bridge and fallback-policy bridge now share this guard;
+  - support recheck / mark_contested recovery waits for the Critique discovery
+    attempt when targeted reviewer-negative discovery is enabled.
+- Validation after code fix:
+  - `pytest tests/test_review_inference_runner.py -q -k 'visible_augmented_selector_menu or selector_style_recovery_bridge_standardizes or selected_menu_recovery_does_not_require_formal_discovery_flag or review_issue_discovery_first or verified_review_issue_support_recheck or verified_review_issue_recovery_bridge_runs_inside_recovery_phase'`
+    = 9 passed
+  - targeted support-bridge regression subset = 4 passed
+  - `py_compile agent_system/review_manager_policy.py tests/test_review_inference_runner.py`
+    = PASS, with only existing invalid-escape warnings.
+- P31.30 fresh 5-paper sample after the guard:
+  - run = `p31_30_bridge_guard_critique5_20260705_193123`
+  - rows = 5
+  - machine gate = PASS
+  - manual gate = PASS after critique-only manual audit validation
+  - protection = PASS
+  - `critique_direct_verified_cluster_count = 4`
+  - `candidate_menu_item_count = 7`
+  - `candidate_menu_item_used_count = 5`
+  - `candidate_menu_item_verified_count = 4`
+  - `candidate_menu_item_failed_count = 1`
+  - `verified_review_issue_cluster_count = 5`
+  - `mark_contested_commit_count = 5`
+  - `verified_issue_cluster_without_recovery_count = 1`
+  - `state_contamination_count = 0`
+  - `positive_or_neutral_negative_candidate_count = 0`
+  - `negative_evidence_unlinked_to_flaw = 0`
+  - `negative_grounding_conflict_count = 0`
+  - `recovery_no_effect_commit = 0`
+  - `recovery_harmful_commit_risk = 0`
+- Manual audit files:
+  - `P31_30_BRIDGE_GUARD_CRITIQUE5_ONLY_MANUAL_AUDIT_20260705_193123.json`
+  - `P31_30_BRIDGE_GUARD_CRITIQUE5_ONLY_MANUAL_AUDIT_VALIDATION_20260705_193123.json`
+  - labels: GE constraint module = B; Nn acceptance prediction head = B; QAg
+    Graphormer same-task baseline = B; YX PixelPick/EqualAL baseline = B.
+- Interpretation:
+  - The desired order is now live on the 5-paper sample:
+    Critique discovery -> strict bundle verification -> verified issue ->
+    support/recovery bridge -> mark_contested.
+  - Do not claim hardneg20/full39 stability yet.  Next real step is fresh
+    hardneg20 with the same guard, followed by manual audit of Critique-origin
+    clusters.  Do not relax verifier/validator gates.

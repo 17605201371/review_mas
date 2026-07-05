@@ -1,0 +1,135 @@
+{
+  "run_label": "P31_30_BRIDGE_GUARD_CRITIQUE5_20260705_193123",
+  "audit_date": "2026-07-05",
+  "source_entry_gate": "P31_30_BRIDGE_GUARD_CRITIQUE5_20260705_193123_ENTRY_GATE_AUDIT.json",
+  "source_case_table": "P31_30_BRIDGE_GUARD_CRITIQUE5_20260705_193123_REVIEW_ISSUE_CASE_TABLE.json",
+  "audit_boundary": "Manual audit of Critique-origin verified review-issue clusters. Labels are cluster-level paper-readiness judgments from case-table evidence plus spot checks against paper-text snippets available in the run artifact; final paper claims should still be spot-checked against the original paper text.",
+  "rubric": {
+    "A": "clear review-worthy issue with strong claim/inventory/missing relation",
+    "B": "defensible review concern; usable with careful wording",
+    "C": "weak or over-specific concern; keep only as diagnosis/pending",
+    "D": "false positive / contradicted by paper text",
+    "MERGE": "duplicate of another audited cluster; do not count separately"
+  },
+  "thresholds": {
+    "min_critique_origin_A_B_clusters": 3,
+    "min_all_A_B_clusters": 0,
+    "manual_D_clusters_allowed": 0,
+    "unfilled_clusters_allowed": 0
+  },
+  "summary": {
+    "system_clusters": 4,
+    "critique_origin_clusters": 4,
+    "manual_A_clusters": 0,
+    "manual_B_clusters": 4,
+    "manual_A_B_clusters": 4,
+    "manual_C_clusters": 0,
+    "manual_D_clusters": 0,
+    "manual_MERGE_clusters": 0,
+    "unfilled_clusters": 0,
+    "status": "PASS"
+  },
+  "clusters": [
+    {
+      "label": "B",
+      "paper_id": "GE6iywJtsV",
+      "issue_type": "missing_ablation",
+      "target_entity": "consisting_constrain_module",
+      "cluster_target": "consisting_constrain_module",
+      "issue_cluster_key": "GE6iywJtsV|obligation_grounded_review_issue|missing_ablation|consisting_constrain_module",
+      "origin": "critique_payload",
+      "claim_ids": [
+        "claim-2"
+      ],
+      "missing_or_mismatch": "consisting of a constrain module",
+      "claim_anchor": "The model uses a Graph Convolutional Network (GrCN) architecture and implements shape conditioning.",
+      "inventory_or_quote_locator": "paper component inventory #1",
+      "inventory_or_quote": "Inspired by the well-known ControlNet for conditioned image generation, supposing an unconditioned 3D molecule generative model was already trained as a prior model, then $\\mathrm{Gr}\\mathbf{CN}$ is designed to includ...",
+      "manual_decision": "Keep as a defensible paper-facing concern with normalized wording.",
+      "manual_merge_target": "",
+      "raw_paper_evidence_checked": "Paper text defines GrCN as including a 3D shape constrain/constraint module and a 3D molecule generation module; Figure 1 is described as the basic architecture of GrCN.",
+      "counterevidence_checked": "Searches over the run artifact found no ablation section and no component-isolation ablation for the constrain/constraint module; only ShapeMol guidance variants were found under 'without'.",
+      "paper_facing_usable": "yes, with caution",
+      "false_positive_categories": [],
+      "wording_caution": "Normalize the target to '3D shape constraint/control module' and avoid treating the awkward phrase 'consisting of a constrain module' as the final paper wording.",
+      "downgrade_reason": "",
+      "reason": "The target is a concrete central method component and no component ablation was found, but the extracted entity phrase is awkward and overlaps the broader Graph ControlNet/control-module concern."
+    },
+    {
+      "label": "B",
+      "paper_id": "NnExMNiTHw",
+      "issue_type": "missing_ablation",
+      "target_entity": "acceptance_prediction_head",
+      "cluster_target": "acceptance_prediction_head",
+      "issue_cluster_key": "NnExMNiTHw|obligation_grounded_review_issue|missing_ablation|acceptance_prediction_head",
+      "origin": "critique_payload",
+      "claim_ids": [
+        "claim-1",
+        "claim-2"
+      ],
+      "missing_or_mismatch": "acceptance prediction head; component-isolation ablation for trained acceptance prediction head",
+      "claim_anchor": "SpecDec++ formulates the choice of candidate length K as a Markov Decision Process and provides theoretical analysis for its optimal policy.",
+      "inventory_or_quote_locator": "Comparison / Robustness excerpt #1",
+      "inventory_or_quote": "Compared with the baseline speculative decoding (SpecDec) with fixed candidate lengths, by adaptively determining the candidate lengths via a trained acceptance prediction head, \\ours achieves a relative \\textbf{7.2\\%},",
+      "manual_decision": "Keep as a defensible paper-facing concern with cautious attribution wording.",
+      "manual_merge_target": "",
+      "raw_paper_evidence_checked": "Paper text repeatedly states that SpecDec++ uses a trained acceptance prediction head and attributes adaptive candidate-length speedups to it.",
+      "counterevidence_checked": "Searches for ablation, without acceptance, and prediction-head ablation found no component-isolation ablation for the trained acceptance prediction head.",
+      "paper_facing_usable": "yes, with caution",
+      "false_positive_categories": [],
+      "wording_caution": "Frame this as an empirical attribution concern for the adaptive decoding component, not as a challenge to the MDP/theory itself.",
+      "downgrade_reason": "",
+      "reason": "The component is concrete and central to the reported improvements, while the paper-text snippets do not show a corresponding ablation."
+    },
+    {
+      "label": "B",
+      "paper_id": "QAgwFiIY4p",
+      "issue_type": "missing_baseline",
+      "target_entity": "paper-named_graphormer_baseline",
+      "cluster_target": "paper-named_graphormer_baseline",
+      "issue_cluster_key": "QAgwFiIY4p|obligation_grounded_review_issue|missing_baseline|paper-named_graphormer_baseline",
+      "origin": "critique_payload",
+      "claim_ids": [
+        "claim-3"
+      ],
+      "missing_or_mismatch": "same-setting comparison against paper-named Graphormer baseline",
+      "claim_anchor": "The proposed method achieves strong empirical performance, for example on substructure counting tasks measured by Mean Absolute Error (MAE).",
+      "inventory_or_quote_locator": "paper inventory #11",
+      "inventory_or_quote": "Extensive experiments verify these claims across synthetic datasets, graph property prediction datasets, and long-range graph benchmarks. Specifically, PST outperforms all baselines on QM9~\\citep{QM9} dataset.",
+      "manual_decision": "Keep as a defensible review concern with same-task caveat.",
+      "manual_merge_target": "",
+      "raw_paper_evidence_checked": "Paper text names Graphormer in the discussion of graph transformers and reports Graphormer comparisons for some graph-property/LRGB contexts.",
+      "counterevidence_checked": "The substructure-counting MAE table context lists expressive GNN baselines such as ID-GNN, NGNN, GNNAK+, I2-GNN, and PPGN; no Graphormer row was found for the same substructure-counting setting.",
+      "paper_facing_usable": "yes, with caution",
+      "false_positive_categories": [],
+      "wording_caution": "Phrase as missing same-task Graphormer/graph-transformer baseline for the substructure-counting MAE claim, not as absence of every Graphormer comparison in the paper.",
+      "downgrade_reason": "",
+      "reason": "Graphormer is paper-named and relevant to the graph-transformer comparison space, but the verified claim is narrower than the full paper; the concern is usable only with the same-setting caveat."
+    },
+    {
+      "label": "B",
+      "paper_id": "YXn76HMetm",
+      "issue_type": "missing_baseline",
+      "target_entity": "paper-named_pixelpick_baseline",
+      "cluster_target": "paper-named_pixelpick_baseline",
+      "issue_cluster_key": "YXn76HMetm|obligation_grounded_review_issue|missing_baseline|paper-named_pixelpick_baseline",
+      "origin": "critique_payload",
+      "claim_ids": [
+        "claim-3"
+      ],
+      "missing_or_mismatch": "same-setting comparison against paper-named PixelPick baseline; same-setting comparison against paper-named EqualAL baseline",
+      "claim_anchor": "HALO outperforms key baselines (e.g., EqualAL, RIPU) in semantic segmentation under domain shift, as shown in Table 1c.",
+      "inventory_or_quote_locator": "Table: main ablation",
+      "inventory_or_quote": "HALO demonstrates a substantial improvement of +10.4\\% compared to methods (a) and (b) in Table \\ref{tab:main-ablation}.",
+      "manual_decision": "Keep as a defensible paper-facing concern with protocol caveat.",
+      "manual_merge_target": "",
+      "raw_paper_evidence_checked": "Paper text names PixelPick and EqualAL in active-learning semantic-segmentation related work, while HALO claims broad active/domain-adaptation improvements.",
+      "counterevidence_checked": "Searches found PixelPick and EqualAL in related-work contexts but did not find them as rows in the reported result/baseline table snippets; RIPU appears repeatedly as an included comparator.",
+      "paper_facing_usable": "yes, with caution",
+      "false_positive_categories": [],
+      "wording_caution": "Say the paper omits PixelPick/EqualAL-style active-learning semantic-segmentation comparisons or adaptations; do not assert they are definitely identical-protocol ADA baselines.",
+      "downgrade_reason": "",
+      "reason": "The omitted baselines are paper-named and close to the active-learning segmentation setting, but protocol comparability needs careful wording."
+    }
+  ]
+}

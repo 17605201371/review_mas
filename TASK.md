@@ -1664,3 +1664,82 @@ Next:
      clusters with clean protection, run a fresh hardneg20; do not run full20
      from the current sample alone.
 ```
+
+P31.29/P31.30 Stage 2->3 bridge-guard checkpoint (20260705):
+
+```text
+Problem found:
+  P31.29 fresh 5-paper sample exposed a regression introduced by the new
+  support-recheck bridge.  The bridge improved recovery safety but fired before
+  Critique review-issue discovery had a real chance to run.
+
+P31.29 metrics:
+  run = p31_29_stage3_support_bridge_critique5_20260705_191746
+  machine gate = FAIL
+  protection = FAIL only because empirical_real_strong_support_count = 2 < 3
+  critique_direct_verified_cluster_count = 1
+  candidate_menu_item_count = 1
+  candidate_menu_item_verified_count = 1
+  mark_contested_commit_count = 3
+  verified_issue_cluster_without_recovery_count = 5
+  state_contamination_count = 0
+  recovery_no_effect_commit = 0
+  recovery_harmful_commit_risk = 0
+
+Fix:
+  - Added a shared `_review_issue_discovery_untried_for_recovery_bridge`
+    predicate.
+  - Both finalize-policy and fallback-policy recovery/support bridges now wait
+    until Critique review-issue discovery has been attempted when targeted
+    reviewer-negative discovery is enabled.
+  - This keeps the order functional: Critique discovery first, then support
+    recheck / contested recovery.
+
+Validation:
+  - bridge/discovery focused pytest = 9 passed
+  - support-bridge regression pytest = 4 passed
+  - py_compile review_manager_policy.py and test_review_inference_runner.py =
+    PASS
+
+Fresh sample after fix:
+  run = p31_30_bridge_guard_critique5_20260705_193123
+  rows = 5
+  machine gate = PASS
+  manual gate = PASS after critique-only manual audit validation
+  protection = PASS
+  critique_direct_verified_cluster_count = 4
+  candidate_menu_item_count = 7
+  candidate_menu_item_used_count = 5
+  candidate_menu_item_verified_count = 4
+  candidate_menu_item_failed_count = 1
+  empirical_real_strong_support_count = 6
+  verified_review_issue_cluster_count = 5
+  mark_contested_commit_count = 5
+  verified_issue_cluster_without_recovery_count = 1
+  state_contamination_count = 0
+  positive_or_neutral_negative_candidate_count = 0
+  negative_evidence_unlinked_to_flaw = 0
+  negative_grounding_conflict_count = 0
+  recovery_no_effect_commit = 0
+  recovery_harmful_commit_risk = 0
+
+Manual audit:
+  file = P31_30_BRIDGE_GUARD_CRITIQUE5_ONLY_MANUAL_AUDIT_20260705_193123.json
+  validation = P31_30_BRIDGE_GUARD_CRITIQUE5_ONLY_MANUAL_AUDIT_VALIDATION_20260705_193123.json
+  critique_origin_clusters = 4
+  manual_A_B_clusters = 4
+  manual_D_clusters = 0
+  labels:
+    GE6iywJtsV / consisting_constrain_module = B
+    NnExMNiTHw / acceptance_prediction_head = B
+    QAgwFiIY4p / paper-named_graphormer_baseline = B
+    YXn76HMetm / paper-named_pixelpick_baseline = B
+
+Interpretation:
+  P31.30 is the first post-bridge sample where the full small-sample path is
+  live at once: Critique selected concrete menu candidates, the strict bundle
+  verifier accepted four direct Critique-origin clusters, and recovery converted
+  verified issues into audited mark_contested repairs without state hygiene
+  regressions.  This is still only a 5-paper checkpoint.  Next step is a fresh
+  hardneg20 before claiming Stage 2/3 stability or moving toward full39/P32.
+```

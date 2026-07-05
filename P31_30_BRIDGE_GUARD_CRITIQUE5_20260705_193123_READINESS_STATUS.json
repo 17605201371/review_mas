@@ -1,0 +1,97 @@
+{
+  "latest_run": {
+    "run_base": "p31_30_bridge_guard_critique5_20260705_193123",
+    "jsonl": "p31_30_bridge_guard_critique5_20260705_193123.jsonl",
+    "jsonl_exists": true,
+    "jsonl_lines": 5,
+    "log": "p31_30_bridge_guard_critique5_20260705_193123.log",
+    "log_exists": true,
+    "pid": "",
+    "running": false,
+    "pid_file_exists": false
+  },
+  "latest_pointers": {
+    ".latest_hardneg20_dashboard": "P31_6_FRESH_20260705_182335_HARDNEG20_DASHBOARD.md",
+    ".latest_hardneg20_review_issue_cases": "P31_6_FRESH_20260705_182335_REVIEW_ISSUE_CASE_TABLE.md",
+    ".latest_hardneg20_recovery_case": "P31_6_FRESH_20260705_182335_RECOVERY_CASE_TABLE.md",
+    ".latest_hardneg20_log": "mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok2048_20260705_182335.log"
+  },
+  "entry_gate": {
+    "path": "P31_30_BRIDGE_GUARD_CRITIQUE5_20260705_193123_ENTRY_GATE_AUDIT.json",
+    "exists": true,
+    "machine_gate_status": "PASS",
+    "manual_gate_status": "PASS",
+    "blocking_issues": [],
+    "headline_metrics": {
+      "verified_review_issue_count": 6,
+      "verified_review_issue_cluster_recomputed_count": 5,
+      "quote_duplicate_merged_verified_review_issue_cluster_count": 5,
+      "critique_payload_verified_cluster_count": 4,
+      "critique_direct_verified_cluster_count": 4,
+      "critique_selected_existing_seed_cluster_count": 0,
+      "verified_review_issue_cluster_origin_critique_payload_count": 3,
+      "mark_contested_commit_count": 5,
+      "verified_issue_cluster_without_recovery_count": 1,
+      "candidate_menu_item_verified_count": 4,
+      "candidate_menu_item_failed_count": 1
+    },
+    "manual_audit_summary": {
+      "system_clusters": 4,
+      "critique_origin_clusters": 4,
+      "manual_A_clusters": 0,
+      "manual_B_clusters": 4,
+      "manual_A_B_clusters": 4,
+      "manual_C_clusters": 0,
+      "manual_D_clusters": 0,
+      "manual_MERGE_clusters": 0,
+      "unfilled_clusters": 0,
+      "manual_A_B_clusters_by_origin": {
+        "critique_payload": 4
+      },
+      "manual_D_clusters_by_origin": {},
+      "cluster_count_by_origin": {
+        "critique_payload": 4
+      },
+      "critique_origin_manual_A_B_clusters": 4,
+      "deterministic_seed_manual_A_B_clusters": 0,
+      "critique_origin_D_clusters": 0,
+      "status": "PASS",
+      "blocking_issues": []
+    }
+  },
+  "manual_validation": {
+    "path": "P31_30_BRIDGE_GUARD_CRITIQUE5_ONLY_MANUAL_AUDIT_VALIDATION_20260705_193123.json",
+    "exists": true,
+    "summary": {
+      "system_clusters": 4,
+      "critique_origin_clusters": 4,
+      "manual_A_clusters": 0,
+      "manual_B_clusters": 4,
+      "manual_A_B_clusters": 4,
+      "manual_C_clusters": 0,
+      "manual_D_clusters": 0,
+      "manual_MERGE_clusters": 0,
+      "unfilled_clusters": 0,
+      "manual_A_B_clusters_by_origin": {
+        "critique_payload": 4
+      },
+      "manual_D_clusters_by_origin": {},
+      "cluster_count_by_origin": {
+        "critique_payload": 4
+      },
+      "critique_origin_manual_A_B_clusters": 4,
+      "deterministic_seed_manual_A_B_clusters": 0,
+      "critique_origin_D_clusters": 0,
+      "status": "PASS",
+      "blocking_issues": []
+    }
+  },
+  "api_preflight": {
+    "status": "not_run",
+    "ok": false,
+    "error": ""
+  },
+  "pipeline_command": "scripts/p31_6_full20_pipeline.sh --launch --wait --update-latest",
+  "next_action": "P31.6 gate appears ready for P32 review; verify manual audit provenance before entering P32.",
+  "p32_entry_ready": true
+}

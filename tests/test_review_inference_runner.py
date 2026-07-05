@@ -11706,6 +11706,43 @@ def test_verified_review_issue_without_support_routes_to_support_recheck(monkeyp
     assert "Evidence Agent" in payload["selected_agents"]
 
 
+def test_verified_review_issue_support_recheck_waits_for_discovery_attempt(monkeypatch):
+    monkeypatch.setattr(review_manager_policy_mod, "_TARGETED_NEGATIVE_SEARCH_ENABLED", True)
+    monkeypatch.setattr(review_manager_policy_mod, "_FREEFORM_REVIEWER_NEGATIVE_ENABLED", True)
+    monkeypatch.setattr(review_manager_policy_mod, "_REVIEW_ISSUE_BUNDLE_ENABLED", True)
+    state = _review_issue_without_same_claim_support_state()
+
+    payload, selected = review_manager_policy_mod.apply_finalize_policy(
+        {
+            "decision": "continue",
+            "action_type": "summarize_progress",
+            "effective_action_type": "summarize_progress",
+            "policy_source": "manager_model",
+            "selected_agents": ["Critique Agent"],
+        },
+        state,
+        mode="s4",
+        step=2,
+        turn_cap=7,
+        worker_ids=["Claim Agent", "Evidence Agent", "Critique Agent"],
+        worker_limit=2,
+        selected_workers=["Critique Agent"],
+        worker_payloads=[],
+        recent_turn_logs=[
+            {
+                "turn_id": 1,
+                "action_type": "extract_claims",
+                "effective_action_type": "extract_claims",
+            }
+        ],
+    )
+
+    assert payload["policy_source"] == "manager_model"
+    assert payload["action_type"] == "summarize_progress"
+    assert payload.get("target_claim_ids", []) == []
+    assert selected == ["Critique Agent"]
+
+
 def test_verified_review_issue_support_recheck_does_not_loop(monkeypatch):
     monkeypatch.setattr(review_manager_policy_mod, "_REVIEW_ISSUE_BUNDLE_ENABLED", True)
     state = _review_issue_without_same_claim_support_state()

@@ -1542,6 +1542,19 @@ def _recent_review_issue_support_recheck_claim_ids(
     return claim_ids
 
 
+def _review_issue_discovery_untried_for_recovery_bridge(
+    state: Dict[str, Any],
+    recent_turn_logs: Optional[Sequence[Dict[str, Any]]] = None,
+) -> bool:
+    return bool(
+        _TARGETED_NEGATIVE_SEARCH_ENABLED
+        and _FREEFORM_REVIEWER_NEGATIVE_ENABLED
+        and _REVIEW_ISSUE_BUNDLE_ENABLED
+        and not _has_pending_reviewer_negative_candidates(state)
+        and not _has_recent_freeform_reviewer_negative_discovery(recent_turn_logs)
+    )
+
+
 def _verified_review_issue_support_recheck_claim_ids(
     state: Dict[str, Any],
     recent_turn_logs: Optional[Sequence[Dict[str, Any]]] = None,
@@ -2844,12 +2857,17 @@ def apply_finalize_policy(
             and not has_recovery
             and step < turn_cap
         )
+        review_issue_discovery_untried = _review_issue_discovery_untried_for_recovery_bridge(
+            state,
+            recent_logs,
+        )
         verified_issue_recovery_claim_ids = _absence_audit_contested_recovery_claim_ids(state, limit=_NEGATIVE_TARGET_CLAIM_LIMIT)
         if (
             mode == "s4"
             and verified_issue_recovery_claim_ids
             and "challenge_previous_hypothesis" in allowed_actions
             and payload.get("action_type") not in auto_finalize_blocked_actions
+            and not review_issue_discovery_untried
         ):
             payload["decision"] = "continue"
             payload["action_type"] = "challenge_previous_hypothesis"
@@ -2878,6 +2896,7 @@ def apply_finalize_policy(
             and verified_issue_support_recheck_claim_ids
             and "request_evidence_recheck" in allowed_actions
             and payload.get("action_type") not in auto_finalize_blocked_actions
+            and not review_issue_discovery_untried
         ):
             payload["decision"] = "continue"
             payload["action_type"] = "request_evidence_recheck"
@@ -3374,12 +3393,9 @@ def apply_manager_policy_fallback(
         policy_source = "flaw_progress_override"
         policy_notes.append("Evidence already exists, so the policy moved beyond evidence verification to grounded flaw analysis or recheck.")
         action_type = inferred_action
-    review_issue_discovery_untried = bool(
-        _TARGETED_NEGATIVE_SEARCH_ENABLED
-        and _FREEFORM_REVIEWER_NEGATIVE_ENABLED
-        and _REVIEW_ISSUE_BUNDLE_ENABLED
-        and not _has_pending_reviewer_negative_candidates(state)
-        and not _has_recent_freeform_reviewer_negative_discovery(recent_turn_logs)
+    review_issue_discovery_untried = _review_issue_discovery_untried_for_recovery_bridge(
+        state,
+        recent_turn_logs,
     )
     verified_issue_recovery_claim_ids = _absence_audit_contested_recovery_claim_ids(state, limit=_NEGATIVE_TARGET_CLAIM_LIMIT)
     if (

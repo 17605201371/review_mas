@@ -1,0 +1,351 @@
+{
+  "inputs": {
+    "dashboard_json": "P31_30_BRIDGE_GUARD_CRITIQUE5_20260705_193123_HARDNEG20_DASHBOARD.json",
+    "case_json": "P31_30_BRIDGE_GUARD_CRITIQUE5_20260705_193123_REVIEW_ISSUE_CASE_TABLE.json",
+    "recovery_json": "P31_30_BRIDGE_GUARD_CRITIQUE5_20260705_193123_RECOVERY_CASE_TABLE.json",
+    "manual_audit_validation_json": "P31_30_BRIDGE_GUARD_CRITIQUE5_ONLY_MANUAL_AUDIT_VALIDATION_20260705_193123.json"
+  },
+  "thresholds": {
+    "min_critique_clusters": 3,
+    "fail_on_red_flags": false,
+    "require_manual_audit": false
+  },
+  "machine_gate_status": "PASS",
+  "manual_gate_status": "PASS",
+  "checks": [
+    {
+      "name": "dashboard_protection_passed",
+      "actual": true,
+      "required": true,
+      "status": "PASS"
+    },
+    {
+      "name": "critique_direct_verified_cluster_count",
+      "actual": 4,
+      "required": ">= 3",
+      "status": "PASS"
+    },
+    {
+      "name": "candidate_menu_item_verified_count",
+      "actual": 4,
+      "required": ">= 2",
+      "status": "PASS"
+    },
+    {
+      "name": "case_table_critique_origin_cluster_count",
+      "actual": 4,
+      "required": ">= 3",
+      "status": "PASS"
+    },
+    {
+      "name": "case_table_cluster_count_matches_rows_minus_duplicates",
+      "actual": 5,
+      "required": 5,
+      "status": "PASS"
+    },
+    {
+      "name": "dashboard_case_cluster_count_match",
+      "actual": 5,
+      "required": 5,
+      "status": "PASS"
+    },
+    {
+      "name": "dashboard_recomputed_cluster_count_match",
+      "actual": 5,
+      "required": 5,
+      "status": "PASS"
+    },
+    {
+      "name": "dashboard_quote_merged_cluster_count_not_above_system",
+      "actual": 5,
+      "required": "<= 5",
+      "status": "PASS"
+    },
+    {
+      "name": "dashboard_origin_cluster_counts_sum",
+      "actual": 5,
+      "required": 5,
+      "status": "PASS"
+    },
+    {
+      "name": "negative_evidence_unlinked_to_flaw",
+      "actual": 0,
+      "required": 0,
+      "status": "PASS"
+    },
+    {
+      "name": "positive_or_neutral_negative_candidate_count",
+      "actual": 0,
+      "required": 0,
+      "status": "PASS"
+    },
+    {
+      "name": "negative_grounding_conflict_count",
+      "actual": 0,
+      "required": 0,
+      "status": "PASS"
+    },
+    {
+      "name": "manual_audit_status",
+      "actual": "PASS",
+      "required": "PASS",
+      "status": "PASS"
+    },
+    {
+      "name": "manual_critique_origin_A_B_clusters",
+      "actual": 4,
+      "required": ">= 3",
+      "status": "PASS"
+    },
+    {
+      "name": "manual_D_clusters",
+      "actual": 0,
+      "required": 0,
+      "status": "PASS"
+    },
+    {
+      "name": "manual_unfilled_clusters",
+      "actual": 0,
+      "required": 0,
+      "status": "PASS"
+    }
+  ],
+  "blocking_issues": [],
+  "headline_metrics": {
+    "verified_review_issue_count": 6,
+    "verified_review_issue_cluster_recomputed_count": 5,
+    "quote_duplicate_merged_verified_review_issue_cluster_count": 5,
+    "critique_payload_verified_cluster_count": 4,
+    "critique_direct_verified_cluster_count": 4,
+    "critique_selected_existing_seed_cluster_count": 0,
+    "verified_review_issue_cluster_origin_critique_payload_count": 3,
+    "mark_contested_commit_count": 5,
+    "verified_issue_cluster_without_recovery_count": 1,
+    "candidate_menu_item_verified_count": 4,
+    "candidate_menu_item_failed_count": 1
+  },
+  "critique_selected_verified_cluster_details": [
+    {
+      "paper_id": "GE6iywJtsV",
+      "claim_id": "claim-2",
+      "issue_type": "missing_ablation",
+      "issue_cluster_key": "missing_ablation|consisting_constrain_module",
+      "issue_cluster_target": "consisting_constrain_module",
+      "candidate_menu_ids": [
+        "rim-c2-ma-consisting-of-a-constrain-module"
+      ],
+      "candidate_ids": [
+        "review-issue-candidate-selected-menu-1"
+      ],
+      "discovery_origin": "critique_payload_menu_selected",
+      "attribution_mode": "critique_direct_verified_cluster"
+    },
+    {
+      "paper_id": "NnExMNiTHw",
+      "claim_id": "claim-2",
+      "issue_type": "missing_ablation",
+      "issue_cluster_key": "missing_ablation|acceptance_prediction_head",
+      "issue_cluster_target": "acceptance_prediction_head",
+      "candidate_menu_ids": [
+        "rim-c2-ma-acceptance-prediction-head-3"
+      ],
+      "candidate_ids": [
+        "review-issue-candidate-selected-menu-1"
+      ],
+      "discovery_origin": "critique_payload_menu_selected",
+      "attribution_mode": "critique_direct_verified_cluster"
+    },
+    {
+      "paper_id": "QAgwFiIY4p",
+      "claim_id": "claim-3",
+      "issue_type": "missing_baseline",
+      "issue_cluster_key": "missing_baseline|paper-named_graphormer_baseline",
+      "issue_cluster_target": "paper-named_graphormer_baseline",
+      "candidate_menu_ids": [
+        "rim-c3-mb-same-setting-comparison-against"
+      ],
+      "candidate_ids": [
+        "review-issue-candidate-selected-menu-1"
+      ],
+      "discovery_origin": "critique_payload_menu_selected",
+      "attribution_mode": "critique_direct_verified_cluster"
+    }
+  ],
+  "candidate_menu_item_failed_details": [
+    {
+      "paper_id": "9zEBK3E9bX",
+      "candidate_id": "review-issue-candidate-selected-menu-1",
+      "candidate_menu_id": "rim-c3-ec-wall-clock-latency-or-throughput",
+      "claim_id": "claim-3",
+      "issue_type": "efficiency_cost_gap",
+      "review_issue_slot": "efficiency_cost",
+      "obligation_id": "",
+      "selected_missing_items": [
+        "wall-clock latency or throughput"
+      ],
+      "resolved_expected_entity": "wall-clock latency or throughput",
+      "stop_stage": "bundle_verification_or_not_materialized",
+      "rejection_reason": "not_verified_by_bundle",
+      "counterevidence_reason": "",
+      "inventory_locator": "Theory / Proof excerpt #1",
+      "inventory_quote": "The proposed SPOT focuses on learning general representations via occupancy prediction task, achievi",
+      "inventory_observed_items": [
+        "SPOT"
+      ]
+    }
+  ],
+  "case_summary": {
+    "verified_review_issue_cases": 6,
+    "bucket::obligation_grounded_review_issue": 6,
+    "type::missing_ablation": 4,
+    "source::reviewer_candidate": 6,
+    "candidate_kind::deterministic_reviewer_seed": 2,
+    "candidate_menu_bound_cases": 6,
+    "candidate_kind::critique_payload_candidate": 4,
+    "critique_selected_menu_verified_cases": 4,
+    "type::missing_baseline": 2,
+    "verified_review_issue_cluster_count": 5,
+    "duplicate_review_issue_row_count": 1,
+    "reviewer_candidate_review_issue_cluster_count": 5,
+    "cluster_type::missing_ablation": 3,
+    "cluster_origin::deterministic_reviewer_seed": 1,
+    "cluster_source::reviewer_candidate": 5,
+    "cluster_slot::missing_ablation": 3,
+    "candidate_menu_bound_clusters": 5,
+    "cluster_origin::critique_payload_candidate": 4,
+    "critique_selected_verified_cluster_count": 3,
+    "cluster_type::missing_baseline": 2,
+    "cluster_slot::missing_baseline": 2,
+    "quote_grounded_review_issue_cluster_count": 0,
+    "quote_grounded_direct_quote_duplicate_cluster_count": 0,
+    "quote_duplicate_merged_verified_review_issue_cluster_count": 5
+  },
+  "recovery_summary": {
+    "bucket::verified_review_issue_repair": 5,
+    "operation::mark_contested": 5,
+    "effective_repair_turns": 5,
+    "effective_repair_not_verified_negative_repair": 5,
+    "turns_with_verified_review_issue_bundle_evidence": 6,
+    "evidence_bucket::obligation_grounded_review_issue": 6,
+    "bucket::attempted_not_committed": 2,
+    "operation::reject_patch": 1,
+    "case_rows": 7
+  },
+  "manual_audit_summary": {
+    "system_clusters": 4,
+    "critique_origin_clusters": 4,
+    "manual_A_clusters": 0,
+    "manual_B_clusters": 4,
+    "manual_A_B_clusters": 4,
+    "manual_C_clusters": 0,
+    "manual_D_clusters": 0,
+    "manual_MERGE_clusters": 0,
+    "unfilled_clusters": 0,
+    "manual_A_B_clusters_by_origin": {
+      "critique_payload": 4
+    },
+    "manual_D_clusters_by_origin": {},
+    "cluster_count_by_origin": {
+      "critique_payload": 4
+    },
+    "critique_origin_manual_A_B_clusters": 4,
+    "deterministic_seed_manual_A_B_clusters": 0,
+    "critique_origin_D_clusters": 0,
+    "status": "PASS",
+    "blocking_issues": []
+  },
+  "reviewer_candidate_kind_counts": {
+    "deterministic_reviewer_seed": 2,
+    "critique_payload_candidate": 4
+  },
+  "critique_origin_clusters": [
+    {
+      "issue_cluster_key": "GE6iywJtsV|obligation_grounded_review_issue|missing_ablation|consisting_constrain_module",
+      "paper_id": "GE6iywJtsV",
+      "issue_type": "missing_ablation",
+      "issue_cluster_target": "consisting_constrain_module",
+      "case_count": 1,
+      "claim_ids": [
+        "claim-2"
+      ],
+      "evidence_ids": [
+        "evidence-reviewer-absence-claim-2-ablation-or-component-mi"
+      ],
+      "missing_or_mismatch": "consisting of a constrain module",
+      "claim_anchor": "The model uses a Graph Convolutional Network (GrCN) architecture and implements shape conditioning.",
+      "inventory_or_quote_locator": "paper component inventory #1",
+      "inventory_or_quote": "Inspired by the well-known ControlNet for conditioned image generation, supposing an unconditioned 3D molecule generative model was already trained as a prior model, then $\\mathrm{Gr}\\mathbf{CN}$ is designed to includ...",
+      "review_issue_slot": "missing_ablation",
+      "discovery_origin": "critique_payload_menu_selected",
+      "reviewer_candidate_kind": "critique_payload_candidate"
+    },
+    {
+      "issue_cluster_key": "NnExMNiTHw|obligation_grounded_review_issue|missing_ablation|acceptance_prediction_head",
+      "paper_id": "NnExMNiTHw",
+      "issue_type": "missing_ablation",
+      "issue_cluster_target": "acceptance_prediction_head",
+      "case_count": 2,
+      "claim_ids": [
+        "claim-1",
+        "claim-2"
+      ],
+      "evidence_ids": [
+        "evidence-reviewer-absence-claim-1-ablation-or-component-mi",
+        "evidence-reviewer-absence-claim-2-ablation-or-component-mi"
+      ],
+      "missing_or_mismatch": "acceptance prediction head; component-isolation ablation for trained acceptance prediction head",
+      "claim_anchor": "SpecDec++ formulates the choice of candidate length K as a Markov Decision Process and provides theoretical analysis for its optimal policy.",
+      "inventory_or_quote_locator": "Comparison / Robustness excerpt #1",
+      "inventory_or_quote": "Compared with the baseline speculative decoding (SpecDec) with fixed candidate lengths, by adaptively determining the candidate lengths via a trained acceptance prediction head, \\ours achieves a relative \\textbf{7.2\\%},",
+      "review_issue_slot": "missing_ablation",
+      "discovery_origin": "runner_seed_component_ablation",
+      "reviewer_candidate_kind": "deterministic_reviewer_seed"
+    },
+    {
+      "issue_cluster_key": "QAgwFiIY4p|obligation_grounded_review_issue|missing_baseline|paper-named_graphormer_baseline",
+      "paper_id": "QAgwFiIY4p",
+      "issue_type": "missing_baseline",
+      "issue_cluster_target": "paper-named_graphormer_baseline",
+      "case_count": 1,
+      "claim_ids": [
+        "claim-3"
+      ],
+      "evidence_ids": [
+        "evidence-reviewer-absence-claim-3-baseline-or-comparison-m"
+      ],
+      "missing_or_mismatch": "same-setting comparison against paper-named Graphormer baseline",
+      "claim_anchor": "The proposed method achieves strong empirical performance, for example on substructure counting tasks measured by Mean Absolute Error (MAE).",
+      "inventory_or_quote_locator": "paper inventory #11",
+      "inventory_or_quote": "Extensive experiments verify these claims across synthetic datasets, graph property prediction datasets, and long-range graph benchmarks. Specifically, PST outperforms all baselines on QM9~\\citep{QM9} dataset.",
+      "review_issue_slot": "missing_baseline",
+      "discovery_origin": "critique_payload_menu_selected",
+      "reviewer_candidate_kind": "critique_payload_candidate"
+    },
+    {
+      "issue_cluster_key": "YXn76HMetm|obligation_grounded_review_issue|missing_baseline|paper-named_pixelpick_baseline",
+      "paper_id": "YXn76HMetm",
+      "issue_type": "missing_baseline",
+      "issue_cluster_target": "paper-named_pixelpick_baseline",
+      "case_count": 1,
+      "claim_ids": [
+        "claim-3"
+      ],
+      "evidence_ids": [
+        "evidence-reviewer-absence-claim-3-baseline-or-comparison-m"
+      ],
+      "missing_or_mismatch": "same-setting comparison against paper-named PixelPick baseline; same-setting comparison against paper-named EqualAL baseline",
+      "claim_anchor": "HALO outperforms key baselines (e.g., EqualAL, RIPU) in semantic segmentation under domain shift, as shown in Table 1c.",
+      "inventory_or_quote_locator": "Table: main ablation",
+      "inventory_or_quote": "HALO demonstrates a substantial improvement of +10.4\\% compared to methods (a) and (b) in Table \\ref{tab:main-ablation}.",
+      "review_issue_slot": "missing_baseline",
+      "discovery_origin": "critique_payload_menu_selected",
+      "reviewer_candidate_kind": "critique_payload_candidate"
+    }
+  ],
+  "red_flags": [],
+  "notes": [
+    "Machine and manual gates pass for this audit scope; paper-ready claims still require carrying the listed manual labels and wording caveats into the narrative.",
+    "The red-flag scan is lexical only and should be treated as triage, not a verifier.",
+    "P32 entry remains blocked if a later full-scope gate fails or manual audit finds external-baseline, retrieval/context, author-limitation, or other false positives."
+  ]
+}
