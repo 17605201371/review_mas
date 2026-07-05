@@ -145,8 +145,25 @@ The 2026-07-05 23:21 attempt from clean worktree
 `/Users/zss/Downloads/zssmas-p32-clean-f0d2a30` at commit `f0d2a30` did not
 launch a background run.  MiMo preflight still returned `402 Insufficient
 account balance`, so no P32 clean jsonl was created and this is not counted.
-After balance/key state is fixed, rerun P32 clean hardneg20 run 1 from scratch
-with the same configuration.
+After replacing the local MiMo key, the 2026-07-05 23:25 clean R1 run completed
+20/20 from the same clean worktree and runtime code baseline:
+
+```text
+run = mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok2048_20260705_232528
+label = P32_CLEAN_R1_20260705_232527
+code_commit = f0d2a30
+code_dirty = clean
+machine_gate = PASS
+manual_gate = REQUIRED
+critique_direct_verified_cluster_count = 6
+candidate_menu_item_verified_count = 6
+case_table_critique_origin_cluster_count = 6
+verified_review_issue_cluster_recomputed_count = 17
+mark_contested_commit_count = 20
+```
+
+Next action: fill and validate `P32_CLEAN_R1_20260705_232527_MANUAL_AUDIT_TEMPLATE.*`;
+do not count R1 as P32 accepted evidence until manual A/B/C/D validation passes.
 
 Recommended launch command:
 

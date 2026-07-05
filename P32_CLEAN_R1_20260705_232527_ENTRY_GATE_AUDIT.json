@@ -1,0 +1,565 @@
+{
+  "inputs": {
+    "dashboard_json": "P32_CLEAN_R1_20260705_232527_HARDNEG20_DASHBOARD.json",
+    "case_json": "P32_CLEAN_R1_20260705_232527_REVIEW_ISSUE_CASE_TABLE.json",
+    "recovery_json": "P32_CLEAN_R1_20260705_232527_RECOVERY_CASE_TABLE.json",
+    "manual_audit_validation_json": ""
+  },
+  "thresholds": {
+    "min_critique_clusters": 3,
+    "fail_on_red_flags": false,
+    "require_manual_audit": false
+  },
+  "machine_gate_status": "PASS",
+  "manual_gate_status": "REQUIRED",
+  "checks": [
+    {
+      "name": "dashboard_protection_passed",
+      "actual": true,
+      "required": true,
+      "status": "PASS"
+    },
+    {
+      "name": "critique_direct_verified_cluster_count",
+      "actual": 6,
+      "required": ">= 3",
+      "status": "PASS"
+    },
+    {
+      "name": "candidate_menu_item_verified_count",
+      "actual": 6,
+      "required": ">= 2",
+      "status": "PASS"
+    },
+    {
+      "name": "case_table_critique_origin_cluster_count",
+      "actual": 6,
+      "required": ">= 3",
+      "status": "PASS"
+    },
+    {
+      "name": "case_table_cluster_count_matches_rows_minus_duplicates",
+      "actual": 17,
+      "required": 17,
+      "status": "PASS"
+    },
+    {
+      "name": "dashboard_case_cluster_count_match",
+      "actual": 17,
+      "required": 17,
+      "status": "PASS"
+    },
+    {
+      "name": "dashboard_recomputed_cluster_count_match",
+      "actual": 17,
+      "required": 17,
+      "status": "PASS"
+    },
+    {
+      "name": "dashboard_quote_merged_cluster_count_not_above_system",
+      "actual": 17,
+      "required": "<= 17",
+      "status": "PASS"
+    },
+    {
+      "name": "dashboard_origin_cluster_counts_sum",
+      "actual": 17,
+      "required": 17,
+      "status": "PASS"
+    },
+    {
+      "name": "negative_evidence_unlinked_to_flaw",
+      "actual": 0,
+      "required": 0,
+      "status": "PASS"
+    },
+    {
+      "name": "positive_or_neutral_negative_candidate_count",
+      "actual": 0,
+      "required": 0,
+      "status": "PASS"
+    },
+    {
+      "name": "negative_grounding_conflict_count",
+      "actual": 0,
+      "required": 0,
+      "status": "PASS"
+    }
+  ],
+  "blocking_issues": [],
+  "headline_metrics": {
+    "verified_review_issue_count": 24,
+    "verified_review_issue_cluster_recomputed_count": 17,
+    "quote_duplicate_merged_verified_review_issue_cluster_count": 17,
+    "critique_payload_verified_cluster_count": 6,
+    "critique_direct_verified_cluster_count": 6,
+    "critique_selected_existing_seed_cluster_count": 0,
+    "verified_review_issue_cluster_origin_critique_payload_count": 4,
+    "mark_contested_commit_count": 20,
+    "verified_issue_cluster_without_recovery_count": 2,
+    "candidate_menu_item_verified_count": 6,
+    "candidate_menu_item_failed_count": 8
+  },
+  "critique_selected_verified_cluster_details": [
+    {
+      "paper_id": "GE6iywJtsV",
+      "claim_id": "claim-3",
+      "issue_type": "missing_ablation",
+      "issue_cluster_key": "missing_ablation|graph_control_module",
+      "issue_cluster_target": "graph_control_module",
+      "candidate_menu_ids": [
+        "rim-c3-ma-graph-control-module-2"
+      ],
+      "candidate_ids": [
+        "review-issue-candidate-selected-menu-1"
+      ],
+      "discovery_origin": "critique_payload_menu_selected",
+      "attribution_mode": "critique_direct_verified_cluster"
+    },
+    {
+      "paper_id": "NnExMNiTHw",
+      "claim_id": "claim-2",
+      "issue_type": "missing_ablation",
+      "issue_cluster_key": "missing_ablation|acceptance_prediction_head",
+      "issue_cluster_target": "acceptance_prediction_head",
+      "candidate_menu_ids": [
+        "rim-c2-ma-weighted-bce-loss"
+      ],
+      "candidate_ids": [
+        "review-issue-candidate-selected-menu-1"
+      ],
+      "discovery_origin": "critique_payload_menu_selected",
+      "attribution_mode": "critique_direct_verified_cluster"
+    },
+    {
+      "paper_id": "a6SntIisgg",
+      "claim_id": "claim-3",
+      "issue_type": "scope_overclaim",
+      "issue_cluster_key": "scope_overclaim|held-out_coverage_for_source-to-target",
+      "issue_cluster_target": "held-out_coverage_for_source-to-target",
+      "candidate_menu_ids": [
+        "rim-c3-sr-held-out-or-coverage-evaluation"
+      ],
+      "candidate_ids": [
+        "review-issue-candidate-selected-menu-1"
+      ],
+      "discovery_origin": "critique_payload_menu_selected",
+      "attribution_mode": "critique_direct_verified_cluster"
+    },
+    {
+      "paper_id": "HPuLU6q7xq",
+      "claim_id": "claim-2",
+      "issue_type": "missing_baseline",
+      "issue_cluster_key": "missing_baseline|paper-named_gpt-4_baseline",
+      "issue_cluster_target": "paper-named_gpt-4_baseline",
+      "candidate_menu_ids": [
+        "rim-c2-mb-same-setting-comparison-against"
+      ],
+      "candidate_ids": [
+        "review-issue-candidate-selected-menu-1"
+      ],
+      "discovery_origin": "critique_payload_menu_selected",
+      "attribution_mode": "critique_direct_verified_cluster"
+    },
+    {
+      "paper_id": "fGXyvmWpw6",
+      "claim_id": "claim-4",
+      "issue_type": "efficiency_cost_gap",
+      "issue_cluster_key": "efficiency_cost_gap|efficiency_resource_measurement",
+      "issue_cluster_target": "efficiency_resource_measurement",
+      "candidate_menu_ids": [
+        "rim-c4-ec-runtime-memory-parameter-flop-ha"
+      ],
+      "candidate_ids": [
+        "review-issue-candidate-selected-menu-1"
+      ],
+      "discovery_origin": "critique_payload_menu_selected",
+      "attribution_mode": "critique_direct_verified_cluster"
+    }
+  ],
+  "candidate_menu_item_failed_details": [
+    {
+      "paper_id": "ye3NrNrYOY",
+      "candidate_id": "review-issue-candidate-selected-menu-1",
+      "candidate_menu_id": "rim-c3-pr-accuracy-reporting-protocol-or-c",
+      "claim_id": "claim-3",
+      "issue_type": "evaluation_protocol_risk",
+      "review_issue_slot": "protocol_or_reproducibility",
+      "obligation_id": "obligation-claim-3-evaluation-protocol-risk",
+      "selected_missing_items": [
+        "accuracy reporting protocol or comparability setting"
+      ],
+      "resolved_expected_entity": "accuracy reporting protocol or comparability setting",
+      "stop_stage": "counterevidence",
+      "rejection_reason": "full_text_protocol_or_result_counterevidence",
+      "counterevidence_reason": "full_text_protocol_or_result_counterevidence",
+      "inventory_locator": "Datasets. For the experiments that perform training and test",
+      "inventory_quote": "Datasets. For the experiments that perform training and testing on the Sth-Else dataset, we use the",
+      "inventory_observed_items": [
+        "Sth-Else",
+        "For",
+        "Sth"
+      ]
+    },
+    {
+      "paper_id": "7Dub7UXTXN",
+      "candidate_id": "review-issue-candidate-selected-menu-1",
+      "candidate_menu_id": "rim-c2-ma-relu",
+      "claim_id": "claim-2",
+      "issue_type": "missing_ablation",
+      "review_issue_slot": "missing_ablation",
+      "obligation_id": "obligation-claim-2-missing-ablation-compone",
+      "selected_missing_items": [
+        "component-isolation ablation for ReLU"
+      ],
+      "resolved_expected_entity": "component-isolation ablation for ReLU",
+      "stop_stage": "target_quality_guard",
+      "rejection_reason": "missing_ablation_target_low_confidence",
+      "counterevidence_reason": "",
+      "inventory_locator": "paper inventory #5",
+      "inventory_quote": "We investigate how removing the bias affects the expressivity and the learning dynamics of ReLU netw",
+      "inventory_observed_items": [
+        "ReLU"
+      ]
+    },
+    {
+      "paper_id": "WpXq5n8yLb",
+      "candidate_id": "review-issue-candidate-selected-menu-1",
+      "candidate_menu_id": "rim-c1-ma-recurrent-draft-model",
+      "claim_id": "claim-1",
+      "issue_type": "missing_ablation",
+      "review_issue_slot": "missing_ablation",
+      "obligation_id": "",
+      "selected_missing_items": [
+        "recurrent draft model"
+      ],
+      "resolved_expected_entity": "recurrent draft model",
+      "stop_stage": "counterevidence",
+      "rejection_reason": "missing_ablation_counterevidence_in_claim_or_inventory",
+      "counterevidence_reason": "missing_ablation_counterevidence_in_claim_or_inventory",
+      "inventory_locator": "paper component inventory #1",
+      "inventory_quote": "Additionally, we incorporate the embeddings of historical tokens as recurrent inputs to the draft he",
+      "inventory_observed_items": [
+        "network",
+        "neural",
+        "recurrent"
+      ]
+    },
+    {
+      "paper_id": "QAgwFiIY4p",
+      "candidate_id": "review-issue-candidate-selected-menu-1",
+      "candidate_menu_id": "rim-c3-mb-same-setting-comparison-against",
+      "claim_id": "claim-3",
+      "issue_type": "missing_baseline",
+      "review_issue_slot": "missing_baseline",
+      "obligation_id": "",
+      "selected_missing_items": [
+        "same-setting comparison against paper-named Graphormer baseline"
+      ],
+      "resolved_expected_entity": "same-setting comparison against paper-named Graphormer baseline",
+      "stop_stage": "counterevidence",
+      "rejection_reason": "full_text_baseline_or_comparison_counterevidence",
+      "counterevidence_reason": "full_text_baseline_or_comparison_counterevidence",
+      "inventory_locator": "paper inventory #11",
+      "inventory_quote": "Extensive experiments verify these claims across synthetic datasets, graph property prediction datas",
+      "inventory_observed_items": [
+        "QM9~\\citep{",
+        "PST",
+        "QM9"
+      ]
+    },
+    {
+      "paper_id": "TPAj63ax4Y",
+      "candidate_id": "review-issue-candidate-selected-menu-1",
+      "candidate_menu_id": "rim-c2-ma-zero-shot-instance-choice-mechan",
+      "claim_id": "claim-2",
+      "issue_type": "missing_ablation",
+      "review_issue_slot": "missing_ablation",
+      "obligation_id": "obligation-claim-2-missing-ablation-ablatio",
+      "selected_missing_items": [
+        "zero-shot instance choice mechanism module"
+      ],
+      "resolved_expected_entity": "zero-shot instance choice mechanism module",
+      "stop_stage": "counterevidence",
+      "rejection_reason": "missing_ablation_counterevidence_in_claim_or_inventory",
+      "counterevidence_reason": "missing_ablation_counterevidence_in_claim_or_inventory",
+      "inventory_locator": "paper inventory #10",
+      "inventory_quote": "Finally, we highlight the benefits of our design choices in a series of ablations of the stages of t",
+      "inventory_observed_items": [
+        "Finally"
+      ]
+    },
+    {
+      "paper_id": "mHv6wcBb0z",
+      "candidate_id": "review-issue-candidate-selected-menu-1",
+      "candidate_menu_id": "rim-c1-ma-noise-regularization-module",
+      "claim_id": "claim-1",
+      "issue_type": "missing_ablation",
+      "review_issue_slot": "missing_ablation",
+      "obligation_id": "obligation-claim-1-missing-ablation-ablatio",
+      "selected_missing_items": [
+        "ablation isolating Noise Regularization module"
+      ],
+      "resolved_expected_entity": "ablation isolating Noise Regularization module",
+      "stop_stage": "counterevidence",
+      "rejection_reason": "missing_ablation_counterevidence_in_claim_or_inventory",
+      "counterevidence_reason": "missing_ablation_counterevidence_in_claim_or_inventory",
+      "inventory_locator": "paper inventory #1",
+      "inventory_quote": "Deep Canonical Correlation Analysis (DCCA) and its variants share simple formulations and demonstrat",
+      "inventory_observed_items": [
+        "DCCA",
+        "Deep Canonical Correlation Analysis"
+      ]
+    },
+    {
+      "paper_id": "xUe1YqEgd6",
+      "candidate_id": "review-issue-candidate-selected-menu-1",
+      "candidate_menu_id": "rim-c1-sr-held-out-or-coverage-evaluation",
+      "claim_id": "claim-1",
+      "issue_type": "scope_overclaim",
+      "review_issue_slot": "scope_or_robustness",
+      "obligation_id": "obligation-claim-1-scope-overclaim-held-out",
+      "selected_missing_items": [
+        "held-out or coverage evaluation for frame-by-frame"
+      ],
+      "resolved_expected_entity": "held-out or coverage evaluation for frame-by-frame",
+      "stop_stage": "counterevidence",
+      "rejection_reason": "full_text_evaluation_or_scope_counterevidence",
+      "counterevidence_reason": "full_text_evaluation_or_scope_counterevidence",
+      "inventory_locator": "paper inventory #1",
+      "inventory_quote": "We report experiments on four VOS benchmarks with convincing quantitative results.",
+      "inventory_observed_items": [
+        "VOS"
+      ]
+    },
+    {
+      "paper_id": "KOUAayk5Kx",
+      "candidate_id": "review-issue-candidate-selected-menu-1",
+      "candidate_menu_id": "rim-c3-ec-runtime-memory-parameter-flop-ha",
+      "claim_id": "claim-3",
+      "issue_type": "efficiency_cost_gap",
+      "review_issue_slot": "efficiency_cost",
+      "obligation_id": "",
+      "selected_missing_items": [
+        "runtime, memory, parameter, FLOP, hardware, or compute-cost measurement for the efficiency claim"
+      ],
+      "resolved_expected_entity": "runtime, memory, parameter, FLOP, hardware, or compute-cost measurement for the efficiency claim",
+      "stop_stage": "expectation_basis",
+      "rejection_reason": "reviewer_candidate_expectation_not_auditable_in_paper",
+      "counterevidence_reason": "",
+      "inventory_locator": "Figure 4",
+      "inventory_quote": "Figure 4: (a) Validation accuracy comparison of normal, DI and OGL supernet training. Four architect",
+      "inventory_observed_items": []
+    }
+  ],
+  "case_summary": {
+    "verified_review_issue_cases": 24,
+    "bucket::obligation_grounded_review_issue": 22,
+    "type::missing_ablation": 13,
+    "source::reviewer_candidate": 20,
+    "candidate_kind::deterministic_reviewer_seed": 14,
+    "source::claim_obligation": 2,
+    "candidate_kind::claim_obligation_fallback": 2,
+    "candidate_menu_bound_cases": 8,
+    "critique_selected_menu_verified_cases": 9,
+    "candidate_kind::critique_payload_candidate": 6,
+    "bucket::quote_grounded_review_issue": 2,
+    "type::insufficient_evaluation": 1,
+    "source::direct_quote": 2,
+    "candidate_kind::direct_quote": 2,
+    "type::scope_overclaim": 1,
+    "type::missing_baseline": 2,
+    "type::efficiency_cost_gap": 4,
+    "type::missing_robustness_or_generalization": 2,
+    "type::negative_result": 1,
+    "verified_review_issue_cluster_count": 17,
+    "duplicate_review_issue_row_count": 7,
+    "reviewer_candidate_review_issue_cluster_count": 14,
+    "cluster_type::missing_ablation": 8,
+    "cluster_origin::deterministic_reviewer_seed": 7,
+    "cluster_source::reviewer_candidate": 13,
+    "cluster_slot::missing_ablation": 8,
+    "cluster_origin::claim_obligation_fallback": 2,
+    "cluster_source::claim_obligation": 2,
+    "cluster_origin::critique_payload_candidate": 6,
+    "candidate_menu_bound_clusters": 6,
+    "critique_selected_verified_cluster_count": 5,
+    "cluster_type::insufficient_evaluation": 1,
+    "cluster_origin::direct_quote": 2,
+    "cluster_source::direct_quote": 2,
+    "cluster_slot::direct_quote": 2,
+    "cluster_type::scope_overclaim": 1,
+    "cluster_slot::scope_or_robustness": 3,
+    "cluster_type::missing_baseline": 2,
+    "cluster_slot::missing_baseline": 2,
+    "cluster_type::efficiency_cost_gap": 2,
+    "cluster_slot::efficiency_cost": 2,
+    "cluster_type::missing_robustness_or_generalization": 2,
+    "cluster_type::negative_result": 1,
+    "quote_grounded_review_issue_cluster_count": 2,
+    "quote_grounded_direct_quote_duplicate_cluster_count": 0,
+    "quote_duplicate_merged_verified_review_issue_cluster_count": 17
+  },
+  "recovery_summary": {
+    "bucket::attempted_not_committed": 9,
+    "operation::reject_patch": 9,
+    "bucket::committed_not_effective": 3,
+    "operation::record_diagnosis_pending_concern": 2,
+    "bucket::verified_review_issue_repair": 20,
+    "operation::mark_contested": 20,
+    "effective_repair_turns": 20,
+    "effective_repair_not_verified_negative_repair": 20,
+    "turns_with_verified_review_issue_bundle_evidence": 20,
+    "evidence_bucket::obligation_grounded_review_issue": 23,
+    "evidence_bucket::not_verified_or_unknown": 1,
+    "evidence_bucket::support_only": 2,
+    "evidence_bucket::quote-bank-negative-grounding_candidate": 1,
+    "operation::downgrade_final_to_candidate": 1,
+    "turns_with_verified_review_negative_evidence": 1,
+    "evidence_bucket::verified_review_negative": 1,
+    "case_rows": 32
+  },
+  "manual_audit_summary": {},
+  "reviewer_candidate_kind_counts": {
+    "deterministic_reviewer_seed": 14,
+    "claim_obligation_fallback": 2,
+    "critique_payload_candidate": 6,
+    "direct_quote": 2
+  },
+  "critique_origin_clusters": [
+    {
+      "issue_cluster_key": "GE6iywJtsV|obligation_grounded_review_issue|missing_ablation|graph_control_module",
+      "paper_id": "GE6iywJtsV",
+      "issue_type": "missing_ablation",
+      "issue_cluster_target": "graph_control_module",
+      "case_count": 2,
+      "claim_ids": [
+        "claim-1",
+        "claim-3"
+      ],
+      "evidence_ids": [
+        "evidence-reviewer-absence-claim-1-ablation-or-component-mi",
+        "evidence-reviewer-absence-claim-3-ablation-or-component-mi"
+      ],
+      "missing_or_mismatch": "graph control module; component-isolation ablation for with a graph control module",
+      "claim_anchor": "The paper introduces a novel constrained diffusion model (Diff-Shape) and a Graph ControllNet (GrCN) for shape-based de novo drug design.",
+      "inventory_or_quote_locator": "Section 3.2",
+      "inventory_or_quote": "In Diff-Shape method, a novel equivariant neural network architecture,named Graph ControllNet (GrCN), was proposed and it composed an unconditioned diffusion model satisfying SE (3) symmetry for 3D molecular generation a",
+      "review_issue_slot": "missing_ablation",
+      "discovery_origin": "runner_seed_component_ablation",
+      "reviewer_candidate_kind": "deterministic_reviewer_seed"
+    },
+    {
+      "issue_cluster_key": "HPuLU6q7xq|obligation_grounded_review_issue|missing_baseline|paper-named_gpt-4_baseline",
+      "paper_id": "HPuLU6q7xq",
+      "issue_type": "missing_baseline",
+      "issue_cluster_target": "paper-named_gpt-4_baseline",
+      "case_count": 1,
+      "claim_ids": [
+        "claim-2"
+      ],
+      "evidence_ids": [
+        "evidence-reviewer-absence-claim-2-baseline-or-comparison-m"
+      ],
+      "missing_or_mismatch": "same-setting comparison against paper-named GPT-4 baseline",
+      "claim_anchor": "The Orca method empirically outperforms baseline methods on role-playing tasks.",
+      "inventory_or_quote_locator": "Table/Figure excerpt #2",
+      "inventory_or_quote": "\\caption{An example interaction between an personalized agent object of Orca and human on social platform.",
+      "review_issue_slot": "missing_baseline",
+      "discovery_origin": "critique_payload_menu_selected",
+      "reviewer_candidate_kind": "critique_payload_candidate"
+    },
+    {
+      "issue_cluster_key": "NnExMNiTHw|obligation_grounded_review_issue|missing_ablation|acceptance_prediction_head",
+      "paper_id": "NnExMNiTHw",
+      "issue_type": "missing_ablation",
+      "issue_cluster_target": "acceptance_prediction_head",
+      "case_count": 3,
+      "claim_ids": [
+        "claim-1",
+        "claim-2",
+        "claim-4"
+      ],
+      "evidence_ids": [
+        "evidence-reviewer-absence-claim-1-ablation-or-component-mi",
+        "evidence-reviewer-absence-claim-2-ablation-or-component-mi",
+        "evidence-reviewer-absence-claim-4-ablation-or-component-mi"
+      ],
+      "missing_or_mismatch": "acceptance prediction head; component-isolation ablation for of the acceptance prediction head",
+      "claim_anchor": "SpecDec++ formulates the candidate length selection as an MDP and implements an adaptive policy to choose K.",
+      "inventory_or_quote_locator": "Section: SpecDec++: Theory and Algorithm",
+      "inventory_or_quote": "Theory and Algorithm} \\label{sec:method} \\newcommand{\\Hid}{{\\boldsymbol{e}}} \\begin{figure}[t] \\centering \\includegraphics[width=1\\textwidth]{figs/main.pdf} \\caption{\\ours uses a trained \\textbf{acceptance prediction hea",
+      "review_issue_slot": "missing_ablation",
+      "discovery_origin": "runner_seed_component_ablation",
+      "reviewer_candidate_kind": "deterministic_reviewer_seed"
+    },
+    {
+      "issue_cluster_key": "YXn76HMetm|obligation_grounded_review_issue|missing_baseline|paper-named_pixelpick_baseline",
+      "paper_id": "YXn76HMetm",
+      "issue_type": "missing_baseline",
+      "issue_cluster_target": "paper-named_pixelpick_baseline",
+      "case_count": 1,
+      "claim_ids": [
+        "claim-3"
+      ],
+      "evidence_ids": [
+        "evidence-reviewer-absence-claim-3-baseline-or-comparison-m"
+      ],
+      "missing_or_mismatch": "same-setting comparison against paper-named PixelPick baseline; same-setting comparison against paper-named EqualAL baseline",
+      "claim_anchor": "The HALO method empirically outperforms baseline methods (including EqualAL) for active learning semantic segmentation under domain shift.",
+      "inventory_or_quote_locator": "Comparison / Robustness excerpt #1",
+      "inventory_or_quote": "HALO sets a new state-of-the-art in active learning for semantic segmentation under domain shift and it is the first active learning approach that surpasses the performance of supervised domain adaptation while using onl",
+      "review_issue_slot": "missing_baseline",
+      "discovery_origin": "critique_payload_menu_selected",
+      "reviewer_candidate_kind": "critique_payload_candidate"
+    },
+    {
+      "issue_cluster_key": "a6SntIisgg|obligation_grounded_review_issue|scope_overclaim|held-out_coverage_for_source-to-target",
+      "paper_id": "a6SntIisgg",
+      "issue_type": "scope_overclaim",
+      "issue_cluster_target": "held-out_coverage_for_source-to-target",
+      "case_count": 1,
+      "claim_ids": [
+        "claim-3"
+      ],
+      "evidence_ids": [
+        "evidence-reviewer-absence-claim-3-scope-coverage-scope-ove"
+      ],
+      "missing_or_mismatch": "held-out or coverage evaluation for source-to-target",
+      "claim_anchor": "LogoRA achieves the best accuracy compared to baseline methods.",
+      "inventory_or_quote_locator": "Figure: model",
+      "inventory_or_quote": "The complete \\abbr framework for unsupervised domain adaptation is illustrated in \\figurename~\\ref{fig:model}. It primarily comprises four modules: a feature extractor denoted as $F(\\cdot)$, a fusion module denoted as $G",
+      "review_issue_slot": "scope_or_robustness",
+      "discovery_origin": "critique_payload_menu_selected",
+      "reviewer_candidate_kind": "critique_payload_candidate"
+    },
+    {
+      "issue_cluster_key": "fGXyvmWpw6|obligation_grounded_review_issue|efficiency_cost_gap|efficiency_resource_measurement",
+      "paper_id": "fGXyvmWpw6",
+      "issue_type": "efficiency_cost_gap",
+      "issue_cluster_target": "efficiency_resource_measurement",
+      "case_count": 2,
+      "claim_ids": [
+        "claim-1",
+        "claim-4"
+      ],
+      "evidence_ids": [
+        "evidence-reviewer-absence-claim-1-efficiency-cost-efficien",
+        "evidence-reviewer-absence-claim-4-efficiency-cost-efficien"
+      ],
+      "missing_or_mismatch": "runtime, memory, parameter, FLOP, hardware, or compute-cost measurement for the efficiency claim",
+      "claim_anchor": "The proposed method is computationally efficient, reducing communication rounds and training time compared to other methods.",
+      "inventory_or_quote_locator": "paper inventory #1",
+      "inventory_or_quote": "Despite Federated Learning (FL)'s trend for learning machine learning models in a distributed manner, it is susceptible to performance drops when training on heterogeneous data.",
+      "review_issue_slot": "efficiency_cost",
+      "discovery_origin": "critique_payload_menu_selected",
+      "reviewer_candidate_kind": "critique_payload_candidate"
+    }
+  ],
+  "red_flags": [],
+  "notes": [
+    "Machine PASS is not paper-ready approval; manual A/B audit of the listed Critique-origin clusters is still required.",
+    "The red-flag scan is lexical only and should be treated as triage, not a verifier.",
+    "P32 entry remains blocked if the machine gate fails or manual audit finds external-baseline, retrieval/context, author-limitation, or other false positives."
+  ]
+}

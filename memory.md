@@ -120,6 +120,19 @@ Interpretation:
   during MiMo preflight with `402 Insufficient account balance`.  It did not
   create a background run or jsonl, so it is not P32 evidence.  Fix balance/key
   state and rerun from scratch with the wrapper.
+- After replacing the local MiMo key, P32 clean R1 completed from the same clean
+  detached worktree.  Run base:
+  `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok2048_20260705_232528`;
+  label: `P32_CLEAN_R1_20260705_232527`; `code_commit=f0d2a30`;
+  `code_dirty=clean`; rows=20; machine gate PASS; manual gate REQUIRED.
+  Headline metrics: `critique_direct_verified_cluster_count=6`,
+  `candidate_menu_item_verified_count=6`,
+  `case_table_critique_origin_cluster_count=6`,
+  `verified_review_issue_cluster_recomputed_count=17`,
+  `mark_contested_commit_count=20`.
+  Next step is manual A/B/C/D validation of
+  `P32_CLEAN_R1_20260705_232527_MANUAL_AUDIT_TEMPLATE.*`; do not count R1 as
+  accepted P32 evidence before manual validation passes.
 - Do not jump to full39, do not touch `verl/`, and do not relax verifier or
   validator gates.
 

@@ -1,0 +1,53 @@
+{
+  "latest_run": {
+    "run_base": "mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok2048_20260705_232528",
+    "jsonl": "mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok2048_20260705_232528.jsonl",
+    "jsonl_exists": true,
+    "jsonl_lines": 20,
+    "log": "mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok2048_20260705_232528.log",
+    "log_exists": true,
+    "pid": "22187",
+    "running": false,
+    "pid_file_exists": true
+  },
+  "latest_pointers": {
+    ".latest_hardneg20_dashboard": "P31_6_FRESH_20260705_205654_HARDNEG20_DASHBOARD.md",
+    ".latest_hardneg20_review_issue_cases": "P31_6_FRESH_20260705_205654_REVIEW_ISSUE_CASE_TABLE.md",
+    ".latest_hardneg20_recovery_case": "P31_6_FRESH_20260705_205654_RECOVERY_CASE_TABLE.md",
+    ".latest_hardneg20_log": "mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok2048_20260705_205654.log"
+  },
+  "entry_gate": {
+    "path": "P32_CLEAN_R1_20260705_232527_ENTRY_GATE_AUDIT.json",
+    "exists": true,
+    "machine_gate_status": "PASS",
+    "manual_gate_status": "REQUIRED",
+    "blocking_issues": [],
+    "headline_metrics": {
+      "verified_review_issue_count": 24,
+      "verified_review_issue_cluster_recomputed_count": 17,
+      "quote_duplicate_merged_verified_review_issue_cluster_count": 17,
+      "critique_payload_verified_cluster_count": 6,
+      "critique_direct_verified_cluster_count": 6,
+      "critique_selected_existing_seed_cluster_count": 0,
+      "verified_review_issue_cluster_origin_critique_payload_count": 4,
+      "mark_contested_commit_count": 20,
+      "verified_issue_cluster_without_recovery_count": 2,
+      "candidate_menu_item_verified_count": 6,
+      "candidate_menu_item_failed_count": 8
+    },
+    "manual_audit_summary": {}
+  },
+  "manual_validation": {
+    "path": "",
+    "exists": false,
+    "summary": {}
+  },
+  "api_preflight": {
+    "status": "not_run",
+    "ok": false,
+    "error": ""
+  },
+  "pipeline_command": "scripts/p31_6_full20_pipeline.sh --launch --wait --update-latest",
+  "next_action": "Run a fresh P31.6 full20 with scripts/p31_6_full20_pipeline.sh --launch --wait --update-latest, then fill and validate the manual audit template.",
+  "p32_entry_ready": false
+}
