@@ -3748,3 +3748,18 @@ strict current-code result is direct=0, but that is the correct precision
 position.  Next functional work should improve concrete menu supply (paper-named
 baseline targets, metric-specific protocol targets, and ablation targets not
 already countered), not relax verification or count external template targets.
+
+P31.13 Stage 2 supply first pass:
+
+- Added a menu-only paper-named baseline supply path.  Deterministic seed
+  verification still requires limited-comparison wording, but selector menu
+  generation may expose a paper-named related/prior method when there is a
+  locatable evaluation/comparison inventory anchor and the named method is not
+  already in that inventory.
+- Added guards so contexts like `We compare ... with GraphFormer` do not become
+  missing-baseline candidates; baseline menu inventory anchors also reject plain
+  related-work citations.
+- Offline selector probe over fresh raw `20260705_132812`: rows=20,
+  rows_with_menu=11, menu_items=16, paper_named_baseline_menu=3
+  (`GPT-4`, `Graphormer`, `EqualAL`).  Current-code artifact recompute remains
+  protection PASS with direct Critique verified clusters still 0.

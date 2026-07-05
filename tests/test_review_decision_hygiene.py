@@ -8910,6 +8910,133 @@ def test_p29_deterministic_protocol_seed_rejects_plain_empirical_claim():
     ]
 
 
+def test_paper_named_baseline_menu_supply_uses_eval_inventory_without_seed_expansion():
+    claim = "Our GraphReviewer method outperforms state-of-the-art baselines on Benchmark-X."
+    table_quote = "Table 1 compares Ours with GCN and GAT and reports accuracy on Benchmark-X: Ours 91.2, GCN 85.1, GAT 86.0."
+    state = {
+        "paper_text": (
+            f"{claim}\n"
+            "\\section{Related Work} GraphFormer~\\cite{graphformer} is a strong graph baseline for Benchmark-X.\n"
+            f"{table_quote}"
+        ),
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "comparison",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["baseline_or_comparison"],
+            }
+        ],
+        "evidence_map": [],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+    claim_obj = state["claims"][0]
+
+    seed_targets = review_state_mod._paper_named_prior_baseline_seed_targets(state, claim_obj, max_items=2)
+    menu_targets = review_state_mod._paper_named_prior_baseline_seed_targets(
+        state,
+        claim_obj,
+        max_items=2,
+        allow_menu_supply_without_limited_comparison=True,
+    )
+    menu = review_state_mod._review_issue_candidate_menu_for_claim(state, claim_obj, max_items=6)
+
+    assert seed_targets == []
+    assert menu_targets
+    assert menu_targets[0]["missing_item"] == "same-setting comparison against paper-named GraphFormer baseline"
+    assert table_quote in menu_targets[0]["observed_inventory"][0]["quote"]
+    assert "Related Work" not in menu_targets[0]["observed_inventory"][0]["quote"]
+    assert any("GraphFormer" in item["expected_entity"] for item in menu)
+
+
+def test_paper_named_baseline_menu_supply_rejects_plain_related_citation():
+    claim = "Our GraphReviewer method outperforms state-of-the-art baselines on Benchmark-X."
+    state = {
+        "paper_text": (
+            f"{claim}\n"
+            "\\section{Related Work} GraphFormer~\\cite{graphformer} introduced positional encodings for graphs.\n"
+            "Table 1 compares Ours with GCN and GAT and reports accuracy on Benchmark-X: Ours 91.2, GCN 85.1, GAT 86.0."
+        ),
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "comparison",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["baseline_or_comparison"],
+            }
+        ],
+        "evidence_map": [],
+    }
+
+    menu = review_state_mod._review_issue_candidate_menu_for_claim(state, state["claims"][0], max_items=6)
+
+    assert not any("GraphFormer" in item["expected_entity"] for item in menu)
+
+
+def test_paper_named_baseline_menu_supply_rejects_already_compared_target():
+    claim = "Our GraphReviewer method outperforms state-of-the-art baselines on Benchmark-X."
+    state = {
+        "paper_text": (
+            f"{claim}\n"
+            "\\section{Related Work} GraphFormer~\\cite{graphformer} is a strong graph baseline for Benchmark-X.\n"
+            "Table 1 reports accuracy on Benchmark-X: Ours 91.2, GraphFormer 88.4, GCN 85.1."
+        ),
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "comparison",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["baseline_or_comparison"],
+            }
+        ],
+        "evidence_map": [],
+    }
+
+    menu = review_state_mod._review_issue_candidate_menu_for_claim(state, state["claims"][0], max_items=6)
+
+    assert not any("GraphFormer" in item["expected_entity"] for item in menu)
+
+
+def test_paper_named_baseline_menu_supply_rejects_comparison_context_itself():
+    claim = "Our GraphReviewer method outperforms state-of-the-art baselines on Benchmark-X."
+    state = {
+        "paper_text": (
+            f"{claim}\n"
+            "\\textbf{Baseline:} We compare the performance of our method with GraphFormer~\\cite{graphformer} "
+            "and GCN~\\cite{gcn} on Benchmark-X.\n"
+            "Figure 2 caption: Model performance comparison on Benchmark-X."
+        ),
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "comparison",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["baseline_or_comparison"],
+            }
+        ],
+        "evidence_map": [],
+    }
+
+    menu = review_state_mod._review_issue_candidate_menu_for_claim(state, state["claims"][0], max_items=6)
+
+    assert not any("GraphFormer" in item["expected_entity"] for item in menu)
+
+
 def test_p29_candidate_funnel_reports_slot_and_origin_metrics():
     claim = "LG-FL outperforms baseline FL methods such as FedAvg and FedProx on heterogeneous data."
     inventory_quote = "Table 1 compares LG-FL with FedAvg and FedProx under heterogeneous client data."

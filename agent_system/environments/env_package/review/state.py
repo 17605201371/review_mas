@@ -9218,6 +9218,91 @@ _PAPER_NAMED_BASELINE_LIMITED_COMPARISON_RE = re.compile(
     r"\bsingle\s+(?:baseline|comparison)\b",
     re.IGNORECASE,
 )
+_PAPER_NAMED_BASELINE_EXPECTATION_CONTEXT_RE = re.compile(
+    r"\b(?:strong|competitive|state[- ]of[- ]the[- ]art|sota|related|prior|existing)\b"
+    r"[^.!?]{0,90}\b(?:baseline|baselines|method|methods|model|models|approach|approaches)\b|"
+    r"\b(?:baseline|baselines|method|methods|model|models|approach|approaches)\b"
+    r"[^.!?]{0,90}\b(?:strong|competitive|state[- ]of[- ]the[- ]art|sota|related|prior|existing)\b|"
+    r"\b(?:baseline|baselines|methods?|models?|approaches?)\s+(?:such\s+as|including|like|e\.g\.,?)\b",
+    re.IGNORECASE,
+)
+
+
+def _review_issue_baseline_comparison_inventory_anchor(item: Dict[str, Any]) -> bool:
+    quote = str((item or {}).get("quote") or (item or {}).get("raw_quote") or (item or {}).get("evidence") or "")
+    locator = str((item or {}).get("locator") or (item or {}).get("source_locator") or (item or {}).get("source") or "")
+    observed = " ".join(str(part or "") for part in (item or {}).get("observed_items") or [])
+    text = " ".join([quote, locator, observed])
+    if not text.strip():
+        return False
+    if _review_issue_related_work_only_window(text):
+        return False
+    has_eval_anchor = bool(
+        re.search(
+            r"\b(?:table|tab\.?|figure|fig\.?|result|results|evaluation|experiment|"
+            r"benchmark|accuracy|f1|auc|score|scores|metric|metrics|performance)\b",
+            text,
+            re.IGNORECASE,
+        )
+    )
+    has_comparison_anchor = bool(
+        re.search(
+            r"\b(?:compare|compares|comparison|compared|against|outperform|outperforms|"
+            r"baseline|baselines|competitor|competitors)\b",
+            text,
+            re.IGNORECASE,
+        )
+    )
+    if re.search(r"\bcompared\s+with\s+\([a-z]\)", text, re.IGNORECASE) and not re.search(r"\bbaseline|baselines\b", text, re.IGNORECASE):
+        return False
+    return bool(has_eval_anchor and has_comparison_anchor)
+
+
+def _review_issue_paper_named_baseline_inventory(
+    view: Dict[str, Any],
+    claim_id: str,
+    *,
+    max_items: int = 2,
+) -> List[Dict[str, Any]]:
+    candidates: List[Dict[str, Any]] = []
+    seen: set[str] = set()
+    for requirement in ("baseline_or_comparison", "empirical_result"):
+        for item in _review_issue_paper_inventory_for_bundle(
+            view,
+            claim_id,
+            requirement,
+            "missing_baseline",
+            missing_items=[],
+            max_items=max_items * 2,
+        ):
+            if not _review_issue_baseline_comparison_inventory_anchor(item):
+                continue
+            quote_key = _quote_bank_dedupe_key(str(item.get("quote") or ""))
+            key = quote_key or str(item.get("inventory_id") or item.get("locator") or "")
+            if key and key in seen:
+                continue
+            if key:
+                seen.add(key)
+            candidates.append(item)
+            if len(candidates) >= max_items:
+                return candidates
+    return candidates[:max_items]
+
+
+def _paper_named_baseline_context_declares_current_comparison(context: str) -> bool:
+    text = str(context or "")
+    return bool(
+        re.search(
+            r"\b(?:we|our|ours|this\s+(?:paper|work|method|model|approach)|"
+            r"experiments?|evaluations?)\b[^.!?]{0,90}"
+            r"\b(?:compare|compares|compared|include|includes|included)\b|"
+            r"\bcompare\s+the\s+performance\b|"
+            r"\bwith\s+\d+\s+(?:state[- ]of[- ]the[- ]art\s+|sota\s+)?baselines?\b|"
+            r"\bbaselines?\s+(?:include|includes|are|consist\s+of)\b",
+            text,
+            re.IGNORECASE,
+        )
+    )
 
 
 def _paper_named_baseline_name_is_usable(name: str, context: str, claim_text: str, inventory_text: str) -> bool:
@@ -9276,6 +9361,7 @@ def _paper_named_prior_baseline_seed_targets(
     claim: Dict[str, Any],
     *,
     max_items: int = 2,
+    allow_menu_supply_without_limited_comparison: bool = False,
 ) -> List[Dict[str, Any]]:
     claim_id = str((claim or {}).get("claim_id") or "").strip()
     claim_text = _normalize_text((claim or {}).get("claim") or (claim or {}).get("text"), max_length=320)
@@ -9296,12 +9382,9 @@ def _paper_named_prior_baseline_seed_targets(
         and not _CLAIM_REQ_BASELINE_RE.search(claim_text)
     ):
         return []
-    observed_inventory = _review_issue_paper_inventory_for_bundle(
+    observed_inventory = _review_issue_paper_named_baseline_inventory(
         view,
         claim_id,
-        "baseline_or_comparison",
-        "missing_baseline",
-        missing_items=[],
         max_items=2,
     )
     if not observed_inventory:
@@ -9320,7 +9403,8 @@ def _paper_named_prior_baseline_seed_targets(
     body, _ = _clean_paper_body(str((view or {}).get("paper_text") or ""))
     if not body:
         return []
-    if not _PAPER_NAMED_BASELINE_LIMITED_COMPARISON_RE.search(body):
+    limited_comparison = bool(_PAPER_NAMED_BASELINE_LIMITED_COMPARISON_RE.search(body))
+    if not limited_comparison and not allow_menu_supply_without_limited_comparison:
         return []
 
     contexts: List[Tuple[int, str]] = []
@@ -9332,6 +9416,10 @@ def _paper_named_prior_baseline_seed_targets(
     seen: set[str] = set()
     for pos, context in contexts:
         if _review_issue_related_work_only_window(context) and not _PAPER_NAMED_BASELINE_METHOD_CUE_RE.search(context):
+            continue
+        if _paper_named_baseline_context_declares_current_comparison(context):
+            continue
+        if not limited_comparison and not _PAPER_NAMED_BASELINE_EXPECTATION_CONTEXT_RE.search(context):
             continue
         names: List[str] = []
         for name in re.findall(
@@ -14012,7 +14100,12 @@ def _review_issue_candidate_menu_for_claim(
                 entity_source="method_component",
             )
         )
-    for target in _paper_named_prior_baseline_seed_targets(view or {}, claim, max_items=2):
+    for target in _paper_named_prior_baseline_seed_targets(
+        view or {},
+        claim,
+        max_items=2,
+        allow_menu_supply_without_limited_comparison=True,
+    ):
         add_menu(
             _review_issue_candidate_menu_item(
                 view or {},

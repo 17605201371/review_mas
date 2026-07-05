@@ -145,6 +145,25 @@ targets, and ablation/component targets that are not already countered by
 inventory.  Keep verifier/validator gates strict.
 ```
 
+Stage 2 supply first pass:
+
+- Paper-named baseline selector supply now has a menu-only widening path:
+  deterministic seed verification still requires limited-comparison wording,
+  but Critique selector menu may show a paper-named related/prior method when:
+  the claim is comparative, the related method is named in the paper, current
+  evaluation/comparison inventory is locatable, and the inventory does not
+  already include that method.
+- Related-work or baseline-list contexts that say the paper already compares
+  against the named method are treated as counter-supply and do not generate
+  missing-baseline menu candidates.
+- Baseline menu inventory anchors are restricted to evaluation/comparison
+  anchors, not plain related-work citations.
+- Offline selector probe on fresh raw `20260705_132812` now shows 3
+  paper-named baseline menu candidates from current code (`GPT-4`,
+  `Graphormer`, `EqualAL`) and keeps old-run recompute metrics unchanged:
+  protection PASS, `critique_direct_verified_cluster_count=0`,
+  `candidate_menu_item_verified_count=0`.
+
 ## Current P31.11 Checkpoint 2026-07-05
 
 P31.11 turns the Critique selector path into a more functional direct candidate
