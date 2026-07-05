@@ -18,7 +18,7 @@
     "hygiene_case_reason_counts": {
       "clean_state_recognized": 20,
       "hygiene_delta_improved": 10,
-      "negative_semantic_rejected": 5,
+      "negative_semantic_rejected": 11,
       "safe_block_counted": 7
     }
   },
@@ -32,10 +32,16 @@
       "mHv6wcBb0z"
     ],
     "negative_semantic_rejected_case_list": [
+      "ye3NrNrYOY",
+      "9zEBK3E9bX",
       "GE6iywJtsV",
+      "WpXq5n8yLb",
       "NnExMNiTHw",
       "a6SntIisgg",
       "fGXyvmWpw6",
+      "QAgwFiIY4p",
+      "TPAj63ax4Y",
+      "mHv6wcBb0z",
       "XH3OiIhtvf"
     ],
     "recovery_committed_but_ineffective_case_list": [
@@ -60,7 +66,8 @@
       "counted_for_hygiene_delta_or_safe_block_or_clean_state": true,
       "hygiene_case_reasons": [
         "clean_state_recognized",
-        "hygiene_delta_improved"
+        "hygiene_delta_improved",
+        "negative_semantic_rejected"
       ],
       "state_contamination_count": 0,
       "harmful_state_contamination_count": 0,
@@ -405,7 +412,8 @@
       "counted_for_hygiene_delta_or_safe_block_or_clean_state": true,
       "hygiene_case_reasons": [
         "clean_state_recognized",
-        "hygiene_delta_improved"
+        "hygiene_delta_improved",
+        "negative_semantic_rejected"
       ],
       "state_contamination_count": 0,
       "harmful_state_contamination_count": 0,
@@ -723,15 +731,14 @@
       "counted_for_hygiene_delta_or_safe_block_or_clean_state": true,
       "hygiene_case_reasons": [
         "clean_state_recognized",
-        "hygiene_delta_improved"
+        "hygiene_delta_improved",
+        "negative_semantic_rejected"
       ],
       "state_contamination_count": 0,
       "harmful_state_contamination_count": 0,
-      "state_hygiene_warning_count": 1,
+      "state_hygiene_warning_count": 0,
       "contamination_type_counts": {},
-      "state_hygiene_warning_type_counts": {
-        "stale_gap_persistence": 1
-      },
+      "state_hygiene_warning_type_counts": {},
       "gap_status_counts": {
         "resolved": 7,
         "open": 1
@@ -1086,11 +1093,11 @@
       ],
       "state_contamination_count": 0,
       "harmful_state_contamination_count": 0,
-      "state_hygiene_warning_count": 3,
+      "state_hygiene_warning_count": 2,
       "contamination_type_counts": {},
       "state_hygiene_warning_type_counts": {
         "zero_real_support": 1,
-        "stale_gap_persistence": 2
+        "stale_gap_persistence": 1
       },
       "gap_status_counts": {
         "open": 3
@@ -1393,15 +1400,14 @@
       "hygiene_case_reasons": [
         "clean_state_recognized",
         "hygiene_delta_improved",
-        "safe_block_counted"
+        "safe_block_counted",
+        "negative_semantic_rejected"
       ],
       "state_contamination_count": 0,
       "harmful_state_contamination_count": 0,
-      "state_hygiene_warning_count": 1,
+      "state_hygiene_warning_count": 0,
       "contamination_type_counts": {},
-      "state_hygiene_warning_type_counts": {
-        "stale_gap_persistence": 1
-      },
+      "state_hygiene_warning_type_counts": {},
       "gap_status_counts": {
         "resolved": 2,
         "open": 1
@@ -1522,7 +1528,8 @@
       "counted_for_hygiene_delta_or_safe_block_or_clean_state": true,
       "hygiene_case_reasons": [
         "clean_state_recognized",
-        "hygiene_delta_improved"
+        "hygiene_delta_improved",
+        "negative_semantic_rejected"
       ],
       "state_contamination_count": 0,
       "harmful_state_contamination_count": 0,
@@ -1623,7 +1630,8 @@
       "counted_for_hygiene_delta_or_safe_block_or_clean_state": true,
       "hygiene_case_reasons": [
         "clean_state_recognized",
-        "hygiene_delta_improved"
+        "hygiene_delta_improved",
+        "negative_semantic_rejected"
       ],
       "state_contamination_count": 0,
       "harmful_state_contamination_count": 0,

@@ -261,27 +261,14 @@ def test_fallback_strong_support_does_not_drive_accept():
         ],
         "flaw_candidates": [
             {
-                "flaw_id": "flaw-reviewer-absence-claim-1-missing-ablation",
-                "title": "Reviewer-inferred missing evidence: ablation or component-isolation evidence",
-                "description": (
-                    "The paper's visible evaluation or method inventory leaves a missing "
-                    f"ablation concern for claim '{stale_snapshot_claim}'. The specific "
-                    f"unchecked item is {missing_item}."
-                ),
-                "flaw": (
-                    "The paper's visible evaluation or method inventory leaves a missing "
-                    f"ablation concern for claim '{stale_snapshot_claim}'. The specific "
-                    f"unchecked item is {missing_item}."
-                ),
+                "flaw_id": "flaw-1",
+                "title": "Insufficient support",
+                "description": "The only apparent strong support is fallback-bound or unbound.",
+                "flaw": "The only apparent strong support is fallback-bound or unbound.",
                 "severity": "major",
                 "status": "candidate",
                 "related_claim_ids": ["claim-1"],
-                "evidence_ids": ["evidence-reviewer-absence-claim-1-ablation-or-component-mi"],
-                "negative_evidence_ids": ["evidence-reviewer-absence-claim-1-ablation-or-component-mi"],
-                "source": "reviewer_absence_audit",
-                "negative_evidence_type": "missing_ablation",
-                "absence_audit_verified": True,
-                "review_issue_source": "obligation_grounded_review_issue",
+                "evidence_ids": [],
             }
         ],
         "unresolved_questions": [],
@@ -18805,6 +18792,192 @@ def test_missing_ablation_target_quality_rejects_preposition_fragment():
         "quality": "reject",
         "reason": "missing_ablation_target_malformed_fragment",
     }
+
+
+def test_missing_baseline_full_text_counterevidence_catches_named_baseline_lists():
+    cases = [
+        (
+            "Graphormer",
+            (
+                "Claim anchor. PST reports results on graph benchmarks. "
+                "Following GraphVit, we compared our model to a range of baseline models, "
+                "including GCN, GINE, GatedGCN, SAN, Graphormer, GMLP-Mixer, Graph ViT, and Grit. "
+                "PST outperforms all baselines on PascalVOC-SP and Peptides-Func."
+            ),
+        ),
+        (
+            "CLIP",
+            (
+                "Claim anchor. The method is evaluated on referring image segmentation benchmarks. "
+                + " ".join(
+                    "The framework uses CLIP encoders during the zero-shot selection stage."
+                    for _ in range(12)
+                )
+                + " "
+                + "\\begin{table}[t] \\caption{Zero-shot and Weakly-Supervised Comparison: "
+                "results for our method along with the existing baselines GL CLIP, TSEG, TRIS, and LAVT.} "
+                "\\begin{tabular}{lcc} Method & val & test \\\\ GL CLIP & 24.88 & 23.61 \\\\ Ours & 34.39 & 42.20 \\\\"
+            ),
+        ),
+        (
+            "MVTCAE",
+            (
+                "Claim anchor. NR-DCCA is evaluated on multi-view representation learning datasets. "
+                "Baseline methods include CONCAT, PRCCA, KCCA, Linear CCA, DCCA, DGCCA, DCCAE, "
+                "DCCA_PRIVATE, and MVTCAE. The proposed method is then compared on synthetic and real-world datasets."
+            ),
+        ),
+    ]
+
+    for name, paper_text in cases:
+        target = f"same-setting comparison against paper-named {name} baseline"
+        bundle = {
+            "issue_type": "missing_baseline",
+            "missing_or_mismatch": {"entity": target, "items": [target]},
+            "claim_anchor": {"quote": "Claim anchor."},
+            "source_of_expectation": "reviewer_candidate",
+        }
+
+        assert (
+            review_state_mod._review_issue_full_text_counterevidence_reason(
+                bundle,
+                {"paper_text": paper_text},
+                neg_type="missing_baseline",
+            )
+            == "full_text_baseline_or_comparison_counterevidence"
+        )
+
+    related_work_only = {
+        "issue_type": "missing_baseline",
+        "missing_or_mismatch": {
+            "entity": "same-setting comparison against paper-named Graphormer baseline",
+            "items": ["same-setting comparison against paper-named Graphormer baseline"],
+        },
+        "claim_anchor": {"quote": "Claim anchor."},
+        "source_of_expectation": "reviewer_candidate",
+    }
+    assert (
+        review_state_mod._review_issue_full_text_counterevidence_reason(
+            related_work_only,
+            {
+                "paper_text": (
+                    "Claim anchor. Related Work. Graphormer is a strong existing graph Transformer baseline, "
+                    "but this paragraph only motivates the architecture design."
+                )
+            },
+            neg_type="missing_baseline",
+        )
+        == ""
+    )
+
+    specific_missing = {
+        "issue_type": "missing_baseline",
+        "missing_or_mismatch": {
+            "entity": "specialized GPT-4 baseline for instruction-following retrieval comparisons on Benchmark-X",
+            "items": ["specialized GPT-4 baseline for instruction-following retrieval comparisons on Benchmark-X"],
+        },
+        "claim_anchor": {"quote": "The retrieval model is claimed to be competitive against strong baselines on Benchmark-X."},
+        "source_of_expectation": "reviewer_candidate",
+    }
+    assert (
+        review_state_mod._review_issue_full_text_counterevidence_reason(
+            specific_missing,
+            {
+                "paper_text": (
+                    "The retrieval model is evaluated on Benchmark-X. "
+                    "Table 1 compares our retrieval model with Llama-2 and BERT baselines on Benchmark-X."
+                )
+            },
+            neg_type="missing_baseline",
+        )
+        == ""
+    )
+
+
+def test_missing_ablation_target_quality_rejects_evaluation_tools_and_sentence_fragments():
+    def quality(target: str, *, claim: str = "", inventory: str = "") -> dict:
+        return _missing_ablation_target_quality(
+            {
+                "issue_type": "missing_ablation",
+                "claim_anchor": {"quote": claim or "The paper proposes a concrete mechanism."},
+                "observed_inventory": [
+                    {
+                        "quote": inventory or "The method section describes the proposed mechanism.",
+                        "locator": "Section 3",
+                    }
+                ],
+                "missing_or_mismatch": {"entity": target, "items": [target]},
+            }
+        )
+
+    assert quality(
+        "pockets with the GLIDE module",
+        inventory="We evaluate docking scores of generations in target pockets with the GLIDE module of Schrodinger software.",
+    ) == {
+        "quality": "reject",
+        "reason": "missing_ablation_target_evaluation_tool",
+    }
+    assert quality("from LLMs improves the alignment") == {
+        "quality": "reject",
+        "reason": "missing_ablation_target_malformed_fragment",
+    }
+    assert quality("component-isolation ablation for ensure the learned representation") == {
+        "quality": "reject",
+        "reason": "missing_ablation_target_malformed_fragment",
+    }
+    assert quality("in causal representation") == {
+        "quality": "reject",
+        "reason": "missing_ablation_target_malformed_fragment",
+    }
+
+
+def test_missing_ablation_full_text_counterevidence_catches_semantic_component_comparisons():
+    cases = [
+        (
+            "unified 3D scene representation",
+            (
+                "Claim anchor. SPOT improves downstream 3D perception tasks. "
+                "SPOT is proposed to use 3D semantic occupancy prediction to learn a unified 3D scene representation. "
+                "Module-level Ablation Studies in SPOT. Table 6: Ablation study on pre-training strategies. "
+                "The results demonstrate the effectiveness of the occupancy prediction task; loss balancing, "
+                "beam re-sampling, and dataset balancing yield improvements."
+            ),
+        ),
+        (
+            "component-isolation ablation for Noise Regularization",
+            (
+                "Claim anchor. NR-DCCA prevents model collapse in DCCA. "
+                "Baseline methods include Linear CCA, DCCA, DCCA_EY, DCCA_GHA, DGCCA, and DCCAE. "
+                "The developed NR-DCCA outperforms baselines stably and consistently, and the noise regularization "
+                "approach can also be generalized to other DCCA-based methods."
+            ),
+        ),
+        (
+            "causal representation",
+            (
+                "Claim anchor. TCMT learns a temporal causal mechanism for few-shot action recognition. "
+                "Once N=12 was selected, we proceeded by comparing our TCMT model to four simpler models; "
+                "one non-causal, one non-temporal, one without auxiliary context variables, and one with fixed ConvLSTM."
+            ),
+        ),
+    ]
+
+    for target, paper_text in cases:
+        bundle = {
+            "issue_type": "missing_ablation",
+            "missing_or_mismatch": {"entity": target, "items": [target]},
+            "claim_anchor": {"quote": "Claim anchor."},
+            "source_of_expectation": "reviewer_candidate",
+        }
+
+        assert (
+            review_state_mod._review_issue_full_text_counterevidence_reason(
+                bundle,
+                {"paper_text": paper_text},
+                neg_type="missing_ablation",
+            )
+            == "full_text_ablation_counterevidence"
+        )
 
 
 def test_component_ablation_seed_targets_skip_fragments_and_existing_ablation():

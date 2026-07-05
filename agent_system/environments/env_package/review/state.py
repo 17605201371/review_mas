@@ -2095,6 +2095,14 @@ def _missing_ablation_target_is_malformed_fragment(target: str) -> bool:
         return True
     if re.match(r"^(?:examine|examines|examining|investigate|investigates|stud(?:y|ies|ying)|analy[sz]e|analy[sz]es)\b", lowered):
         return True
+    if re.match(r"^(?:ensure|ensures|ensuring)\b", lowered):
+        return True
+    if re.match(r"^(?:from|in|on|for)\s+\S+", lowered) and re.search(
+        r"\b(?:improves?|improving|results?|resulting|allows?|allowing|enables?|enabling|"
+        r"ensures?|ensuring|learned|representation)\b",
+        lowered,
+    ):
+        return True
     if re.fullmatch(r"(?:[a-z]{0,4}ional|[a-z]{0,4}al)\s+(?:branch|module|component|head)", lowered):
         return True
     if re.match(r"^(?:by|from|with|to)\s+(?:its|their|the|a|an|our)\b", lowered):
@@ -2235,6 +2243,16 @@ def _missing_ablation_target_quality(bundle: Dict[str, Any]) -> Dict[str, str]:
         lowered,
     ):
         return {"quality": "reject", "reason": "missing_ablation_target_malformed_or_abstract"}
+    if re.match(r"^(?:in|of|for)\s+(?:the\s+)?causal\s+representation\b", lowered):
+        return {"quality": "reject", "reason": "missing_ablation_target_malformed_or_abstract"}
+    if re.search(r"\bglide\b", lowered) and re.search(
+        r"\b(?:docking|target\s+pockets?|schrodinger|software\s+package|rocs|evaluate|evaluation)\b",
+        context,
+        re.IGNORECASE,
+    ):
+        return {"quality": "reject", "reason": "missing_ablation_target_evaluation_tool"}
+    if re.search(r"\bpockets?\s+with\s+(?:the\s+)?[a-z0-9_-]+\s+module\b", lowered):
+        return {"quality": "reject", "reason": "missing_ablation_target_evaluation_tool"}
     if re.match(r"^including\s+", lowered):
         return {"quality": "reject", "reason": "missing_ablation_target_prose_fragment"}
     if re.fullmatch(r"performance\s+of\s+(?:the\s+)?(?:neural\s+)?network", lowered):
@@ -11163,14 +11181,84 @@ def _review_issue_related_work_only_window(window: str) -> bool:
     )
 
 
-def _baseline_counterevidence_window_resolves_missing(window: str, missing_terms: Sequence[str]) -> bool:
+def _baseline_primary_counterevidence_terms(
+    missing_items: Sequence[str],
+    missing_terms: Sequence[str],
+) -> set[str]:
+    """Prefer the named missing baseline over task/dataset context tokens."""
+
+    primary: set[str] = set()
+    all_terms = {str(term or "").strip().lower() for term in missing_terms or [] if str(term or "").strip()}
+    for raw_item in missing_items or []:
+        item = _normalize_text(raw_item, max_length=180)
+        if not item:
+            continue
+        for list_match in re.finditer(
+            r"\b(?:like|such\s+as|including|e\.g\.,?)\s+(.{2,120})",
+            str(raw_item or ""),
+            re.IGNORECASE,
+        ):
+            primary.update(_specific_surface_tokens(list_match.group(1)))
+        named_match = re.search(
+            r"\bpaper[- ]named\s+(?P<target>[A-Za-z0-9][A-Za-z0-9_+\-/ ]{1,80}?)\s+"
+            r"(?:baseline|baselines|competitor|competitors|method|methods|model|models)\b",
+            item,
+            re.IGNORECASE,
+        )
+        if named_match:
+            target = named_match.group("target")
+            primary.update(_specific_surface_tokens(target) | _absence_target_tokens(target))
+            continue
+        baseline_match = re.search(
+            r"(?P<prefix>.{0,90})\b(?:baseline|baselines|competitor|competitors|method|methods|model|models)\b",
+            item,
+            re.IGNORECASE,
+        )
+        if baseline_match:
+            prefix = baseline_match.group("prefix")
+            against_match = re.search(
+                r"\bagainst\s+(?P<target>[A-Za-z0-9][A-Za-z0-9_+\-/ ]{1,80})$",
+                prefix,
+                re.IGNORECASE,
+            )
+            target = against_match.group("target") if against_match else prefix
+            target = re.sub(
+                r"\b(?:same[- ]setting|same[- ]budget|paper[- ]named|named|speciali[sz]ed|"
+                r"specific|strong|stronger|other|heterogeneous|fair|fairness|comparison|"
+                r"comparisons|against|versus|vs)\b",
+                " ",
+                target,
+                flags=re.IGNORECASE,
+            )
+            primary.update(_specific_surface_tokens(target))
+            if not _specific_surface_tokens(target):
+                primary.update(_absence_target_tokens(target))
+    primary = {
+        term
+        for term in primary
+        if term
+        and term in all_terms
+        and term not in _BASELINE_COUNTEREVIDENCE_GENERIC_TERMS
+        and not re.fullmatch(r"(?:benchmark|dataset|task|retrieval|instruction)(?:[- ][a-z0-9]+)?", term)
+    }
+    return primary
+
+
+def _baseline_counterevidence_window_resolves_missing(
+    window: str,
+    missing_terms: Sequence[str],
+    missing_items: Sequence[str] = (),
+) -> bool:
     text = str(window or "")
     if not text:
         return False
+    primary_terms = _baseline_primary_counterevidence_terms(missing_items, missing_terms)
     concrete_terms = [
         str(term or "").strip()
         for term in missing_terms or []
-        if len(str(term or "").strip()) >= 3 and str(term or "").strip().lower() not in {"against", "versus"}
+        if len(str(term or "").strip()) >= 3
+        and str(term or "").strip().lower() not in {"against", "versus"}
+        and (not primary_terms or str(term or "").strip().lower() in primary_terms)
     ]
     if not concrete_terms:
         return False
@@ -11205,7 +11293,17 @@ def _baseline_counterevidence_window_resolves_missing(window: str, missing_terms
                     re.search(r"(?:^|[&\s])(?:\d{1,3}(?:\.\d+)?|\\textbf\{?\d)", local)
                     and re.search(r"&|\\\\|\\midrule|\\multirow|\\textbf", local)
                 )
-                if not (_REVIEW_ISSUE_FULL_TEXT_EVAL_RE.search(local) or baseline_list_context or table_row_context):
+                local_experimental_context = bool(
+                    re.search(
+                        r"\b(?:table|tab\.?|results?|evaluation|experiment|experiments|"
+                        r"compared|compare|comparison|outperform|outperforms|accuracy|"
+                        r"miou|f1|auc|mae|score|scores|metric|metrics|performance\s+on|"
+                        r"we\s+compared|existing\s+baselines)\b",
+                        local,
+                        re.IGNORECASE,
+                    )
+                )
+                if not (local_experimental_context or baseline_list_context or table_row_context):
                     continue
                 if baseline_list_context or table_row_context:
                     return True
@@ -11215,7 +11313,40 @@ def _baseline_counterevidence_window_resolves_missing(window: str, missing_terms
                     local,
                     re.IGNORECASE,
                 ):
-                    continue
+                    broader = text[max(0, match.start() - 360) : min(len(text), match.end() + 560)]
+                    if _review_issue_related_work_only_window(broader):
+                        continue
+                    broader_baseline_list = bool(
+                        re.search(
+                            r"\bbaseline\s+methods?\s+include\b|\bbaselines?\s+include\b|"
+                            r"\bexisting\s+baselines\b",
+                            broader,
+                            re.IGNORECASE,
+                        )
+                    )
+                    broader_table_context = bool(
+                        re.search(r"\\caption\{[^}]{0,360}\b(?:baseline|comparison|results?)\b", broader, re.IGNORECASE)
+                        or (
+                            re.search(r"(?:^|[&\s])(?:\d{1,3}(?:\.\d+)?|\\textbf\{?\d)", broader)
+                            and re.search(r"&|\\\\|\\midrule|\\multirow|\\textbf", broader)
+                        )
+                    )
+                    broader_comparison_context = bool(
+                        re.search(
+                            r"\b(?:we\s+)?compare[sd]?\s+(?:our\s+)?(?:model|method|approach)?\s*"
+                            r"(?:to|with|against)\b.{0,260}\b(?:baseline|baselines|methods?|models?)\b",
+                            broader,
+                            re.IGNORECASE | re.DOTALL,
+                        )
+                        or re.search(
+                            r"\b(?:following|using)\b.{0,80}\bcompare[sd]?\b.{0,260}"
+                            r"\b(?:baseline|baselines|methods?|models?)\b",
+                            broader,
+                            re.IGNORECASE | re.DOTALL,
+                        )
+                    )
+                    if not (broader_baseline_list or broader_table_context or broader_comparison_context):
+                        continue
                 return True
     return False
 
@@ -11248,6 +11379,7 @@ _BASELINE_COUNTEREVIDENCE_GENERIC_TERMS = frozenset(
         "recent",
         "competitive",
         "named",
+        "paper-named",
         "fair",
         "fairness",
         "fl",
@@ -11565,6 +11697,20 @@ def _ablation_counterevidence_window_resolves_semantic_table(window: str, missin
     if not text or not missing:
         return False
     has_ablation = bool(_ABLATION_COUNTEREVIDENCE_RE.search(text) or _REVIEW_ISSUE_ABLATION_RESOLUTION_RE.search(text))
+    if (
+        re.search(r"\bcausal\s+representation\b", missing)
+        and re.search(r"\bcompar(?:e|ed|ing)\b.{0,120}\btcmt\b.{0,120}\b(?:simpler\s+models?|non[- ]causal)\b", text)
+        and re.search(r"\bnon[- ]causal\b", text)
+        and re.search(r"\bnon[- ]temporal\b|\bwithout\s+auxiliary\b|\bfixed\s+convlstm\b", text)
+    ):
+        return True
+    if (
+        re.search(r"\bnoise\s+regulari[sz]ation\b|\bnr[- ]?dcca\b", missing)
+        and re.search(r"\bnr[- ]?dcca\b", text)
+        and re.search(r"\bdcca\b", text)
+        and re.search(r"\b(?:baseline|baselines|compared?|comparison|methods?|performance|stability|collapse)\b", text)
+    ):
+        return True
     if not has_ablation:
         return False
 
@@ -11574,6 +11720,14 @@ def _ablation_counterevidence_window_resolves_semantic_table(window: str, missin
         and re.search(r"\bpre[- ]?training\s+strateg(?:y|ies|ies)\b", text)
         and re.search(r"\boccupancy\s+prediction\s+task\b|\boccupancy\s+prediction\b.{0,120}\beffectiveness\b", text)
         and re.search(r"\btab(?:le)?\.?\s*\d+|\bresults?\s+(?:presented\s+)?in\s+tab", text)
+    ):
+        return True
+
+    if (
+        re.search(r"\bunified\b.{0,40}\b3d\b.{0,40}\bscene\b.{0,40}\brepresentation\b", missing)
+        and re.search(r"\bpre[- ]?training\s+strateg(?:y|ies)\b", text)
+        and re.search(r"\boccupancy\s+prediction\s+task\b|\bsemantic\s+occupancy\s+prediction\b", text)
+        and re.search(r"\bablation\s+stud(?:y|ies)\b|\bmodule[- ]level\s+ablation\b", text)
     ):
         return True
 
@@ -12095,7 +12249,12 @@ def _review_issue_full_text_counterevidence_reason(
         if _ablation_missing_items_have_scope(missing_items):
             return ""
         for window in windows:
+            if _ablation_counterevidence_window_resolves_semantic_table(window, missing_items):
+                return "full_text_ablation_counterevidence"
             if _ABLATION_COUNTEREVIDENCE_RE.search(window) and _ablation_missing_items_resolved_by_text(window, missing_items):
+                return "full_text_ablation_counterevidence"
+        for window in _review_issue_full_text_structural_windows(body, neg_type):
+            if _ablation_counterevidence_window_resolves_semantic_table(window, missing_items):
                 return "full_text_ablation_counterevidence"
         return ""
 
@@ -12122,11 +12281,15 @@ def _review_issue_full_text_counterevidence_reason(
                 )
             ):
                 return "full_text_baseline_or_comparison_counterevidence"
-            if _REVIEW_ISSUE_FULL_TEXT_EVAL_RE.search(window) and re.search(
-                r"\b(?:baseline|baselines|comparison|compared|compare|table|result|results|evaluation|experiment)\b",
-                window,
-                re.I,
-            ) and _baseline_counterevidence_window_resolves_missing(window, missing_baseline_terms):
+            if _baseline_counterevidence_window_resolves_missing(window, missing_baseline_terms, missing_items):
+                return "full_text_baseline_or_comparison_counterevidence"
+        for window in _review_issue_full_text_structural_windows(
+            body,
+            neg_type,
+            max_windows=80,
+            max_matches_per_pattern=80,
+        ):
+            if _baseline_counterevidence_window_resolves_missing(window, missing_baseline_terms, missing_items):
                 return "full_text_baseline_or_comparison_counterevidence"
         return ""
 

@@ -1,16 +1,18 @@
 {
   "input": "mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok2048_20260705_205654.jsonl",
   "summary": {
-    "bucket::verified_review_issue_repair": 16,
+    "bucket::effective_repair_without_verified_negative": 11,
     "operation::mark_contested": 16,
     "effective_repair_turns": 16,
     "effective_repair_not_verified_negative_repair": 16,
-    "turns_with_verified_review_issue_bundle_evidence": 16,
-    "evidence_bucket::obligation_grounded_review_issue": 17,
+    "evidence_bucket::stale_reviewer_absence_audit": 12,
     "bucket::committed_not_effective": 3,
     "operation::record_diagnosis_pending_concern": 3,
     "bucket::attempted_not_committed": 12,
     "operation::reject_patch": 11,
+    "bucket::verified_review_issue_repair": 5,
+    "turns_with_verified_review_issue_bundle_evidence": 5,
+    "evidence_bucket::obligation_grounded_review_issue": 5,
     "turns_with_verified_review_negative_evidence": 1,
     "evidence_bucket::verified_review_negative": 1,
     "evidence_bucket::support_only": 1,
@@ -21,7 +23,7 @@
     {
       "paper_id": "ye3NrNrYOY",
       "turn_id": 4,
-      "narrative_bucket": "verified_review_issue_repair",
+      "narrative_bucket": "effective_repair_without_verified_negative",
       "recovery_layer": "hygiene_delta_improved",
       "effective_repair": true,
       "committed": true,
@@ -36,17 +38,17 @@
         "evidence-reviewer-absence-claim-2-ablation-or-component-mi"
       ],
       "evidence_buckets": {
-        "obligation_grounded_review_issue": 1
+        "stale_reviewer_absence_audit": 1
       },
       "evidence": [
         {
           "evidence_id": "evidence-reviewer-absence-claim-2-ablation-or-component-mi",
-          "bucket": "obligation_grounded_review_issue",
+          "bucket": "stale_reviewer_absence_audit",
           "negative_type": "missing_ablation",
-          "review_negative_label": "review_negative_absence_audit_verified",
+          "review_negative_label": "",
           "trusted_grounding": false,
-          "locator": "Conclusion / Discussion excerpt #1",
-          "raw_quote": "missing/mismatch: in causal representation; observed inventory: \\section{5 CONCLUSION } We propose Temporal Causal Mechanism Transfer (TCMT) for few-shot action recognition, which relies on variational inference..."
+          "locator": "claim-evidence coverage audit",
+          "raw_quote": "Verified review issue bundle: the paper claim and observed inventory support a missing ablation concern; missing/mismatch item(s): in causal representation. Target claim: 'During adaptation, the model treats certain t..."
         }
       ]
     },
@@ -107,7 +109,7 @@
     {
       "paper_id": "9zEBK3E9bX",
       "turn_id": 4,
-      "narrative_bucket": "verified_review_issue_repair",
+      "narrative_bucket": "effective_repair_without_verified_negative",
       "recovery_layer": "hygiene_delta_improved",
       "effective_repair": true,
       "committed": true,
@@ -122,17 +124,17 @@
         "evidence-reviewer-absence-claim-1-ablation-or-component-mi"
       ],
       "evidence_buckets": {
-        "obligation_grounded_review_issue": 1
+        "stale_reviewer_absence_audit": 1
       },
       "evidence": [
         {
           "evidence_id": "evidence-reviewer-absence-claim-1-ablation-or-component-mi",
-          "bucket": "obligation_grounded_review_issue",
+          "bucket": "stale_reviewer_absence_audit",
           "negative_type": "missing_ablation",
-          "review_negative_label": "review_negative_absence_audit_verified",
+          "review_negative_label": "",
           "trusted_grounding": false,
-          "locator": "paper component inventory #1",
-          "raw_quote": "missing/mismatch: unified 3D scene representation; observed inventory: In this paper, SPOT is proposed to use 3D semantic occupancy prediction to learn a unified 3D scene"
+          "locator": "claim-evidence coverage audit",
+          "raw_quote": "Verified review issue bundle: the paper claim and observed inventory support a missing ablation concern; missing/mismatch item(s): unified 3D scene representation. Target claim: 'The paper proposes SPOT, a scalable pr..."
         }
       ]
     },
@@ -157,7 +159,7 @@
     {
       "paper_id": "GE6iywJtsV",
       "turn_id": 6,
-      "narrative_bucket": "verified_review_issue_repair",
+      "narrative_bucket": "effective_repair_without_verified_negative",
       "recovery_layer": "hygiene_delta_improved",
       "effective_repair": true,
       "committed": true,
@@ -172,24 +174,24 @@
         "evidence-reviewer-absence-claim-1-ablation-or-component-mi"
       ],
       "evidence_buckets": {
-        "obligation_grounded_review_issue": 1
+        "stale_reviewer_absence_audit": 1
       },
       "evidence": [
         {
           "evidence_id": "evidence-reviewer-absence-claim-1-ablation-or-component-mi",
-          "bucket": "obligation_grounded_review_issue",
+          "bucket": "stale_reviewer_absence_audit",
           "negative_type": "missing_ablation",
-          "review_negative_label": "review_negative_absence_audit_verified",
+          "review_negative_label": "",
           "trusted_grounding": false,
-          "locator": "paper component inventory #1",
-          "raw_quote": "missing/mismatch: pockets with the GLIDE module; observed inventory: tions and templates, while the 3D shape similarity was calculated with the ROCS software of OE Toolkit package in default settings.30(Grant et al.,..."
+          "locator": "claim-evidence coverage audit",
+          "raw_quote": "Verified review issue bundle: the paper claim and observed inventory support a missing ablation concern; missing/mismatch item(s): pockets with the GLIDE module. Target claim: 'The paper introduces a Graph ControllNet..."
         }
       ]
     },
     {
       "paper_id": "GE6iywJtsV",
       "turn_id": 7,
-      "narrative_bucket": "verified_review_issue_repair",
+      "narrative_bucket": "effective_repair_without_verified_negative",
       "recovery_layer": "hygiene_delta_improved",
       "effective_repair": true,
       "committed": true,
@@ -204,24 +206,24 @@
         "evidence-reviewer-absence-claim-1-ablation-or-component-mi"
       ],
       "evidence_buckets": {
-        "obligation_grounded_review_issue": 1
+        "stale_reviewer_absence_audit": 1
       },
       "evidence": [
         {
           "evidence_id": "evidence-reviewer-absence-claim-1-ablation-or-component-mi",
-          "bucket": "obligation_grounded_review_issue",
+          "bucket": "stale_reviewer_absence_audit",
           "negative_type": "missing_ablation",
-          "review_negative_label": "review_negative_absence_audit_verified",
+          "review_negative_label": "",
           "trusted_grounding": false,
-          "locator": "paper component inventory #1",
-          "raw_quote": "missing/mismatch: pockets with the GLIDE module; observed inventory: tions and templates, while the 3D shape similarity was calculated with the ROCS software of OE Toolkit package in default settings.30(Grant et al.,..."
+          "locator": "claim-evidence coverage audit",
+          "raw_quote": "Verified review issue bundle: the paper claim and observed inventory support a missing ablation concern; missing/mismatch item(s): pockets with the GLIDE module. Target claim: 'The paper introduces a Graph ControllNet..."
         }
       ]
     },
     {
       "paper_id": "WpXq5n8yLb",
       "turn_id": 4,
-      "narrative_bucket": "verified_review_issue_repair",
+      "narrative_bucket": "effective_repair_without_verified_negative",
       "recovery_layer": "hygiene_delta_improved",
       "effective_repair": true,
       "committed": true,
@@ -236,24 +238,24 @@
         "evidence-reviewer-absence-claim-1-ablation-or-component-mi"
       ],
       "evidence_buckets": {
-        "obligation_grounded_review_issue": 1
+        "stale_reviewer_absence_audit": 1
       },
       "evidence": [
         {
           "evidence_id": "evidence-reviewer-absence-claim-1-ablation-or-component-mi",
-          "bucket": "obligation_grounded_review_issue",
+          "bucket": "stale_reviewer_absence_audit",
           "negative_type": "missing_ablation",
-          "review_negative_label": "review_negative_absence_audit_verified",
+          "review_negative_label": "",
           "trusted_grounding": false,
-          "locator": "paper component inventory #1",
-          "raw_quote": "missing/mismatch: from LLMs improves the alignment; observed inventory: \\cmnt{This approach is taken because LLM occasionally produces unreasonable predictions in long sequences.} \\section{Experiment} We conduct experim..."
+          "locator": "claim-evidence coverage audit",
+          "raw_quote": "Verified review issue bundle: the paper claim and observed inventory support a missing ablation concern; missing/mismatch item(s): from LLMs improves the alignment. Target claim: 'ReDrafter leverages a recurrent neura..."
         }
       ]
     },
     {
       "paper_id": "WpXq5n8yLb",
       "turn_id": 5,
-      "narrative_bucket": "verified_review_issue_repair",
+      "narrative_bucket": "effective_repair_without_verified_negative",
       "recovery_layer": "hygiene_delta_improved",
       "effective_repair": true,
       "committed": true,
@@ -268,17 +270,17 @@
         "evidence-reviewer-absence-claim-2-ablation-or-component-mi"
       ],
       "evidence_buckets": {
-        "obligation_grounded_review_issue": 1
+        "stale_reviewer_absence_audit": 1
       },
       "evidence": [
         {
           "evidence_id": "evidence-reviewer-absence-claim-2-ablation-or-component-mi",
-          "bucket": "obligation_grounded_review_issue",
+          "bucket": "stale_reviewer_absence_audit",
           "negative_type": "missing_ablation",
-          "review_negative_label": "review_negative_absence_audit_verified",
+          "review_negative_label": "",
           "trusted_grounding": false,
-          "locator": "paper component inventory #1",
-          "raw_quote": "missing/mismatch: component-isolation ablation for from LLMs improves the alignment; observed inventory: \\cmnt{This approach is taken because LLM occasionally produces unreasonable predictions in long sequences.} \\section{Experiment} We conduct experim..."
+          "locator": "claim-evidence coverage audit",
+          "raw_quote": "Verified review issue bundle: the paper claim and observed inventory support a missing ablation concern; missing/mismatch item(s): component-isolation ablation for from LLMs improves the alignment. Target claim: 'ReDr..."
         }
       ]
     },
@@ -525,7 +527,7 @@
     {
       "paper_id": "QAgwFiIY4p",
       "turn_id": 7,
-      "narrative_bucket": "verified_review_issue_repair",
+      "narrative_bucket": "effective_repair_without_verified_negative",
       "recovery_layer": "hygiene_delta_improved",
       "effective_repair": true,
       "committed": true,
@@ -540,24 +542,24 @@
         "evidence-reviewer-absence-claim-2-baseline-or-comparison-m"
       ],
       "evidence_buckets": {
-        "obligation_grounded_review_issue": 1
+        "stale_reviewer_absence_audit": 1
       },
       "evidence": [
         {
           "evidence_id": "evidence-reviewer-absence-claim-2-baseline-or-comparison-m",
-          "bucket": "obligation_grounded_review_issue",
+          "bucket": "stale_reviewer_absence_audit",
           "negative_type": "missing_baseline",
-          "review_negative_label": "review_negative_absence_audit_verified",
+          "review_negative_label": "",
           "trusted_grounding": false,
-          "locator": "Section: Long Range Graph Benchmark",
-          "raw_quote": "missing/mismatch: same-setting comparison against paper-named Graphormer baseline; observed inventory: PST outperforms all baselines on the PascalVOC-SP and Peptides-Func datasets and achieves the third-highest performance on the Peptides-Struct data..."
+          "locator": "claim-evidence coverage audit",
+          "raw_quote": "Verified review issue bundle: the paper claim and observed inventory support a missing baseline concern; missing/mismatch item(s): same-setting comparison against paper-named Graphormer baseline. Target claim: 'PST (P..."
         }
       ]
     },
     {
       "paper_id": "TPAj63ax4Y",
       "turn_id": 4,
-      "narrative_bucket": "verified_review_issue_repair",
+      "narrative_bucket": "effective_repair_without_verified_negative",
       "recovery_layer": "hygiene_delta_improved",
       "effective_repair": true,
       "committed": true,
@@ -572,24 +574,24 @@
         "evidence-reviewer-absence-claim-3-baseline-or-comparison-m"
       ],
       "evidence_buckets": {
-        "obligation_grounded_review_issue": 1
+        "stale_reviewer_absence_audit": 1
       },
       "evidence": [
         {
           "evidence_id": "evidence-reviewer-absence-claim-3-baseline-or-comparison-m",
-          "bucket": "obligation_grounded_review_issue",
+          "bucket": "stale_reviewer_absence_audit",
           "negative_type": "missing_baseline",
-          "review_negative_label": "review_negative_absence_audit_verified",
+          "review_negative_label": "",
           "trusted_grounding": false,
-          "locator": "paper inventory #1",
-          "raw_quote": "missing/mismatch: same-setting comparison against paper-named CLIP baseline; observed inventory: However, while collecting referred annotation masks is a time-consuming process, the few existing weakly-supervised and zero-shot approaches fall s..."
+          "locator": "claim-evidence coverage audit",
+          "raw_quote": "Verified review issue bundle: the paper claim and observed inventory support a missing baseline concern; missing/mismatch item(s): same-setting comparison against paper-named CLIP baseline. Target claim: 'The proposed..."
         }
       ]
     },
     {
       "paper_id": "mHv6wcBb0z",
       "turn_id": 4,
-      "narrative_bucket": "verified_review_issue_repair",
+      "narrative_bucket": "effective_repair_without_verified_negative",
       "recovery_layer": "hygiene_delta_improved",
       "effective_repair": true,
       "committed": true,
@@ -605,33 +607,33 @@
         "evidence-reviewer-absence-claim-2-baseline-or-comparison-m"
       ],
       "evidence_buckets": {
-        "obligation_grounded_review_issue": 2
+        "stale_reviewer_absence_audit": 2
       },
       "evidence": [
         {
           "evidence_id": "evidence-reviewer-absence-claim-2-ablation-or-component-mi",
-          "bucket": "obligation_grounded_review_issue",
+          "bucket": "stale_reviewer_absence_audit",
           "negative_type": "missing_ablation",
-          "review_negative_label": "review_negative_absence_audit_verified",
+          "review_negative_label": "",
           "trusted_grounding": false,
-          "locator": "Section 3.2",
-          "raw_quote": "missing/mismatch: ablation isolating proposed Noise Regularization module; observed inventory: parentheses next to the dataset name.} \\label{fig: real_world_cca} \\end{figure} \\section{Conclusions} We propose a novel noise regularization appro..."
+          "locator": "claim-evidence coverage audit",
+          "raw_quote": "Verified review issue bundle: the paper claim and observed inventory support a missing ablation concern; missing/mismatch item(s): ablation isolating proposed Noise Regularization module. Target claim: 'The proposed N..."
         },
         {
           "evidence_id": "evidence-reviewer-absence-claim-2-baseline-or-comparison-m",
-          "bucket": "obligation_grounded_review_issue",
+          "bucket": "stale_reviewer_absence_audit",
           "negative_type": "missing_baseline",
-          "review_negative_label": "review_negative_absence_audit_verified",
+          "review_negative_label": "",
           "trusted_grounding": false,
-          "locator": "paper inventory #1",
-          "raw_quote": "missing/mismatch: same-setting comparison against paper-named MVTCAE baseline; observed inventory: Deep Canonical Correlation Analysis (DCCA) and its variants share simple formulations and demonstrate state-of-the-art performance."
+          "locator": "claim-evidence coverage audit",
+          "raw_quote": "Verified review issue bundle: the paper claim and observed inventory support a missing baseline concern; missing/mismatch item(s): same-setting comparison against paper-named MVTCAE baseline. Target claim: 'The propos..."
         }
       ]
     },
     {
       "paper_id": "mHv6wcBb0z",
       "turn_id": 5,
-      "narrative_bucket": "verified_review_issue_repair",
+      "narrative_bucket": "effective_repair_without_verified_negative",
       "recovery_layer": "hygiene_delta_improved",
       "effective_repair": true,
       "committed": true,
@@ -646,24 +648,24 @@
         "evidence-reviewer-absence-claim-4-ablation-or-component-mi"
       ],
       "evidence_buckets": {
-        "obligation_grounded_review_issue": 1
+        "stale_reviewer_absence_audit": 1
       },
       "evidence": [
         {
           "evidence_id": "evidence-reviewer-absence-claim-4-ablation-or-component-mi",
-          "bucket": "obligation_grounded_review_issue",
+          "bucket": "stale_reviewer_absence_audit",
           "negative_type": "missing_ablation",
-          "review_negative_label": "review_negative_absence_audit_verified",
+          "review_negative_label": "",
           "trusted_grounding": false,
-          "locator": "Section 3",
-          "raw_quote": "missing/mismatch: component-isolation ablation for Noise Regularization; observed inventory: obtained directly using $\\{f_k^*\\}_k$ in the same manner as DCCA. \\subsection{Theoretical Analysis} In this section, we provide the rationale for w..."
+          "locator": "claim-evidence coverage audit",
+          "raw_quote": "Verified review issue bundle: the paper claim and observed inventory support a missing ablation concern; missing/mismatch item(s): component-isolation ablation for Noise Regularization. Target claim: 'The NR-DCCA meth..."
         }
       ]
     },
     {
       "paper_id": "mHv6wcBb0z",
       "turn_id": 6,
-      "narrative_bucket": "verified_review_issue_repair",
+      "narrative_bucket": "effective_repair_without_verified_negative",
       "recovery_layer": "hygiene_delta_improved",
       "effective_repair": true,
       "committed": true,
@@ -678,17 +680,17 @@
         "evidence-reviewer-absence-claim-1-baseline-or-comparison-m"
       ],
       "evidence_buckets": {
-        "obligation_grounded_review_issue": 1
+        "stale_reviewer_absence_audit": 1
       },
       "evidence": [
         {
           "evidence_id": "evidence-reviewer-absence-claim-1-baseline-or-comparison-m",
-          "bucket": "obligation_grounded_review_issue",
+          "bucket": "stale_reviewer_absence_audit",
           "negative_type": "missing_baseline",
-          "review_negative_label": "review_negative_absence_audit_verified",
+          "review_negative_label": "",
           "trusted_grounding": false,
-          "locator": "paper inventory #1",
-          "raw_quote": "missing/mismatch: same-setting comparison against paper-named MVTCAE baseline; observed inventory: Deep Canonical Correlation Analysis (DCCA) and its variants share simple formulations and demonstrate state-of-the-art performance."
+          "locator": "claim-evidence coverage audit",
+          "raw_quote": "Verified review issue bundle: the paper claim and observed inventory support a missing baseline concern; missing/mismatch item(s): same-setting comparison against paper-named MVTCAE baseline. Target claim: 'Deep Canon..."
         }
       ]
     },

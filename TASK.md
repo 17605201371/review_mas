@@ -1830,3 +1830,70 @@ Interpretation:
   regressions.  This is still only a 5-paper checkpoint.  Next step is a fresh
   hardneg20 before claiming Stage 2/3 stability or moving toward full39/P32.
 ```
+
+P31.6 hardneg20 precision/manual audit checkpoint (20260705):
+
+```text
+Completed in this step:
+  - Manually audited the first hardneg20 P31.6 review-issue template and found
+    it was not paper-ready: 15 machine clusters contained 9 manual D clusters.
+  - Tightened ReviewState precision instead of relaxing gates:
+      * malformed missing-ablation fragments are rejected;
+      * GLIDE / target-pocket evaluation-tool targets are rejected;
+      * paper-named baseline counterevidence now catches list/table/caption
+        comparisons and high-frequency targets such as CLIP;
+      * semantic ablation counterevidence catches SPOT occupancy/pre-training,
+        NR-DCCA vs DCCA, and TCMT causal-representation comparison patterns.
+  - Recomputed artifacts from the same fresh hardneg20 raw run after the fix.
+  - Filled and validated the new 6-cluster manual audit.
+
+Run:
+  raw = mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok2048_20260705_205654.jsonl
+  label = P31_6_FRESH_20260705_205654
+  rows = 20
+  manual audit = P31_6_FRESH_20260705_205654_MANUAL_AUDIT.json
+  manual validation = P31_6_FRESH_20260705_205654_MANUAL_AUDIT_VALIDATION.json
+
+Final gate:
+  machine gate = PASS
+  manual gate = PASS
+  P31.6 ready = True
+  critique_direct_verified_cluster_count = 6
+  candidate_menu_item_verified_count = 6
+  case_table_critique_origin_cluster_count = 5
+  manual_A_clusters = 2
+  manual_B_clusters = 4
+  manual_D_clusters = 0
+  critique_origin_manual_A_B_clusters = 5
+  state_contamination_count = 0
+  positive_or_neutral_negative_candidate_count = 0
+  negative_evidence_unlinked_to_flaw = 0
+  negative_grounding_conflict_count = 0
+
+Manual labels:
+  A:
+    XH3OiIhtvf / secure aggregator negative result
+    fGXyvmWpw6 / efficiency_resource_measurement
+  B:
+    HPuLU6q7xq / paper-named_gpt-4_baseline
+    NnExMNiTHw / acceptance_prediction_head
+    YXn76HMetm / equalal_baseline
+    a6SntIisgg / global_encoder
+
+Validation already run:
+  new verifier precision regressions = 4 passed
+  focused hygiene/gate suite = 20 passed
+  runner selector/discovery focused suite = 25 passed
+  py_compile changed modules/scripts = PASS
+
+Next:
+  1. Run the broader focused suite before commit:
+       tests/test_review_decision_hygiene.py
+       tests/test_review_inference_runner.py
+       tests/test_p31_6_gate_scripts.py
+  2. Commit only the relevant code, tests, docs, and P31_6_FRESH_20260705_205654
+     artifacts; do not stage .DS_Store, AGENTS.md, old P31_* scratch artifacts,
+     or stale sample JSONL files.
+  3. Treat P31.6 as hardneg20-ready for P32 review, not as full39 stability.
+     Carry manual wording caveats into the paper narrative.
+```

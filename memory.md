@@ -4289,3 +4289,62 @@ P31.29/P31.30 bridge-guard sample checkpoint (20260705):
   - Do not claim hardneg20/full39 stability yet.  Next real step is fresh
     hardneg20 with the same guard, followed by manual audit of Critique-origin
     clusters.  Do not relax verifier/validator gates.
+
+P31.6 hardneg20 precision/manual-audit checkpoint (20260705):
+
+- Fresh hardneg20 run:
+  - run =
+    `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok2048_20260705_205654`
+  - rows = 20
+  - env = `DRMAS_JSON_RESPONSE_FORMAT=on`, `max_tokens=2048`
+- First manual audit of the pre-filter 15-cluster template found a real
+  precision problem:
+  - manual A/B clusters = 6
+  - manual D clusters = 9
+  - false positives included already-covered paper-named baselines, malformed
+    missing-ablation fragments, evaluation-tool targets, and semantic ablation
+    counterevidence that the verifier was not catching.
+- Fixes added in `ReviewState` verifier hygiene:
+  - reject malformed missing-ablation targets such as `ensure ...`,
+    preposition fragments, `in causal representation`, and evaluation-tool
+    targets such as GLIDE/target-pocket checks;
+  - strengthen full-text baseline counterevidence for named baseline lists,
+    table/caption rows, and high-frequency targets such as CLIP;
+  - add semantic ablation counterevidence for SPOT-style pre-training/occupancy
+    ablations, NR-DCCA vs DCCA comparisons, and TCMT causal-representation
+    component comparisons;
+  - keep the verifier strict: this filters false positives and does not relax
+    verified-negative gates.
+- After recomputing artifacts from the same raw run:
+  - machine gate = PASS
+  - manual gate = PASS
+  - `P31.6 ready = True`
+  - `critique_direct_verified_cluster_count = 6`
+  - `candidate_menu_item_verified_count = 6`
+  - `case_table_critique_origin_cluster_count = 5`
+  - `manual_A_clusters = 2`
+  - `manual_B_clusters = 4`
+  - `manual_D_clusters = 0`
+  - `critique_origin_manual_A_B_clusters = 5`
+  - `state_contamination_count = 0`
+  - `positive_or_neutral_negative_candidate_count = 0`
+  - `negative_evidence_unlinked_to_flaw = 0`
+  - `negative_grounding_conflict_count = 0`
+- Manual audit files:
+  - `P31_6_FRESH_20260705_205654_MANUAL_AUDIT.json`
+  - `P31_6_FRESH_20260705_205654_MANUAL_AUDIT_VALIDATION.json`
+  - labels: XH secure aggregator negative result = A; fGX efficiency resource
+    measurement = A; HP GPT-4 baseline = B; Nn acceptance prediction head = B;
+    YX EqualAL baseline = B; a6 Global Encoder = B.
+- Validation:
+  - new verifier precision regressions = 4 passed
+  - focused hygiene/gate suite = 20 passed
+  - runner selector/discovery focused suite = 25 passed
+  - `py_compile` for changed modules/scripts = PASS
+- Interpretation:
+  - Stage 2 hardneg20 entry evidence is now credible enough to move toward P32
+    review, with both machine and manual gates passing.
+  - This is not permission to loosen gates or jump to full39.  Next work should
+    carry the manual wording caveats into the P32 narrative, preserve the
+    strict verifier behavior, and only then decide whether a broader run is
+    needed for the paper story.

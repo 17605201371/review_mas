@@ -3,15 +3,15 @@
     "dashboard_json": "P31_6_FRESH_20260705_205654_HARDNEG20_DASHBOARD.json",
     "case_json": "P31_6_FRESH_20260705_205654_REVIEW_ISSUE_CASE_TABLE.json",
     "recovery_json": "P31_6_FRESH_20260705_205654_RECOVERY_CASE_TABLE.json",
-    "manual_audit_validation_json": ""
+    "manual_audit_validation_json": "P31_6_FRESH_20260705_205654_MANUAL_AUDIT_VALIDATION.json"
   },
   "thresholds": {
     "min_critique_clusters": 3,
     "fail_on_red_flags": false,
-    "require_manual_audit": false
+    "require_manual_audit": true
   },
   "machine_gate_status": "PASS",
-  "manual_gate_status": "REQUIRED",
+  "manual_gate_status": "PASS",
   "checks": [
     {
       "name": "dashboard_protection_passed",
@@ -21,50 +21,50 @@
     },
     {
       "name": "critique_direct_verified_cluster_count",
-      "actual": 12,
+      "actual": 6,
       "required": ">= 3",
       "status": "PASS"
     },
     {
       "name": "candidate_menu_item_verified_count",
-      "actual": 12,
+      "actual": 6,
       "required": ">= 2",
       "status": "PASS"
     },
     {
       "name": "case_table_critique_origin_cluster_count",
-      "actual": 11,
+      "actual": 5,
       "required": ">= 3",
       "status": "PASS"
     },
     {
       "name": "case_table_cluster_count_matches_rows_minus_duplicates",
-      "actual": 15,
-      "required": 15,
+      "actual": 6,
+      "required": 6,
       "status": "PASS"
     },
     {
       "name": "dashboard_case_cluster_count_match",
-      "actual": 15,
-      "required": 15,
+      "actual": 6,
+      "required": 6,
       "status": "PASS"
     },
     {
       "name": "dashboard_recomputed_cluster_count_match",
-      "actual": 15,
-      "required": 15,
+      "actual": 6,
+      "required": 6,
       "status": "PASS"
     },
     {
       "name": "dashboard_quote_merged_cluster_count_not_above_system",
-      "actual": 15,
-      "required": "<= 15",
+      "actual": 6,
+      "required": "<= 6",
       "status": "PASS"
     },
     {
       "name": "dashboard_origin_cluster_counts_sum",
-      "actual": 15,
-      "required": 15,
+      "actual": 6,
+      "required": 6,
       "status": "PASS"
     },
     {
@@ -84,83 +84,47 @@
       "actual": 0,
       "required": 0,
       "status": "PASS"
+    },
+    {
+      "name": "manual_audit_status",
+      "actual": "PASS",
+      "required": "PASS",
+      "status": "PASS"
+    },
+    {
+      "name": "manual_critique_origin_A_B_clusters",
+      "actual": 5,
+      "required": ">= 3",
+      "status": "PASS"
+    },
+    {
+      "name": "manual_D_clusters",
+      "actual": 0,
+      "required": 0,
+      "status": "PASS"
+    },
+    {
+      "name": "manual_unfilled_clusters",
+      "actual": 0,
+      "required": 0,
+      "status": "PASS"
     }
   ],
   "blocking_issues": [],
   "headline_metrics": {
-    "verified_review_issue_count": 24,
-    "verified_review_issue_cluster_recomputed_count": 15,
-    "quote_duplicate_merged_verified_review_issue_cluster_count": 15,
-    "critique_payload_verified_cluster_count": 12,
-    "critique_direct_verified_cluster_count": 12,
+    "verified_review_issue_count": 10,
+    "verified_review_issue_cluster_recomputed_count": 6,
+    "quote_duplicate_merged_verified_review_issue_cluster_count": 6,
+    "critique_payload_verified_cluster_count": 6,
+    "critique_direct_verified_cluster_count": 6,
     "critique_selected_existing_seed_cluster_count": 0,
-    "verified_review_issue_cluster_origin_critique_payload_count": 9,
+    "verified_review_issue_cluster_origin_critique_payload_count": 4,
     "mark_contested_commit_count": 16,
-    "verified_issue_cluster_without_recovery_count": 3,
-    "candidate_menu_item_verified_count": 12,
-    "candidate_menu_item_failed_count": 2
+    "verified_issue_cluster_without_recovery_count": 2,
+    "candidate_menu_item_verified_count": 6,
+    "candidate_menu_item_failed_count": 8
   },
   "critique_selected_verified_cluster_details": [
-    {
-      "paper_id": "ye3NrNrYOY",
-      "claim_id": "claim-2",
-      "issue_type": "missing_ablation",
-      "issue_cluster_key": "missing_ablation|causal_representation",
-      "issue_cluster_target": "causal_representation",
-      "candidate_menu_ids": [
-        "rim-c2-ma-in-causal-representation"
-      ],
-      "candidate_ids": [
-        "review-issue-candidate-selected-menu-1"
-      ],
-      "discovery_origin": "critique_payload_menu_selected",
-      "attribution_mode": "critique_direct_verified_cluster"
-    },
-    {
-      "paper_id": "9zEBK3E9bX",
-      "claim_id": "claim-1",
-      "issue_type": "missing_ablation",
-      "issue_cluster_key": "missing_ablation|unified_scene_representation",
-      "issue_cluster_target": "unified_scene_representation",
-      "candidate_menu_ids": [
-        "rim-c1-ma-unified-3d-scene-representation"
-      ],
-      "candidate_ids": [
-        "review-issue-candidate-selected-menu-1"
-      ],
-      "discovery_origin": "critique_payload_menu_selected",
-      "attribution_mode": "critique_direct_verified_cluster"
-    },
-    {
-      "paper_id": "GE6iywJtsV",
-      "claim_id": "claim-1",
-      "issue_type": "missing_ablation",
-      "issue_cluster_key": "missing_ablation|pockets_with_the_glide_module",
-      "issue_cluster_target": "pockets_with_the_glide_module",
-      "candidate_menu_ids": [
-        "rim-c1-ma-pockets-with-the-glide-module"
-      ],
-      "candidate_ids": [
-        "review-issue-candidate-selected-menu-1"
-      ],
-      "discovery_origin": "critique_payload_menu_selected",
-      "attribution_mode": "critique_direct_verified_cluster"
-    },
-    {
-      "paper_id": "WpXq5n8yLb",
-      "claim_id": "claim-1",
-      "issue_type": "missing_ablation",
-      "issue_cluster_key": "missing_ablation|from_llms_improves_the_alignment",
-      "issue_cluster_target": "from_llms_improves_the_alignment",
-      "candidate_menu_ids": [
-        "rim-c1-ma-from-llms-improves-the-alignment"
-      ],
-      "candidate_ids": [
-        "review-issue-candidate-selected-menu-1"
-      ],
-      "discovery_origin": "critique_payload_menu_selected",
-      "attribution_mode": "critique_direct_verified_cluster"
-    },
     {
       "paper_id": "NnExMNiTHw",
       "claim_id": "claim-2",
@@ -237,36 +201,6 @@
       "attribution_mode": "critique_direct_verified_cluster"
     },
     {
-      "paper_id": "QAgwFiIY4p",
-      "claim_id": "claim-2",
-      "issue_type": "missing_baseline",
-      "issue_cluster_key": "missing_baseline|paper-named_graphormer_baseline",
-      "issue_cluster_target": "paper-named_graphormer_baseline",
-      "candidate_menu_ids": [
-        "rim-c2-mb-same-setting-comparison-against"
-      ],
-      "candidate_ids": [
-        "review-issue-candidate-selected-menu-1"
-      ],
-      "discovery_origin": "critique_payload_menu_selected",
-      "attribution_mode": "critique_direct_verified_cluster"
-    },
-    {
-      "paper_id": "mHv6wcBb0z",
-      "claim_id": "claim-2",
-      "issue_type": "missing_ablation",
-      "issue_cluster_key": "missing_ablation|generalized_noise_regularization",
-      "issue_cluster_target": "generalized_noise_regularization",
-      "candidate_menu_ids": [
-        "rim-c2-ma-proposed-noise-regularization-mo"
-      ],
-      "candidate_ids": [
-        "review-issue-candidate-selected-menu-1"
-      ],
-      "discovery_origin": "critique_payload_menu_selected",
-      "attribution_mode": "critique_direct_verified_cluster"
-    },
-    {
       "paper_id": "YXn76HMetm",
       "claim_id": "claim-2",
       "issue_type": "missing_baseline",
@@ -283,6 +217,28 @@
     }
   ],
   "candidate_menu_item_failed_details": [
+    {
+      "paper_id": "ye3NrNrYOY",
+      "candidate_id": "review-issue-candidate-selected-menu-1",
+      "candidate_menu_id": "rim-c2-ma-in-causal-representation",
+      "claim_id": "claim-2",
+      "issue_type": "missing_ablation",
+      "review_issue_slot": "missing_ablation",
+      "obligation_id": "",
+      "selected_missing_items": [
+        "in causal representation"
+      ],
+      "resolved_expected_entity": "in causal representation",
+      "stop_stage": "target_quality_guard",
+      "rejection_reason": "missing_ablation_target_malformed_fragment",
+      "counterevidence_reason": "",
+      "inventory_locator": "paper component inventory #1",
+      "inventory_quote": "Our experimental evaluations across standard action recognition datasets validate our hypothesis tha",
+      "inventory_observed_items": [
+        "causal",
+        "representation"
+      ]
+    },
     {
       "paper_id": "WNxlJJIEVj",
       "candidate_id": "review-issue-candidate-selected-menu-1",
@@ -302,6 +258,119 @@
       "inventory_quote": "Next, we construct high variance datasets and evaluate the performance of CDiffuser and baselines on",
       "inventory_observed_items": [
         "CDiffuser"
+      ]
+    },
+    {
+      "paper_id": "9zEBK3E9bX",
+      "candidate_id": "review-issue-candidate-selected-menu-1",
+      "candidate_menu_id": "rim-c1-ma-unified-3d-scene-representation",
+      "claim_id": "claim-1",
+      "issue_type": "missing_ablation",
+      "review_issue_slot": "missing_ablation",
+      "obligation_id": "",
+      "selected_missing_items": [
+        "unified 3D scene representation"
+      ],
+      "resolved_expected_entity": "unified 3D scene representation",
+      "stop_stage": "counterevidence",
+      "rejection_reason": "missing_ablation_counterevidence_in_claim_or_inventory",
+      "counterevidence_reason": "missing_ablation_counterevidence_in_claim_or_inventory",
+      "inventory_locator": "paper component inventory #1",
+      "inventory_quote": "In this paper, SPOT is proposed to use 3D semantic occupancy prediction to learn a unified 3D scene",
+      "inventory_observed_items": [
+        "representation",
+        "scene",
+        "unified"
+      ]
+    },
+    {
+      "paper_id": "GE6iywJtsV",
+      "candidate_id": "review-issue-candidate-selected-menu-1",
+      "candidate_menu_id": "rim-c1-ma-pockets-with-the-glide-module",
+      "claim_id": "claim-1",
+      "issue_type": "missing_ablation",
+      "review_issue_slot": "missing_ablation",
+      "obligation_id": "",
+      "selected_missing_items": [
+        "pockets with the GLIDE module"
+      ],
+      "resolved_expected_entity": "pockets with the GLIDE module",
+      "stop_stage": "target_quality_guard",
+      "rejection_reason": "missing_ablation_target_evaluation_tool",
+      "counterevidence_reason": "",
+      "inventory_locator": "paper component inventory #1",
+      "inventory_quote": "tions and templates, while the 3D shape similarity was calculated with the ROCS software of OE Toolk",
+      "inventory_observed_items": [
+        "glide",
+        "pockets"
+      ]
+    },
+    {
+      "paper_id": "WpXq5n8yLb",
+      "candidate_id": "review-issue-candidate-selected-menu-1",
+      "candidate_menu_id": "rim-c1-ma-from-llms-improves-the-alignment",
+      "claim_id": "claim-1",
+      "issue_type": "missing_ablation",
+      "review_issue_slot": "missing_ablation",
+      "obligation_id": "",
+      "selected_missing_items": [
+        "from LLMs improves the alignment"
+      ],
+      "resolved_expected_entity": "from LLMs improves the alignment",
+      "stop_stage": "target_quality_guard",
+      "rejection_reason": "missing_ablation_target_malformed_fragment",
+      "counterevidence_reason": "",
+      "inventory_locator": "paper component inventory #1",
+      "inventory_quote": "\\cmnt{This approach is taken because LLM occasionally produces unreasonable predictions in long sequ",
+      "inventory_observed_items": [
+        "alignment",
+        "improves",
+        "llms"
+      ]
+    },
+    {
+      "paper_id": "QAgwFiIY4p",
+      "candidate_id": "review-issue-candidate-selected-menu-1",
+      "candidate_menu_id": "rim-c2-mb-same-setting-comparison-against",
+      "claim_id": "claim-2",
+      "issue_type": "missing_baseline",
+      "review_issue_slot": "missing_baseline",
+      "obligation_id": "",
+      "selected_missing_items": [
+        "same-setting comparison against paper-named Graphormer baseline"
+      ],
+      "resolved_expected_entity": "same-setting comparison against paper-named Graphormer baseline",
+      "stop_stage": "counterevidence",
+      "rejection_reason": "full_text_baseline_or_comparison_counterevidence",
+      "counterevidence_reason": "full_text_baseline_or_comparison_counterevidence",
+      "inventory_locator": "paper inventory #11",
+      "inventory_quote": "Extensive experiments verify these claims across synthetic datasets, graph property prediction datas",
+      "inventory_observed_items": [
+        "QM9~\\citep{",
+        "PST",
+        "QM9"
+      ]
+    },
+    {
+      "paper_id": "mHv6wcBb0z",
+      "candidate_id": "review-issue-candidate-selected-menu-1",
+      "candidate_menu_id": "rim-c2-ma-proposed-noise-regularization-mo",
+      "claim_id": "claim-2",
+      "issue_type": "missing_ablation",
+      "review_issue_slot": "missing_ablation",
+      "obligation_id": "obligation-claim-2-missing-ablation-ablatio",
+      "selected_missing_items": [
+        "ablation isolating proposed Noise Regularization module"
+      ],
+      "resolved_expected_entity": "ablation isolating proposed Noise Regularization module",
+      "stop_stage": "counterevidence",
+      "rejection_reason": "missing_ablation_counterevidence_in_claim_or_inventory",
+      "counterevidence_reason": "missing_ablation_counterevidence_in_claim_or_inventory",
+      "inventory_locator": "paper inventory #1",
+      "inventory_quote": "Deep Canonical Correlation Analysis (DCCA) and its variants share simple formulations and demonstrat",
+      "inventory_observed_items": [
+        "DCCA",
+        "Deep Canonical Correlation Analysis"
       ]
     },
     {
@@ -327,32 +396,31 @@
     }
   ],
   "case_summary": {
-    "verified_review_issue_cases": 24,
-    "bucket::obligation_grounded_review_issue": 23,
-    "type::missing_ablation": 12,
-    "source::reviewer_candidate": 23,
-    "candidate_kind::critique_payload_candidate": 12,
-    "candidate_menu_bound_cases": 12,
-    "critique_selected_menu_verified_cases": 18,
-    "candidate_kind::deterministic_reviewer_seed": 11,
-    "type::missing_baseline": 9,
+    "verified_review_issue_cases": 10,
+    "bucket::obligation_grounded_review_issue": 9,
+    "type::missing_ablation": 4,
+    "source::reviewer_candidate": 9,
+    "candidate_kind::deterministic_reviewer_seed": 3,
+    "critique_selected_menu_verified_cases": 9,
+    "candidate_kind::critique_payload_candidate": 6,
+    "candidate_menu_bound_cases": 6,
+    "type::missing_baseline": 3,
     "type::efficiency_cost_gap": 2,
     "bucket::quote_grounded_review_issue": 1,
     "type::negative_result": 1,
     "source::direct_quote": 1,
     "candidate_kind::direct_quote": 1,
-    "verified_review_issue_cluster_count": 15,
-    "duplicate_review_issue_row_count": 9,
-    "reviewer_candidate_review_issue_cluster_count": 14,
-    "cluster_type::missing_ablation": 8,
-    "cluster_origin::critique_payload_candidate": 11,
-    "cluster_source::reviewer_candidate": 14,
-    "cluster_slot::missing_ablation": 8,
-    "candidate_menu_bound_clusters": 11,
-    "critique_selected_verified_cluster_count": 11,
-    "cluster_origin::deterministic_reviewer_seed": 3,
-    "cluster_type::missing_baseline": 5,
-    "cluster_slot::missing_baseline": 5,
+    "verified_review_issue_cluster_count": 6,
+    "duplicate_review_issue_row_count": 4,
+    "reviewer_candidate_review_issue_cluster_count": 5,
+    "cluster_type::missing_ablation": 2,
+    "cluster_origin::critique_payload_candidate": 5,
+    "cluster_source::reviewer_candidate": 5,
+    "cluster_slot::missing_ablation": 2,
+    "candidate_menu_bound_clusters": 5,
+    "critique_selected_verified_cluster_count": 5,
+    "cluster_type::missing_baseline": 2,
+    "cluster_slot::missing_baseline": 2,
     "cluster_type::efficiency_cost_gap": 1,
     "cluster_slot::efficiency_cost": 1,
     "cluster_type::negative_result": 1,
@@ -361,72 +429,58 @@
     "cluster_slot::direct_quote": 1,
     "quote_grounded_review_issue_cluster_count": 1,
     "quote_grounded_direct_quote_duplicate_cluster_count": 0,
-    "quote_duplicate_merged_verified_review_issue_cluster_count": 15
+    "quote_duplicate_merged_verified_review_issue_cluster_count": 6
   },
   "recovery_summary": {
-    "bucket::verified_review_issue_repair": 16,
+    "bucket::effective_repair_without_verified_negative": 11,
     "operation::mark_contested": 16,
     "effective_repair_turns": 16,
     "effective_repair_not_verified_negative_repair": 16,
-    "turns_with_verified_review_issue_bundle_evidence": 16,
-    "evidence_bucket::obligation_grounded_review_issue": 17,
+    "evidence_bucket::stale_reviewer_absence_audit": 12,
     "bucket::committed_not_effective": 3,
     "operation::record_diagnosis_pending_concern": 3,
     "bucket::attempted_not_committed": 12,
     "operation::reject_patch": 11,
+    "bucket::verified_review_issue_repair": 5,
+    "turns_with_verified_review_issue_bundle_evidence": 5,
+    "evidence_bucket::obligation_grounded_review_issue": 5,
     "turns_with_verified_review_negative_evidence": 1,
     "evidence_bucket::verified_review_negative": 1,
     "evidence_bucket::support_only": 1,
     "evidence_bucket::not_verified_or_unknown": 1,
     "case_rows": 31
   },
-  "manual_audit_summary": {},
+  "manual_audit_summary": {
+    "system_clusters": 6,
+    "critique_origin_clusters": 5,
+    "manual_A_clusters": 2,
+    "manual_B_clusters": 4,
+    "manual_A_B_clusters": 6,
+    "manual_C_clusters": 0,
+    "manual_D_clusters": 0,
+    "manual_MERGE_clusters": 0,
+    "unfilled_clusters": 0,
+    "manual_A_B_clusters_by_origin": {
+      "critique_payload": 5,
+      "quote_grounded": 1
+    },
+    "manual_D_clusters_by_origin": {},
+    "cluster_count_by_origin": {
+      "critique_payload": 5,
+      "quote_grounded": 1
+    },
+    "critique_origin_manual_A_B_clusters": 5,
+    "deterministic_seed_manual_A_B_clusters": 0,
+    "critique_origin_D_clusters": 0,
+    "status": "PASS",
+    "blocking_issues": []
+  },
   "reviewer_candidate_kind_counts": {
-    "critique_payload_candidate": 12,
-    "deterministic_reviewer_seed": 11,
+    "deterministic_reviewer_seed": 3,
+    "critique_payload_candidate": 6,
     "direct_quote": 1
   },
   "critique_origin_clusters": [
-    {
-      "issue_cluster_key": "9zEBK3E9bX|obligation_grounded_review_issue|missing_ablation|unified_scene_representation",
-      "paper_id": "9zEBK3E9bX",
-      "issue_type": "missing_ablation",
-      "issue_cluster_target": "unified_scene_representation",
-      "case_count": 1,
-      "claim_ids": [
-        "claim-1"
-      ],
-      "evidence_ids": [
-        "evidence-reviewer-absence-claim-1-ablation-or-component-mi"
-      ],
-      "missing_or_mismatch": "unified 3D scene representation",
-      "claim_anchor": "The paper proposes SPOT, a scalable pre-training method via occupancy prediction for learning transferable 3D representations.",
-      "inventory_or_quote_locator": "paper component inventory #1",
-      "inventory_or_quote": "In this paper, SPOT is proposed to use 3D semantic occupancy prediction to learn a unified 3D scene",
-      "review_issue_slot": "missing_ablation",
-      "discovery_origin": "critique_payload_menu_selected",
-      "reviewer_candidate_kind": "critique_payload_candidate"
-    },
-    {
-      "issue_cluster_key": "GE6iywJtsV|obligation_grounded_review_issue|missing_ablation|pockets_with_the_glide_module",
-      "paper_id": "GE6iywJtsV",
-      "issue_type": "missing_ablation",
-      "issue_cluster_target": "pockets_with_the_glide_module",
-      "case_count": 1,
-      "claim_ids": [
-        "claim-1"
-      ],
-      "evidence_ids": [
-        "evidence-reviewer-absence-claim-1-ablation-or-component-mi"
-      ],
-      "missing_or_mismatch": "pockets with the GLIDE module",
-      "claim_anchor": "The paper introduces a Graph ControllNet (GrCN) mechanism to enforce 3D shape constraints during the diffusion process.",
-      "inventory_or_quote_locator": "paper component inventory #1",
-      "inventory_or_quote": "tions and templates, while the 3D shape similarity was calculated with the ROCS software of OE Toolkit package in default settings.30(Grant et al., 1996) For the tasks of structure-based drug design, we also evaluate ...",
-      "review_issue_slot": "missing_ablation",
-      "discovery_origin": "critique_payload_menu_selected",
-      "reviewer_candidate_kind": "critique_payload_candidate"
-    },
     {
       "issue_cluster_key": "HPuLU6q7xq|obligation_grounded_review_issue|missing_baseline|paper-named_gpt-4_baseline",
       "paper_id": "HPuLU6q7xq",
@@ -470,50 +524,6 @@
       "review_issue_slot": "missing_ablation",
       "discovery_origin": "deterministic_component_ablation_seed",
       "reviewer_candidate_kind": "deterministic_reviewer_seed"
-    },
-    {
-      "issue_cluster_key": "QAgwFiIY4p|obligation_grounded_review_issue|missing_baseline|paper-named_graphormer_baseline",
-      "paper_id": "QAgwFiIY4p",
-      "issue_type": "missing_baseline",
-      "issue_cluster_target": "paper-named_graphormer_baseline",
-      "case_count": 2,
-      "claim_ids": [
-        "claim-2",
-        "claim-3"
-      ],
-      "evidence_ids": [
-        "evidence-reviewer-absence-claim-2-baseline-or-comparison-m",
-        "evidence-reviewer-absence-claim-3-baseline-or-comparison-m"
-      ],
-      "missing_or_mismatch": "same-setting comparison against paper-named Graphormer baseline",
-      "claim_anchor": "PST (Point Set Transformer) achieves strong or state-of-the-art performance compared to baseline GNN methods across various graph classification and regression tasks.",
-      "inventory_or_quote_locator": "Section: Long Range Graph Benchmark",
-      "inventory_or_quote": "PST outperforms all baselines on the PascalVOC-SP and Peptides-Func datasets and achieves the third-highest performance on the Peptides-Struct dataset.",
-      "review_issue_slot": "missing_baseline",
-      "discovery_origin": "critique_payload_menu_selected",
-      "reviewer_candidate_kind": "critique_payload_candidate"
-    },
-    {
-      "issue_cluster_key": "WpXq5n8yLb|obligation_grounded_review_issue|missing_ablation|from_llms_improves_the_alignment",
-      "paper_id": "WpXq5n8yLb",
-      "issue_type": "missing_ablation",
-      "issue_cluster_target": "from_llms_improves_the_alignment",
-      "case_count": 2,
-      "claim_ids": [
-        "claim-1",
-        "claim-2"
-      ],
-      "evidence_ids": [
-        "evidence-reviewer-absence-claim-1-ablation-or-component-mi",
-        "evidence-reviewer-absence-claim-2-ablation-or-component-mi"
-      ],
-      "missing_or_mismatch": "from LLMs improves the alignment",
-      "claim_anchor": "ReDrafter leverages a recurrent neural network (RNN) as the draft model conditioning on LLM's hidden states.",
-      "inventory_or_quote_locator": "paper component inventory #1",
-      "inventory_or_quote": "\\cmnt{This approach is taken because LLM occasionally produces unreasonable predictions in long sequences.} \\section{Experiment} We conduct experiments in experimental and production-ready environments, using Vicuna 7...",
-      "review_issue_slot": "missing_ablation",
-      "discovery_origin": "critique_payload_menu_selected",
-      "reviewer_candidate_kind": "critique_payload_candidate"
     },
     {
       "issue_cluster_key": "YXn76HMetm|obligation_grounded_review_issue|missing_baseline|equalal_baseline",
@@ -578,54 +588,12 @@
       "review_issue_slot": "efficiency_cost",
       "discovery_origin": "critique_payload_menu_selected",
       "reviewer_candidate_kind": "critique_payload_candidate"
-    },
-    {
-      "issue_cluster_key": "mHv6wcBb0z|obligation_grounded_review_issue|missing_ablation|generalized_noise_regularization",
-      "paper_id": "mHv6wcBb0z",
-      "issue_type": "missing_ablation",
-      "issue_cluster_target": "generalized_noise_regularization",
-      "case_count": 2,
-      "claim_ids": [
-        "claim-2",
-        "claim-4"
-      ],
-      "evidence_ids": [
-        "evidence-reviewer-absence-claim-2-ablation-or-component-mi",
-        "evidence-reviewer-absence-claim-4-ablation-or-component-mi"
-      ],
-      "missing_or_mismatch": "component-isolation ablation for Noise Regularization",
-      "claim_anchor": "The NR-DCCA method involves adding noise to the objective function to regularize training.",
-      "inventory_or_quote_locator": "Section 3",
-      "inventory_or_quote": "obtained directly using $\\{f_k^*\\}_k$ in the same manner as DCCA. \\subsection{Theoretical Analysis} In this section, we provide the rationale for why the developed noise regularization can help to prevent the weight matr",
-      "review_issue_slot": "missing_ablation",
-      "discovery_origin": "deterministic_component_ablation_seed",
-      "reviewer_candidate_kind": "deterministic_reviewer_seed"
-    },
-    {
-      "issue_cluster_key": "ye3NrNrYOY|obligation_grounded_review_issue|missing_ablation|causal_representation",
-      "paper_id": "ye3NrNrYOY",
-      "issue_type": "missing_ablation",
-      "issue_cluster_target": "causal_representation",
-      "case_count": 1,
-      "claim_ids": [
-        "claim-2"
-      ],
-      "evidence_ids": [
-        "evidence-reviewer-absence-claim-2-ablation-or-component-mi"
-      ],
-      "missing_or_mismatch": "in causal representation",
-      "claim_anchor": "During adaptation, the model treats certain temporal dimensions as invariant, updating only auxiliary variables and a classifier, which allows for efficient and effective transfer.",
-      "inventory_or_quote_locator": "Conclusion / Discussion excerpt #1",
-      "inventory_or_quote": "\\section{5 CONCLUSION } We propose Temporal Causal Mechanism Transfer (TCMT) for few-shot action recognition, which relies on variational inference to learn a temporal causal mechanism from base data that can be efficien",
-      "review_issue_slot": "missing_ablation",
-      "discovery_origin": "critique_payload_menu_selected",
-      "reviewer_candidate_kind": "critique_payload_candidate"
     }
   ],
   "red_flags": [],
   "notes": [
-    "Machine PASS is not paper-ready approval; manual A/B audit of the listed Critique-origin clusters is still required.",
+    "Machine and manual gates pass for this audit scope; paper-ready claims still require carrying the listed manual labels and wording caveats into the narrative.",
     "The red-flag scan is lexical only and should be treated as triage, not a verifier.",
-    "P32 entry remains blocked if the machine gate fails or manual audit finds external-baseline, retrieval/context, author-limitation, or other false positives."
+    "P32 entry remains blocked if a later full-scope gate fails or manual audit finds external-baseline, retrieval/context, author-limitation, or other false positives."
   ]
 }
