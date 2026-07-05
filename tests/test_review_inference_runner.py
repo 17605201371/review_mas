@@ -3975,7 +3975,7 @@ def test_selected_menu_recovery_does_not_require_formal_discovery_flag(monkeypat
     assert payload["reviewer_negative_candidates"][0]["discovery_origin"] == "critique_payload_menu_selected"
 
 
-def test_visible_augmented_selector_menu_waits_for_positive_inventory(monkeypatch):
+def test_visible_augmented_selector_menu_uses_menu_readiness_without_positive_inventory(monkeypatch):
     menu_item = {
         "candidate_menu_id": "rim-c2-mb-graphormer",
         "claim_id": "claim-2",
@@ -3993,7 +3993,7 @@ def test_visible_augmented_selector_menu_waits_for_positive_inventory(monkeypatc
         lambda state, **kwargs: ([{"review_issue_candidate_menu": [menu_item]}], [menu_item]),
     )
 
-    unchanged = review_runner_mod._maybe_upgrade_visible_review_issue_discovery_turn(
+    upgraded = review_runner_mod._maybe_upgrade_visible_review_issue_discovery_turn(
         {
             "decision": "continue",
             "action_type": "challenge_previous_hypothesis",
@@ -4015,8 +4015,11 @@ def test_visible_augmented_selector_menu_waits_for_positive_inventory(monkeypatc
         turn_cap=7,
     )
 
-    assert unchanged["policy_source"] == "s4_verified_review_issue_recovery_bridge"
-    assert "review_issue_discovery_required" not in unchanged
+    assert upgraded["policy_source"] == "review_issue_discovery_override"
+    assert upgraded["review_issue_discovery_required"] is True
+    assert upgraded["freeform_reviewer_negative_discovery_required"] is True
+    assert upgraded["selected_agents"] == ["Critique Agent"]
+    assert upgraded["review_issue_candidate_selector_menu_snapshot"][0]["candidate_menu_id"] == "rim-c2-mb-graphormer"
 
 
 def test_visible_augmented_selector_menu_does_not_repeat_recent_discovery(monkeypatch):

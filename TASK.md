@@ -10,7 +10,94 @@ Goal:
 - Improve Critique payload integration without relaxing the verifier.
 - Keep direct quote-grounded negative evidence strict; optimize obligation-grounded verified review issue bundles and safe `mark_contested` recovery.
 
-## Current P31.28 Checkpoint 2026-07-05
+## Current P31.35 Checkpoint 2026-07-05
+
+Current stage:
+
+```text
+Stage 2 is now machine-live on a fresh hardneg20 after the trigger-menu patch:
+selector-menu-ready issues reach Critique discovery, selected candidates
+materialize, and strict bundle verification forms direct Critique clusters
+without seed-shadow attribution.  Stage 2 is still not paper-ready until the
+manual A/B/C/D audit is filled and validated.
+```
+
+Latest full hardneg20 evidence:
+
+```text
+run = mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok2048_20260705_205654
+artifacts = P31_6_FRESH_20260705_205654_*
+rows = 20
+protection = PASS
+machine_gate = PASS
+manual_gate = REQUIRED
+evidence_json_fallback_rate_pct = 0
+state_contamination_count = 0
+harmful_state_contamination_count = 0
+verified_review_issue_count = 24
+verified_review_issue_cluster_count = 15
+critique_direct_verified_cluster_count = 12
+critique_selected_existing_seed_cluster_count = 0
+candidate_menu_item_count = 14
+candidate_menu_item_used_count = 14
+candidate_menu_item_verified_count = 12
+candidate_menu_item_failed_count = 2
+selected_menu_failure_reasons =
+  missing_entity_already_observed_in_inventory: 1
+  efficiency_cost_menu_already_observed_in_inventory: 1
+positive_or_neutral_negative_candidate_count = 0
+negative_evidence_unlinked_to_flaw = 0
+negative_grounding_conflict_count = 0
+mark_contested_commit_count = 16
+verified_issue_cluster_without_recovery_count = 3
+```
+
+Implemented in this checkpoint:
+
+- Selected prompt-time menu snapshots no longer get dropped by a second current
+  menu quality recheck when the exact selected menu item is available.  The
+  bundle verifier remains the authoritative acceptance check.
+- Efficiency menu quality now treats only actual `observed_inventory` text as
+  already observed; resource words in claim text alone do not reject the menu
+  item.
+- Selected efficiency candidates can use strict paper-text empirical/baseline
+  inventory fallback when the prompt-time inventory quote is too short.
+- Review issue discovery can now trigger from selector menu readiness without
+  requiring `positive_inventory_ready` or `real_strong_support_count >= 1`.
+- Candidate flaws with only invalid/rejected negative anchors are downgraded in
+  the decision view instead of counted as hard contamination.
+- Existing `reviewer_absence_audit` flaws are refreshed from the authoritative
+  current claim table and linked verified issue evidence, preventing stale
+  selected-menu claim snapshots from leaking meta text such as "implied from the
+  truncated abstract" into the final view.
+
+Validation:
+
+```text
+sample4 = p31_35_trigger_menu_sample4_20260705_205100.jsonl, rows=4
+sample4_result =
+  critique_direct_verified_cluster_count = 4
+  candidate_menu_item_used_count = 4
+  candidate_menu_item_verified_count = 4
+  candidate_menu_item_failed_count = 0
+  state_contamination_count = 0
+focused hygiene/gate tests = 17 passed
+focused runner selected-menu/discovery tests = 25 passed
+py_compile touched runtime/tests = PASS
+warnings = existing invalid escape warnings in tests only
+```
+
+Next step:
+
+```text
+Fill and validate P31_6_FRESH_20260705_205654_MANUAL_AUDIT_TEMPLATE.{json,md}.
+The entry gate lists 11 Critique-origin clusters for manual audit.  If manual
+precision is acceptable, move the engineering focus to Stage 3 residual recovery
+coverage (`verified_issue_cluster_without_recovery_count=3`).  Do not relax
+verifier or validator gates.
+```
+
+## Previous P31.28 Checkpoint 2026-07-05
 
 Current stage:
 

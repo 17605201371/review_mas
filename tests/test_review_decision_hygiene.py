@@ -1,4 +1,5 @@
 import copy
+import json
 import re
 import agent_system.environments.env_package.review.state as review_state_mod
 from agent_system.environments.env_package.review.reward import _audit_id_leak_ratio
@@ -258,7 +259,31 @@ def test_fallback_strong_support_does_not_drive_accept():
                 "binding_status": "invalid_claim_id",
             },
         ],
-        "flaw_candidates": [],
+        "flaw_candidates": [
+            {
+                "flaw_id": "flaw-reviewer-absence-claim-1-missing-ablation",
+                "title": "Reviewer-inferred missing evidence: ablation or component-isolation evidence",
+                "description": (
+                    "The paper's visible evaluation or method inventory leaves a missing "
+                    f"ablation concern for claim '{stale_snapshot_claim}'. The specific "
+                    f"unchecked item is {missing_item}."
+                ),
+                "flaw": (
+                    "The paper's visible evaluation or method inventory leaves a missing "
+                    f"ablation concern for claim '{stale_snapshot_claim}'. The specific "
+                    f"unchecked item is {missing_item}."
+                ),
+                "severity": "major",
+                "status": "candidate",
+                "related_claim_ids": ["claim-1"],
+                "evidence_ids": ["evidence-reviewer-absence-claim-1-ablation-or-component-mi"],
+                "negative_evidence_ids": ["evidence-reviewer-absence-claim-1-ablation-or-component-mi"],
+                "source": "reviewer_absence_audit",
+                "negative_evidence_type": "missing_ablation",
+                "absence_audit_verified": True,
+                "review_issue_source": "obligation_grounded_review_issue",
+            }
+        ],
         "unresolved_questions": [],
         "evidence_gaps": [],
         "conflict_notes": [],
@@ -15675,6 +15700,32 @@ def test_review_issue_menu_quality_rejects_template_scope_and_result_placeholder
         )
         == "missing_ablation_menu_generic_target"
     )
+    assert (
+        review_state_mod._review_issue_candidate_menu_quality_failure(
+            neg_type="efficiency_cost_gap",
+            expected_entity=(
+                "runtime, memory, parameter, FLOP, hardware, or compute-cost "
+                "measurement for the efficiency claim"
+            ),
+            claim_text="The method offers efficiency and communication cost advantages.",
+            inventory_text="The introduction motivates federated learning under heterogeneous data.",
+            source="critique_selected_menu_item",
+        )
+        == ""
+    )
+    assert (
+        review_state_mod._review_issue_candidate_menu_quality_failure(
+            neg_type="efficiency_cost_gap",
+            expected_entity=(
+                "runtime, memory, parameter, FLOP, hardware, or compute-cost "
+                "measurement for the efficiency claim"
+            ),
+            claim_text="The method offers efficiency and communication cost advantages.",
+            inventory_text="Table 2 reports runtime and GPU memory for the method.",
+            source="critique_selected_menu_item",
+        )
+        == "efficiency_cost_menu_already_observed_in_inventory"
+    )
 
 
 def test_entity_obligation_candidates_do_not_cast_dataset_or_metric_as_baseline_target():
@@ -16592,6 +16643,303 @@ def test_selected_menu_pointer_without_current_menu_item_is_not_materialized(mon
     )
 
     assert gaps == []
+
+
+def test_selected_menu_snapshot_survives_current_efficiency_quality_recheck(monkeypatch):
+    claim = "The decoder is scalable and efficient on long sequence generation."
+    menu_id = "rim-c1-ec-runtime-memory-parameter-flop-ha"
+    missing_item = "runtime/memory/FLOP/hardware compute-cost measurement"
+    observed_inventory = [
+        {
+            "quote": "Figure 4 reports runtime and GPU memory trends for long sequences.",
+            "locator": "Figure 4",
+            "observed_items": ["runtime", "GPU memory"],
+            "inventory_type": "efficiency_result",
+        }
+    ]
+    menu_snapshot = {
+        "candidate_menu_id": menu_id,
+        "claim_id": "claim-1",
+        "issue_type": "efficiency_cost_gap",
+        "required_evidence_type": "efficiency_cost",
+        "expected_entity": missing_item,
+        "verifier_target_entity": missing_item,
+        "review_issue_slot": "efficiency_resource",
+        "observed_inventory": observed_inventory,
+        "source": "deterministic_efficiency_cost_menu",
+    }
+    view = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "method",
+                "importance": "high",
+                "status": "supported",
+            }
+        ],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "review-issue-candidate-selected-menu-1",
+                "candidate_menu_id": menu_id,
+                "review_issue_candidate_menu_item": menu_snapshot,
+                "claim_id": "claim-1",
+                "claim": claim,
+                "weakness": "The paper does not give the full compute-cost measurement promised by the efficiency claim.",
+                "negative_type": "efficiency_cost_gap",
+                "required_evidence_type": "efficiency_cost",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": [missing_item],
+                "observed_inventory": observed_inventory,
+                "status": "pending_absence_audit",
+                "source": "critique_selected_menu_item",
+                "discovery_origin": "critique_payload_menu_selected",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+    }
+    requirement_audit = {
+        "claim_requirement_audit": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "missing_requirements": ["efficiency_cost"],
+                "satisfied_requirements": [],
+                "entity_claim_obligations": [],
+            }
+        ]
+    }
+    monkeypatch.setattr(
+        review_state_mod,
+        "_review_issue_candidate_menu_lookup",
+        lambda view, requirement_audit=None: {"items": [], "by_id": {}},
+    )
+
+    assert review_state_mod._review_issue_candidate_menu_quality_failure(
+        neg_type="efficiency_cost_gap",
+        expected_entity=missing_item,
+        claim_text=claim,
+        inventory_text=" ".join(
+            [observed_inventory[0]["quote"]] + observed_inventory[0]["observed_items"]
+        ),
+        source="critique_selected_menu_item",
+    ) == "efficiency_cost_menu_already_observed_in_inventory"
+
+    gaps = review_state_mod._reviewer_candidate_absence_gap_items(
+        copy.deepcopy(view),
+        copy.deepcopy(requirement_audit),
+        max_items=4,
+    )
+
+    assert len(gaps) == 1
+    assert gaps[0]["candidate_menu_id"] == menu_id
+    assert gaps[0]["reviewer_negative_candidate_id"] == "review-issue-candidate-selected-menu-1"
+    assert gaps[0]["discovery_origin"] == "critique_payload_menu_selected"
+    assert gaps[0]["reviewer_negative_candidate_missing_items"] == [missing_item]
+
+
+def test_selected_efficiency_menu_candidate_uses_empirical_inventory_fallback():
+    claim = (
+        "The method offers communication efficiency and computation cost "
+        "advantages over standard federated learning."
+    )
+    truncated_inventory_quote = (
+        "Despite Federated Learning trend, heterogeneous data causes"
+    )
+    paper_text = (
+        f"{claim}\n"
+        f"{truncated_inventory_quote} performance drops.\n"
+        "Our method outperforms state-of-the-art heterogeneous FL algorithms "
+        "under various settings with limited distilled virtual data."
+    )
+    menu_id = "rim-c1-ec-runtime-memory-parameter-flop-ha"
+    missing_item = "runtime, memory, parameter, FLOP, hardware, or compute-cost measurement for the efficiency claim"
+    menu_snapshot = {
+        "candidate_menu_id": menu_id,
+        "claim_id": "claim-1",
+        "issue_type": "efficiency_cost_gap",
+        "required_evidence_type": "efficiency_cost",
+        "expected_entity": missing_item,
+        "verifier_target_entity": missing_item,
+        "review_issue_slot": "efficiency_cost",
+        "observed_inventory": [
+            {
+                "quote": truncated_inventory_quote,
+                "locator": "paper inventory #1",
+                "observed_items": ["Federated Learning"],
+                "inventory_type": "metric",
+            }
+        ],
+    }
+    state = {
+        "paper_text": paper_text,
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "method",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["efficiency_cost"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "review-issue-candidate-selected-menu-1",
+                "candidate_menu_id": menu_id,
+                "review_issue_candidate_menu_item": menu_snapshot,
+                "claim_id": "claim-1",
+                "claim": claim,
+                "weakness": "The paper lacks resource measurement for the efficiency claim.",
+                "negative_type": "efficiency_cost_gap",
+                "required_evidence_type": "efficiency_cost",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": [missing_item],
+                "observed_inventory": menu_snapshot["observed_inventory"],
+                "status": "pending_absence_audit",
+                "source": "critique_selected_menu_item",
+                "discovery_origin": "critique_payload_menu_selected",
+                "source_of_expectation": "reviewer_candidate",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    view = build_decision_hygiene_view(copy.deepcopy(state))
+    hygiene = view["decision_hygiene"]
+    issue_records = [
+        item for item in view["evidence_map"]
+        if item.get("review_issue_source") == "obligation_grounded_review_issue"
+    ]
+
+    assert hygiene["verified_review_issue_count"] == 1
+    assert hygiene["critique_direct_verified_cluster_count"] == 1
+    assert hygiene["candidate_menu_item_verified_count"] == 1
+    assert hygiene["candidate_menu_item_failed_count"] == 0
+    assert issue_records[0]["reviewer_negative_candidate_id"] == "review-issue-candidate-selected-menu-1"
+    assert issue_records[0]["candidate_menu_id"] == menu_id
+    bundle = issue_records[0]["review_issue_bundle"]
+    assert bundle["discovery_origin"] == "critique_payload_menu_selected"
+    assert any(
+        item.get("inventory_source") == "paper_text_inventory"
+        and item.get("verified_grounding_label") in review_state_mod.VERIFIED_PAPER_GROUNDED_LABELS
+        for item in bundle["observed_inventory"]
+    )
+
+
+def test_selected_menu_candidate_uses_authoritative_claim_text_not_stale_snapshot():
+    clean_claim = (
+        "A prediction head is used in the architecture to predict the optimal K, "
+        "with specific training details."
+    )
+    stale_snapshot_claim = (
+        "The optimal policy of the proposed MDP takes the form of a threshold "
+        "policy (implied from the truncated abstract)."
+    )
+    component_quote = (
+        "We augment the draft model with a trained acceptance prediction head "
+        "to predict the conditional acceptance probability."
+    )
+    missing_item = "trained acceptance prediction head"
+    menu_id = "rim-c1-ma-trained-acceptance-prediction-head"
+    observed_inventory = [
+        {
+            "quote": component_quote,
+            "locator": "Method",
+            "observed_items": ["trained", "acceptance", "prediction", "head"],
+            "inventory_type": "component_anchor",
+        }
+    ]
+    menu_snapshot = {
+        "candidate_menu_id": menu_id,
+        "claim_id": "claim-1",
+        "issue_type": "missing_ablation",
+        "required_evidence_type": "ablation_or_component",
+        "expected_entity": f"component-isolation ablation for {missing_item}",
+        "verifier_target_entity": missing_item,
+        "entity_source": "method_component",
+        "source": "deterministic_component_ablation_menu",
+        "review_issue_slot": "missing_ablation",
+        "observed_inventory": observed_inventory,
+    }
+    state = {
+        "paper_text": "\n".join(
+            [
+                clean_claim,
+                component_quote,
+                "Experiments compare decoding speed and quality against fixed K baselines.",
+            ]
+        ),
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": clean_claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "method",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["ablation_or_component"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "review-issue-candidate-selected-menu-1",
+                "candidate_menu_id": menu_id,
+                "review_issue_candidate_menu_item": menu_snapshot,
+                "claim_id": "claim-1",
+                "claim": stale_snapshot_claim,
+                "weakness": (
+                    "The paper does not isolate the trained acceptance prediction head "
+                    "in an ablation."
+                ),
+                "negative_type": "missing_ablation",
+                "required_evidence_type": "ablation_or_component",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": [missing_item],
+                "observed_inventory": observed_inventory,
+                "status": "pending_absence_audit",
+                "source": "critique_selected_menu_item",
+                "discovery_origin": "critique_payload_menu_selected",
+                "entity_source": "method_component",
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    view = build_decision_hygiene_view(copy.deepcopy(state))
+    hygiene = view["decision_hygiene"]
+    rendered = json.dumps(
+        {
+            "flaws": [
+                flaw
+                for flaw in view["flaw_candidates"]
+                if flaw.get("source") == "reviewer_absence_audit"
+            ],
+            "review_issues": [
+                item
+                for item in view["evidence_map"]
+                if item.get("review_issue_source") == "obligation_grounded_review_issue"
+            ],
+        },
+        sort_keys=True,
+    )
+
+    assert hygiene["verified_review_issue_count"] == 1
+    assert hygiene["critique_direct_verified_cluster_count"] == 1
+    assert hygiene["candidate_menu_item_verified_count"] == 1
+    assert hygiene["state_contamination_count"] == 0
+    assert "truncated abstract" not in rendered
+    assert clean_claim in rendered
 
 
 def test_menu_candidate_dedupe_keeps_distinct_selected_targets(monkeypatch):
@@ -17533,6 +17881,84 @@ def test_positive_or_neutral_negative_rejection_linked_to_flaw_is_downgraded_not
     assert hygiene["review_negative_verified_count"] == 0
     assert view["flaw_candidates"][0]["status"] == "downgraded"
     assert view["flaw_candidates"][0]["hygiene_status_reason"] == "semantic_rejected_negative_anchor"
+
+
+def test_mixed_rejected_candidate_negative_anchors_are_downgraded_not_contamination():
+    state = {
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": "The paper proposes NR-DCCA to prevent model collapse.",
+                "claim_kind": "paper_extracted",
+                "status": "supported",
+            },
+            {
+                "claim_id": "claim-2",
+                "claim": "DCCA-based methods suffer from model collapse during training.",
+                "claim_kind": "paper_extracted",
+                "status": "supported",
+            },
+        ],
+        "evidence_map": [
+            {
+                "evidence_id": "evidence-unverified-negative",
+                "claim_id": "claim-1",
+                "evidence": "The excerpt has no explicit NR-DCCA method details.",
+                "raw_quote": "We propose NR-DCCA to address the model collapse problem in DCCA.",
+                "source": "title/abstract (inferred)",
+                "source_locator": "title/abstract (inferred)",
+                "stance": "missing",
+                "strength": "medium",
+                "negative_evidence_type": "missing_ablation",
+                "runtime_evidence_verification_required": True,
+                "model_claimed_verification_stripped": True,
+                "verified_grounding_label": "not_verified_paraphrase_only",
+                "semantic_grounding_label": "semantic_unverified_quote",
+                "review_negative_label": "insufficient_paper_grounding",
+            },
+            {
+                "evidence_id": "evidence-support-misbound",
+                "claim_id": "claim-2",
+                "evidence": "Figure 2 shows DCCA-based methods encounter model collapse during training.",
+                "raw_quote": "DCCA-based methods will encounter model collapse during training.",
+                "source": "Section 4.1",
+                "source_locator": "Section 4.1",
+                "stance": "supports",
+                "strength": "medium",
+                "negative_evidence_type": "generic_gap",
+                "verified_grounding_label": "paper_grounded_normalized",
+                "semantic_grounding_label": "semantic_support_verified",
+                "review_negative_label": "insufficient_semantic_negative",
+            },
+        ],
+        "flaw_candidates": [
+            {
+                "flaw_id": "flaw-mixed-invalid",
+                "title": "Missing method details and quantitative results",
+                "description": "The model candidate cites one unverified negative and one support row as negative evidence.",
+                "severity": "critical",
+                "status": "candidate",
+                "related_claim_ids": ["claim-1"],
+                "evidence_ids": ["evidence-unverified-negative", "evidence-support-misbound"],
+                "negative_evidence_ids": ["evidence-unverified-negative", "evidence-support-misbound"],
+            }
+        ],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    view = build_decision_hygiene_view(state)
+    flaw = view["flaw_candidates"][0]
+    hygiene = view["decision_hygiene"]
+
+    assert flaw["status"] == "downgraded"
+    assert flaw["hygiene_status_reason"] == "semantic_rejected_negative_anchor"
+    assert hygiene["negative_grounding_conflict_count"] == 0
+    assert hygiene["invalid_negative_evidence_id_count"] == 0
+    assert hygiene["state_contamination_count"] == 0
+    assert hygiene["negative_evidence_semantic_rejected_count"] == 1
+    assert hygiene["review_negative_verified_count"] == 0
 
 
 def test_missing_baseline_target_gate_rejects_generic_or_truncated_targets():

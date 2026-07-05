@@ -3411,10 +3411,6 @@ def _maybe_upgrade_visible_review_issue_discovery_turn(
         return manager_payload
     if manager_payload.get("targeted_negative_search_no_task_blocked"):
         return manager_payload
-    if not _review_issue_positive_inventory_ready(state):
-        return manager_payload
-    if _review_issue_real_strong_support_count(state) < 1:
-        return manager_payload
     if _review_issue_pending_candidate_exists(state):
         return manager_payload
     if _review_issue_discovery_recently_attempted(recent_turn_logs):
@@ -3534,10 +3530,6 @@ def _standardize_selector_style_review_issue_discovery_turn(
     phase = str(manager_payload.get("phase") or state.get("phase") or "").strip().lower()
     turn_mode = _normalize_turn_mode(manager_payload.get("turn_mode"))
     if phase == "recovery" or turn_mode == "recovery_patch" or manager_payload.get("recovery_patch_mode_entered"):
-        return manager_payload
-    if not _review_issue_positive_inventory_ready(state):
-        return manager_payload
-    if _review_issue_real_strong_support_count(state) < 1:
         return manager_payload
     if _review_issue_pending_candidate_exists(state):
         return manager_payload

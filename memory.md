@@ -47,6 +47,105 @@ Missing-baseline, missing-ablation, insufficient-evaluation, and reproducibility
 
 ## Current Review Issue Logic
 
+### 2026-07-05 P31.35 trigger-menu checkpoint
+
+Current position: Stage 1 tail / Stage 2 start.  The current functional target is
+real `Critique discovery -> verified issue -> contested relation`, not seed
+shadow attribution and not relaxed verifier gates.
+
+Latest fresh hardneg20 before the trigger-menu patch:
+
+- raw: `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok2048_20260705_202504.jsonl`
+- artifacts: `P31_6_FRESH_20260705_202504_*`
+- rows: 20/20; protection PASS; entry gate FAIL.
+- `evidence_json_fallback_rate_pct=0`, `state_contamination_count=0`.
+- `verified_review_issue_count=23`, cluster count=20.
+- `critique_direct_verified_cluster_count=2`, required >=3.
+- `candidate_menu_item_count=6`, `candidate_menu_item_used_count=5`,
+  `candidate_menu_item_verified_count=2`, `candidate_menu_item_failed_count=3`.
+- selected-menu failure reasons: `full_text_protocol_or_result_counterevidence`,
+  `efficiency_cost_menu_already_observed_in_inventory`,
+  `missing_ablation_target_low_confidence`.
+
+Interpretation:
+
+- Safety/hygiene is clean, but Stage 2 still fails on real Critique direct
+  coverage in the latest full hardneg20 evidence.
+- The main root cause found after the run is menu starvation: many papers had
+  verifier-ready selector menu supply, but `Critique Agent` never saw it because
+  discovery was gated on `positive_inventory_ready` and
+  `real_strong_support_count >= 1`.
+- Do not fix this by relaxing the bundle verifier or by re-attributing seed
+  clusters to Critique.  The correct lane is trigger/menu supply and selected
+  candidate materialization.
+
+Implemented after the 202504 run:
+
+- selected prompt-time menu snapshots are no longer killed by a second current
+  menu quality recheck when the exact menu item has already been selected;
+  bundle verification remains the authoritative check.
+- efficiency menu "already observed" rejection now checks actual inventory text,
+  not claim text plus source text.
+- selected efficiency candidates can use strict paper-text empirical/baseline
+  inventory fallback when the prompt-time snapshot inventory is too short.
+- visible/selector-style review issue discovery no longer requires positive
+  inventory readiness or a real strong support row when a selector menu exists.
+- mixed invalid candidate negative anchors are downgraded in the decision view
+  instead of being counted as hard state contamination.
+
+Validation:
+
+- focused hygiene/gate tests: 16 passed.
+- focused runner selected-menu/discovery tests: 25 passed.
+- `py_compile` for touched runtime/tests: PASS, with only pre-existing invalid
+  escape warnings in tests.
+
+Runtime validation after loading `.env`:
+
+- sample4 input: `p31_35_trigger_menu_sample4_20260705.parquet`.
+- sample4 raw: `p31_35_trigger_menu_sample4_20260705_205100.jsonl`, rows=4.
+- sample4 result: all 4 papers triggered `review_issue_discovery_override`;
+  aggregate `critique_direct_verified_cluster_count=4`,
+  `candidate_menu_item_used_count=4`, `candidate_menu_item_verified_count=4`,
+  `candidate_menu_item_failed_count=0`, `state_contamination_count=0`.
+- fresh hardneg20 raw:
+  `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok2048_20260705_205654.jsonl`
+- latest artifacts: `P31_6_FRESH_20260705_205654_*`.
+- rows: 20/20; machine gate PASS; manual gate REQUIRED; readiness remains
+  false until the manual audit template is filled and validated.
+- `evidence_json_fallback_rate_pct=0`, `state_contamination_count=0`,
+  `harmful_state_contamination_count=0`.
+- `verified_review_issue_count=24`, cluster count=15.
+- `critique_direct_verified_cluster_count=12`,
+  `critique_selected_existing_seed_cluster_count=0`.
+- `candidate_menu_item_count=14`, `candidate_menu_item_used_count=14`,
+  `candidate_menu_item_verified_count=12`, `candidate_menu_item_failed_count=2`.
+- selected-menu failures are now verifier/quality rejects:
+  `missing_entity_already_observed_in_inventory=1`,
+  `efficiency_cost_menu_already_observed_in_inventory=1`.
+- `positive_or_neutral_negative_candidate_count=0`,
+  `negative_evidence_unlinked_to_flaw=0`,
+  `negative_grounding_conflict_count=0`.
+- `mark_contested_commit_count=16`,
+  `verified_issue_cluster_without_recovery_count=3`.
+
+Additional hygiene fix:
+
+- Existing `reviewer_absence_audit` flaws in raw states can carry stale selected
+  candidate claim snapshots.  The view layer now refreshes those flaw
+  descriptions from the authoritative current claim table and linked verified
+  issue evidence.  This removed a `meta_leakage` contamination on
+  `NnExMNiTHw` without hiding the target.
+
+Next required evidence:
+
+1. Fill and validate `P31_6_FRESH_20260705_205654_MANUAL_AUDIT_TEMPLATE.*`,
+   prioritizing the 11 Critique-origin clusters listed by the entry gate.
+2. Treat Stage 2 as machine-live on hardneg20, but not paper-ready until manual
+   A/B/C/D validation confirms precision.
+3. If manual precision is acceptable, move the main engineering focus to Stage
+   3 residual recovery coverage (`verified_issue_cluster_without_recovery=3`).
+
 ### 2026-07-05 P31.28 post-fix Critique-origin 5-paper sample + Stage 3 scheduler patch
 
 Post-fix sample:

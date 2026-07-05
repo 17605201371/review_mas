@@ -13177,7 +13177,7 @@ def _build_review_issue_bundle_from_gap(
         _fail("noise_negative_type", stop_stage="requirement_type_gate", neg_type_value=neg_type)
         return None
     claim = claim_lookup[claim_id]
-    claim_text = _normalize_text(gap.get("claim") or claim.get("claim") or claim.get("text"), max_length=260)
+    claim_text = _normalize_text(claim.get("claim") or claim.get("text") or gap.get("claim"), max_length=260)
     if not claim_text:
         _fail("claim_text_missing", stop_stage="claim_anchor", neg_type_value=neg_type)
         return None
@@ -13292,6 +13292,36 @@ def _build_review_issue_bundle_from_gap(
             neg_type,
         )
     ]
+    if neg_type == "efficiency_cost_gap" and not observed_inventory:
+        fallback_inventory = _review_issue_paper_inventory_for_bundle(
+            view,
+            claim_id,
+            "empirical_result",
+            "insufficient_evaluation",
+            missing_items=candidate_missing_items,
+            max_items=4,
+        )
+        if not fallback_inventory:
+            fallback_inventory = _review_issue_paper_inventory_for_bundle(
+                view,
+                claim_id,
+                "baseline_or_comparison",
+                "missing_baseline",
+                missing_items=candidate_missing_items,
+                max_items=4,
+            )
+        if fallback_inventory:
+            observed_inventory = [
+                item for item in fallback_inventory
+                if _review_issue_observed_inventory_relevant_for_type(
+                    {
+                        "observed_inventory": [item],
+                        "missing_or_mismatch": missing_or_mismatch,
+                        "claim_anchor": _claim_anchor_for_review_issue_bundle(claim, claim_text, claim_id, view),
+                    },
+                    neg_type,
+                )
+            ]
     if neg_type == "missing_ablation":
         ablation_inventory = [
             item for item in observed_inventory
@@ -13786,6 +13816,7 @@ def _review_issue_candidate_menu_quality_failure(
     neg_type = _canonical_negative_evidence_type(neg_type)
     expected = _normalize_text(expected_entity, max_length=180)
     expected_l = expected.lower()
+    inventory_l = str(inventory_text or "").lower()
     context_l = " ".join([claim_text or "", inventory_text or "", source or ""]).lower()
     if not expected_l:
         return "empty_expected_entity"
@@ -13979,7 +14010,7 @@ def _review_issue_candidate_menu_quality_failure(
                 expected_l,
             )
         )
-        if expected_resource_dimension and _REVIEW_ISSUE_EFFICIENCY_INVENTORY_RE.search(context_l):
+        if expected_resource_dimension and _REVIEW_ISSUE_EFFICIENCY_INVENTORY_RE.search(inventory_l):
             return "efficiency_cost_menu_already_observed_in_inventory"
 
     return ""
@@ -15510,7 +15541,9 @@ def _reviewer_candidate_absence_gap_items(
         inferred_requirement = _negative_type_to_required_evidence_type(neg_type)
         if inferred_requirement:
             candidate_requirements.append(inferred_requirement)
-        if candidate_menu_id:
+        # Matched selected-menu snapshots already passed the prompt-time menu
+        # quality gate; the bundle verifier below is the authoritative check.
+        if candidate_menu_id and not (selected_menu_only and menu_item):
             candidate_inventory_text = " ".join(
                 [str(item.get("quote") or "") for item in candidate_observed_inventory_items]
                 + [
@@ -16642,7 +16675,7 @@ def _add_reviewer_absence_audit_artifacts(
         requirements = _reviewer_absence_missing_requirements(gap)
         if not requirements:
             continue
-        claim_text = _normalize_text(gap.get("claim") or claim_lookup[claim_id].get("claim") or claim_lookup[claim_id].get("text"), max_length=220)
+        claim_text = _normalize_text(claim_lookup[claim_id].get("claim") or claim_lookup[claim_id].get("text") or gap.get("claim"), max_length=220)
         candidate_missing_items = _normalize_list_of_strings(
             gap.get("reviewer_negative_candidate_missing_items"),
             max_items=6,
@@ -16930,6 +16963,67 @@ def _add_reviewer_absence_audit_artifacts(
         existing_absence_claim_ids.add(claim_id)
         added_flaw_ids.append(flaw_id)
         added_claim_ids.append(claim_id)
+
+    def _refresh_existing_absence_flaw_texts() -> None:
+        evidence_by_id = _evidence_records_by_id({"evidence_map": view.get("evidence_map", [])})
+        for flaw in view.get("flaw_candidates", []) or []:
+            if not isinstance(flaw, dict) or str(flaw.get("source") or "") != ABSENCE_AUDIT_SOURCE:
+                continue
+            flaw_claim_ids = [
+                str(item or "").strip()
+                for item in flaw.get("related_claim_ids", []) or []
+                if str(item or "").strip()
+            ]
+            claim_id = flaw_claim_ids[0] if flaw_claim_ids else str(flaw.get("claim_id") or "").strip()
+            claim = claim_lookup.get(claim_id) if claim_id else {}
+            claim_text = _normalize_text(
+                (claim or {}).get("claim") or (claim or {}).get("text"),
+                max_length=220,
+            )
+            if not claim_text:
+                continue
+            linked_records = [
+                evidence_by_id.get(str(eid or "").strip())
+                for eid in list(flaw.get("negative_evidence_ids") or []) + list(flaw.get("evidence_ids") or [])
+                if str(eid or "").strip()
+            ]
+            linked_records = [
+                record for record in linked_records
+                if isinstance(record, dict)
+                and str(record.get("claim_id") or "").strip() == claim_id
+                and _is_obligation_grounded_review_issue_evidence_record(record, view)
+            ]
+            if not linked_records:
+                continue
+            neg_type = _canonical_negative_evidence_type(
+                flaw.get("negative_evidence_type")
+                or _negative_evidence_type_for_record(linked_records[0])
+            ) or "insufficient_evaluation"
+            missing_items: List[str] = []
+            for record in linked_records:
+                bundle = record.get("review_issue_bundle") if isinstance(record.get("review_issue_bundle"), dict) else {}
+                missing_or_mismatch = (
+                    bundle.get("missing_or_mismatch")
+                    if isinstance(bundle.get("missing_or_mismatch"), dict)
+                    else {}
+                )
+                missing_items.extend(
+                    _normalize_list_of_strings(
+                        missing_or_mismatch.get("items") or [missing_or_mismatch.get("entity")],
+                        max_items=4,
+                        max_length=140,
+                    )
+                )
+            missing_text = ", ".join(dict.fromkeys(missing_items)) or _readable_negative_evidence_type(neg_type)
+            issue_type_text = _readable_negative_evidence_type(neg_type)
+            description = (
+                f"The paper's visible evaluation or method inventory leaves a {issue_type_text} concern "
+                f"for claim '{claim_text}'. The specific unchecked item is {missing_text}."
+            )
+            flaw["description"] = description
+            flaw["flaw"] = description
+
+    _refresh_existing_absence_flaw_texts()
 
     all_absence_evidence_ids: List[str] = []
     all_absence_claim_ids: set[str] = set()
@@ -19832,6 +19926,18 @@ def _negative_grounding_conflict_is_semantic_rejection(conflict: Dict[str, Any])
     return semantic_label not in {"", "semantic_negative_verified"}
 
 
+def _candidate_negative_anchor_conflict_is_rejected(conflict: Dict[str, Any]) -> bool:
+    if not isinstance(conflict, dict):
+        return False
+    reason = str(conflict.get("reason") or "")
+    return reason in {
+        "negative_evidence_id_unresolved",
+        "negative_evidence_id_not_negative_stance",
+        "negative_evidence_id_not_verified",
+        "negative_evidence_id_not_review_negative",
+    }
+
+
 def _review_negative_dedup_signature(record: Dict[str, Any], state: Dict[str, Any]) -> Tuple[str, str, str, str]:
     """Return a stable signature for one reviewer-negative finding.
 
@@ -20336,6 +20442,19 @@ def build_decision_hygiene_view(state: Dict[str, Any]) -> Dict[str, Any]:
         ):
             flaw["status"] = "downgraded"
             flaw["hygiene_status_reason"] = "semantic_rejected_negative_anchor"
+            downgraded_flaws.append(str(flaw.get("flaw_id") or ""))
+        if (
+            str(flaw.get("status") or "candidate") == "candidate"
+            and conflicts
+            and not valid_explicit_negative_ids
+            and _flaw_explicit_negative_evidence_ids(flaw)
+            and all(_candidate_negative_anchor_conflict_is_rejected(conflict) for conflict in conflicts)
+        ):
+            flaw["status"] = "downgraded"
+            if any(_negative_grounding_conflict_is_semantic_rejection(conflict) for conflict in conflicts):
+                flaw["hygiene_status_reason"] = "semantic_rejected_negative_anchor"
+            else:
+                flaw["hygiene_status_reason"] = "decision_view_invalid_candidate_negative_anchor"
             downgraded_flaws.append(str(flaw.get("flaw_id") or ""))
         if (
             flaw.get("status") not in {"downgraded", "retracted"}
