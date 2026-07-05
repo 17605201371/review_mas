@@ -332,14 +332,13 @@ def test_same_turn_recovery_patch_blocks_stale_claim_status_overwrite(mock_state
     assert overwritten["_transient_status_locks"]["claim:c2"] == "unsupported"
 
 
-def test_valid_patch_flaw_downgrade_commits(mock_state):
-    # New semantics: a verified actionable negative *candidate* flaw is preserved
-    # (cannot be routed to downgraded -> ACTIONABLE_CONCERN_PRESERVED). The valid
-    # committing path for such a flaw is confirmed->downgraded, which normalizes to
-    # confirmed->candidate (downgrade_final_to_candidate) to de-escalate an
-    # over-confirmed grounded weakness while keeping it an active potential concern.
+def test_verified_actionable_confirmed_flaw_downgrade_is_preserved(mock_state):
+    # R2 regression: confirmed verified actionable negatives are already
+    # paper-grounded review issues. Recovery may add a contested relation, but
+    # must not mutate their lifecycle status downward.
     mock_state["flaw_candidates"][0]["status"] = "confirmed"
     mock_state["evidence_map"][0].update(_VERIFIED_NEGATIVE_FIELDS)
+    mock_state["flaw_candidates"][0]["negative_evidence_ids"] = ["e1"]
     payload = {
         "action": "apply_recovery_patch",
         "target_type": "flaw",
@@ -354,11 +353,15 @@ def test_valid_patch_flaw_downgrade_commits(mock_state):
     new_state = merge_review_state(mock_state, payload)
 
     assert new_state["_latest_patch_log"]["recovery_validated"] is True
-    assert new_state["_latest_patch_log"]["recovery_committed"] is True
-    assert new_state["_latest_patch_log"]["recovery_failure_code"] == "SUCCESS"
-    assert new_state["_latest_patch_log"]["recovery_patch_operation"] == "downgrade_final_to_candidate"
-    assert new_state["flaw_candidates"][0]["status"] == "candidate"
-    assert len(new_state["conflict_notes"]) == 0
+    assert new_state["_latest_patch_log"]["recovery_committed"] is False
+    assert new_state["_latest_patch_log"]["recovery_failure_code"] == "ACTIONABLE_CONCERN_PRESERVED"
+    assert new_state["_latest_patch_log"]["recovery_patch_operation"] == "reject_patch"
+    assert new_state["_latest_patch_log"]["recovery_target_gate_label"] == "negative_verified_target"
+    assert new_state["_latest_patch_log"]["recovery_terminal"] is True
+    assert new_state["_latest_patch_log"]["recovery_terminal_reason"] == "verified_actionable_negative_concern_preserved"
+    assert new_state["_latest_patch_log"]["recovery_repeat_allowed"] is False
+    assert new_state["flaw_candidates"][0]["status"] == "confirmed"
+    assert len(new_state["conflict_notes"]) == 1
 
 
 def test_hypothesis_patch_commits_and_reformats_status(mock_state):
@@ -1549,20 +1552,9 @@ def test_recovery_patch_revision_log_supports_flaw_downgrade(mock_state):
     """The same revision-log emission must work for flaw-target patches."""
 
     previous_revision_count = len(mock_state.get("revision_log", []))
-    # New semantics: a verified actionable negative is preserved, so
-    # route_to_assessment_limitation only commits for an UNVERIFIED (not
-    # paper-grounded) negative flaw. Use an unverified typed negative so the
-    # downgrade routes to assessment limitation and emits a revision event.
-    mock_state["evidence_map"][0].update(
-        {
-            "stance": "missing",
-            "strength": "missing",
-            "negative_evidence_type": "missing_baseline",
-            "raw_quote": "We compare only against method A; method B is not included in our experiments.",
-            "source": "Section 5 Experiments",
-        }
-    )
-    mock_state["flaw_candidates"][0]["negative_evidence_ids"] = ["e1"]
+    # Use an unverified confirmed flaw so the transition is a real hygiene
+    # improvement, not a no-effect assessment-limitation lifecycle change.
+    mock_state["flaw_candidates"][0]["status"] = "confirmed"
 
     new_state = merge_review_state(
         mock_state,
@@ -1570,23 +1562,23 @@ def test_recovery_patch_revision_log_supports_flaw_downgrade(mock_state):
             "action": "apply_recovery_patch",
             "target_type": "flaw",
             "target_id": "f1",
-            "old_status": "candidate",
-            "new_status": "downgraded",
+            "old_status": "confirmed",
+            "new_status": "candidate",
             "supporting_evidence_ids": ["e1"],
         },
     )
 
     assert new_state["_latest_patch_log"]["recovery_committed"] is True
-    assert new_state["flaw_candidates"][0]["status"] == "downgraded"
-    assert new_state["_latest_patch_log"]["recovery_patch_operation"] == "route_to_assessment_limitation"
+    assert new_state["flaw_candidates"][0]["status"] == "candidate"
+    assert new_state["_latest_patch_log"]["recovery_patch_operation"] == "downgrade_final_to_candidate"
     assert new_state["_latest_patch_log"]["recovery_target_gate_label"] == "real_target"
     new_events = new_state.get("revision_log", [])[previous_revision_count:]
     assert any(
         event.get("entity_type") == "flaw"
         and event.get("entity_id") == "f1"
         and event.get("field") == "status"
-        and event.get("before") == "candidate"
-        and event.get("after") == "downgraded"
+        and event.get("before") == "confirmed"
+        and event.get("after") == "candidate"
         and event.get("reason") == "recovery_patch_committed"
         for event in new_events
     ), f"missing recovery revision event: {new_events!r}"
@@ -1594,8 +1586,9 @@ def test_recovery_patch_revision_log_supports_flaw_downgrade(mock_state):
 
 def test_recovery_delta_quote_bank_limitation_cleanup_not_counted_as_assessment_limitation():
     # New semantics: quote-bank-negative-grounding is an UNTRUSTED verifier source, so a
-    # quote-bank scope_limitation flaw downgrade no longer counts as a trusted route to an
-    # assessment limitation (assessment_limitation_flaw_count stays 0, nothing tolerated-worsened).
+    # quote-bank scope_limitation flaw downgrade no longer counts as trusted negative
+    # cleanup. The state-delta view should treat the candidate->downgraded mutation
+    # as hygiene-neutral, and the runtime no-effect guard blocks committing it.
     before = {
         "claims": [{"claim_id": "c1", "claim": "The method improves accuracy.", "status": "supported"}],
         "evidence_map": [
@@ -1632,11 +1625,12 @@ def test_recovery_delta_quote_bank_limitation_cleanup_not_counted_as_assessment_
 
     delta = _build_recovery_state_delta(before, after)
 
-    assert delta["delta"]["negative_grounding_conflict_count"] == -1
+    assert delta["delta"]["negative_grounding_conflict_count"] == 0
     assert delta["delta"]["assessment_limitation_flaw_count"] == 0
     assert delta["tolerated_worsened_keys"] == []
     assert delta["worsened_keys"] == []
-    assert delta["consistency_improved"] is True
+    assert delta["consistency_improved"] is False
+    assert delta["negative_recovery_commit"] is False
 
 
 def test_recovery_patch_blocks_no_effect_assessment_limitation_downgrade():
@@ -1769,7 +1763,7 @@ def test_recovery_patch_blocks_actionable_candidate_to_assessment_limitation(moc
     assert new_state["flaw_candidates"][0]["status"] == "candidate"
 
 
-def test_recovery_patch_normalizes_confirmed_actionable_downgrade_to_candidate(mock_state):
+def test_recovery_patch_blocks_confirmed_actionable_downgrade_to_candidate(mock_state):
     mock_state["evidence_map"][0].update(
         {
             "verified_grounding_label": "paper_grounded_exact",
@@ -1798,7 +1792,82 @@ def test_recovery_patch_normalizes_confirmed_actionable_downgrade_to_candidate(m
         },
     )
 
-    assert new_state["_latest_patch_log"]["recovery_committed"] is True
-    assert new_state["flaw_candidates"][0]["status"] == "candidate"
-    assert new_state["_latest_patch_log"]["recovery_patch_operation"] == "downgrade_final_to_candidate"
-    assert new_state["_latest_patch_log"]["new_status"] == "candidate"
+    assert new_state["_latest_patch_log"]["recovery_committed"] is False
+    assert new_state["_latest_patch_log"]["recovery_failure_code"] == "ACTIONABLE_CONCERN_PRESERVED"
+    assert new_state["_latest_patch_log"]["recovery_patch_operation"] == "reject_patch"
+    assert new_state["_latest_patch_log"]["recovery_target_gate_label"] == "negative_verified_target"
+    assert new_state["_latest_patch_log"]["recovery_terminal"] is True
+    assert new_state["_latest_patch_log"]["recovery_terminal_reason"] == "verified_actionable_negative_concern_preserved"
+    assert new_state["_latest_patch_log"]["recovery_repeat_allowed"] is False
+    assert new_state["flaw_candidates"][0]["status"] == "confirmed"
+
+
+def test_recovery_patch_blocks_direct_confirmed_actionable_to_candidate(mock_state):
+    mock_state["evidence_map"][0].update(
+        {
+            "verified_grounding_label": "paper_grounded_exact",
+            "semantic_grounding_label": "semantic_negative_verified",
+            "verified_quote_match_type": "quote_bank_raw_canonical",
+            "review_negative_label": "review_negative_verified",
+            "verified_source_span_start": 10,
+            "verified_source_span_end": 80,
+            "negative_evidence_type": "negative_result",
+            "raw_quote": "The method performs worse than the baseline.",
+        }
+    )
+    mock_state["flaw_candidates"][0]["status"] = "confirmed"
+    mock_state["flaw_candidates"][0]["negative_evidence_ids"] = ["e1"]
+
+    new_state = merge_review_state(
+        mock_state,
+        {
+            "action": "apply_recovery_patch",
+            "target_type": "flaw",
+            "target_id": "f1",
+            "old_status": "confirmed",
+            "new_status": "candidate",
+            "supporting_evidence_ids": ["e1"],
+            "resolution_expectation": "partially_resolved",
+        },
+    )
+
+    assert new_state["_latest_patch_log"]["recovery_committed"] is False
+    assert new_state["_latest_patch_log"]["recovery_failure_code"] == "ACTIONABLE_CONCERN_PRESERVED"
+    assert new_state["_latest_patch_log"]["recovery_patch_operation"] == "reject_patch"
+    assert new_state["_latest_patch_log"]["recovery_target_gate_label"] == "negative_verified_target"
+    assert new_state["flaw_candidates"][0]["status"] == "confirmed"
+
+
+def test_recovery_patch_blocks_aligned_supporting_verified_negative_downgrade(mock_state):
+    mock_state["evidence_map"].append(
+        {
+            "evidence_id": "e-review-negative",
+            "claim_id": "c1",
+            "stance": "contradicts",
+            "strength": "medium",
+            **_VERIFIED_NEGATIVE_FIELDS,
+        }
+    )
+    mock_state["flaw_candidates"][0]["status"] = "confirmed"
+    mock_state["flaw_candidates"][0]["evidence_ids"] = ["e1"]
+    mock_state["flaw_candidates"][0]["negative_evidence_ids"] = ["e1"]
+
+    new_state = merge_review_state(
+        mock_state,
+        {
+            "action": "apply_recovery_patch",
+            "target_type": "flaw",
+            "target_id": "f1",
+            "old_status": "confirmed",
+            "new_status": "candidate",
+            "supporting_evidence_ids": ["e-review-negative"],
+            "resolution_expectation": "partially_resolved",
+        },
+    )
+
+    assert new_state["_latest_patch_log"]["recovery_committed"] is False
+    assert new_state["_latest_patch_log"]["recovery_failure_code"] == "ACTIONABLE_CONCERN_PRESERVED"
+    assert new_state["_latest_patch_log"]["recovery_patch_operation"] == "reject_patch"
+    assert new_state["_latest_patch_log"]["recovery_target_gate_label"] == "negative_verified_target"
+    assert new_state["_latest_patch_log"]["recovery_terminal"] is True
+    assert new_state["flaw_candidates"][0]["status"] == "confirmed"

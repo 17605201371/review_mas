@@ -489,6 +489,56 @@ def _flaw_verified_actionable_negative_recovery_ids(state: Dict[str, Any], flaw:
     return actionable_ids
 
 
+def _verified_actionable_negative_recovery_ids_from_ids(
+    state: Dict[str, Any],
+    evidence_ids: List[str],
+) -> List[str]:
+    evidence_lookup = {
+        str(item.get("evidence_id") or ""): item
+        for item in state.get("evidence_map", []) or []
+        if isinstance(item, dict) and item.get("evidence_id")
+    }
+    actionable_ids: List[str] = []
+    for evidence_id in dict.fromkeys(str(item or "").strip() for item in evidence_ids if str(item or "").strip()):
+        item = evidence_lookup.get(evidence_id)
+        if not isinstance(item, dict) or not _is_verified_negative_recovery_evidence(item):
+            continue
+        if _negative_recovery_evidence_type(item) in ACTIONABLE_RECOVERY_NEGATIVE_TYPES:
+            actionable_ids.append(evidence_id)
+    return actionable_ids
+
+
+def _flaw_aligned_supporting_evidence_ids(
+    state: Dict[str, Any],
+    flaw: Dict[str, Any],
+    evidence_ids: List[str],
+) -> List[str]:
+    evidence_lookup = {
+        str(item.get("evidence_id") or ""): item
+        for item in state.get("evidence_map", []) or []
+        if isinstance(item, dict) and item.get("evidence_id")
+    }
+    explicit_flaw_ids: set[str] = set()
+    for key in ("negative_evidence_ids", "hard_negative_evidence_ids", "contradicting_evidence_ids", "evidence_ids"):
+        raw = flaw.get(key) or []
+        if isinstance(raw, str):
+            raw = [raw]
+        explicit_flaw_ids.update(str(item or "").strip() for item in raw if str(item or "").strip())
+    related_claim_ids = {
+        str(item or "").strip()
+        for item in flaw.get("related_claim_ids", []) or []
+        if str(item or "").strip()
+    }
+    aligned_ids: List[str] = []
+    for evidence_id in dict.fromkeys(str(item or "").strip() for item in evidence_ids if str(item or "").strip()):
+        item = evidence_lookup.get(evidence_id)
+        if not isinstance(item, dict):
+            continue
+        if evidence_id in explicit_flaw_ids or str(item.get("claim_id") or "").strip() in related_claim_ids:
+            aligned_ids.append(evidence_id)
+    return aligned_ids
+
+
 def _flaw_has_verified_negative_recovery_grounding(state: Dict[str, Any], flaw: Dict[str, Any]) -> bool:
     evidence_lookup = {
         str(item.get("evidence_id") or ""): item
@@ -826,26 +876,24 @@ def validate_recovery_patch(state: Dict[str, Any], patch: Dict[str, Any]) -> Dic
                 validation["negative_verified_target"] = True
             return _success(validation, list(patch.get("conflict_note_ids", []) or []))
 
-        if target_type == "flaw" and new_status in {"downgraded", "retracted"} and evidence_ids:
+        if target_type == "flaw" and new_status in {"candidate", "downgraded", "retracted"} and evidence_ids:
+            target_flaw = located.get("target_item", {})
             actionable_negative_ids = _flaw_verified_actionable_negative_recovery_ids(
                 state,
-                located.get("target_item", {}),
+                target_flaw,
             )
-            if actionable_negative_ids:
-                if old_status == "confirmed":
-                    validation["status_normalized_from"] = new_status
-                    validation["status_normalized_to"] = "candidate"
-                    validation["normalization_reason"] = "verified_actionable_negative_flaw_stays_potential_concern"
-                    new_status = "candidate"
-                    validation["new_status"] = new_status
-                else:
-                    return _failure(
-                        validation,
-                        "ACTIONABLE_CONCERN_PRESERVED",
-                        "Verified actionable negative evidence must remain a potential concern; recovery cannot route it to an assessment limitation.",
-                        "Keep the candidate flaw active, or use confirmed->candidate for an over-escalated grounded weakness.",
-                        validated=True,
-                    )
+            aligned_supporting_negative_ids = _verified_actionable_negative_recovery_ids_from_ids(
+                state,
+                _flaw_aligned_supporting_evidence_ids(state, target_flaw, evidence_ids),
+            )
+            if actionable_negative_ids or aligned_supporting_negative_ids:
+                return _failure(
+                    validation,
+                    "ACTIONABLE_CONCERN_PRESERVED",
+                    "Verified actionable negative evidence must keep its active flaw lifecycle status; recovery cannot downgrade it to a lower final-view layer.",
+                    "Keep the verified negative flaw active, or use mark_contested to record the relation without changing the flaw status.",
+                    validated=True,
+                )
 
         if (
             target_type == "claim"
