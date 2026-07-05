@@ -109,7 +109,9 @@ Manual audit of the two fresh direct clusters found both were precision risks:
 - `cklg91aPGk / missing_baseline / recent_gnn_graph-transformer_baselines...`
   is an external family baseline template, not a paper-named missing baseline.
 
-Current code now rejects those at bundle verification, not only telemetry:
+Current code now rejects those at bundle verification, not only telemetry.  It
+also rejects generic ablation targets such as `component-removal experiment for
+the claimed mechanism` before verified issue creation:
 
 ```text
 current-code recompute = P31_13_MENU_QUALITY_RECOMPUTE_20260705_132812_*
@@ -120,8 +122,18 @@ critique_payload_verified_cluster_count = 0
 candidate_menu_item_verified_count = 0
 candidate_menu_item_failed_count = 11
 candidate_menu_item_failed_by_stage =
-  counterevidence: 7
-  menu_quality_guard: 4
+  counterevidence: 5
+  menu_quality_guard: 6
+candidate_menu_item_failed_by_reason =
+  missing_entity_already_observed_in_inventory: 4
+  evaluation_protocol_menu_generic_target: 3
+  missing_ablation_counterevidence_in_claim_or_inventory: 1
+  missing_baseline_menu_external_family_target: 1
+  missing_ablation_menu_generic_target: 2
+state_contamination_count = 0
+positive_or_neutral_negative_candidate_count = 0
+negative_evidence_unlinked_to_flaw = 0
+negative_grounding_conflict_count = 0
 ```
 
 Updated next step:

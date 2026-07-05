@@ -15048,6 +15048,16 @@ def test_review_issue_menu_quality_rejects_template_scope_and_result_placeholder
         )
         == "evaluation_protocol_menu_generic_target"
     )
+    assert (
+        review_state_mod._review_issue_candidate_menu_quality_failure(
+            neg_type="missing_ablation",
+            expected_entity="component-removal experiment for the claimed mechanism",
+            claim_text="The method uses a proposed temporal mechanism.",
+            inventory_text="Table 3 reports ablations for concrete variants.",
+            source="runner_seed_blueprint",
+        )
+        == "missing_ablation_menu_generic_target"
+    )
 
 
 def test_entity_obligation_candidates_do_not_cast_dataset_or_metric_as_baseline_target():
@@ -15242,6 +15252,67 @@ def test_review_issue_bundle_rejects_external_graph_baseline_family_selected_men
 
     assert hygiene["verified_review_issue_count"] == 0
     assert hygiene["review_issue_candidate_rejected_by_reason"]["missing_baseline_menu_external_family_target"] == 1
+
+
+def test_review_issue_bundle_rejects_generic_ablation_selected_menu_target():
+    claim = "The model uses a proposed temporal mechanism for video understanding."
+    inventory_quote = "Table 3 reports ablations for the temporal attention branch and auxiliary loss."
+    state = {
+        "paper_text": f"{claim}\n\n{inventory_quote}",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "claim": claim,
+                "claim_kind": "paper_extracted",
+                "claim_type": "method",
+                "importance": "high",
+                "status": "supported",
+                "claim_obligations": ["ablation_or_component"],
+            }
+        ],
+        "evidence_map": [],
+        "reviewer_negative_candidates": [
+            {
+                "candidate_id": "review-issue-candidate-selected-menu-1",
+                "candidate_menu_id": "rim-c1-ma-component-removal-experiment-for",
+                "claim_id": "claim-1",
+                "weakness": "Verify whether the paper lacks a component-removal experiment for the claimed mechanism.",
+                "negative_type": "missing_ablation",
+                "required_evidence_type": "ablation_or_component",
+                "quote_grounding_mode": "absence_or_requirement_gap",
+                "missing_or_weak_items": ["component-removal experiment for the claimed mechanism"],
+                "observed_inventory": [
+                    {
+                        "quote": inventory_quote,
+                        "locator": "Table 3",
+                        "observed_items": ["temporal attention branch", "auxiliary loss"],
+                    }
+                ],
+                "status": "pending_absence_audit",
+                "source": "critique_selected_menu_item",
+                "discovery_origin": "critique_payload_menu_selected",
+                "source_of_expectation": "reviewer_candidate",
+                "review_issue_candidate_menu_item": {
+                    "candidate_menu_id": "rim-c1-ma-component-removal-experiment-for",
+                    "claim_id": "claim-1",
+                    "issue_type": "missing_ablation",
+                    "expected_entity": "component-removal experiment for the claimed mechanism",
+                },
+            }
+        ],
+        "flaw_candidates": [],
+        "unresolved_questions": [],
+        "evidence_gaps": [],
+        "conflict_notes": [],
+    }
+
+    hygiene = build_decision_hygiene_view(copy.deepcopy(state))["decision_hygiene"]
+
+    assert hygiene["review_issue_candidate_rejected_by_reason"]["missing_ablation_menu_generic_target"] == 1
+    assert hygiene["candidate_menu_item_failed_by_reason"]["missing_ablation_menu_generic_target"] == 1
+    assert hygiene["candidate_menu_item_failed_by_stage"]["menu_quality_guard"] == 1
+    assert hygiene["failed_menu_candidate_items"][0]["candidate_menu_id"] == "rim-c1-ma-component-removal-experiment-for"
+    assert hygiene["failed_menu_candidate_items"][0]["stop_stage"] == "menu_quality_guard"
 
 
 def test_review_issue_menu_rejects_unlocatable_claim_anchor_when_paper_text_available():

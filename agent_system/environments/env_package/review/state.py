@@ -13449,6 +13449,15 @@ def _review_issue_candidate_menu_quality_failure(
     if not expected_l:
         return "empty_expected_entity"
 
+    if neg_type == "missing_ablation":
+        if re.fullmatch(
+            r"(?:ablation\s+of\s+the\s+named\s+module/component\s+in\s+the\s+claim|"
+            r"component[- ]removal\s+experiment\s+for\s+the\s+claimed\s+mechanism|"
+            r"component[- ]isolation\s+ablation\s+for\s+the\s+claimed\s+mechanism)",
+            expected_l,
+        ):
+            return "missing_ablation_menu_generic_target"
+
     if neg_type in {"missing_robustness_or_generalization", "scope_overclaim", "insufficient_evaluation"}:
         if re.fullmatch(
             r"additional\s+benchmark\s+dataset\s+matching\s+the\s+claim\s+scope",
@@ -17304,10 +17313,7 @@ def _review_issue_candidate_blueprints_for_claim(
             )
         )
     if "ablation_or_component" in active_reqs:
-        component_examples = [
-            "ablation of the named module/component in the claim",
-            "component-removal experiment for the claimed mechanism",
-        ]
+        component_examples = []
         for item in reversed(claim_surface_profile.get("components_or_mechanisms", [])[:3]):
             component_examples.insert(0, f"ablation isolating {item}")
         blueprints.append(

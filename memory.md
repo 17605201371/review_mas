@@ -3714,6 +3714,8 @@ candidate_menu_item_verified_count = 2
     creation;
   - hardcoded external baseline-family menu templates are rejected before
     verified issue creation;
+  - generic ablation templates such as `component-removal experiment for the
+    claimed mechanism` are rejected before verified issue creation;
   - runner protocol fallback no longer fabricates `evaluation protocol details
     for <primary>`.
 - Current-code recompute over the same fresh raw:
@@ -3727,13 +3729,14 @@ critique_payload_verified_cluster_count = 0
 candidate_menu_item_verified_count = 0
 candidate_menu_item_failed_count = 11
 candidate_menu_item_failed_by_stage =
-  counterevidence: 7
-  menu_quality_guard: 4
+  counterevidence: 5
+  menu_quality_guard: 6
 candidate_menu_item_failed_by_reason =
   missing_entity_already_observed_in_inventory: 4
   evaluation_protocol_menu_generic_target: 3
-  missing_ablation_counterevidence_in_claim_or_inventory: 3
+  missing_ablation_counterevidence_in_claim_or_inventory: 1
   missing_baseline_menu_external_family_target: 1
+  missing_ablation_menu_generic_target: 2
 state_contamination_count = 0
 positive_or_neutral_negative_candidate_count = 0
 negative_evidence_unlinked_to_flaw = 0

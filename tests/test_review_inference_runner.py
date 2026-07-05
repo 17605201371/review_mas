@@ -3281,7 +3281,12 @@ def test_runner_seed_selector_filters_template_blueprint_items(monkeypatch):
                 "quote": "Table 1 reports aggregate theorem-proving accuracy on Benchmark-X.",
                 "locator": "Table 1",
                 "inventory_type": "metric",
-                "requirement_types": ["empirical_result", "robustness_or_generalization", "evaluation_protocol"],
+                "requirement_types": [
+                    "empirical_result",
+                    "robustness_or_generalization",
+                    "evaluation_protocol",
+                    "ablation_or_component",
+                ],
                 "observed_items": ["Benchmark-X", "accuracy"],
             }
         ],
@@ -3309,6 +3314,13 @@ def test_runner_seed_selector_filters_template_blueprint_items(monkeypatch):
                     "metric definition or threshold selection protocol",
                 ],
             },
+            {
+                "required_evidence_type": "ablation_or_component",
+                "issue_type": "missing_ablation",
+                "candidate_missing_item_examples": [
+                    "component-removal experiment for the claimed mechanism",
+                ],
+            },
         ],
     }
     monkeypatch.setattr(
@@ -3329,6 +3341,7 @@ def test_runner_seed_selector_filters_template_blueprint_items(monkeypatch):
     assert "metric result table for the claimed effect" not in missing_items
     assert "quantitative result table or metric for RNN" not in missing_items
     assert "metric definition or threshold selection protocol" not in missing_items
+    assert "component-removal experiment for the claimed mechanism" not in missing_items
     assert candidates == []
 
 
