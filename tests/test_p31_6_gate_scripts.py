@@ -485,6 +485,27 @@ def test_p32_stability_report_counts_recurrent_ab_clusters(tmp_path, monkeypatch
     assert critique_recurrent["paper-1|reproducibility_gap|target-1"] == 2
 
 
+def test_p32_stability_report_prefers_manual_entry_gate_when_present(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    raw = _write_stability_artifacts(tmp_path, "P32_R3", rows=20)
+    _entry_gate(tmp_path / "P32_R3_ENTRY_GATE_AUDIT.json", manual_status="REQUIRED")
+    manual_gate = _entry_gate(tmp_path / "P32_R3_ENTRY_GATE_WITH_MANUAL_AUDIT.json", manual_status="PASS")
+
+    report = p32_stability.build_report(
+        argparse.Namespace(
+            run=[f"P32_R3={raw.with_suffix('')}"],
+            min_runs=1,
+            min_rows=20,
+            max_d_rate=0.25,
+        )
+    )
+
+    run = report["runs"][0]
+    assert run["clean_included"] is True
+    assert run["manual_gate_status"] == "PASS"
+    assert run["entry_gate_path"] == manual_gate.name
+
+
 def test_p32_clean_pipeline_dry_run_uses_standard_runtime():
     result = subprocess.run(
         [

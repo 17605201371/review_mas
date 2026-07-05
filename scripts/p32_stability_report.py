@@ -145,11 +145,19 @@ def _parse_run_spec(spec: str) -> Tuple[str, str]:
 def _artifact_paths(label: str) -> Dict[str, Path]:
     return {
         "entry_gate": Path(f"{label}_ENTRY_GATE_AUDIT.json"),
+        "entry_gate_with_manual": Path(f"{label}_ENTRY_GATE_WITH_MANUAL_AUDIT.json"),
         "manual_validation": Path(f"{label}_MANUAL_AUDIT_VALIDATION.json"),
         "case_table": Path(f"{label}_REVIEW_ISSUE_CASE_TABLE.json"),
         "recovery_table": Path(f"{label}_RECOVERY_CASE_TABLE.json"),
         "dashboard": Path(f"{label}_HARDNEG20_DASHBOARD.json"),
     }
+
+
+def _select_entry_gate_path(paths: Dict[str, Path]) -> Path:
+    with_manual = paths["entry_gate_with_manual"]
+    if with_manual.exists():
+        return with_manual
+    return paths["entry_gate"]
 
 
 def _dashboard_jsonl_path(dashboard: Dict[str, Any]) -> str:
@@ -180,7 +188,8 @@ def _is_zero_protection_clean(metrics: Dict[str, Any]) -> bool:
 
 def _build_run(label: str, run_base: str, *, min_rows: int) -> Dict[str, Any]:
     paths = _artifact_paths(label)
-    entry_gate = _load_json_optional(paths["entry_gate"])
+    entry_gate_path = _select_entry_gate_path(paths)
+    entry_gate = _load_json_optional(entry_gate_path)
     manual = _load_json_optional(paths["manual_validation"])
     case_table = _load_json_optional(paths["case_table"])
     recovery = _load_json_optional(paths["recovery_table"])
@@ -214,8 +223,8 @@ def _build_run(label: str, run_base: str, *, min_rows: int) -> Dict[str, Any]:
     ]
 
     blocking: List[str] = []
-    if not paths["entry_gate"].exists():
-        blocking.append(f"missing entry gate: {paths['entry_gate']}")
+    if not entry_gate_path.exists():
+        blocking.append(f"missing entry gate: {paths['entry_gate']} or {paths['entry_gate_with_manual']}")
     if not paths["manual_validation"].exists():
         blocking.append(f"missing manual validation: {paths['manual_validation']}")
     if jsonl_rows < min_rows:
@@ -239,6 +248,7 @@ def _build_run(label: str, run_base: str, *, min_rows: int) -> Dict[str, Any]:
         "jsonl_rows": jsonl_rows,
         "dashboard_paper_count": _as_int(metrics.get("paper_count"), 0),
         "artifact_paths": {key: str(path) for key, path in paths.items()},
+        "entry_gate_path": str(entry_gate_path),
         "machine_gate_status": entry_gate.get("machine_gate_status", ""),
         "manual_gate_status": entry_gate.get("manual_gate_status", ""),
         "manual_status": manual_summary.get("status", ""),

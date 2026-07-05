@@ -99,6 +99,79 @@ loosen verifier or validator gates, do not use full39 before hardneg20 stability
 is summarized, and do not touch verl/PPO/rollout internals.
 ```
 
+## Current P32 Stability Checkpoint 2026-07-06
+
+Current status:
+
+```text
+Two accepted clean hardneg20 runs now pass stability checks under strict
+machine/manual gates.  This is Stage 4 evidence for repeatability of real
+Critique-origin discovery, not just a single-run artifact.
+```
+
+Stability report:
+
+```text
+artifact_json = P32_STABILITY_R1_R3_PRECISION_20260706.json
+artifact_md = P32_STABILITY_R1_R3_PRECISION_20260706.md
+included_runs = 2 / 2
+min_runs = 2
+max_d_rate = 0
+status = PASS
+manual_A_B_clusters = 7, 7
+manual_D_clusters = 0, 0
+critique_origin_manual_A_B_clusters = 5, 5
+harmful_recovery_total = 0
+accepted_cluster_jaccard = 0.75
+critique_origin_cluster_jaccard = 1.0
+recurring_A_B_clusters = 6
+recurring_critique_origin_A_B_clusters = 5
+```
+
+Included runs:
+
+```text
+R1 = P32_CLEAN_R1_PRECISION_RECOMPUTE_20260705_232527
+R3 = P32_CLEAN_R3_PRECISION_RECOMPUTE_20260706_010000
+```
+
+Recurring Critique-origin A/B clusters:
+
+```text
+fGXyvmWpw6 / efficiency_cost_gap / efficiency_resource_measurement
+GE6iywJtsV / missing_ablation / graph_control_module
+HPuLU6q7xq / missing_baseline / paper-named_gpt-4_baseline
+NnExMNiTHw / missing_ablation / acceptance_prediction_head
+YXn76HMetm / missing_baseline / paper-named_pixelpick_baseline
+```
+
+Tooling fix:
+
+```text
+scripts/p32_stability_report.py now prefers
+*_ENTRY_GATE_WITH_MANUAL_AUDIT.json when present, then falls back to
+*_ENTRY_GATE_AUDIT.json.  This prevents accepted manual-gate runs like R3 from
+being incorrectly excluded by the older machine-only entry gate file.
+```
+
+Validation:
+
+```text
+pytest tests/test_p31_6_gate_scripts.py -q = 11 passed
+py_compile scripts/p32_stability_report.py tests/test_p31_6_gate_scripts.py = PASS
+```
+
+Next action:
+
+```text
+Draft the Stage 4 / P32 paper-facing narrative from recurring clusters:
+what the system repeatedly finds, why those clusters are evidence of real
+Critique discovery, and how contested recovery preserves auditability.  Decide
+after that whether a third accepted clean hardneg20 run is necessary before
+freezing result tables.  Still no full39 and no verifier relaxation until this
+narrative audit is done.
+```
+
 Latest full hardneg20 evidence:
 
 ```text

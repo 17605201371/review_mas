@@ -4589,3 +4589,48 @@ P32 clean R3 precision recompute checkpoint (20260706):
     downgrades.
   - Next substantial direction is P32 stability comparison across accepted
     clean runs and paper-narrative extraction, not loosening verifier gates.
+
+P32 R1/R3 clean stability checkpoint (20260706):
+
+- Stability tooling:
+  - `scripts/p32_stability_report.py` now prefers
+    `*_ENTRY_GATE_WITH_MANUAL_AUDIT.json` when present, falling back to the
+    older `*_ENTRY_GATE_AUDIT.json`.  This matters because R3's machine-only
+    entry gate was `manual_gate = REQUIRED`, while the manual gate pass lives in
+    the `WITH_MANUAL_AUDIT` artifact.
+  - Regression added in `tests/test_p31_6_gate_scripts.py`.
+- Generated stability artifacts:
+  - `P32_STABILITY_R1_R3_PRECISION_20260706.json`
+  - `P32_STABILITY_R1_R3_PRECISION_20260706.md`
+  - included runs:
+    - `P32_CLEAN_R1_PRECISION_RECOMPUTE_20260705_232527`
+    - `P32_CLEAN_R3_PRECISION_RECOMPUTE_20260706_010000`
+- Stability result with `--min-runs 2 --max-d-rate 0`:
+  - status = PASS
+  - runs included = 2/2
+  - both rows = 20
+  - both machine/manual gates = PASS
+  - both manual A/B clusters = 7
+  - both manual D clusters = 0
+  - both Critique-origin manual A/B clusters = 5
+  - harmful recovery total = 0
+  - accepted-cluster Jaccard = 0.75
+  - Critique-origin accepted-cluster Jaccard = 1.0
+  - recurring A/B clusters = 6
+  - recurring Critique-origin A/B clusters = 5
+- Recurring Critique-origin A/B clusters across R1 and R3:
+  - `fGXyvmWpw6 / efficiency_cost_gap / efficiency_resource_measurement`
+  - `GE6iywJtsV / missing_ablation / graph_control_module`
+  - `HPuLU6q7xq / missing_baseline / paper-named_gpt-4_baseline`
+  - `NnExMNiTHw / missing_ablation / acceptance_prediction_head`
+  - `YXn76HMetm / missing_baseline / paper-named_pixelpick_baseline`
+- Validation:
+  - `pytest tests/test_p31_6_gate_scripts.py -q` = 11 passed
+  - `py_compile scripts/p32_stability_report.py tests/test_p31_6_gate_scripts.py` = PASS
+- Interpretation:
+  - This is the first credible Stage 4 clean-run stability evidence: real
+    Critique-origin A/B clusters recur exactly across two accepted hardneg20
+    runs with zero manual-D rate and zero harmful recovery.
+  - Scope remains hardneg20 clean-repeat stability, not full39.  Next work
+    should extract a paper-facing narrative from recurring clusters and decide
+    whether one more accepted clean run is needed before freezing tables.

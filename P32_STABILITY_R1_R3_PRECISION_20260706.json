@@ -1,0 +1,301 @@
+{
+  "status": "PASS",
+  "thresholds": {
+    "min_runs": 2,
+    "min_rows": 20,
+    "max_d_rate": 0.0
+  },
+  "runs_total": 2,
+  "runs_included": 2,
+  "runs_excluded": 0,
+  "acceptance_checks": [
+    {
+      "name": "minimum_clean_runs",
+      "actual": 2,
+      "required": 2,
+      "status": "PASS"
+    },
+    {
+      "name": "all_clean_runs_complete",
+      "actual": true,
+      "required": true,
+      "status": "PASS"
+    },
+    {
+      "name": "all_protection_pass",
+      "actual": true,
+      "required": true,
+      "status": "PASS"
+    },
+    {
+      "name": "harmful_recovery_total",
+      "actual": 0,
+      "required": 0,
+      "status": "PASS"
+    },
+    {
+      "name": "max_manual_D_rate",
+      "actual": 0.0,
+      "required": "<= 0.0",
+      "status": "PASS"
+    },
+    {
+      "name": "recurring_A_B_clusters",
+      "actual": 6,
+      "required": ">= 1",
+      "status": "PASS"
+    },
+    {
+      "name": "recurring_critique_origin_A_B_clusters",
+      "actual": 5,
+      "required": ">= 1",
+      "status": "PASS"
+    }
+  ],
+  "manual_A_B_cluster_count_stats": {
+    "count": 2,
+    "mean": 7,
+    "stdev": 0.0,
+    "min": 7,
+    "max": 7
+  },
+  "manual_D_rate_stats": {
+    "count": 2,
+    "mean": 0.0,
+    "stdev": 0.0,
+    "min": 0.0,
+    "max": 0.0
+  },
+  "accepted_cluster_jaccard_stats": {
+    "count": 1,
+    "mean": 0.75,
+    "stdev": 0.0,
+    "min": 0.75,
+    "max": 0.75
+  },
+  "critique_origin_cluster_jaccard_stats": {
+    "count": 1,
+    "mean": 1.0,
+    "stdev": 0.0,
+    "min": 1.0,
+    "max": 1.0
+  },
+  "recurrence": {
+    "accepted_clusters": {
+      "fgxyvmwpw6|efficiency_cost_gap|efficiency_resource_measurement": 2,
+      "ge6iywjtsv|missing_ablation|graph_control_module": 2,
+      "hpulu6q7xq|missing_baseline|paper-named_gpt-4_baseline": 2,
+      "nnexmnithw|missing_ablation|acceptance_prediction_head": 2,
+      "wpxq5n8ylb|missing_ablation|recurrent_draft_model": 2,
+      "yxn76hmetm|missing_baseline|paper-named_pixelpick_baseline": 2,
+      "hpulu6q7xq|missing_ablation|modeling_coarse_and_fine-grained_fusion": 1,
+      "xh3oiihtvf|negative_result|incorporating a secure aggregator in the federated model results in a less favor": 1
+    },
+    "critique_origin_accepted_clusters": {
+      "fgxyvmwpw6|efficiency_cost_gap|efficiency_resource_measurement": 2,
+      "ge6iywjtsv|missing_ablation|graph_control_module": 2,
+      "hpulu6q7xq|missing_baseline|paper-named_gpt-4_baseline": 2,
+      "nnexmnithw|missing_ablation|acceptance_prediction_head": 2,
+      "yxn76hmetm|missing_baseline|paper-named_pixelpick_baseline": 2
+    },
+    "same_paper_issue": {
+      "fgxyvmwpw6": 2,
+      "ge6iywjtsv": 2,
+      "hpulu6q7xq": 2,
+      "nnexmnithw": 2,
+      "wpxq5n8ylb": 2,
+      "yxn76hmetm": 2,
+      "xh3oiihtvf": 1
+    },
+    "same_target_entity": {
+      "acceptance_prediction_head": 2,
+      "efficiency_resource_measurement": 2,
+      "graph_control_module": 2,
+      "paper-named_gpt-4_baseline": 2,
+      "paper-named_pixelpick_baseline": 2,
+      "recurrent_draft_model": 2,
+      "incorporating a secure aggregator in the federated model results in a less favor": 1,
+      "modeling_coarse_and_fine-grained_fusion": 1
+    }
+  },
+  "runs": [
+    {
+      "label": "P32_CLEAN_R1_PRECISION_RECOMPUTE_20260705_232527",
+      "run_base": "mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok2048_20260705_232528",
+      "jsonl": "mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok2048_20260705_232528.jsonl",
+      "jsonl_rows": 20,
+      "dashboard_paper_count": 20,
+      "artifact_paths": {
+        "entry_gate": "P32_CLEAN_R1_PRECISION_RECOMPUTE_20260705_232527_ENTRY_GATE_AUDIT.json",
+        "entry_gate_with_manual": "P32_CLEAN_R1_PRECISION_RECOMPUTE_20260705_232527_ENTRY_GATE_WITH_MANUAL_AUDIT.json",
+        "manual_validation": "P32_CLEAN_R1_PRECISION_RECOMPUTE_20260705_232527_MANUAL_AUDIT_VALIDATION.json",
+        "case_table": "P32_CLEAN_R1_PRECISION_RECOMPUTE_20260705_232527_REVIEW_ISSUE_CASE_TABLE.json",
+        "recovery_table": "P32_CLEAN_R1_PRECISION_RECOMPUTE_20260705_232527_RECOVERY_CASE_TABLE.json",
+        "dashboard": "P32_CLEAN_R1_PRECISION_RECOMPUTE_20260705_232527_HARDNEG20_DASHBOARD.json"
+      },
+      "entry_gate_path": "P32_CLEAN_R1_PRECISION_RECOMPUTE_20260705_232527_ENTRY_GATE_AUDIT.json",
+      "machine_gate_status": "PASS",
+      "manual_gate_status": "PASS",
+      "manual_status": "PASS",
+      "protection_passed": true,
+      "manual_A_B_clusters": 7,
+      "manual_D_clusters": 0,
+      "manual_C_clusters": 4,
+      "unfilled_clusters": 0,
+      "system_clusters": 11,
+      "critique_origin_manual_A_B_clusters": 5,
+      "deterministic_seed_manual_A_B_clusters": 1,
+      "critique_direct_verified_cluster_count": 5,
+      "candidate_menu_item_verified_count": 5,
+      "verified_review_issue_cluster_count": 11,
+      "mark_contested_commit_count": 20,
+      "verified_issue_cluster_without_recovery_count": 1,
+      "recovery_harmful_commit_committed": 0,
+      "recovery_case_verified_review_issue_repair": 17,
+      "evidence_json_fallback_rate_pct": 0,
+      "accepted_cluster_keys": [
+        "fgxyvmwpw6|efficiency_cost_gap|efficiency_resource_measurement",
+        "ge6iywjtsv|missing_ablation|graph_control_module",
+        "hpulu6q7xq|missing_baseline|paper-named_gpt-4_baseline",
+        "nnexmnithw|missing_ablation|acceptance_prediction_head",
+        "wpxq5n8ylb|missing_ablation|recurrent_draft_model",
+        "xh3oiihtvf|negative_result|incorporating a secure aggregator in the federated model results in a less favor",
+        "yxn76hmetm|missing_baseline|paper-named_pixelpick_baseline"
+      ],
+      "critique_accepted_cluster_keys": [
+        "fgxyvmwpw6|efficiency_cost_gap|efficiency_resource_measurement",
+        "ge6iywjtsv|missing_ablation|graph_control_module",
+        "hpulu6q7xq|missing_baseline|paper-named_gpt-4_baseline",
+        "nnexmnithw|missing_ablation|acceptance_prediction_head",
+        "yxn76hmetm|missing_baseline|paper-named_pixelpick_baseline"
+      ],
+      "system_cluster_keys": [
+        "9zebk3e9bx|missing_ablation|sz-softmax_loss",
+        "a6sntiisgg|missing_ablation|feature_dependencies_self-attention_mechanism",
+        "fgxyvmwpw6|efficiency_cost_gap|efficiency_resource_measurement",
+        "ge6iywjtsv|missing_ablation|graph_control_module",
+        "hpulu6q7xq|missing_ablation|modeling_coarse_and_fine-grained_fusion",
+        "hpulu6q7xq|missing_baseline|paper-named_gpt-4_baseline",
+        "nnexmnithw|missing_ablation|acceptance_prediction_head",
+        "qagwfiiy4p|efficiency_cost_gap|efficiency_resource_measurement",
+        "wpxq5n8ylb|missing_ablation|recurrent_draft_model",
+        "xh3oiihtvf|negative_result|incorporating a secure aggregator in the federated model results in a less favor",
+        "yxn76hmetm|missing_baseline|paper-named_pixelpick_baseline"
+      ],
+      "accepted_papers": [
+        "fgxyvmwpw6",
+        "ge6iywjtsv",
+        "hpulu6q7xq",
+        "nnexmnithw",
+        "wpxq5n8ylb",
+        "xh3oiihtvf",
+        "yxn76hmetm"
+      ],
+      "accepted_targets": [
+        "acceptance_prediction_head",
+        "efficiency_resource_measurement",
+        "graph_control_module",
+        "incorporating a secure aggregator in the federated model results in a less favor",
+        "paper-named_gpt-4_baseline",
+        "paper-named_pixelpick_baseline",
+        "recurrent_draft_model"
+      ],
+      "accepted_issue_type_counts": {
+        "missing_ablation": 3,
+        "missing_baseline": 2,
+        "negative_result": 1,
+        "efficiency_cost_gap": 1
+      },
+      "blocking_issues": [],
+      "clean_included": true,
+      "manual_D_rate": 0.0
+    },
+    {
+      "label": "P32_CLEAN_R3_PRECISION_RECOMPUTE_20260706_010000",
+      "run_base": "mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok2048_20260706_010029",
+      "jsonl": "mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok2048_20260706_010029.jsonl",
+      "jsonl_rows": 20,
+      "dashboard_paper_count": 20,
+      "artifact_paths": {
+        "entry_gate": "P32_CLEAN_R3_PRECISION_RECOMPUTE_20260706_010000_ENTRY_GATE_AUDIT.json",
+        "entry_gate_with_manual": "P32_CLEAN_R3_PRECISION_RECOMPUTE_20260706_010000_ENTRY_GATE_WITH_MANUAL_AUDIT.json",
+        "manual_validation": "P32_CLEAN_R3_PRECISION_RECOMPUTE_20260706_010000_MANUAL_AUDIT_VALIDATION.json",
+        "case_table": "P32_CLEAN_R3_PRECISION_RECOMPUTE_20260706_010000_REVIEW_ISSUE_CASE_TABLE.json",
+        "recovery_table": "P32_CLEAN_R3_PRECISION_RECOMPUTE_20260706_010000_RECOVERY_CASE_TABLE.json",
+        "dashboard": "P32_CLEAN_R3_PRECISION_RECOMPUTE_20260706_010000_HARDNEG20_DASHBOARD.json"
+      },
+      "entry_gate_path": "P32_CLEAN_R3_PRECISION_RECOMPUTE_20260706_010000_ENTRY_GATE_WITH_MANUAL_AUDIT.json",
+      "machine_gate_status": "PASS",
+      "manual_gate_status": "PASS",
+      "manual_status": "PASS",
+      "protection_passed": true,
+      "manual_A_B_clusters": 7,
+      "manual_D_clusters": 0,
+      "manual_C_clusters": 2,
+      "unfilled_clusters": 0,
+      "system_clusters": 9,
+      "critique_origin_manual_A_B_clusters": 5,
+      "deterministic_seed_manual_A_B_clusters": 2,
+      "critique_direct_verified_cluster_count": 6,
+      "candidate_menu_item_verified_count": 6,
+      "verified_review_issue_cluster_count": 9,
+      "mark_contested_commit_count": 16,
+      "verified_issue_cluster_without_recovery_count": 0,
+      "recovery_harmful_commit_committed": 0,
+      "recovery_case_verified_review_issue_repair": 14,
+      "evidence_json_fallback_rate_pct": 0,
+      "accepted_cluster_keys": [
+        "fgxyvmwpw6|efficiency_cost_gap|efficiency_resource_measurement",
+        "ge6iywjtsv|missing_ablation|graph_control_module",
+        "hpulu6q7xq|missing_ablation|modeling_coarse_and_fine-grained_fusion",
+        "hpulu6q7xq|missing_baseline|paper-named_gpt-4_baseline",
+        "nnexmnithw|missing_ablation|acceptance_prediction_head",
+        "wpxq5n8ylb|missing_ablation|recurrent_draft_model",
+        "yxn76hmetm|missing_baseline|paper-named_pixelpick_baseline"
+      ],
+      "critique_accepted_cluster_keys": [
+        "fgxyvmwpw6|efficiency_cost_gap|efficiency_resource_measurement",
+        "ge6iywjtsv|missing_ablation|graph_control_module",
+        "hpulu6q7xq|missing_baseline|paper-named_gpt-4_baseline",
+        "nnexmnithw|missing_ablation|acceptance_prediction_head",
+        "yxn76hmetm|missing_baseline|paper-named_pixelpick_baseline"
+      ],
+      "system_cluster_keys": [
+        "fgxyvmwpw6|efficiency_cost_gap|efficiency_resource_measurement",
+        "ge6iywjtsv|missing_ablation|graph_control_module",
+        "hpulu6q7xq|missing_ablation|modeling_coarse_and_fine-grained_fusion",
+        "hpulu6q7xq|missing_baseline|paper-named_gpt-4_baseline",
+        "nnexmnithw|missing_ablation|acceptance_prediction_head",
+        "qagwfiiy4p|missing_ablation|coordinates_without_information_loss",
+        "wpxq5n8ylb|missing_ablation|recurrent_draft_model",
+        "ye3nrnryoy|missing_ablation|fixed_module",
+        "yxn76hmetm|missing_baseline|paper-named_pixelpick_baseline"
+      ],
+      "accepted_papers": [
+        "fgxyvmwpw6",
+        "ge6iywjtsv",
+        "hpulu6q7xq",
+        "nnexmnithw",
+        "wpxq5n8ylb",
+        "yxn76hmetm"
+      ],
+      "accepted_targets": [
+        "acceptance_prediction_head",
+        "efficiency_resource_measurement",
+        "graph_control_module",
+        "modeling_coarse_and_fine-grained_fusion",
+        "paper-named_gpt-4_baseline",
+        "paper-named_pixelpick_baseline",
+        "recurrent_draft_model"
+      ],
+      "accepted_issue_type_counts": {
+        "missing_ablation": 4,
+        "missing_baseline": 2,
+        "efficiency_cost_gap": 1
+      },
+      "blocking_issues": [],
+      "clean_included": true,
+      "manual_D_rate": 0.0
+    }
+  ]
+}
