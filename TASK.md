@@ -10,7 +10,79 @@ Goal:
 - Improve Critique payload integration without relaxing the verifier.
 - Keep direct quote-grounded negative evidence strict; optimize obligation-grounded verified review issue bundles and safe `mark_contested` recovery.
 
-## Current P31.27 Checkpoint 2026-07-05
+## Current P31.28 Checkpoint 2026-07-05
+
+Current stage:
+
+```text
+Stage 2 has post-fix small-sample runtime evidence.  The SPOT / 9z
+`including_loss` false positive no longer verifies, and the 5-paper
+Critique-origin sample still passes the machine gate with 4 direct
+Critique-selected clusters.
+```
+
+Post-fix sample:
+
+```text
+input = p31_28_postfix_critique5_input.parquet
+run = p31_28_postfix_critique5_20260705_185055
+label = P31_28_POSTFIX_CRITIQUE5_20260705_185055
+rows = 5
+papers = 9zEBK3E9bX, GE6iywJtsV, NnExMNiTHw, QAgwFiIY4p, YXn76HMetm
+machine_gate = PASS
+manual_gate = REQUIRED
+evidence_json_fallback_rate_pct = 0
+state_contamination_count = 0
+verified_review_issue_count = 13
+verified_review_issue_cluster_count = 11
+critique_direct_verified_cluster_count = 4
+candidate_menu_item_count = 6
+candidate_menu_item_used_count = 4
+candidate_menu_item_verified_count = 4
+candidate_menu_item_failed_count = 0
+positive_or_neutral_negative_candidate_count = 0
+negative_evidence_unlinked_to_flaw = 0
+negative_grounding_conflict_count = 0
+mark_contested_commit_count = 3
+verified_issue_cluster_without_recovery_count = 6
+```
+
+Key audit facts:
+
+```text
+including_loss_verified = False
+red_flags = []
+selected_menu_failures = 0
+critique_origin_clusters =
+  GE6iywJtsV / missing_ablation / graph_control_module
+  NnExMNiTHw / missing_ablation / acceptance_prediction_head
+  QAgwFiIY4p / missing_ablation / coordinates_without_information_loss
+  YXn76HMetm / missing_baseline / equalal_baseline
+```
+
+Interpretation:
+
+```text
+The false-positive guard works in a fresh API path: removing 9z/including_loss
+did not collapse the Stage 2 machine gate.  However, the Critique-origin set is
+not identical to the pre-fix manual preaudit set: QAg now verifies a
+coordinates/information-loss ablation issue rather than the earlier Graphormer
+baseline issue.  Manual A/B audit is still required before paper-ready claims.
+
+Stage 3 remains the next functional bottleneck.  In the post-fix sample,
+`mark_contested_commit_count=3` but `verified_issue_cluster_without_recovery=6`.
+```
+
+Next step:
+
+```text
+Either manually audit the 4 post-fix Critique-origin clusters, or run a fresh
+hardneg20 to confirm the same pattern at full hard-negative scope.  If direct
+Critique clusters remain >=3 with clean protection, shift the implementation
+focus to contested relation / recovery coverage.
+```
+
+## Previous P31.27 Checkpoint 2026-07-05
 
 Current stage:
 

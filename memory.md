@@ -47,6 +47,42 @@ Missing-baseline, missing-ablation, insufficient-evaluation, and reproducibility
 
 ## Current Review Issue Logic
 
+### 2026-07-05 P31.28 post-fix Critique-origin 5-paper sample
+
+Post-fix sample:
+
+- input: `p31_28_postfix_critique5_input.parquet`
+- raw: `p31_28_postfix_critique5_20260705_185055.jsonl`
+- artifacts: `P31_28_POSTFIX_CRITIQUE5_20260705_185055_*`
+- rows: 5/5; machine gate PASS; manual gate REQUIRED.
+- `evidence_json_fallback_rate_pct=0`, `state_contamination_count=0`.
+- `verified_review_issue_count=13`, cluster count=11.
+- `critique_direct_verified_cluster_count=4`, `candidate_menu_item_verified_count=4`.
+- `candidate_menu_item_failed_count=0`, `critique_selected_existing_seed_cluster_count=0`.
+- `positive_or_neutral_negative_candidate_count=0`, `negative_evidence_unlinked_to_flaw=0`, `negative_grounding_conflict_count=0`.
+- `mark_contested_commit_count=3`, `verified_issue_cluster_without_recovery_count=6`.
+
+Important audit result:
+
+- The SPOT false positive is fixed in the fresh API path:
+  `including_loss_verified=False` for `9zEBK3E9bX`.
+- The post-fix Critique-origin clusters are:
+  - `GE6iywJtsV / graph_control_module`
+  - `NnExMNiTHw / acceptance_prediction_head`
+  - `QAgwFiIY4p / coordinates_without_information_loss`
+  - `YXn76HMetm / equalal_baseline`
+- Do not reuse the pre-fix Graphormer manual judgment for post-fix QAg; the
+  verified Critique-origin issue changed and needs its own audit.
+
+Interpretation:
+
+- Stage 2 remains functional after removing the 9z false positive: direct
+  Critique clusters are still >=3 and protection is clean.
+- Paper-ready precision is still not proven because manual gate remains
+  required.
+- Stage 3 remains incomplete: recovery/contested is live but leaves many
+  verified issue clusters without recovery.
+
 ### 2026-07-05 P31.27 hardneg20 Stage 2 machine pass + SPOT false-positive fix
 
 Fresh hardneg20 run:
