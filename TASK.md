@@ -1098,3 +1098,38 @@ Final A/B after balance top-up:
     for MiMo; downstream selector/menu work can continue only under the
     response-format-on/auto path.
 ```
+
+P31.13 long-horizon stage checkpoint (20260705):
+
+```text
+Current project stage:
+  Stage 1 / ReviewState credibility is mostly closed for the current path:
+  response_format=on is validated, hard contamination is 0, positive/neutral
+  active negative candidates are 0, and the menu quality guards removed the
+  unsafe direct=2 false positives from the fresh raw recompute.
+
+Stage 2 / real Critique-discovered negatives is now the active work:
+  A 3-paper response-format-on API sample over paper-named-baseline candidates
+  completed:
+    run = p31_13_paper_named_menu_sample3_20260705_144239
+    rows = 3
+    evidence_json_fallback_rate_pct = 0
+    protection = PASS
+    critique_direct_verified_cluster_count = 1
+    candidate_menu_item_used_count = 3
+    candidate_menu_item_verified_count = 1
+
+Important caveat:
+  The one verified direct cluster was selected-menu/critique-origin, but it was
+  an existing runner/obligation menu item:
+    YXn76HMetm / coverage or held-out evaluation for RIPU
+  The new paper-named baseline menu supply has not yet been selected and
+  verified in a live API run.
+
+Next major direction:
+  Make menu supply and selector attention work together so Critique reliably
+  selects concrete verifier-survivable candidates.  Then run a fresh hardneg20
+  and only advance if direct Critique clusters pass with manual audit quality.
+  Keep verifier/validator strict; do not count seed-origin or external-template
+  targets as Critique discovery.
+```

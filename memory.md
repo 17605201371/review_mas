@@ -3763,3 +3763,40 @@ P31.13 Stage 2 supply first pass:
   rows_with_menu=11, menu_items=16, paper_named_baseline_menu=3
   (`GPT-4`, `Graphormer`, `EqualAL`).  Current-code artifact recompute remains
   protection PASS with direct Critique verified clusters still 0.
+
+P31.13 Stage 2 live sample checkpoint:
+
+- Ran a response-format-on 3-paper API sample over the three papers where the
+  offline selector exposed paper-named baseline menu candidates:
+
+```text
+run = p31_13_paper_named_menu_sample3_20260705_144239
+rows = 3
+evidence_json_valid_turns = 10
+evidence_json_fallback_turns = 0
+evidence_json_fallback_rate_pct = 0
+protection = PASS
+state_contamination_count = 0
+positive_or_neutral_negative_candidate_count = 0
+negative_evidence_unlinked_to_flaw = 0
+negative_grounding_conflict_count = 0
+critique_direct_verified_cluster_count = 1
+candidate_menu_item_count = 3
+candidate_menu_item_used_count = 3
+candidate_menu_item_verified_count = 1
+candidate_menu_item_failed_count = 2
+candidate_menu_item_failed_by_stage = counterevidence: 2
+candidate_menu_item_failed_by_reason =
+  missing_entity_already_observed_in_inventory: 1
+  missing_ablation_counterevidence_in_claim_or_inventory: 1
+```
+
+- The verified Critique-origin cluster was
+  `YXn76HMetm|missing_robustness_or_generalization|coverage_held-out_for_ripu`.
+  It came from a selected menu path, but from the existing runner/obligation
+  menu style, not from the new paper-named baseline supply path.
+- Conclusion: the functional path is live in a small API sample, but the new
+  paper-named baseline supply has not yet been proven by model selection.  The
+  next major stage should improve selector attention and menu supply quality,
+  then rerun a fresh hardneg20.  Do not treat this as a full20 pass and do not
+  relax verifier/validator gates.
