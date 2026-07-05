@@ -47,7 +47,58 @@ Missing-baseline, missing-ablation, insufficient-evaluation, and reproducibility
 
 ## Current Review Issue Logic
 
-### 2026-07-05 P31.35 trigger-menu checkpoint
+### 2026-07-05 P32 entry after P31.6 manual audit
+
+Current position: Stage 1/2 hardneg20 readiness is achieved for the current
+ReviewState path.  Stage 3 contested/recovery is functional but not fully
+saturated, and the next project-level stage is P32 clean reproducibility.
+
+Latest authoritative fresh hardneg20:
+
+- code baseline: `374b827 Tighten review issue precision after manual audit`
+- raw:
+  `mimo_v25_negqty_recoverycap_guard3_qhyg_targetneg_freeformrevneg_reviewissuebundle_hardneg20_mt7_b4w2_api4_r8t600_tok2048_20260705_205654.jsonl`
+- artifacts: `P31_6_FRESH_20260705_205654_*`
+- rows: 20/20; machine gate PASS; manual gate PASS; `p32_entry_ready=true`.
+- `evidence_json_fallback_rate_pct=0`, `state_contamination_count=0`,
+  `negative_evidence_unlinked_to_flaw=0`,
+  `positive_or_neutral_negative_candidate_count=0`,
+  `negative_grounding_conflict_count=0`,
+  `semantic_negative_without_review_relation_count=0`.
+- `verified_review_issue_count=10`, recomputed cluster count=6,
+  quote-duplicate-merged cluster count=6.
+- `critique_direct_verified_cluster_count=6`,
+  `critique_payload_verified_cluster_count=6`,
+  `critique_selected_existing_seed_cluster_count=0`.
+- `candidate_menu_item_verified_count=6`, failed=8; failures are verifier or
+  target-quality rejects, not relaxed away.
+- manual audit: 6 A/B clusters, 0 C, 0 D, 0 unfilled;
+  `critique_origin_manual_A_B_clusters=5`,
+  `deterministic_seed_manual_A_B_clusters=0`.
+- accepted issue types: direct `negative_result`, `missing_baseline`,
+  `missing_ablation`, and `efficiency_cost_gap`.
+- recovery: `mark_contested_commit_count=16`,
+  `verified_issue_cluster_without_recovery_count=2`,
+  `recovery_harmful_commit_committed=0`.
+
+P32 entry artifact:
+
+- `P32_ENTRY_AUDIT_20260705.md`
+
+Interpretation:
+
+- The `Critique discovery -> verified issue -> contested relation` path is now
+  functional on one fresh hardneg20 run without seed-shadow attribution.
+- The paper narrative can update its internal evidence boundary, but should not
+  rewrite final result tables until P32 repeated clean runs show stability.
+- P32 should run 3 clean hardneg20 repeats with the same runtime code baseline,
+  `DRMAS_JSON_RESPONSE_FORMAT=on`, and `MAX_TOKENS=2048`.
+- The older P32 plan's `max_tokens=1536` is superseded by the current project
+  constraint and validated fresh-run setting of 2048.
+- Do not jump to full39, do not touch `verl/`, and do not relax verifier or
+  validator gates.
+
+### Historical 2026-07-05 P31.35 trigger-menu checkpoint
 
 Current position: Stage 1 tail / Stage 2 start.  The current functional target is
 real `Critique discovery -> verified issue -> contested relation`, not seed

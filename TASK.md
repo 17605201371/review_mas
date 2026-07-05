@@ -1,25 +1,28 @@
 # TASK.md
 
-## Current Task: P31 ReviewState Lifecycle / Critique Selector Integration
+## Current Task: P32 Clean Reproducibility Entry
 
-Authoritative roadmap: `P31_REVIEWSTATE_LIFECYCLE_ROADMAP_20260701.md`.
+Authoritative roadmap: `P31_2_TO_P34_REVIEWSTATE_EXECUTION_PLAN_ZH_20260702.md`.
 
 Goal:
 
-- Make ReviewState-centered review issue discovery, bundle verification, clustering, manual audit, and non-destructive recovery stable enough for the paper narrative.
-- Improve Critique payload integration without relaxing the verifier.
-- Keep direct quote-grounded negative evidence strict; optimize obligation-grounded verified review issue bundles and safe `mark_contested` recovery.
+- Carry the P31.6 hardneg20 success into P32 clean reproducibility.
+- Keep ReviewState-centered discovery, bundle verification, manual audit, and
+  non-destructive recovery strict and auditable.
+- Measure stability across clean hardneg20 repeats before updating the paper's
+  final result tables or attempting full39.
+- Keep direct quote-grounded negative evidence strict; obligation-grounded
+  review issues must remain bundle-verified, not model-judged.
 
-## Current P31.35 Checkpoint 2026-07-05
+## Current P32 Entry Checkpoint 2026-07-05
 
 Current stage:
 
 ```text
-Stage 2 is now machine-live on a fresh hardneg20 after the trigger-menu patch:
-selector-menu-ready issues reach Critique discovery, selected candidates
-materialize, and strict bundle verification forms direct Critique clusters
-without seed-shadow attribution.  Stage 2 is still not paper-ready until the
-manual A/B/C/D audit is filled and validated.
+P31.6 passes both the machine and manual entry gates on a fresh hardneg20.
+Stage 1/2 hardneg20 readiness is achieved for the current ReviewState path.
+Stage 3 contested/recovery is functional but not saturated, so P32 should test
+clean reproducibility before full39 or paper-table rewrites.
 ```
 
 Latest full hardneg20 evidence:
@@ -30,29 +33,50 @@ artifacts = P31_6_FRESH_20260705_205654_*
 rows = 20
 protection = PASS
 machine_gate = PASS
-manual_gate = REQUIRED
+manual_gate = PASS
 evidence_json_fallback_rate_pct = 0
 state_contamination_count = 0
 harmful_state_contamination_count = 0
-verified_review_issue_count = 24
-verified_review_issue_cluster_count = 15
-critique_direct_verified_cluster_count = 12
+verified_review_issue_count = 10
+verified_review_issue_cluster_count = 6
+critique_direct_verified_cluster_count = 6
 critique_selected_existing_seed_cluster_count = 0
 candidate_menu_item_count = 14
 candidate_menu_item_used_count = 14
-candidate_menu_item_verified_count = 12
-candidate_menu_item_failed_count = 2
-selected_menu_failure_reasons =
-  missing_entity_already_observed_in_inventory: 1
-  efficiency_cost_menu_already_observed_in_inventory: 1
+candidate_menu_item_verified_count = 6
+candidate_menu_item_failed_count = 8
+manual_A_clusters = 2
+manual_B_clusters = 4
+manual_A_B_clusters = 6
+manual_C_clusters = 0
+manual_D_clusters = 0
+critique_origin_manual_A_B_clusters = 5
+deterministic_seed_manual_A_B_clusters = 0
 positive_or_neutral_negative_candidate_count = 0
 negative_evidence_unlinked_to_flaw = 0
 negative_grounding_conflict_count = 0
 mark_contested_commit_count = 16
-verified_issue_cluster_without_recovery_count = 3
+verified_issue_cluster_without_recovery_count = 2
 ```
 
-Implemented in this checkpoint:
+P32 entry artifact:
+
+```text
+P32_ENTRY_AUDIT_20260705.md
+```
+
+Key accepted manual clusters:
+
+```text
+A: XH3OiIhtvf / negative_result / secure aggregator EER result
+A: fGXyvmWpw6 / efficiency_cost_gap / efficiency_resource_measurement
+B: HPuLU6q7xq / missing_baseline / paper-named_gpt-4_baseline
+B: NnExMNiTHw / missing_ablation / acceptance_prediction_head
+B: YXn76HMetm / missing_baseline / equalal_baseline
+B: a6SntIisgg / missing_ablation / global_encoder
+```
+
+Implemented leading into this checkpoint:
 
 - Selected prompt-time menu snapshots no longer get dropped by a second current
   menu quality recheck when the exact selected menu item is available.  The
@@ -83,6 +107,7 @@ sample4_result =
   state_contamination_count = 0
 focused hygiene/gate tests = 17 passed
 focused runner selected-menu/discovery tests = 25 passed
+P31.6 manual audit validation = PASS
 py_compile touched runtime/tests = PASS
 warnings = existing invalid escape warnings in tests only
 ```
@@ -90,11 +115,11 @@ warnings = existing invalid escape warnings in tests only
 Next step:
 
 ```text
-Fill and validate P31_6_FRESH_20260705_205654_MANUAL_AUDIT_TEMPLATE.{json,md}.
-The entry gate lists 11 Critique-origin clusters for manual audit.  If manual
-precision is acceptable, move the engineering focus to Stage 3 residual recovery
-coverage (`verified_issue_cluster_without_recovery_count=3`).  Do not relax
-verifier or validator gates.
+Run API preflight, then launch P32 clean hardneg20 run 1 with:
+DRMAS_JSON_RESPONSE_FORMAT=on, MAX_TOKENS=2048, API_MAX_WORKERS=4,
+max_turns=7, api_max_retries=8, api_timeout=600.
+Do not use the older 1536-token P32 setting; current project constraints and
+fresh-run evidence require 2048.  Do not relax verifier or validator gates.
 ```
 
 ## Previous P31.28 Checkpoint 2026-07-05
