@@ -1,0 +1,96 @@
+{
+  "status": "PASS",
+  "source_narrative_json": "P32_NARRATIVE_EVIDENCE_R1_R3_20260706.json",
+  "blocking_issues": [],
+  "paper_thesis": "DrMAS should be framed as a ReviewState-centered verification and recovery framework for LLM-assisted peer review, not as a free-form review generator, accept/reject classifier, or PPO-trained policy result.",
+  "empirical_scope": "two accepted hardneg20 clean runs",
+  "headline_numbers": {
+    "runs_included": 2,
+    "recurring_critique_origin_clusters": 5,
+    "critique_origin_cluster_jaccard_mean": 1.0,
+    "manual_D_clusters_total": 0,
+    "harmful_recovery_total": 0,
+    "issue_type_counts": {
+      "efficiency_cost_gap": 1,
+      "missing_ablation": 2,
+      "missing_baseline": 2
+    }
+  },
+  "table_rows": [
+    {
+      "paper_id": "fgxyvmwpw6",
+      "issue_type": "efficiency_cost_gap",
+      "cluster_target": "efficiency_resource_measurement",
+      "paper_facing_issue": "missing resource-cost evidence for the efficiency resource measurement claim",
+      "manual_labels": "A",
+      "recurrence": "2/2",
+      "contested_recovery": "2/2",
+      "representative_claim_anchor": "FVL achieves computational efficiency gains, such as reduced runtime or lower communication overhead, compared to baseline FL methods.",
+      "representative_missing_or_mismatch": "runtime, memory, parameter, FLOP, hardware, or compute-cost measurement for the efficiency claim",
+      "wording_caution": ""
+    },
+    {
+      "paper_id": "ge6iywjtsv",
+      "issue_type": "missing_ablation",
+      "cluster_target": "graph_control_module",
+      "paper_facing_issue": "missing component-isolation ablation for graph control module",
+      "manual_labels": "A, B",
+      "recurrence": "2/2",
+      "contested_recovery": "2/2",
+      "representative_claim_anchor": "Diff-Shape introduces a novel constrained diffusion model for shape-based de novo drug design.",
+      "representative_missing_or_mismatch": "graph control module; component-isolation ablation for with a graph control module",
+      "wording_caution": ""
+    },
+    {
+      "paper_id": "hpulu6q7xq",
+      "issue_type": "missing_baseline",
+      "cluster_target": "paper-named_gpt-4_baseline",
+      "paper_facing_issue": "missing same-setting named baseline comparison for paper-named gpt-4 baseline",
+      "manual_labels": "B",
+      "recurrence": "2/2",
+      "contested_recovery": "2/2",
+      "representative_claim_anchor": "The Orca method empirically outperforms baseline methods on role-playing tasks.",
+      "representative_missing_or_mismatch": "same-setting comparison against paper-named GPT-4 baseline",
+      "wording_caution": "Frame as absence of a strong closed-model reference point, not proof that GPT-4 was required or feasible."
+    },
+    {
+      "paper_id": "nnexmnithw",
+      "issue_type": "missing_ablation",
+      "cluster_target": "acceptance_prediction_head",
+      "paper_facing_issue": "missing component-isolation ablation for acceptance prediction head",
+      "manual_labels": "A, B",
+      "recurrence": "2/2",
+      "contested_recovery": "2/2",
+      "representative_claim_anchor": "SpecDec++ reduces inference latency compared to fixed-K baselines by adaptively selecting the candidate length.",
+      "representative_missing_or_mismatch": "acceptance prediction head",
+      "wording_caution": ""
+    },
+    {
+      "paper_id": "yxn76hmetm",
+      "issue_type": "missing_baseline",
+      "cluster_target": "paper-named_pixelpick_baseline",
+      "paper_facing_issue": "missing same-setting named baseline comparison for paper-named pixelpick baseline",
+      "manual_labels": "B",
+      "recurrence": "2/2",
+      "contested_recovery": "2/2",
+      "representative_claim_anchor": "The HALO method empirically outperforms baseline methods (including EqualAL) for active learning semantic segmentation under domain shift.",
+      "representative_missing_or_mismatch": "same-setting comparison against paper-named PixelPick baseline; same-setting comparison against paper-named EqualAL baseline",
+      "wording_caution": "Frame as missing named AL baseline comparisons under comparable settings, not as absence of all SOTA/ADA baselines."
+    }
+  ],
+  "replacement_snippets": {
+    "abstract_result_sentence": "On two accepted hardneg20 clean runs, DrMAS produces 5 recurring Critique-origin obligation-grounded review issue clusters, all manually judged valid or defensible, with manual-D total 0, harmful recovery total 0, and Critique-origin cluster Jaccard 1.000.",
+    "experiment_result_paragraph": "We evaluate the current DrMAS pipeline on 2 accepted hardneg20 clean runs. Across these runs, 5 Critique-origin verified review issue clusters recur exactly.  These clusters are obligation-grounded rather than direct quote-grounded negatives: each is verified through a claim anchor, observed paper inventory or quote evidence, a concrete missing or mismatched entity, and counterevidence checks.  Manual audit labels the recurring clusters as A/B with zero D labels, while harmful recovery remains 0.",
+    "recovery_paragraph": "The recurring clusters also exercise the non-destructive recovery path.  Each recurring Critique-origin cluster has per-run `mark_contested` support, so the system can keep a supported claim in the state while exposing a verified issue as a contested relation.  This supports the ReviewState-maintenance thesis: recovery is reported as auditable state repair, not as accept/reject correction.",
+    "table_caption": "Recurring Critique-origin obligation-grounded review issue clusters across two accepted hardneg20 clean runs.  The table reports deduplicated cluster-level evidence, manual A/B labels, and whether the issue connects to contested recovery in both runs.",
+    "limitation_paragraph": "These results should be interpreted as diagnostic evidence for conservative ReviewState maintenance.  They do not establish broad benchmark performance, full39 generalization, autonomous accept/reject accuracy, or PPO/RL gains.  The direct quote-grounded negative lane remains separate from the obligation-grounded issue path."
+  },
+  "not_claimed": [
+    "full39 generalization",
+    "accept/reject accuracy improvement",
+    "broad autonomous flaw discovery",
+    "PPO or RL performance gain",
+    "direct quote-grounded negative recall improvement"
+  ],
+  "recommended_next_paper_edit": "Replace stale P28/P28.6 result language with the snippets in this artifact, then move run IDs and regeneration commands to the reproducibility appendix."
+}

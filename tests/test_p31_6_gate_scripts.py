@@ -22,6 +22,7 @@ p31_manual = _load_script_module("p31_6_manual_audit", "scripts/p31_6_manual_aud
 p31_status = _load_script_module("p31_6_status_report", "scripts/p31_6_status_report.py")
 p32_stability = _load_script_module("p32_stability_report", "scripts/p32_stability_report.py")
 p32_narrative = _load_script_module("p32_narrative_evidence_report", "scripts/p32_narrative_evidence_report.py")
+p32_freeze = _load_script_module("p32_paper_narrative_freeze", "scripts/p32_paper_narrative_freeze.py")
 
 
 def _write_json(path, data):
@@ -619,6 +620,89 @@ def test_p32_narrative_report_flags_missing_cluster_recovery_when_required(tmp_p
 
     assert report["status"] == "INCOMPLETE"
     assert any("missing per-run contested recovery support" in issue for issue in report["blocking_issues"])
+
+
+def _freeze_source_report(*, manual_d=0, missing_recovery=False):
+    clusters = []
+    specs = [
+        ("paper-a", "efficiency_cost_gap", "efficiency_resource_measurement", ["A"]),
+        ("paper-b", "missing_ablation", "graph_control_module", ["A", "B"]),
+        ("paper-c", "missing_baseline", "paper-named_gpt-4_baseline", ["B"]),
+        ("paper-d", "missing_ablation", "acceptance_prediction_head", ["A"]),
+        ("paper-e", "missing_baseline", "paper-named_pixelpick_baseline", ["B"]),
+    ]
+    for paper_id, issue_type, target, labels in specs:
+        recovery_count = 1 if missing_recovery and paper_id == "paper-e" else 2
+        clusters.append(
+            {
+                "cluster_key": f"{paper_id}|{issue_type}|{target}",
+                "paper_id": paper_id,
+                "issue_type": issue_type,
+                "cluster_target": target,
+                "recurrence_count": 2,
+                "manual_labels": labels,
+                "runs_with_contested_recovery": recovery_count,
+                "per_run": [
+                    {
+                        "run_label": "P32_R1",
+                        "manual_label": labels[0],
+                        "claim_anchor": f"claim anchor for {target}",
+                        "missing_or_mismatch": f"missing relation for {target}",
+                        "inventory_or_quote": f"inventory quote for {target}",
+                        "wording_caution": "",
+                        "recovery_mark_contested_count": 1,
+                    }
+                ],
+            }
+        )
+    return {
+        "status": "PASS",
+        "runs_included": 2,
+        "recurring_critique_origin_cluster_count": 5,
+        "manual_D_clusters_total": manual_d,
+        "harmful_recovery_total": 0,
+        "critique_origin_cluster_jaccard_mean": 1.0,
+        "recurring_critique_origin_clusters": clusters,
+    }
+
+
+def test_p32_paper_narrative_freeze_preserves_scope_and_table_rows(tmp_path):
+    source = _write_json(tmp_path / "P32_NARRATIVE.json", _freeze_source_report())
+
+    freeze = p32_freeze.build_freeze(
+        argparse.Namespace(
+            narrative_json=str(source),
+            min_runs=2,
+            min_clusters=5,
+        )
+    )
+
+    assert freeze["status"] == "PASS"
+    assert freeze["headline_numbers"]["recurring_critique_origin_clusters"] == 5
+    assert freeze["headline_numbers"]["manual_D_clusters_total"] == 0
+    assert len(freeze["table_rows"]) == 5
+    assert freeze["table_rows"][0]["contested_recovery"] == "2/2"
+    assert "ReviewState-centered" in freeze["paper_thesis"]
+    assert "two accepted hardneg20 clean runs" in freeze["replacement_snippets"]["abstract_result_sentence"]
+    assert "accept/reject classifier" in freeze["paper_thesis"]
+    assert "full39 generalization" in freeze["not_claimed"]
+    assert "PPO or RL performance gain" in freeze["not_claimed"]
+
+
+def test_p32_paper_narrative_freeze_blocks_manual_d_or_missing_recovery(tmp_path):
+    source = _write_json(tmp_path / "P32_NARRATIVE.json", _freeze_source_report(manual_d=1, missing_recovery=True))
+
+    freeze = p32_freeze.build_freeze(
+        argparse.Namespace(
+            narrative_json=str(source),
+            min_runs=2,
+            min_clusters=5,
+        )
+    )
+
+    assert freeze["status"] == "INCOMPLETE"
+    assert any("manual-D total is 1" in issue for issue in freeze["blocking_issues"])
+    assert any("cluster lacks per-run contested recovery" in issue for issue in freeze["blocking_issues"])
 
 
 def test_p32_clean_pipeline_dry_run_uses_standard_runtime():

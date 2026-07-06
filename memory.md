@@ -4677,3 +4677,45 @@ P32 narrative evidence checkpoint (20260706):
     provenance.
   - Keep the scope narrow: hardneg20 clean-repeat narrative evidence only, not
     full39, accept/reject accuracy, domain-general performance, or PPO.
+
+P32 paper narrative freeze checkpoint (20260706):
+
+- Added `scripts/p32_paper_narrative_freeze.py`, a pure paper-facing
+  summarizer over `P32_NARRATIVE_EVIDENCE_R1_R3_20260706.json`.
+- Generated freeze artifacts:
+  - `P32_PAPER_NARRATIVE_FREEZE_20260706.json`
+  - `P32_PAPER_NARRATIVE_FREEZE_20260706.md`
+- Generation used:
+  - `--min-runs 2`
+  - `--min-clusters 5`
+  - `--fail-on-incomplete`
+- Freeze result:
+  - status = PASS
+  - empirical scope = two accepted hardneg20 clean runs
+  - recurring Critique-origin clusters = 5
+  - Critique-origin Jaccard mean = 1.0
+  - manual-D total = 0
+  - harmful recovery total = 0
+  - table-ready rows = 5
+  - issue type distribution = 1 efficiency_cost_gap, 2 missing_ablation,
+    2 missing_baseline
+- Frozen paper-facing claim:
+  - DrMAS should be framed as a ReviewState-centered verification and recovery
+    framework for LLM-assisted peer review, not as a free-form review generator,
+    accept/reject classifier, or PPO-trained policy result.
+- Explicit non-claims recorded by the freeze:
+  - full39 generalization
+  - accept/reject accuracy improvement
+  - broad autonomous flaw discovery
+  - PPO or RL performance gain
+  - direct quote-grounded negative recall improvement
+- Tests:
+  - `pytest tests/test_p31_6_gate_scripts.py -q -k 'p32_paper_narrative_freeze or p32_narrative or p32_stability'`
+    = 7 passed
+  - `py_compile scripts/p32_paper_narrative_freeze.py scripts/p32_narrative_evidence_report.py tests/test_p31_6_gate_scripts.py`
+    = PASS
+- Next paper-edit direction:
+  - update stale P28/P28.6 result language in the body/experiment draft using
+    `P32_PAPER_NARRATIVE_FREEZE_20260706.md` as source;
+  - keep run IDs and commands in appendices/artifacts;
+  - do not widen the claim beyond hardneg20 clean-repeat evidence.

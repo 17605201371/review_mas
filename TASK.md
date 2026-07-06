@@ -2337,3 +2337,70 @@ Next:
      recurring clusters or run one more clean repeat only if the paper needs a
      3-run stability statement.  Keep verifier/manual/recovery gates strict.
 ```
+
+P32 paper narrative freeze checkpoint (20260706):
+
+```text
+Status:
+  - The P32 narrative evidence pack has been converted into paper-facing freeze
+    language: thesis, headline numbers, replacement snippets, table-ready
+    cluster rows, and explicit non-claims.
+  - This is still a summarization step over accepted artifacts.  No new API run,
+    verifier relaxation, validator change, PPO, rollout, or recovery behavior
+    change was made.
+
+New reproducible freeze:
+  script =
+    scripts/p32_paper_narrative_freeze.py
+  artifacts =
+    P32_PAPER_NARRATIVE_FREEZE_20260706.json
+    P32_PAPER_NARRATIVE_FREEZE_20260706.md
+
+Generation command:
+  PYTHONPATH=.:/opt/miniconda3/envs/agent/lib/python3.12/site-packages \
+  /opt/miniconda3/envs/DrMAS/bin/python \
+    scripts/p32_paper_narrative_freeze.py \
+    --narrative-json P32_NARRATIVE_EVIDENCE_R1_R3_20260706.json \
+    --output-json P32_PAPER_NARRATIVE_FREEZE_20260706.json \
+    --output-md P32_PAPER_NARRATIVE_FREEZE_20260706.md \
+    --min-runs 2 \
+    --min-clusters 5 \
+    --fail-on-incomplete
+
+Freeze result:
+  - status = PASS
+  - empirical scope = two accepted hardneg20 clean runs
+  - recurring Critique-origin clusters = 5
+  - Critique-origin Jaccard mean = 1.0
+  - manual-D total = 0
+  - harmful recovery total = 0
+  - table-ready rows = 5
+  - issue type distribution:
+    - efficiency_cost_gap = 1
+    - missing_ablation = 2
+    - missing_baseline = 2
+
+Paper-facing claim now frozen as:
+  DrMAS should be framed as a ReviewState-centered verification and recovery
+  framework for LLM-assisted peer review, not as a free-form review generator,
+  accept/reject classifier, or PPO-trained policy result.
+
+Explicit non-claims:
+  - full39 generalization
+  - accept/reject accuracy improvement
+  - broad autonomous flaw discovery
+  - PPO or RL performance gain
+  - direct quote-grounded negative recall improvement
+
+Validation:
+  - `pytest tests/test_p31_6_gate_scripts.py -q -k 'p32_paper_narrative_freeze or p32_narrative or p32_stability'`
+    = 7 passed
+  - `py_compile scripts/p32_paper_narrative_freeze.py scripts/p32_narrative_evidence_report.py tests/test_p31_6_gate_scripts.py`
+    = PASS
+
+Next:
+  1. Commit the freeze script, freeze artifacts, tests, and TASK/memory updates.
+  2. Then update the stale paper body / experiment draft that still says P28 or
+     9/8 clusters, using P32_PAPER_NARRATIVE_FREEZE_20260706.md as the source.
+     Do not expand the claim beyond the hardneg20 clean-repeat scope.
+```
