@@ -4719,3 +4719,39 @@ P32 paper narrative freeze checkpoint (20260706):
     `P32_PAPER_NARRATIVE_FREEZE_20260706.md` as source;
   - keep run IDs and commands in appendices/artifacts;
   - do not widen the claim beyond hardneg20 clean-repeat evidence.
+
+P32 paper draft stale-result replacement checkpoint (20260706):
+
+- Updated the two main paper-facing drafts from old P28/P28.6 wording to the
+  P32 clean-repeat narrative:
+  - `PAPER_CLEAN_BODY_DRAFT_20260701.md`
+  - `PAPER_EXPERIMENT_SECTION_DRAFT_20260701.md`
+- New headline in those drafts:
+  - two accepted hardneg20 clean runs;
+  - five recurring Critique-origin obligation-grounded review issue clusters;
+  - manual-D total 0;
+  - harmful recovery total 0;
+  - Critique-origin cluster Jaccard 1.000.
+- Removed old current-result framing from those drafts:
+  - P28/P28.6;
+  - partial16 / 16 of 20 / MiMo balance;
+  - 13 review issue rows, 9 clusters, 8/9 A/B;
+  - deterministic reviewer seed dominance as current limitation wording.
+- Added `scripts/p32_paper_stale_claim_audit.py` to guard the main drafts
+  against reverting to stale pre-P32 result claims.
+- Generated stale-claim audit artifacts:
+  - `P32_PAPER_STALE_CLAIM_AUDIT_20260706.json`
+  - `P32_PAPER_STALE_CLAIM_AUDIT_20260706.md`
+- Audit result:
+  - status = PASS
+  - `PAPER_CLEAN_BODY_DRAFT_20260701.md`: 0 banned stale phrases, 0 missing P32 boundary phrases
+  - `PAPER_EXPERIMENT_SECTION_DRAFT_20260701.md`: 0 banned stale phrases, 0 missing P32 boundary phrases
+- Tests:
+  - `pytest tests/test_p31_6_gate_scripts.py -q` = 17 passed
+  - `py_compile scripts/p32_paper_stale_claim_audit.py scripts/p32_paper_narrative_freeze.py scripts/p32_narrative_evidence_report.py tests/test_p31_6_gate_scripts.py`
+    = PASS
+  - `scripts/p32_paper_stale_claim_audit.py --fail-on-stale` = PASS
+- Remaining paper-doc cleanup:
+  - secondary planning docs still contain historical P28/P28.6 context; update
+    `PAPER_CLAIMS_EVIDENCE_MATRIX_20260701.md` and reproducibility appendix next
+    if the goal is a fully synchronized paper packet.

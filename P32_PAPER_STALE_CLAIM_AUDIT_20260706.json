@@ -1,0 +1,44 @@
+{
+  "status": "PASS",
+  "blocking_issues": [],
+  "files": [
+    {
+      "path": "PAPER_CLEAN_BODY_DRAFT_20260701.md",
+      "banned_matches": [],
+      "missing_required_phrases": [],
+      "status": "PASS"
+    },
+    {
+      "path": "PAPER_EXPERIMENT_SECTION_DRAFT_20260701.md",
+      "banned_matches": [],
+      "missing_required_phrases": [],
+      "status": "PASS"
+    }
+  ],
+  "banned_patterns": [
+    "\\bP28(?:\\.6)?\\b",
+    "partial16",
+    "16/20",
+    "16 of 20",
+    "8/9",
+    "8 of (?:the )?9",
+    "9 issue clusters",
+    "9 verified",
+    "13 review issue rows",
+    "13 obligation-grounded review issue rows",
+    "fresh full20 P28",
+    "MiMo API returned",
+    "402 Insufficient",
+    "deterministic reviewer seeds",
+    "only 2 verified rows"
+  ],
+  "required_phrases": [
+    "two accepted hardneg20 clean runs",
+    "five recurring Critique-origin",
+    "manual-D",
+    "harmful recovery",
+    "full39",
+    "accept/reject",
+    "PPO"
+  ]
+}

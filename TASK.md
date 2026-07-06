@@ -2404,3 +2404,55 @@ Next:
      9/8 clusters, using P32_PAPER_NARRATIVE_FREEZE_20260706.md as the source.
      Do not expand the claim beyond the hardneg20 clean-repeat scope.
 ```
+
+P32 paper draft stale-result replacement checkpoint (20260706):
+
+```text
+Status:
+  - The two main paper-facing drafts now use the P32 clean-repeat result rather
+    than the old P28/P28.6 offline-full20 + partial16 wording.
+  - Updated files:
+    PAPER_CLEAN_BODY_DRAFT_20260701.md
+    PAPER_EXPERIMENT_SECTION_DRAFT_20260701.md
+  - The paper headline is now:
+    two accepted hardneg20 clean runs, five recurring Critique-origin
+    obligation-grounded review issue clusters, manual-D total 0, harmful
+    recovery total 0, Critique-origin cluster Jaccard 1.000.
+
+Main replacements:
+  - Removed old main-result language:
+    P28/P28.6, partial16, 16/20, 13 review issue rows, 9 clusters, 8/9 A/B,
+    deterministic reviewer seed dominance, and MiMo balance as current result
+    framing.
+  - Replaced main tables with:
+    - clean-repeat headline table;
+    - five recurring Critique-origin cluster table;
+    - R1/R3 recovery and safety table;
+    - clean-repeat stability table.
+  - Kept the scope narrow:
+    no full39 generalization, no accept/reject accuracy claim, no PPO/RL claim,
+    no direct quote-grounded negative recall improvement claim.
+
+New stale-claim audit:
+  script =
+    scripts/p32_paper_stale_claim_audit.py
+  artifacts =
+    P32_PAPER_STALE_CLAIM_AUDIT_20260706.json
+    P32_PAPER_STALE_CLAIM_AUDIT_20260706.md
+  result =
+    PASS; both main drafts have 0 banned stale-result phrases and 0 missing P32
+    boundary phrases.
+
+Validation:
+  - `pytest tests/test_p31_6_gate_scripts.py -q` = 17 passed
+  - `py_compile scripts/p32_paper_stale_claim_audit.py scripts/p32_paper_narrative_freeze.py scripts/p32_narrative_evidence_report.py tests/test_p31_6_gate_scripts.py`
+    = PASS
+  - `scripts/p32_paper_stale_claim_audit.py --fail-on-stale` = PASS
+
+Next:
+  1. Commit the updated paper drafts, stale-claim audit script/artifacts, tests,
+     and TASK/memory updates.
+  2. Then update secondary paper-planning docs such as
+     PAPER_CLAIMS_EVIDENCE_MATRIX_20260701.md and reproducibility appendix so
+     they cite the P32 freeze artifacts instead of P28/P28.6.
+```

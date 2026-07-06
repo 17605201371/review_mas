@@ -28,21 +28,14 @@ This covers the remaining gap between a conservative state-verification framewor
 
 ### 4.2 Evaluation Setting
 
-We use the hard-negative diagnostic set `hard_negative_20_20260611.parquet`, a 20-paper subset designed to stress negative-evidence and reviewer-issue handling. The main reported run is the P28.6 TargetRefine2 offline recompute over a completed MiMo v2.5 hardneg20 run:
+We use the hard-negative diagnostic set `hard_negative_20_20260611.parquet`, a 20-paper subset designed to stress negative-evidence and reviewer-issue handling. The main reported evidence is a two-run clean-repeat result using the current issue-bundle verifier, manual audit protocol, and recovery checks:
 
 ```text
-P28_6_CONFLICTFIX_TARGETREFINE2_194911_*
+P32_CLEAN_R1_PRECISION_RECOMPUTE_20260705_232527
+P32_CLEAN_R3_PRECISION_RECOMPUTE_20260706_010000
 ```
 
-The run uses the P28 review-issue bundle pipeline with negative quote hygiene, targeted negative search, free-form reviewer issue candidates, and conservative final-view hygiene. We report the P28.6 recompute because it applies the final verifier and conflict-cleaning logic consistently to the completed run.
-
-We also include a fresh MiMo rerun sanity check:
-
-```text
-P28_6_CONFLICTFIX_MIMO_PARTIAL16_224133_*
-```
-
-This run completed 16/20 papers before the MiMo API returned `402 Insufficient account balance`. We use it only as a partial consistency check, not as the main full20 result.
+Both accepted runs complete all 20 papers and pass the machine and manual gates. Exact raw run identifiers, regeneration commands, manual audit files, and artifact paths are recorded in the reproducibility appendix rather than in the main narrative.
 
 ### 4.3 Metrics
 
@@ -66,126 +59,118 @@ Recovery metrics include:
 
 - `mark_contested_commit_count`;
 - `recovery_case_verified_review_issue_repair`;
-- `recovery_unsafe_downgrade_attempt_blocked`.
+- `recovery_harmful_commit_committed`.
 
 ### 4.4 Main Result: Verified Review Issue Bundles
 
-Table 1 reports the P28.6 full20 offline recompute. DrMAS verifies 13 review issue rows, which collapse to 9 issue clusters. Manual audit judges 8 of the 9 clusters as valid or defensible reviewer concerns.
+Table 1 reports the P32 clean-repeat result. Across two accepted hardneg20 clean runs, DrMAS produces five recurring Critique-origin verified review issue clusters. The recurring clusters are manually judged A/B, have zero manual-D labels, and connect to contested recovery in both runs.
 
 | Metric | Value |
 | --- | ---: |
-| papers | 20 |
-| direct quote-grounded reviewer negatives | 0 |
-| verified review issue rows | 13 |
-| verified review issue clusters | 9 |
-| duplicate review issue rows | 4 |
-| reviewer-candidate issue rows | 13 |
-| critique-payload candidate rows | 2 |
-| deterministic-seed candidate rows | 11 |
-| claim-obligation fallback rows | 0 |
-| verified missing-ablation clusters | 6 |
-| active negative grounding conflicts | 0 |
-| semantic anchor conflicts | 0 |
-| semantic negatives without review relation | 0 |
-| unlinked negative evidence | 0 |
-| positive/neutral negative candidates | 0 |
-| protection | PASS |
+| accepted hardneg20 clean runs | 2 |
+| completed papers per run | 20 |
+| recurring Critique-origin verified issue clusters | 5 |
+| Critique-origin cluster Jaccard mean | 1.000 |
+| manual-D total across accepted runs | 0 |
+| harmful recovery commits | 0 |
+| recurring efficiency-cost-gap clusters | 1 |
+| recurring missing-ablation clusters | 2 |
+| recurring missing-baseline clusters | 2 |
 
-**Table 1 caption.** P28.6 verifies obligation-grounded review issue bundles conservatively. The main count is the deduplicated cluster count, not the raw row count. The direct quote-grounded negative lane remains strict and produces no verified direct negatives in this run.
+**Table 1 caption.** Current P32 artifacts show recurring Critique-origin obligation-grounded review issue clusters across accepted hardneg20 clean runs. The main count is the recurring cluster count, not the raw row count from a single run.
 
 The key interpretation is that the useful negative-review signal does not appear as copied paper-negative text. It appears as verified claim-inventory-obligation mismatch. This supports the ReviewState thesis: reviewer issues should be represented as auditable state objects rather than as unstructured negative snippets.
 
 ### 4.5 Manual Cluster Audit
 
-Table 2 summarizes the manual cluster audit. Three clusters are strong A-class issues; five are defensible B-class issues; one is a C-class concern that should not be counted in a paper-ready precision headline.
+Table 2 summarizes the recurring cluster audit. The audit unit is a deduplicated Critique-origin issue cluster that recurs across accepted clean runs, not a raw row. All five recurring clusters are manually judged A/B and connect to contested recovery in both runs.
 
-| Cluster target | Issue type | Manual label | Paper use |
-| --- | --- | --- | --- |
-| recurrent draft model | missing_ablation | A | strong case study |
-| acceptance prediction head | missing_ablation | A | strong case study |
-| generalized noise regularization | missing_ablation | A | strong case study |
-| class-balancing CE loss | missing_ablation | B | defensible example |
-| GrCN / ControllNet reproducibility details | reproducibility_gap | B | defensible example |
-| PropGCL transformation phase / weights | missing_ablation | B | defensible example |
-| recent GNN / graph-transformer baselines | missing_baseline | B | defensible example |
-| EqualAL baseline | missing_baseline | B | defensible example |
-| number of motion components beyond K=4 | missing_ablation | C | exclude from conservative quality count |
+| Paper | Issue type | Cluster target | Manual label | Recurrence | Contested recovery |
+| --- | --- | --- | --- | ---: | ---: |
+| fGXyvmWpw6 | efficiency_cost_gap | efficiency_resource_measurement | A | 2/2 | 2/2 |
+| GE6iywJtsV | missing_ablation | graph_control_module | A/B | 2/2 | 2/2 |
+| HPuLU6q7xq | missing_baseline | paper-named_gpt-4_baseline | B | 2/2 | 2/2 |
+| NnExMNiTHw | missing_ablation | acceptance_prediction_head | A/B | 2/2 | 2/2 |
+| YXn76HMetm | missing_baseline | paper-named_pixelpick_baseline | B | 2/2 | 2/2 |
 
-**Table 2 caption.** Manual audit separates system-verified issue clusters from paper-ready review-worthy clusters. We report 8/9 A/B clusters as the conservative quality count.
+**Table 2 caption.** Manual audit separates recurring verified issue clusters from raw verifier rows. We report five recurring A/B Critique-origin clusters as the conservative paper-facing quality count.
 
-The issue distribution is intentionally reported as a limitation: 6 of the 9 clusters are missing-ablation issues, 2 are missing-baseline issues, and 1 is a reproducibility issue. This is enough to demonstrate the issue-bundle verification mechanism, but not enough to claim broad reviewer issue diversity.
+The issue distribution is intentionally reported as a limitation: the recurring clusters contain one efficiency-cost gap, two missing-ablation issues, and two missing-baseline issues. This is enough to demonstrate recurring Critique-origin issue-bundle verification, but not enough to claim broad reviewer issue diversity.
 
 ### 4.6 Recovery And Safety
 
-Table 3 reports recovery and safety signals. The main recovery action is `mark_contested`: a supported claim can remain supported while being marked contested by a verified review issue. This is non-destructive state repair, not a decision override.
+Table 3 reports recovery and safety signals for the two accepted clean runs. The main recovery action is `mark_contested`: a supported claim can remain supported while being marked contested by a verified review issue. This is non-destructive state repair, not a decision override.
 
-| Metric | Full20 offline | Fresh partial16 |
+| Metric | Clean R1 | Clean R3 |
 | --- | ---: | ---: |
-| completed papers | 20 | 16 |
-| mark-contested commits | 14 | 5 |
-| verified-review-issue repairs | 6 | 5 |
-| unsafe downgrade attempts blocked | 1 | 2 |
-| active negative grounding conflicts | 0 | 0 |
-| semantic anchor conflicts | 0 | 0 |
-| unlinked negative evidence | 0 | 0 |
-| positive/neutral negative candidates | 0 | 0 |
+| completed papers | 20 | 20 |
+| machine gate | PASS | PASS |
+| manual gate | PASS | PASS |
+| manual A/B clusters | 7 | 7 |
+| Critique-origin manual A/B clusters | 5 | 5 |
+| manual-D clusters | 0 | 0 |
+| mark-contested commits | 20 | 16 |
+| verified-review-issue repairs | 17 | 14 |
+| harmful recovery commits | 0 | 0 |
 
-**Table 3 caption.** Recovery is evaluated as state repair. Verified issues can expose supported-but-contested claims without destructively downgrading claim status. The fresh partial16 rerun is included only as a consistency check because the MiMo account balance stopped the run before all 20 papers completed.
+**Table 3 caption.** Recovery is evaluated as state repair. Verified issues can expose supported-but-contested claims without destructively downgrading claim status. Harmful recovery remains zero in both accepted clean runs.
 
-The recovery result should be phrased carefully. The full20 result is an offline recompute over a completed run, so its recovery counts should not be described as a fresh full20 live rerun. The fresh partial16 run gives a cleaner live-run sanity check, but it is incomplete.
+The recurring clusters also exercise the non-destructive recovery path. Each recurring Critique-origin cluster has per-run `mark_contested` support, so the system can keep a supported claim in the state while exposing a verified issue as a contested relation. This supports the ReviewState-maintenance thesis: recovery is reported as auditable state repair, not as accept/reject correction.
 
-### 4.7 Diagnostic Progress Across P28
+### 4.7 Clean-Repeat Stability
 
-Table 4 describes the role of the latest P28 steps. The sequence should not be presented as simple metric maximization. P28.6 is a precision and hygiene checkpoint.
+Table 4 summarizes the clean-repeat stability check. The purpose is not to maximize issue count. The purpose is to show that the same Critique-origin issue clusters recur across accepted runs while manual-D and harmful recovery remain zero.
 
-| Stage | Main effect | Paper interpretation |
-| --- | --- | --- |
-| Raw P28.5 | higher issue row count but generic or malformed missing-ablation targets | useful recall signal, not paper-ready |
-| TargetRefine2 | rejects generic targets and keeps 9 verified clusters | precision checkpoint |
-| ConflictFix P28.6 | moves stale or quote-bank false negative anchors out of active conflicts | final-view hygiene checkpoint |
+| Stability signal | Value |
+| --- | ---: |
+| accepted clean runs included | 2/2 |
+| accepted-cluster Jaccard | 0.750 |
+| Critique-origin cluster Jaccard | 1.000 |
+| recurring A/B clusters | 6 |
+| recurring Critique-origin A/B clusters | 5 |
+| manual-D rate | 0.000 |
+| harmful recovery total | 0 |
 
-**Table 4 caption.** The P28 progression improves precision and final-view hygiene. It does not solve direct quote-grounded negative discovery.
+**Table 4 caption.** Clean-repeat stability is reported at the cluster level. The strongest signal is exact recurrence of the five Critique-origin A/B clusters while manual-D and harmful recovery stay at zero.
 
 ### 4.8 Discussion
 
-The strongest current result is not the number of negative quotes. In fact, direct quote-grounded reviewer negatives remain at zero. This is consistent with the main insight: many useful review concerns are not negative sentences in the paper. They are reviewer-inferred obligation gaps that require structured verification.
+The strongest current result is not the number of negative quotes. It is the repeated conversion of Critique-origin reviewer concerns into verified obligation-grounded state objects. This is consistent with the main insight: many useful review concerns are not negative sentences in the paper. They are reviewer-inferred obligation gaps that require structured verification.
 
-The system currently verifies 9 issue clusters and passes the measured hygiene protections. This supports a conservative claim: DrMAS can turn reviewer-style concerns into auditable ReviewState objects and prevent several common false-negative-evidence failure modes.
+Across two accepted clean runs, five Critique-origin issue clusters recur exactly and all five have A/B manual labels with contested-recovery support in both runs. This supports a conservative claim: DrMAS can turn reviewer-style concerns into auditable ReviewState objects and connect those objects to non-destructive recovery.
 
-The result is not yet a broad autonomous review benchmark. Most verified issues come from deterministic reviewer seeds rather than Critique payload candidates, and the issue distribution is missing-ablation heavy. The appropriate next step is not to loosen the verifier, but to improve entity-level obligation extraction and Critique-driven candidate generation while preserving the same final-view protections.
+The result is not yet a broad autonomous review benchmark. The recurring issue distribution contains two missing-ablation clusters, two missing-baseline clusters, and one efficiency-cost gap. The appropriate next step is not to loosen the verifier, but to improve entity-level obligation extraction and Critique-driven candidate generation while preserving the same final-view protections.
 
 ### 4.9 Limitations
 
 This experiment has five important limitations.
 
-First, the direct quote-grounded negative lane remains weak: `review_negative_verified_count=0`.
+First, hardneg20 is a diagnostic set. It is useful for stress-testing ReviewState hygiene and reviewer issue verification, but it is not enough by itself to support broad benchmark claims.
 
-Second, the issue distribution is narrow. The current verified clusters are mostly missing-ablation issues.
+Second, the issue distribution is narrow. The recurring clusters cover two missing-ablation concerns, two missing-baseline concerns, and one efficiency-cost gap. This supports the issue-bundle mechanism, not comprehensive reviewer issue coverage.
 
-Third, the candidate source distribution shows that autonomous Critique discovery is immature: only 2 verified rows come from Critique payload candidates, while 11 come from deterministic reviewer seeds.
+Third, the result is a clean-repeat diagnostic, not full39 generalization. Larger-domain evaluation should come after the ReviewState lifecycle and narrative are stable.
 
-Fourth, the fresh MiMo rerun is incomplete. It stopped at 16/20 papers because the MiMo API returned `402 Insufficient account balance`.
+Fourth, the paper does not claim accept/reject accuracy improvement, PPO or RL gains, or broad autonomous flaw discovery. DrMAS is evaluated as review support and audit infrastructure.
 
-Fifth, hardneg20 is a diagnostic set. It is useful for stress-testing ReviewState hygiene and reviewer issue verification, but it is not enough by itself to support broad benchmark claims.
+Fifth, direct quote-grounded negative evidence remains a separate lane. The present result supports obligation-grounded issue verification and contested recovery; it should not be described as direct quote-grounded negative recall improvement.
 
-### 4.10 Required Next Experiment
+### 4.10 Next Evaluation Step
 
-Before treating these results as final paper evidence, we need a fresh full20 P28.6 run with the current code. Acceptance criteria:
+Before treating these results as broad benchmark evidence, the next evaluation step is a larger-domain run such as full39 or additional paper domains. That expansion should happen only after preserving the same strict verifier, manual audit, and recovery gates. Acceptance criteria should include:
 
-- `verified_review_issue_cluster_count >= 8`;
-- manual A/B clusters >= 7;
-- `negative_grounding_conflict_count=0`;
-- `negative_semantic_anchor_conflict_count=0`;
-- `semantic_negative_without_review_relation_count=0`;
-- `negative_evidence_unlinked_to_flaw=0`;
-- `positive_or_neutral_negative_candidate_count=0`.
+- recurring Critique-origin clusters remain inspectable at the cluster level;
+- manual-D remains zero or is explicitly audited before paper use;
+- harmful recovery remains zero;
+- direct quote-grounded negatives stay separate from obligation-grounded issues;
+- no accept/reject or PPO/RL claim is introduced without a separate evaluation.
 
-If MiMo balance remains unavailable, the paper should explicitly describe the full20 result as an offline recompute and the partial16 result as the freshest live sanity check.
+For the current paper draft, the defensible claim is the hardneg20 clean-repeat result, not full39 generalization.
 
 ## Drop-In Result Paragraph
 
-On hardneg20, P28.6 verifies 13 obligation-grounded review issue rows, which deduplicate to 9 issue clusters. Manual audit judges 8 of these 9 clusters as valid or defensible reviewer concerns. The direct quote-grounded negative lane remains strict and produces no verified direct negatives, indicating that the useful review signal comes primarily from claim-inventory-obligation mismatch rather than copied negative paper text. Final-view hygiene remains clean: active negative-grounding conflicts, semantic anchor conflicts, semantic negatives without review relation, unlinked negative evidence, and positive/neutral negative candidates are all zero. Recovery is non-destructive: verified review issues can mark supported claims as contested without downgrading claim status.
+On two accepted hardneg20 clean runs, DrMAS produces five recurring Critique-origin obligation-grounded review issue clusters, all manually judged valid or defensible, with manual-D total 0, harmful recovery total 0, and Critique-origin cluster Jaccard 1.000. These clusters are verified through claim anchors, observed paper inventory or quote evidence, concrete missing or mismatched entities, and counterevidence checks. Recovery is non-destructive: each recurring Critique-origin cluster has per-run `mark_contested` support, so verified issues can mark supported claims as contested without downgrading claim status.
 
 ## Drop-In Limitation Paragraph
 
-These results should be interpreted as evidence for conservative ReviewState verification, not broad autonomous flaw discovery. The issue distribution is missing-ablation heavy, most verified issue rows come from deterministic reviewer seeds rather than Critique payload candidates, and the fresh MiMo rerun completed only 16 of 20 papers before the API account balance was exhausted. Direct quote-grounded negative discovery remains unsolved in the current system.
+These results should be interpreted as diagnostic evidence for conservative ReviewState maintenance. They do not establish broad benchmark performance, full39 generalization, autonomous accept/reject accuracy, or PPO/RL gains. The direct quote-grounded negative lane remains separate from the obligation-grounded issue path.

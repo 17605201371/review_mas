@@ -23,6 +23,7 @@ p31_status = _load_script_module("p31_6_status_report", "scripts/p31_6_status_re
 p32_stability = _load_script_module("p32_stability_report", "scripts/p32_stability_report.py")
 p32_narrative = _load_script_module("p32_narrative_evidence_report", "scripts/p32_narrative_evidence_report.py")
 p32_freeze = _load_script_module("p32_paper_narrative_freeze", "scripts/p32_paper_narrative_freeze.py")
+p32_stale = _load_script_module("p32_paper_stale_claim_audit", "scripts/p32_paper_stale_claim_audit.py")
 
 
 def _write_json(path, data):
@@ -703,6 +704,50 @@ def test_p32_paper_narrative_freeze_blocks_manual_d_or_missing_recovery(tmp_path
     assert freeze["status"] == "INCOMPLETE"
     assert any("manual-D total is 1" in issue for issue in freeze["blocking_issues"])
     assert any("cluster lacks per-run contested recovery" in issue for issue in freeze["blocking_issues"])
+
+
+def test_p32_paper_stale_claim_audit_passes_current_p32_scope(tmp_path):
+    paper = tmp_path / "paper.md"
+    paper.write_text(
+        "\n".join(
+            [
+                "On two accepted hardneg20 clean runs, DrMAS produces five recurring Critique-origin clusters.",
+                "The result has manual-D total 0 and harmful recovery total 0.",
+                "It does not claim full39 generalization, accept/reject accuracy, or PPO gains.",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    report = p32_stale.build_report(argparse.Namespace(file=[str(paper)]))
+
+    assert report["status"] == "PASS"
+    assert report["files"][0]["banned_matches"] == []
+    assert report["files"][0]["missing_required_phrases"] == []
+
+
+def test_p32_paper_stale_claim_audit_flags_pre_p32_result_language(tmp_path):
+    paper = tmp_path / "paper.md"
+    paper.write_text(
+        "\n".join(
+            [
+                "P28.6 verifies 13 review issue rows.",
+                "Manual audit reports 8/9 A/B clusters.",
+                "The fresh partial16 rerun completed 16/20 papers.",
+                "This text also mentions two accepted hardneg20 clean runs, five recurring Critique-origin, manual-D, harmful recovery, full39, accept/reject, and PPO.",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    report = p32_stale.build_report(argparse.Namespace(file=[str(paper)]))
+
+    assert report["status"] == "FAIL"
+    patterns = {match["pattern"] for match in report["files"][0]["banned_matches"]}
+    assert r"\bP28(?:\.6)?\b" in patterns
+    assert "8/9" in patterns
+    assert "partial16" in patterns
+    assert "16/20" in patterns
 
 
 def test_p32_clean_pipeline_dry_run_uses_standard_runtime():
