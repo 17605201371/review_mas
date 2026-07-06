@@ -21,6 +21,7 @@ p31_gate = _load_script_module("p31_6_entry_gate_audit", "scripts/p31_6_entry_ga
 p31_manual = _load_script_module("p31_6_manual_audit", "scripts/p31_6_manual_audit.py")
 p31_status = _load_script_module("p31_6_status_report", "scripts/p31_6_status_report.py")
 p32_stability = _load_script_module("p32_stability_report", "scripts/p32_stability_report.py")
+p32_narrative = _load_script_module("p32_narrative_evidence_report", "scripts/p32_narrative_evidence_report.py")
 
 
 def _write_json(path, data):
@@ -74,6 +75,7 @@ def _case_table(path, cluster_count=3):
                 "reviewer_candidate_kind": "critique_payload_candidate",
                 "discovery_origin": "freeform_reviewer_negative",
                 "reviewer_candidate_id": f"review-issue-candidate-{idx}",
+                "evidence_id": f"evidence-{idx}",
                 "missing_or_mismatch": target,
                 "claim_anchor": f"claim anchor {idx}",
                 "inventory_or_quote_locator": "Section 4",
@@ -115,10 +117,15 @@ def _manual_validation(path, *, label="TEST", labels=None, origins=None):
                 "issue_cluster_key": f"paper-{idx}|obligation_grounded_review_issue|reproducibility_gap|target-{idx}",
                 "origin": origin,
                 "claim_ids": ["claim-1"],
+                "claim_anchor": f"claim anchor {idx}",
+                "missing_or_mismatch": f"target-{idx}",
+                "inventory_or_quote_locator": "Section 4",
+                "inventory_or_quote": f"inventory quote {idx}",
                 "manual_decision": "keep",
                 "raw_paper_evidence_checked": "yes",
                 "counterevidence_checked": "yes",
                 "paper_facing_usable": "yes",
+                "wording_caution": "Use careful wording.",
                 "reason": "Defensible claim/inventory/missing relation.",
             }
         )
@@ -504,6 +511,114 @@ def test_p32_stability_report_prefers_manual_entry_gate_when_present(tmp_path, m
     assert run["clean_included"] is True
     assert run["manual_gate_status"] == "PASS"
     assert run["entry_gate_path"] == manual_gate.name
+
+
+def _recovery_table_with_contested(path, evidence_ids):
+    return _write_json(
+        path,
+        {
+            "summary": {
+                "bucket::verified_review_issue_repair": len(evidence_ids),
+                "operation::mark_contested": len(evidence_ids),
+                "bucket::harmful_recovery": 0,
+            },
+            "cases": [
+                {
+                    "paper_id": f"paper-{idx}",
+                    "turn_id": 5,
+                    "narrative_bucket": "verified_review_issue_repair",
+                    "recovery_layer": "committed",
+                    "effective_repair": True,
+                    "committed": True,
+                    "operation": "mark_contested",
+                    "target_type": "claim",
+                    "target_id": "claim-1",
+                    "target_text": f"claim anchor {idx}",
+                    "old_status": "confirmed",
+                    "new_status": "contested",
+                    "failure_code": "SUCCESS",
+                    "supporting_evidence_ids": [evidence_id],
+                    "evidence_buckets": {"obligation_grounded_review_issue": 1},
+                    "evidence": [
+                        {
+                            "evidence_id": evidence_id,
+                            "bucket": "obligation_grounded_review_issue",
+                        }
+                    ],
+                }
+                for idx, evidence_id in enumerate(evidence_ids)
+            ],
+        },
+    )
+
+
+def test_p32_narrative_report_links_recurrent_critique_clusters_to_recovery(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    raw1 = _write_stability_artifacts(tmp_path, "P32_NARR_R1", rows=20)
+    raw2 = _write_stability_artifacts(tmp_path, "P32_NARR_R2", rows=20)
+    _recovery_table_with_contested(tmp_path / "P32_NARR_R1_RECOVERY_CASE_TABLE.json", ["evidence-0", "evidence-1"])
+    _recovery_table_with_contested(tmp_path / "P32_NARR_R2_RECOVERY_CASE_TABLE.json", ["evidence-0", "evidence-1"])
+    stability = p32_stability.build_report(
+        argparse.Namespace(
+            run=[f"P32_NARR_R1={raw1.with_suffix('')}", f"P32_NARR_R2={raw2.with_suffix('')}"],
+            min_runs=2,
+            min_rows=20,
+            max_d_rate=0.25,
+        )
+    )
+    stability_path = _write_json(tmp_path / "P32_STABILITY.json", stability)
+
+    report = p32_narrative.build_report(
+        argparse.Namespace(
+            stability_json=str(stability_path),
+            min_recurrence=2,
+            min_recurring_critique_clusters=2,
+            require_cluster_recovery=True,
+        )
+    )
+
+    assert report["status"] == "PASS"
+    assert report["recurring_critique_origin_cluster_count"] == 2
+    assert report["manual_D_clusters_total"] == 0
+    assert report["harmful_recovery_total"] == 0
+    target_one = next(
+        cluster for cluster in report["recurring_critique_origin_clusters"] if cluster["cluster_target"] == "target-1"
+    )
+    assert target_one["runs_with_contested_recovery"] == 2
+    assert target_one["manual_labels"] == ["B"]
+    for run_evidence in target_one["per_run"]:
+        assert run_evidence["claim_anchor"] == "claim anchor 1"
+        assert run_evidence["inventory_or_quote"] == "inventory quote 1"
+        assert run_evidence["case_evidence_ids"] == ["evidence-1"]
+        assert run_evidence["recovery_mark_contested_count"] == 1
+    assert any("not a full39" in note for note in report["narrative_constraints"])
+
+
+def test_p32_narrative_report_flags_missing_cluster_recovery_when_required(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    raw1 = _write_stability_artifacts(tmp_path, "P32_NARR_R1", rows=20)
+    raw2 = _write_stability_artifacts(tmp_path, "P32_NARR_R2", rows=20)
+    stability = p32_stability.build_report(
+        argparse.Namespace(
+            run=[f"P32_NARR_R1={raw1.with_suffix('')}", f"P32_NARR_R2={raw2.with_suffix('')}"],
+            min_runs=2,
+            min_rows=20,
+            max_d_rate=0.25,
+        )
+    )
+    stability_path = _write_json(tmp_path / "P32_STABILITY.json", stability)
+
+    report = p32_narrative.build_report(
+        argparse.Namespace(
+            stability_json=str(stability_path),
+            min_recurrence=2,
+            min_recurring_critique_clusters=2,
+            require_cluster_recovery=True,
+        )
+    )
+
+    assert report["status"] == "INCOMPLETE"
+    assert any("missing per-run contested recovery support" in issue for issue in report["blocking_issues"])
 
 
 def test_p32_clean_pipeline_dry_run_uses_standard_runtime():

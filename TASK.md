@@ -2266,3 +2266,74 @@ Next:
      R2/R3 hardneg20 or a carefully scoped full39 only if the paper narrative
      needs recurrence beyond this R1 slice.  Do not loosen gates.
 ```
+
+P32 narrative evidence checkpoint (20260706):
+
+```text
+Status:
+  - Stage 4 clean-run stability has now been translated into a paper-facing
+    Stage 5 evidence pack.
+  - This is a summarization/reporting step over existing strict artifacts; no
+    verifier, validator, recovery, PPO, rollout, or API inference behavior was
+    changed.
+  - Local MiMo key was refreshed in `.env` and one-call preflight succeeded;
+    `.env` remains ignored and must not be staged.
+
+New reproducible report:
+  script =
+    scripts/p32_narrative_evidence_report.py
+  artifacts =
+    P32_NARRATIVE_EVIDENCE_R1_R3_20260706.json
+    P32_NARRATIVE_EVIDENCE_R1_R3_20260706.md
+
+Generation command:
+  PYTHONPATH=.:/opt/miniconda3/envs/agent/lib/python3.12/site-packages \
+  /opt/miniconda3/envs/DrMAS/bin/python \
+    scripts/p32_narrative_evidence_report.py \
+    --stability-json P32_STABILITY_R1_R3_PRECISION_20260706.json \
+    --output-json P32_NARRATIVE_EVIDENCE_R1_R3_20260706.json \
+    --output-md P32_NARRATIVE_EVIDENCE_R1_R3_20260706.md \
+    --min-recurring-critique-clusters 5 \
+    --require-cluster-recovery \
+    --fail-on-incomplete
+
+Report result:
+  - status = PASS
+  - included runs = 2
+  - recurring Critique-origin A/B clusters = 5
+  - Critique-origin cluster Jaccard mean = 1.0
+  - manual_D_clusters_total = 0
+  - harmful_recovery_total = 0
+  - every recurring Critique-origin A/B cluster has contested/recovery support
+    in both R1 and R3 (`runs_with_contested_recovery = 2/2`).
+
+Recurring paper-facing clusters:
+  - fGXyvmWpw6 / efficiency_cost_gap / efficiency_resource_measurement
+  - GE6iywJtsV / missing_ablation / graph_control_module
+  - HPuLU6q7xq / missing_baseline / paper-named_gpt-4_baseline
+  - NnExMNiTHw / missing_ablation / acceptance_prediction_head
+  - YXn76HMetm / missing_baseline / paper-named_pixelpick_baseline
+
+Validation:
+  - `pytest tests/test_p31_6_gate_scripts.py -q -k 'p32_narrative or p32_stability'`
+    = 5 passed
+  - `py_compile scripts/p32_narrative_evidence_report.py tests/test_p31_6_gate_scripts.py`
+    = PASS
+
+Interpretation:
+  - This is the first paper-facing Stage 5 evidence pack showing that real
+    Critique-origin verified review issues recur across accepted clean hardneg20
+    runs and naturally connect to contested/recovery.
+  - It supports the paper story around ReviewState-centered flaw localization,
+    evidence alignment, and recovery auditability.
+  - Scope remains hardneg20 clean-repeat evidence.  Do not present it as full39,
+    domain-general benchmark performance, accept/reject accuracy, or PPO result.
+
+Next:
+  1. Commit the narrative report script, generated narrative artifacts, tests,
+     and TASK/memory updates.  Do not stage `.env`, `.DS_Store`, `AGENTS.md`, or
+     scratch raw/jsonl files.
+  2. After commit, either freeze the Stage 5 paper narrative around these five
+     recurring clusters or run one more clean repeat only if the paper needs a
+     3-run stability statement.  Keep verifier/manual/recovery gates strict.
+```

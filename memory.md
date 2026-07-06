@@ -4634,3 +4634,46 @@ P32 R1/R3 clean stability checkpoint (20260706):
   - Scope remains hardneg20 clean-repeat stability, not full39.  Next work
     should extract a paper-facing narrative from recurring clusters and decide
     whether one more accepted clean run is needed before freezing tables.
+
+P32 narrative evidence checkpoint (20260706):
+
+- Local MiMo credentials were refreshed in ignored `.env`; one-call MiMo
+  preflight succeeded.  Do not stage `.env` or print the key.
+- Added `scripts/p32_narrative_evidence_report.py`, a pure summarizer over
+  existing P32 stability/manual/case/recovery artifacts.  It does not rerun
+  models, relax verifier/manual/recovery gates, or touch PPO/rollout code.
+- Generated paper-facing evidence artifacts:
+  - `P32_NARRATIVE_EVIDENCE_R1_R3_20260706.json`
+  - `P32_NARRATIVE_EVIDENCE_R1_R3_20260706.md`
+- Generation used:
+  - `--stability-json P32_STABILITY_R1_R3_PRECISION_20260706.json`
+  - `--min-recurring-critique-clusters 5`
+  - `--require-cluster-recovery`
+  - `--fail-on-incomplete`
+- Report result:
+  - status = PASS
+  - included clean runs = 2
+  - recurring Critique-origin A/B clusters = 5
+  - Critique-origin cluster Jaccard mean = 1.0
+  - manual D total = 0
+  - harmful recovery total = 0
+  - every recurring Critique-origin cluster has per-run contested/recovery
+    support (`runs_with_contested_recovery = 2/2`).
+- Recurring paper-facing clusters:
+  - `fGXyvmWpw6 / efficiency_cost_gap / efficiency_resource_measurement`
+  - `GE6iywJtsV / missing_ablation / graph_control_module`
+  - `HPuLU6q7xq / missing_baseline / paper-named_gpt-4_baseline`
+  - `NnExMNiTHw / missing_ablation / acceptance_prediction_head`
+  - `YXn76HMetm / missing_baseline / paper-named_pixelpick_baseline`
+- Tests:
+  - `pytest tests/test_p31_6_gate_scripts.py -q -k 'p32_narrative or p32_stability'`
+    = 5 passed
+  - `py_compile scripts/p32_narrative_evidence_report.py tests/test_p31_6_gate_scripts.py`
+    = PASS
+- Interpretation:
+  - This moves the project into Stage 5 entry: the paper can now discuss
+    recurring Critique-origin verified review issues with claim anchor,
+    inventory/quote, manual label, wording caution, and contested/recovery
+    provenance.
+  - Keep the scope narrow: hardneg20 clean-repeat narrative evidence only, not
+    full39, accept/reject accuracy, domain-general performance, or PPO.

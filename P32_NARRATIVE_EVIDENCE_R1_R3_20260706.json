@@ -1,0 +1,571 @@
+{
+  "status": "PASS",
+  "source_stability_json": "P32_STABILITY_R1_R3_PRECISION_20260706.json",
+  "blocking_issues": [],
+  "runs_included": 2,
+  "recurring_critique_origin_cluster_count": 5,
+  "manual_D_clusters_total": 0,
+  "harmful_recovery_total": 0,
+  "critique_origin_cluster_jaccard_mean": 1.0,
+  "run_summary": [
+    {
+      "label": "P32_CLEAN_R1_PRECISION_RECOMPUTE_20260705_232527",
+      "jsonl_rows": 20,
+      "machine_gate_status": "PASS",
+      "manual_gate_status": "PASS",
+      "manual_A_B_clusters": 7,
+      "manual_D_clusters": 0,
+      "critique_origin_manual_A_B_clusters": 5,
+      "mark_contested_commit_count": 20,
+      "recovery_harmful_commit_committed": 0
+    },
+    {
+      "label": "P32_CLEAN_R3_PRECISION_RECOMPUTE_20260706_010000",
+      "jsonl_rows": 20,
+      "machine_gate_status": "PASS",
+      "manual_gate_status": "PASS",
+      "manual_A_B_clusters": 7,
+      "manual_D_clusters": 0,
+      "critique_origin_manual_A_B_clusters": 5,
+      "mark_contested_commit_count": 16,
+      "recovery_harmful_commit_committed": 0
+    }
+  ],
+  "recurring_critique_origin_clusters": [
+    {
+      "cluster_key": "fgxyvmwpw6|efficiency_cost_gap|efficiency_resource_measurement",
+      "paper_id": "fgxyvmwpw6",
+      "issue_type": "efficiency_cost_gap",
+      "cluster_target": "efficiency_resource_measurement",
+      "recurrence_count": 2,
+      "manual_labels": [
+        "A"
+      ],
+      "runs_with_contested_recovery": 2,
+      "per_run": [
+        {
+          "run_label": "P32_CLEAN_R1_PRECISION_RECOMPUTE_20260705_232527",
+          "manual_label": "A",
+          "paper_id": "fGXyvmWpw6",
+          "issue_type": "efficiency_cost_gap",
+          "cluster_target": "efficiency_resource_measurement",
+          "claim_ids": [
+            "claim-1",
+            "claim-4"
+          ],
+          "claim_anchor": "The proposed method is computationally efficient, reducing communication rounds and training time compared to other methods.",
+          "missing_or_mismatch": "runtime, memory, parameter, FLOP, hardware, or compute-cost measurement for the efficiency claim",
+          "inventory_or_quote_locator": "paper inventory #1",
+          "inventory_or_quote": "Despite Federated Learning (FL)'s trend for learning machine learning models in a distributed manner, it is susceptible to performance drops when training on heterogeneous data.",
+          "paper_facing_usable": "yes",
+          "wording_caution": "Tie the issue to empirical support for efficiency/resource-cost claims, not to the accuracy contribution.",
+          "manual_reason": "The paper makes explicit efficiency claims without concrete resource-cost measurements in the audited evidence. This is a clear paper-facing support gap.",
+          "case_evidence_ids": [
+            "evidence-reviewer-absence-claim-1-efficiency-cost-efficien",
+            "evidence-reviewer-absence-claim-4-efficiency-cost-efficien"
+          ],
+          "case_row_count": 2,
+          "critique_selected_menu_verified": true,
+          "critique_selected_attribution_modes": [
+            "critique_direct_verified_cluster"
+          ],
+          "recovery_mark_contested_count": 2,
+          "recovery_mark_contested_targets": [
+            {
+              "target_type": "claim",
+              "target_id": "claim-1",
+              "target_text": "The paper proposes a federated learning framework called 'Federated Virtual Learning' that uses local-global distillation to address performance drops caused by data heterogeneity.",
+              "evidence_ids": [
+                "evidence-reviewer-absence-claim-1-efficiency-cost-efficien"
+              ],
+              "narrative_bucket": "verified_review_issue_repair",
+              "operation": "mark_contested"
+            },
+            {
+              "target_type": "claim",
+              "target_id": "claim-4",
+              "target_text": "The proposed method is computationally efficient, reducing communication rounds and training time compared to other methods.",
+              "evidence_ids": [
+                "evidence-reviewer-absence-claim-4-efficiency-cost-efficien"
+              ],
+              "narrative_bucket": "verified_review_issue_repair",
+              "operation": "mark_contested"
+            }
+          ]
+        },
+        {
+          "run_label": "P32_CLEAN_R3_PRECISION_RECOMPUTE_20260706_010000",
+          "manual_label": "A",
+          "paper_id": "fGXyvmWpw6",
+          "issue_type": "efficiency_cost_gap",
+          "cluster_target": "efficiency_resource_measurement",
+          "claim_ids": [
+            "claim-1",
+            "claim-3",
+            "claim-4"
+          ],
+          "claim_anchor": "FVL achieves computational efficiency gains, such as reduced runtime or lower communication overhead, compared to baseline FL methods.",
+          "missing_or_mismatch": "runtime, memory, parameter, FLOP, hardware, or compute-cost measurement for the efficiency claim",
+          "inventory_or_quote_locator": "Section: Method",
+          "inventory_or_quote": "updating. On the contrary, we update our global virtual data during FL training. \\begin{table}[t] \\centering \\caption{Averaged test accuracy for \\texttt{CIFAR10C} with ConvNet.} \\resizebox{0.95\\textwidth}{!}{ \\begin{tabu",
+          "paper_facing_usable": "yes",
+          "wording_caution": "",
+          "manual_reason": "The claim explicitly mentions computational efficiency, reduced runtime, or communication overhead, but the verified inventory is accuracy-oriented and does not show runtime, memory, FLOP, hardware, or communication-cost measurements.",
+          "case_evidence_ids": [
+            "evidence-reviewer-absence-claim-1-efficiency-cost-efficien",
+            "evidence-reviewer-absence-claim-3-efficiency-cost-efficien",
+            "evidence-reviewer-absence-claim-4-efficiency-cost-efficien"
+          ],
+          "case_row_count": 3,
+          "critique_selected_menu_verified": true,
+          "critique_selected_attribution_modes": [
+            "critique_direct_verified_cluster"
+          ],
+          "recovery_mark_contested_count": 2,
+          "recovery_mark_contested_targets": [
+            {
+              "target_type": "claim",
+              "target_id": "claim-3",
+              "target_text": "FVL achieves computational efficiency gains, such as reduced runtime or lower communication overhead, compared to baseline FL methods.",
+              "evidence_ids": [
+                "evidence-reviewer-absence-claim-3-efficiency-cost-efficien"
+              ],
+              "narrative_bucket": "verified_review_issue_repair",
+              "operation": "mark_contested"
+            },
+            {
+              "target_type": "claim",
+              "target_id": "claim-1",
+              "target_text": "The paper proposes Federated Virtual Learning (FVL) to address heterogeneity and improve efficiency/scalability in FL using local-global distillation.",
+              "evidence_ids": [
+                "evidence-reviewer-absence-claim-1-efficiency-cost-efficien"
+              ],
+              "narrative_bucket": "verified_review_issue_repair",
+              "operation": "mark_contested"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cluster_key": "ge6iywjtsv|missing_ablation|graph_control_module",
+      "paper_id": "ge6iywjtsv",
+      "issue_type": "missing_ablation",
+      "cluster_target": "graph_control_module",
+      "recurrence_count": 2,
+      "manual_labels": [
+        "A",
+        "B"
+      ],
+      "runs_with_contested_recovery": 2,
+      "per_run": [
+        {
+          "run_label": "P32_CLEAN_R1_PRECISION_RECOMPUTE_20260705_232527",
+          "manual_label": "B",
+          "paper_id": "GE6iywJtsV",
+          "issue_type": "missing_ablation",
+          "cluster_target": "graph_control_module",
+          "claim_ids": [
+            "claim-1",
+            "claim-3"
+          ],
+          "claim_anchor": "The paper introduces a novel constrained diffusion model (Diff-Shape) and a Graph ControllNet (GrCN) for shape-based de novo drug design.",
+          "missing_or_mismatch": "graph control module; component-isolation ablation for with a graph control module",
+          "inventory_or_quote_locator": "Section 3.2",
+          "inventory_or_quote": "In Diff-Shape method, a novel equivariant neural network architecture,named Graph ControllNet (GrCN), was proposed and it composed an unconditioned diffusion model satisfying SE (3) symmetry for 3D molecular generation a",
+          "paper_facing_usable": "yes_with_care",
+          "wording_caution": "Acknowledge the existing MIDI/SQUID/ShapeMol comparisons; limit the issue to component isolation of GrCN/graph control.",
+          "manual_reason": "The graph control module is central to the claimed constrained diffusion method, but the observed comparisons do not isolate its contribution. This is a defensible ablation concern with careful wording.",
+          "case_evidence_ids": [
+            "evidence-reviewer-absence-claim-1-ablation-or-component-mi",
+            "evidence-reviewer-absence-claim-3-ablation-or-component-mi"
+          ],
+          "case_row_count": 2,
+          "critique_selected_menu_verified": true,
+          "critique_selected_attribution_modes": [
+            "critique_direct_verified_cluster"
+          ],
+          "recovery_mark_contested_count": 2,
+          "recovery_mark_contested_targets": [
+            {
+              "target_type": "claim",
+              "target_id": "claim-1",
+              "target_text": "The paper proposes SPOT, a scalable pre-training method via occupancy prediction for learning transferable 3D representations for autonomous driving.",
+              "evidence_ids": [
+                "evidence-reviewer-absence-claim-1-ablation-or-component-mi"
+              ],
+              "narrative_bucket": "verified_review_issue_repair",
+              "operation": "mark_contested"
+            },
+            {
+              "target_type": "claim",
+              "target_id": "claim-3",
+              "target_text": "The GrCN mechanism processes shape conditions to guide the diffusion model's generation.",
+              "evidence_ids": [
+                "evidence-reviewer-absence-claim-3-ablation-or-component-mi"
+              ],
+              "narrative_bucket": "verified_review_issue_repair",
+              "operation": "mark_contested"
+            }
+          ]
+        },
+        {
+          "run_label": "P32_CLEAN_R3_PRECISION_RECOMPUTE_20260706_010000",
+          "manual_label": "A",
+          "paper_id": "GE6iywJtsV",
+          "issue_type": "missing_ablation",
+          "cluster_target": "graph_control_module",
+          "claim_ids": [
+            "claim-1",
+            "claim-2"
+          ],
+          "claim_anchor": "Diff-Shape introduces a novel constrained diffusion model for shape-based de novo drug design.",
+          "missing_or_mismatch": "graph control module; component-isolation ablation for with a graph control module",
+          "inventory_or_quote_locator": "Claim-matched evidence excerpt #1",
+          "inventory_or_quote": "In Diff-Shape method, a novel equivariant neural network architecture,named Graph ControllNet (GrCN), was proposed and it composed an unconditioned diffusion model satisfying SE (3) symmetry for 3D molecular generation a",
+          "paper_facing_usable": "yes",
+          "wording_caution": "",
+          "manual_reason": "The paper presents Graph ControllNet as a central graph-control mechanism for constrained diffusion, and the audited evidence does not show a component-isolation ablation removing that module.",
+          "case_evidence_ids": [
+            "evidence-reviewer-absence-claim-1-ablation-or-component-mi",
+            "evidence-reviewer-absence-claim-2-ablation-or-component-mi"
+          ],
+          "case_row_count": 2,
+          "critique_selected_menu_verified": true,
+          "critique_selected_attribution_modes": [
+            "critique_direct_verified_cluster"
+          ],
+          "recovery_mark_contested_count": 2,
+          "recovery_mark_contested_targets": [
+            {
+              "target_type": "claim",
+              "target_id": "claim-1",
+              "target_text": "Diff-Shape introduces a novel constrained diffusion model for shape-based de novo drug design.",
+              "evidence_ids": [
+                "evidence-reviewer-absence-claim-1-ablation-or-component-mi"
+              ],
+              "narrative_bucket": "verified_review_issue_repair",
+              "operation": "mark_contested"
+            },
+            {
+              "target_type": "claim",
+              "target_id": "claim-2",
+              "target_text": "Performance gains are driven by three key aspects: recurrent draft model, dynamic tree attention, and knowledge distillation training.",
+              "evidence_ids": [
+                "evidence-reviewer-absence-claim-2-ablation-or-component-mi"
+              ],
+              "narrative_bucket": "verified_review_issue_repair",
+              "operation": "mark_contested"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cluster_key": "hpulu6q7xq|missing_baseline|paper-named_gpt-4_baseline",
+      "paper_id": "hpulu6q7xq",
+      "issue_type": "missing_baseline",
+      "cluster_target": "paper-named_gpt-4_baseline",
+      "recurrence_count": 2,
+      "manual_labels": [
+        "B"
+      ],
+      "runs_with_contested_recovery": 2,
+      "per_run": [
+        {
+          "run_label": "P32_CLEAN_R1_PRECISION_RECOMPUTE_20260705_232527",
+          "manual_label": "B",
+          "paper_id": "HPuLU6q7xq",
+          "issue_type": "missing_baseline",
+          "cluster_target": "paper-named_gpt-4_baseline",
+          "claim_ids": [
+            "claim-2"
+          ],
+          "claim_anchor": "The Orca method empirically outperforms baseline methods on role-playing tasks.",
+          "missing_or_mismatch": "same-setting comparison against paper-named GPT-4 baseline",
+          "inventory_or_quote_locator": "Table/Figure excerpt #2",
+          "inventory_or_quote": "\\caption{An example interaction between an personalized agent object of Orca and human on social platform.",
+          "paper_facing_usable": "yes_with_care",
+          "wording_caution": "Frame as absence of a strong closed-model reference point, not proof that GPT-4 was required or feasible.",
+          "manual_reason": "The paper claims superior OrcaBench performance and discusses GPT-4 as a salient role-playing LLM, but the observed experiments do not include a same-setting GPT-4 comparison. This is defensible with cost/access caveat.",
+          "case_evidence_ids": [
+            "evidence-reviewer-absence-claim-2-baseline-or-comparison-m"
+          ],
+          "case_row_count": 1,
+          "critique_selected_menu_verified": true,
+          "critique_selected_attribution_modes": [
+            "critique_direct_verified_cluster"
+          ],
+          "recovery_mark_contested_count": 1,
+          "recovery_mark_contested_targets": [
+            {
+              "target_type": "claim",
+              "target_id": "claim-2",
+              "target_text": "The Orca method empirically outperforms baseline methods on role-playing tasks.",
+              "evidence_ids": [
+                "evidence-reviewer-absence-claim-2-baseline-or-comparison-m"
+              ],
+              "narrative_bucket": "verified_review_issue_repair",
+              "operation": "mark_contested"
+            }
+          ]
+        },
+        {
+          "run_label": "P32_CLEAN_R3_PRECISION_RECOMPUTE_20260706_010000",
+          "manual_label": "B",
+          "paper_id": "HPuLU6q7xq",
+          "issue_type": "missing_baseline",
+          "cluster_target": "paper-named_gpt-4_baseline",
+          "claim_ids": [
+            "claim-3"
+          ],
+          "claim_anchor": "Orca achieves state-of-the-art performance on the OrcaBench evaluation benchmark compared to existing methods.",
+          "missing_or_mismatch": "same-setting comparison against paper-named GPT-4 baseline",
+          "inventory_or_quote_locator": "Table/Figure caption: Basic statistics for OrcaData.",
+          "inventory_or_quote": "the agent's psychological activities and personality traits.} \\end{figure} \\begin{table}[ht] \\centering \\begin{minipage}{0.45\\textwidth} \\centering \\caption{Basic statistics for OrcaData.} \\resizebox{\\linewidth}{!}{ \\sma",
+          "paper_facing_usable": "yes",
+          "wording_caution": "Use careful wording; treat as defensible concern rather than confirmed defect.",
+          "manual_reason": "GPT-4 is paper-named in the surrounding motivation for role-playing ability, while the experimental comparison appears to use LLaMA/DeepSeek/Orca-style baselines. This is defensible but should be phrased as baseline coverage, not a guaranteed omission.",
+          "case_evidence_ids": [
+            "evidence-reviewer-absence-claim-3-baseline-or-comparison-m"
+          ],
+          "case_row_count": 1,
+          "critique_selected_menu_verified": true,
+          "critique_selected_attribution_modes": [
+            "critique_direct_verified_cluster"
+          ],
+          "recovery_mark_contested_count": 1,
+          "recovery_mark_contested_targets": [
+            {
+              "target_type": "claim",
+              "target_id": "claim-3",
+              "target_text": "Orca achieves state-of-the-art performance on the OrcaBench evaluation benchmark compared to existing methods.",
+              "evidence_ids": [
+                "evidence-reviewer-absence-claim-3-baseline-or-comparison-m"
+              ],
+              "narrative_bucket": "verified_review_issue_repair",
+              "operation": "mark_contested"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cluster_key": "nnexmnithw|missing_ablation|acceptance_prediction_head",
+      "paper_id": "nnexmnithw",
+      "issue_type": "missing_ablation",
+      "cluster_target": "acceptance_prediction_head",
+      "recurrence_count": 2,
+      "manual_labels": [
+        "A",
+        "B"
+      ],
+      "runs_with_contested_recovery": 2,
+      "per_run": [
+        {
+          "run_label": "P32_CLEAN_R1_PRECISION_RECOMPUTE_20260705_232527",
+          "manual_label": "B",
+          "paper_id": "NnExMNiTHw",
+          "issue_type": "missing_ablation",
+          "cluster_target": "acceptance_prediction_head",
+          "claim_ids": [
+            "claim-1",
+            "claim-2",
+            "claim-4"
+          ],
+          "claim_anchor": "SpecDec++ formulates the candidate length selection as an MDP and implements an adaptive policy to choose K.",
+          "missing_or_mismatch": "acceptance prediction head; component-isolation ablation for of the acceptance prediction head",
+          "inventory_or_quote_locator": "Section: SpecDec++: Theory and Algorithm",
+          "inventory_or_quote": "Theory and Algorithm} \\label{sec:method} \\newcommand{\\Hid}{{\\boldsymbol{e}}} \\begin{figure}[t] \\centering \\includegraphics[width=1\\textwidth]{figs/main.pdf} \\caption{\\ours uses a trained \\textbf{acceptance prediction hea",
+          "paper_facing_usable": "yes_with_care",
+          "wording_caution": "Phrase as missing isolation of the learned head/calibration choices, not as absence of all baseline comparisons.",
+          "manual_reason": "The acceptance prediction head is central to adaptive candidate-length selection. Existing comparisons show end-to-end gains but do not isolate the head/training choices, so this is a defensible ablation concern.",
+          "case_evidence_ids": [
+            "evidence-reviewer-absence-claim-1-ablation-or-component-mi",
+            "evidence-reviewer-absence-claim-2-ablation-or-component-mi",
+            "evidence-reviewer-absence-claim-4-ablation-or-component-mi"
+          ],
+          "case_row_count": 3,
+          "critique_selected_menu_verified": true,
+          "critique_selected_attribution_modes": [
+            "critique_direct_verified_cluster"
+          ],
+          "recovery_mark_contested_count": 3,
+          "recovery_mark_contested_targets": [
+            {
+              "target_type": "claim",
+              "target_id": "claim-1",
+              "target_text": "The paper proposes SPOT, a scalable pre-training method via occupancy prediction for learning transferable 3D representations for autonomous driving.",
+              "evidence_ids": [
+                "evidence-reviewer-absence-claim-1-ablation-or-component-mi"
+              ],
+              "narrative_bucket": "verified_review_issue_repair",
+              "operation": "mark_contested"
+            },
+            {
+              "target_type": "claim",
+              "target_id": "claim-2",
+              "target_text": "The optimal policy derived from the MDP takes the form of a threshold policy.",
+              "evidence_ids": [
+                "evidence-reviewer-absence-claim-2-ablation-or-component-mi"
+              ],
+              "narrative_bucket": "verified_review_issue_repair",
+              "operation": "mark_contested"
+            },
+            {
+              "target_type": "claim",
+              "target_id": "claim-4",
+              "target_text": "SpecDec++ uses a prediction head to estimate acceptance probabilities for the threshold decision.",
+              "evidence_ids": [
+                "evidence-reviewer-absence-claim-4-ablation-or-component-mi"
+              ],
+              "narrative_bucket": "verified_review_issue_repair",
+              "operation": "mark_contested"
+            }
+          ]
+        },
+        {
+          "run_label": "P32_CLEAN_R3_PRECISION_RECOMPUTE_20260706_010000",
+          "manual_label": "A",
+          "paper_id": "NnExMNiTHw",
+          "issue_type": "missing_ablation",
+          "cluster_target": "acceptance_prediction_head",
+          "claim_ids": [
+            "claim-1",
+            "claim-2"
+          ],
+          "claim_anchor": "SpecDec++ reduces inference latency compared to fixed-K baselines by adaptively selecting the candidate length.",
+          "missing_or_mismatch": "acceptance prediction head",
+          "inventory_or_quote_locator": "Section: SpecDec++: Theory and Algorithm",
+          "inventory_or_quote": "Algorithm} \\label{sec:method} \\newcommand{\\Hid}{{\\boldsymbol{e}}} \\begin{figure}[t] \\centering \\includegraphics[width=1\\textwidth]{figs/main.pdf} \\caption{\\ours uses a trained \\textbf{acceptance prediction head} to predi",
+          "paper_facing_usable": "yes",
+          "wording_caution": "",
+          "manual_reason": "The acceptance prediction head is central to adaptive candidate-length selection and latency reduction, while the visible evaluation does not isolate the head in an ablation.",
+          "case_evidence_ids": [
+            "evidence-reviewer-absence-claim-1-ablation-or-component-mi",
+            "evidence-reviewer-absence-claim-2-ablation-or-component-mi"
+          ],
+          "case_row_count": 2,
+          "critique_selected_menu_verified": true,
+          "critique_selected_attribution_modes": [
+            "critique_direct_verified_cluster"
+          ],
+          "recovery_mark_contested_count": 2,
+          "recovery_mark_contested_targets": [
+            {
+              "target_type": "claim",
+              "target_id": "claim-1",
+              "target_text": "Diff-Shape introduces a novel constrained diffusion model for shape-based de novo drug design.",
+              "evidence_ids": [
+                "evidence-reviewer-absence-claim-1-ablation-or-component-mi"
+              ],
+              "narrative_bucket": "verified_review_issue_repair",
+              "operation": "mark_contested"
+            },
+            {
+              "target_type": "claim",
+              "target_id": "claim-2",
+              "target_text": "Performance gains are driven by three key aspects: recurrent draft model, dynamic tree attention, and knowledge distillation training.",
+              "evidence_ids": [
+                "evidence-reviewer-absence-claim-2-ablation-or-component-mi"
+              ],
+              "narrative_bucket": "verified_review_issue_repair",
+              "operation": "mark_contested"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cluster_key": "yxn76hmetm|missing_baseline|paper-named_pixelpick_baseline",
+      "paper_id": "yxn76hmetm",
+      "issue_type": "missing_baseline",
+      "cluster_target": "paper-named_pixelpick_baseline",
+      "recurrence_count": 2,
+      "manual_labels": [
+        "B"
+      ],
+      "runs_with_contested_recovery": 2,
+      "per_run": [
+        {
+          "run_label": "P32_CLEAN_R1_PRECISION_RECOMPUTE_20260705_232527",
+          "manual_label": "B",
+          "paper_id": "YXn76HMetm",
+          "issue_type": "missing_baseline",
+          "cluster_target": "paper-named_pixelpick_baseline",
+          "claim_ids": [
+            "claim-3"
+          ],
+          "claim_anchor": "The HALO method empirically outperforms baseline methods (including EqualAL) for active learning semantic segmentation under domain shift.",
+          "missing_or_mismatch": "same-setting comparison against paper-named PixelPick baseline; same-setting comparison against paper-named EqualAL baseline",
+          "inventory_or_quote_locator": "Comparison / Robustness excerpt #1",
+          "inventory_or_quote": "HALO sets a new state-of-the-art in active learning for semantic segmentation under domain shift and it is the first active learning approach that surpasses the performance of supervised domain adaptation while using onl",
+          "paper_facing_usable": "yes_with_care",
+          "wording_caution": "Frame as missing named AL baseline comparisons under comparable settings, not as absence of all SOTA/ADA baselines.",
+          "manual_reason": "HALO claims SOTA active learning under domain shift and names PixelPick/EqualAL as relevant prior work, but the audited result context does not show same-setting comparisons to those named AL baselines.",
+          "case_evidence_ids": [
+            "evidence-reviewer-absence-claim-3-baseline-or-comparison-m"
+          ],
+          "case_row_count": 1,
+          "critique_selected_menu_verified": false,
+          "critique_selected_attribution_modes": [],
+          "recovery_mark_contested_count": 1,
+          "recovery_mark_contested_targets": [
+            {
+              "target_type": "claim",
+              "target_id": "claim-3",
+              "target_text": "The HALO method empirically outperforms baseline methods (including EqualAL) for active learning semantic segmentation under domain shift.",
+              "evidence_ids": [
+                "evidence-reviewer-absence-claim-3-baseline-or-comparison-m"
+              ],
+              "narrative_bucket": "verified_review_issue_repair",
+              "operation": "mark_contested"
+            }
+          ]
+        },
+        {
+          "run_label": "P32_CLEAN_R3_PRECISION_RECOMPUTE_20260706_010000",
+          "manual_label": "B",
+          "paper_id": "YXn76HMetm",
+          "issue_type": "missing_baseline",
+          "cluster_target": "paper-named_pixelpick_baseline",
+          "claim_ids": [
+            "claim-3"
+          ],
+          "claim_anchor": "HALO achieves superior empirical performance compared to established baselines like EqualAL across multiple domain shift scenarios.",
+          "missing_or_mismatch": "same-setting comparison against paper-named PixelPick baseline; same-setting comparison against paper-named EqualAL baseline",
+          "inventory_or_quote_locator": "Table: results table",
+          "inventory_or_quote": "approach on a novel dataset, as shown in Table \\ref{tab:results_table}c. \\subsection{Ablation study} \\label{sec:ablation} \\input{tables/ablation_tables} We begin by conducting an oracular study using ground-truth labels,",
+          "paper_facing_usable": "yes",
+          "wording_caution": "Use careful wording; treat as defensible concern rather than confirmed defect.",
+          "manual_reason": "PixelPick and EqualAL are paper-named active-learning baselines; the visible results table excerpt is truncated and does not clearly establish same-setting comparison coverage. Defensible, but wording should stay cautious.",
+          "case_evidence_ids": [
+            "evidence-reviewer-absence-claim-3-baseline-or-comparison-m"
+          ],
+          "case_row_count": 1,
+          "critique_selected_menu_verified": false,
+          "critique_selected_attribution_modes": [],
+          "recovery_mark_contested_count": 1,
+          "recovery_mark_contested_targets": [
+            {
+              "target_type": "claim",
+              "target_id": "claim-3",
+              "target_text": "Orca achieves state-of-the-art performance on the OrcaBench evaluation benchmark compared to existing methods.",
+              "evidence_ids": [
+                "evidence-reviewer-absence-claim-3-baseline-or-comparison-m"
+              ],
+              "narrative_bucket": "verified_review_issue_repair",
+              "operation": "mark_contested"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "narrative_constraints": [
+    "This is clean hardneg20 repeat evidence, not a full39/domain-general benchmark claim.",
+    "The recurrent items are obligation-grounded verified review issues; they are not all direct quote-grounded negative evidence.",
+    "The report makes no accept/reject accuracy claim and does not touch PPO or rollout internals.",
+    "The report summarizes existing strict verifier, manual-audit, and recovery artifacts; it does not relax any gate."
+  ]
+}
