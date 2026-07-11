@@ -68,20 +68,24 @@ def run_pipeline(args: argparse.Namespace) -> Dict[str, Any]:
     repo = Path(args.repo).resolve()
     source_prefix = (repo / args.source_prefix).resolve()
     active_prefix = (repo / args.active_prefix).resolve()
-    discovery = subprocess.run(
-        _discovery_command(args, source_prefix),
-        cwd=repo,
-        capture_output=True,
-        text=True,
-        timeout=args.pipeline_timeout,
-        check=False,
-    )
+    if args.reuse_generation:
+        discovery = subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr="")
+    else:
+        discovery = subprocess.run(
+            _discovery_command(args, source_prefix),
+            cwd=repo,
+            capture_output=True,
+            text=True,
+            timeout=args.pipeline_timeout,
+            check=False,
+        )
     manifest_path = Path(str(source_prefix) + "_MANIFEST.json")
     manifest = _load_json(manifest_path) if manifest_path.exists() else {}
     base = {
         "schema_version": "p34_symmetric_discovery_pipeline_v1",
         "boundary": "Discovery-to-human-label orchestration; no Judge admission and no ReviewState mutation",
         "run_api": bool(args.run_api),
+        "generation_reused": bool(args.reuse_generation),
         "source_prefix": str(source_prefix),
         "active_prefix": str(active_prefix),
         "discovery_returncode": discovery.returncode,
@@ -103,6 +107,12 @@ def run_pipeline(args: argparse.Namespace) -> Dict[str, Any]:
     }
     if not manifest:
         return {**base, "status": "BLOCKED_DISCOVERY_EXECUTION", "blocking_issues": ["discovery_manifest_missing"]}
+    if args.reuse_generation and not args.run_api:
+        return {
+            **base,
+            "status": "BLOCKED_DISCOVERY_EXECUTION",
+            "blocking_issues": ["reuse_generation_requires_run_api_mode"],
+        }
     if not args.run_api:
         status = "DRY_RUN_COMPLETE" if manifest.get("status") == "DRY_RUN" and discovery.returncode == 0 else "BLOCKED_DRY_RUN"
         blocking = [] if status == "DRY_RUN_COMPLETE" else [f"dry_run_manifest_status:{manifest.get('status')}"]
@@ -146,8 +156,8 @@ def run_pipeline(args: argparse.Namespace) -> Dict[str, Any]:
 
     if not args.skip_annotation_reload:
         try:
-            assignment_reload = _post_json(args.annotation_url.rstrip("/") + "/api/reload-assignment", args.annotation_timeout)
             reload_report = _post_json(args.annotation_url.rstrip("/") + "/api/reload-discovery", args.annotation_timeout)
+            assignment_reload = _post_json(args.annotation_url.rstrip("/") + "/api/reload-assignment", args.annotation_timeout)
         except Exception as exc:
             return {
                 **base,
@@ -166,11 +176,28 @@ def run_pipeline(args: argparse.Namespace) -> Dict[str, Any]:
                     f"annotation_reload_status:{reload_report.get('status')}",
                 ]
             }
+        expected_negative_secondary = int(
+            ((assignment.get("tasks") or {}).get("review_issue") or {}).get("secondary_packet_count") or 0
+        )
+        loaded_negative_secondary = int(
+            (assignment_reload.get("secondary_counts") or {}).get("review_issue") or 0
+        )
+        if loaded_negative_secondary != expected_negative_secondary:
+            return {
+                **base,
+                "status": "ACTIVE_READY_RELOAD_PENDING",
+                "blocking_issues": [
+                    f"review_issue_secondary_reload_mismatch:{loaded_negative_secondary}!={expected_negative_secondary}"
+                ],
+            }
 
     if not args.skip_gate_refresh:
+        gate_path = repo / args.gate_report
+        if gate_path.exists():
+            gate_path.unlink()
         refresh = subprocess.run(
             [
-                sys.executable,
+                str(args.gate_python),
                 str(repo / "scripts/p34_annotation_gate_refresh.py"),
                 "--repo", str(repo),
                 "--workspace", str((repo / args.workspace).resolve()),
@@ -181,12 +208,14 @@ def run_pipeline(args: argparse.Namespace) -> Dict[str, Any]:
             timeout=args.pipeline_timeout,
             check=False,
         )
-        gate_path = repo / args.gate_report
         if refresh.returncode not in {0, 1} or not gate_path.exists():
             return {
                 **base,
                 "status": "ACTIVE_READY_GATE_REFRESH_PENDING",
-                "gate_refresh": {"returncode": refresh.returncode},
+                "gate_refresh": {
+                    "returncode": refresh.returncode,
+                    "stderr_tail": (refresh.stderr or "")[-1000:],
+                },
                 "blocking_issues": ["gate_refresh_failed"],
             }
         base["gate_refresh"] = _load_json(gate_path)
@@ -229,6 +258,7 @@ def main() -> int:
     parser.add_argument("--source-prefix", default="P34_2_SYMMETRIC_DISCOVERY_CANDIDATE_20260711")
     parser.add_argument("--active-prefix", default="P34_2_SYMMETRIC_DISCOVERY_ACTIVE_20260711")
     parser.add_argument("--run-api", action="store_true")
+    parser.add_argument("--reuse-generation", action="store_true")
     parser.add_argument("--limit", type=int, default=0)
     parser.add_argument("--max-context-chars", type=int, default=12000)
     parser.add_argument("--max-hypotheses", type=int, default=8)
@@ -242,6 +272,7 @@ def main() -> int:
     parser.add_argument("--annotation-timeout", type=float, default=30.0)
     parser.add_argument("--skip-annotation-reload", action="store_true")
     parser.add_argument("--skip-gate-refresh", action="store_true")
+    parser.add_argument("--gate-python", default=sys.executable)
     parser.add_argument("--workspace", default="P34_ANNOTATIONS_20260711")
     parser.add_argument("--positive-template", default="P34_2_JUDGE_DATASET_HARDNEG20_20260711_POSITIVE_HUMAN_AUDIT_TEMPLATE.json")
     parser.add_argument("--claim-template", default="P34_2_JUDGE_DATASET_HARDNEG20_20260711_CLAIM_HUMAN_AUDIT_TEMPLATE.json")

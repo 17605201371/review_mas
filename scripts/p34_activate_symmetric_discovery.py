@@ -55,6 +55,7 @@ def validate_source(prefix: Path, allow_blocked_bootstrap: bool = False) -> Dict
         return {"status": "BLOCKED", "blocking_issues": [f"missing_source_artifacts:{','.join(missing)}"]}
     manifest = _load_json(paths["manifest"])
     packets = _load_jsonl(paths["packets"])
+    cases = list(_load_json(paths["cases"]).get("cases") or [])
     provenance = list(_load_json(paths["provenance"]).get("items") or [])
     labels = list(_load_json(paths["human_template"]).get("labels") or [])
     packet_ids = [str(item.get("packet_id") or "") for item in packets]
@@ -72,6 +73,34 @@ def validate_source(prefix: Path, allow_blocked_bootstrap: bool = False) -> Dict
         for code in ("M", "P"):
             if int((manifest.get("candidate_counts_by_code") or {}).get(code) or 0) <= 0:
                 blocking.append(f"no_candidates_for_discovery_code:{code}")
+        valid_case_papers = {
+            code: {
+                str(item.get("paper_id") or "")
+                for item in cases
+                if isinstance(item, dict)
+                and str(item.get("discovery_code") or "") == code
+                and bool(item.get("valid"))
+                and int(item.get("candidate_count") or 0) > 0
+                and str(item.get("paper_id") or "")
+            }
+            for code in ("M", "P")
+        }
+        all_case_papers = {
+            str(item.get("paper_id") or "")
+            for item in cases
+            if isinstance(item, dict) and str(item.get("paper_id") or "")
+        }
+        if len(all_case_papers) != 20:
+            blocking.append(f"case_paper_count_not_20:{len(all_case_papers)}")
+        if len(cases) != 40:
+            blocking.append(f"case_count_not_40:{len(cases)}")
+        for code in ("M", "P"):
+            coverage = len(valid_case_papers[code])
+            if coverage != 20:
+                blocking.append(f"valid_candidate_paper_coverage_{code}_not_20:{coverage}")
+            manifest_coverage = int((manifest.get("paper_coverage_by_code") or {}).get(code) or 0)
+            if manifest_coverage != coverage:
+                blocking.append(f"manifest_case_coverage_mismatch_{code}:{manifest_coverage}!={coverage}")
     if not bool(manifest.get("prompt_identity_symmetric")):
         blocking.append("prompt_identity_not_symmetric")
     if not bool(manifest.get("generator_identity_absent_from_packets")):
@@ -102,6 +131,24 @@ def validate_source(prefix: Path, allow_blocked_bootstrap: bool = False) -> Dict
         "packet_count": len(packets),
         "provenance_count": len(provenance),
         "label_template_count": len(labels),
+        "case_count": len(cases),
+        "case_paper_count": len({
+            str(item.get("paper_id") or "")
+            for item in cases
+            if isinstance(item, dict) and str(item.get("paper_id") or "")
+        }),
+        "valid_candidate_paper_coverage_by_code": {
+            code: len({
+                str(item.get("paper_id") or "")
+                for item in cases
+                if isinstance(item, dict)
+                and str(item.get("discovery_code") or "") == code
+                and bool(item.get("valid"))
+                and int(item.get("candidate_count") or 0) > 0
+                and str(item.get("paper_id") or "")
+            })
+            for code in ("M", "P")
+        },
         "discovery_membership_counts": dict(Counter(
             code for item in provenance if isinstance(item, dict) for code in item.get("discovery_codes", []) or []
         )),

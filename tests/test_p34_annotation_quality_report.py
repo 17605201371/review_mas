@@ -90,3 +90,24 @@ def test_quality_report_tracks_progress_agreement_and_integrity_failure():
         "credential_generation": 0,
     }
     assert "reviewer_recovery_not_enabled:primary" in report["blocking_issues"]
+
+
+def test_quality_report_counts_discovery_packets_not_model_call_slots():
+    report = build_quality_report(
+        positive=_audit("evidence_relation", 1),
+        claim=_audit("claim_faithfulness", 1),
+        negative=_audit("review_issue", 200, 20),
+        paper_index={"status": "NEEDS_MANUAL_ANCHORS", "paper_count": 20, "completed_annotation_count": 0},
+        assignment={"status": "PASS", "assignment_sha256": "abc"},
+        discovery_manifest={
+            "status": "PASS_GENERATION",
+            "valid_case_count": 40,
+            "raw_candidate_count": 200,
+            "neutral_cluster_count": 200,
+            "candidate_counts_by_code": {"M": 100, "P": 100},
+        },
+        annotator_registry={"roles": {}},
+        two_by_two={"status": "BLOCKED", "preflight": {"missing_label_packet_ids": [], "invalid_span_packet_ids": []}},
+    )
+
+    assert report["discovery"]["packet_count"] == 200

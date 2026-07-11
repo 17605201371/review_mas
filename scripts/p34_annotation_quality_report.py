@@ -93,6 +93,8 @@ def build_quality_report(
     discovery_status = str(discovery_manifest.get("status") or "MISSING")
     discovery_packets = int(
         discovery_manifest.get("packet_count")
+        or discovery_manifest.get("neutral_cluster_count")
+        or discovery_manifest.get("raw_candidate_count")
         or discovery_manifest.get("valid_case_count")
         or 0
     )

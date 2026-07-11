@@ -13,11 +13,12 @@ def _args(tmp_path, run_api):
         }]}))
     return SimpleNamespace(
         repo=str(tmp_path), runner_jsonl="runner.jsonl", source_prefix="candidate",
-        active_prefix="active", run_api=run_api, limit=0, max_context_chars=12000,
+        active_prefix="active", run_api=run_api, reuse_generation=False, limit=0, max_context_chars=12000,
         max_hypotheses=8, max_tokens=2048, max_workers=8, timeout=180.0,
         max_retries=4, pipeline_timeout=60.0, env_file=".env",
         annotation_url="http://127.0.0.1:8765", annotation_timeout=5.0,
         skip_annotation_reload=False, skip_gate_refresh=False, workspace="workspace",
+        gate_python="python3",
         positive_template="positive.json", claim_template="claim.json",
         positive_secondary=1, claim_secondary=1, negative_secondary=1,
         assignment_seed="seed", assignment_report="assignment.json",
@@ -28,20 +29,25 @@ def _args(tmp_path, run_api):
 
 
 def _write_discovery(prefix, status):
-    packet = {"packet_id": "discovery-p1-a", "paper_id": "p1", "task_type": "review_issue"}
-    provenance = [{"packet_id": "discovery-p1-a", "paper_id": "p1", "discovery_codes": ["M", "P"]}]
-    label = {"packet_id": "discovery-p1-a", "paper_id": "p1", "task_type": "review_issue", "allowed_labels": ["A", "B", "C", "D"]}
-    packets = [packet] if status == "PASS_GENERATION" else []
-    provenance = provenance if packets else []
-    labels = [label] if packets else []
+    packets, provenance, labels, cases = [], [], [], []
+    if status == "PASS_GENERATION":
+        for paper_index in range(20):
+            paper_id = f"p{paper_index + 1}"
+            for code in ("M", "P"):
+                packet_id = f"discovery-{paper_id}-{code.lower()}"
+                packets.append({"packet_id": packet_id, "paper_id": paper_id, "task_type": "review_issue"})
+                provenance.append({"packet_id": packet_id, "paper_id": paper_id, "discovery_codes": [code]})
+                labels.append({"packet_id": packet_id, "paper_id": paper_id, "task_type": "review_issue", "allowed_labels": ["A", "B", "C", "D"]})
+                cases.append({"paper_id": paper_id, "discovery_code": code, "valid": True, "candidate_count": 1})
     packet_bytes = b"".join(_canonical_bytes(item) for item in packets)
     manifest = {
         "status": status,
         "paper_count": 20,
         "valid_case_count": 40,
-        "raw_candidate_count": len(packets) * 2,
+        "raw_candidate_count": len(packets),
         "neutral_cluster_count": len(packets),
-        "candidate_counts_by_code": {"M": 1, "P": 1} if packets else {},
+        "candidate_counts_by_code": {"M": 20, "P": 20} if packets else {},
+        "paper_coverage_by_code": {"M": 20, "P": 20} if packets else {},
         "model_codes": ["M", "P"],
         "prompt_identity_symmetric": True,
         "generator_identity_absent_from_packets": True,
@@ -54,7 +60,7 @@ def _write_discovery(prefix, status):
     (prefix.parent / f"{prefix.name}_DISCOVERY_PROVENANCE.json").write_text(json.dumps({"items": provenance}))
     (prefix.parent / f"{prefix.name}_MANIFEST.json").write_text(json.dumps(manifest))
     (prefix.parent / f"{prefix.name}_MANIFEST.md").write_text("manifest\n")
-    (prefix.parent / f"{prefix.name}_CASES.json").write_text(json.dumps({"cases": []}))
+    (prefix.parent / f"{prefix.name}_CASES.json").write_text(json.dumps({"cases": cases}))
     (prefix.parent / f"{prefix.name}_HUMAN_AUDIT_TEMPLATE.json").write_text(json.dumps({"labels": labels}))
 
 
@@ -105,7 +111,13 @@ def test_successful_pipeline_activates_reloads_and_refreshes_gates(monkeypatch, 
         return _completed(1)
 
     monkeypatch.setattr(pipeline.subprocess, "run", fake_run)
-    monkeypatch.setattr(pipeline, "_post_json", lambda *args, **kwargs: {"status": "RELOADED", "packet_count": 1})
+    calls = []
+    def fake_post(url, *args, **kwargs):
+        calls.append(url.rsplit("/", 1)[-1])
+        if url.endswith("reload-assignment"):
+            return {"status": "RELOADED", "secondary_counts": {"review_issue": 1}}
+        return {"status": "RELOADED", "packet_count": 40}
+    monkeypatch.setattr(pipeline, "_post_json", fake_post)
 
     report = pipeline.run_pipeline(args)
 
@@ -115,5 +127,64 @@ def test_successful_pipeline_activates_reloads_and_refreshes_gates(monkeypatch, 
     assert report["annotation_assignment"]["status"] == "PASS"
     assert report["assignment_reload"]["status"] == "RELOADED"
     assert report["annotation_reload"]["status"] == "RELOADED"
+    assert calls == ["reload-discovery", "reload-assignment"]
     assert report["gate_refresh"]["run_api"] is False
     assert (tmp_path / "active_PACKETS.jsonl").exists()
+
+
+def test_pipeline_rejects_stale_gate_report_after_refresh_crash(monkeypatch, tmp_path):
+    args = _args(tmp_path, run_api=True)
+    (tmp_path / "gate.json").write_text(json.dumps({"status": "STALE"}))
+
+    def fake_run(command, **kwargs):
+        if any("p34_symmetric_discovery.py" in str(item) for item in command):
+            _write_discovery(tmp_path / "candidate", "PASS_GENERATION")
+            return _completed(0)
+        return _completed(1)
+
+    monkeypatch.setattr(pipeline.subprocess, "run", fake_run)
+    monkeypatch.setattr(
+        pipeline,
+        "_post_json",
+        lambda url, *args, **kwargs: (
+            {"status": "RELOADED", "secondary_counts": {"review_issue": 1}}
+            if url.endswith("reload-assignment")
+            else {"status": "RELOADED", "packet_count": 40}
+        ),
+    )
+
+    report = pipeline.run_pipeline(args)
+
+    assert report["status"] == "ACTIVE_READY_GATE_REFRESH_PENDING"
+    assert report["blocking_issues"] == ["gate_refresh_failed"]
+    assert not (tmp_path / "gate.json").exists()
+
+
+def test_pipeline_can_reuse_strictly_validated_generation_without_provider_call(monkeypatch, tmp_path):
+    args = _args(tmp_path, run_api=True)
+    args.reuse_generation = True
+    _write_discovery(tmp_path / "candidate", "PASS_GENERATION")
+    subprocess_calls = []
+
+    def fake_run(command, **kwargs):
+        subprocess_calls.append(command)
+        (tmp_path / "gate.json").write_text(json.dumps({"status": "BLOCKED", "run_api": False}))
+        return _completed(1)
+
+    monkeypatch.setattr(pipeline.subprocess, "run", fake_run)
+    monkeypatch.setattr(
+        pipeline,
+        "_post_json",
+        lambda url, *args, **kwargs: (
+            {"status": "RELOADED", "secondary_counts": {"review_issue": 1}}
+            if url.endswith("reload-assignment")
+            else {"status": "RELOADED", "packet_count": 40}
+        ),
+    )
+
+    report = pipeline.run_pipeline(args)
+
+    assert report["status"] == "READY_FOR_HUMAN_LABELS"
+    assert report["generation_reused"] is True
+    assert len(subprocess_calls) == 1
+    assert "p34_annotation_gate_refresh.py" in " ".join(map(str, subprocess_calls[0]))

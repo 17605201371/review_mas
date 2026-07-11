@@ -1117,3 +1117,53 @@ MiMo `mimo-v2.5` 与 `mimo-v2.5-pro` 均真实请求并返回 HTTP 402 insuffici
 - 测试证明：无关未跟踪文件在 `tracked` policy 下不阻断；`full` policy 会阻断；关键代码修改立即产生 `git_tracked_scope_not_clean`；draft/final config hash 保持相同。
 
 关键 P34 实现、合同、计划和专属测试已提交为 `8167031`。提交后正式 scoped Git audit 为 `tracked_dirty_entry_count=0`、`tracked_clean=true`，同时全仓仍有 890 个无关历史实验/工作区条目；后者不影响冻结。draft/final config hash 一致，draft verify `PASS`。finalize 当前只剩真实 readiness 阻塞：2×2、PaperIndex、positive/claim labels、symmetric discovery 和 annotation assignment；Git blocker 已归零。
+
+### P34-2 真实对称 Discovery 恢复与严格激活
+
+MiMo 主、副 key 更新后，one-paper 健康探测已真实通过。`mimo-v2.5` 与
+`mimo-v2.5-pro` 均成功返回结构化 JSON；最初每篇上限 8 条时 Pro 在第 8 条中途触发
+2048-token 截断，将上限收敛为 6 后得到 M=6、P=6、共 12 条有效候选，API error=0。
+
+首次 hardneg20 运行暴露了一个 activation 语义缺陷：40 个 M/P 槽位中 39 个有效，
+M 覆盖 19/20、P 覆盖 20/20，但旧 activation 只检查每个模型全局候选数大于零，错误地
+报告 `ACTIVE_READY`。现已改为直接核验 `_CASES.json`：必须恰有 20 篇、40 个槽位，
+且每篇 M/P 都有 `valid=true` 且 `candidate_count>0`；manifest coverage 还必须与 cases
+计算值一致。19/20 fixture 和真实首次结果现在均 fail-closed。
+
+使用每篇最多 5 条、max_tokens=2048 重跑 hardneg20 后，正式结果为：
+
+```text
+papers = 20
+M valid coverage = 20/20, candidates = 100
+P valid coverage = 20/20, candidates = 100
+raw candidates / neutral packets = 200
+issue types = 11
+invalid span packets = 0
+API errors = 0
+activation = ACTIVE_READY
+pipeline = READY_FOR_HUMAN_LABELS
+```
+
+11 类包括 missing_ablation、missing_baseline、insufficient_evaluation、
+evaluation_protocol_risk、method_support_gap、result_claim_mismatch、scope_overclaim、
+statistical_or_reporting_gap、reproducibility_gap、efficiency_cost_gap 和
+missing_robustness_or_generalization。该数字是待人工审核的 discovery 候选数，不是
+verified negative 数，不提前声称 precision 或 capability Go。
+
+同时修复两项运行态审计问题：
+
+- discovery 先热加载、assignment 后热加载，并强制运行态 review-issue secondary 数量
+  等于冻结 assignment；当前为 20/20。
+- gate refresh 不再把 Python 依赖崩溃的退出码 1 当成正常 BLOCKED 并读取旧 artifact；
+  运行前移除旧报告，只有本次生成新报告才可继续，并允许显式选择具备 pandas 的 gate
+  Python 环境。
+- quality dashboard 不再把 `valid_case_count=40` 误当候选 packet 数；当前正确显示
+  discovery packet_count=200、negative primary=0/200、secondary=0/20。
+
+当前质量状态为 `READY_FOR_FULL_ANNOTATION`，可执行 evidence、claim、PaperIndex 和
+review-issue 的 primary/secondary 标注。统一 gate 仍诚实为 `BLOCKED`：positive 0/104、
+claim 0/73、negative 0/200、PaperIndex 0/20、2x2 missing labels 377。下一总闸是独立
+人工金标准和裁决；其完成前仍不进入 P34-3B/3C 或 P34-4+ runtime 重构。
+
+验证：新增严格 coverage、reload 顺序、陈旧 gate 和 packet-count 回归共 `11 passed`；
+完整 P34 + ReviewState/Recovery/final-view hygiene 聚焦回归 `1055 passed in 7.12s`。
