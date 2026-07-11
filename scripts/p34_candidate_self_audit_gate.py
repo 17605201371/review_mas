@@ -181,14 +181,34 @@ def _counterevidence_windows(
     *,
     paper_sha: str,
     sections: Sequence[Mapping[str, Any]],
+    packet_id: str = "",
     top_k: int = TOP_K_WINDOWS,
 ) -> List[Dict[str, Any]]:
     """Exact-span retrieval of candidate resolving windows. RETRIEVAL ONLY:
-    a hit means "the Judge should look here", never "the candidate is wrong"."""
+    a hit means "the Judge should look here", never "the candidate is wrong".
+
+    Emitted in the existing evidence-id contract (evidence_id + section_id +
+    source_span + quote + retrieval_query + full paper_text_sha256) so the Judge
+    can legally cite them via ``counterevidence_candidates`` / section IDs.
+
+    Windows are quality-ranked (not first-hit): a direct issue-type marker and a
+    results/analysis/table section outrank a related-work or intro mention.
+    """
     marker = RESOLVING_MARKERS.get(issue_type)
     if not marker or not paper_text or not entities:
         return []
-    windows: List[Dict[str, Any]] = []
+    section_rank = {"results": 0, "analysis": 0, "experiment": 0, "ablation": 0,
+                    "table": 0, "evaluation": 1, "method": 2, "approach": 2,
+                    "introduction": 4, "related": 5, "background": 5}
+
+    def _rank(section_id: str) -> int:
+        low = section_id.lower()
+        for key, value in section_rank.items():
+            if key in low:
+                return value
+        return 3
+
+    scored: List[tuple] = []
     taken: List[tuple] = []
     for entity in entities:
         for match in re.finditer(re.escape(entity), paper_text, flags=re.IGNORECASE):
@@ -201,20 +221,32 @@ def _counterevidence_windows(
             if not marker_match:
                 continue
             taken.append((start, end))
-            windows.append({
-                "entity": entity,
-                "matched_marker": marker_match.group(0),
-                "marker_regex": marker,
-                "source_span_start": start,
-                "source_span_end": end,
-                "quote": window_text,  # raw slice; round-trips by construction
-                "entity_offset": match.start(),
-                "section_id": _section_for_offset(sections, match.start()),
-                "paper_text_sha256": paper_sha,
-            })
-            if len(windows) >= top_k:
-                return windows
-    return windows
+            section_id = _section_for_offset(sections, match.start())
+            # direct marker adjacency (marker within ~120 chars of entity) ranks higher
+            adjacency = abs((start + marker_match.start()) - match.start())
+            scored.append((
+                _rank(section_id), adjacency,
+                {
+                    "evidence_id": f"ce-window-{packet_id}-{len(scored) + 1}" if packet_id
+                    else f"ce-window-{len(scored) + 1}",
+                    "source_id": f"ce-window-{packet_id}-{len(scored) + 1}" if packet_id
+                    else f"ce-window-{len(scored) + 1}",
+                    "evidence_kind": "mechanical_counterevidence_retrieval",
+                    "entity": entity,
+                    "matched_marker": marker_match.group(0),
+                    "marker_regex": marker,
+                    "source_span_start": start,
+                    "source_span_end": end,
+                    "quote": window_text,  # raw slice; round-trips by construction
+                    "match_type": "exact_span_raw_slice",
+                    "retrieval_query": entity,
+                    "entity_offset": match.start(),
+                    "section_id": section_id,
+                    "paper_text_sha256": paper_sha,
+                },
+            ))
+    scored.sort(key=lambda item: (item[0], item[1]))
+    return [entry for _, _, entry in scored[:top_k]]
 
 
 def audit_packet(
@@ -258,6 +290,7 @@ def audit_packet(
         windows = _counterevidence_windows(
             paper_text, fields["issue_type"], _entities(packet),
             paper_sha=paper_sha, sections=sections,
+            packet_id=_norm(packet.get("packet_id")),
         )
     result["checks"]["counterevidence_window_count"] = len(windows)
     if windows:
@@ -300,12 +333,13 @@ def build_report(args: argparse.Namespace) -> Dict[str, Any]:
     enriched: List[Dict[str, Any]] = []
     kept: List[Dict[str, Any]] = []
     dropped: List[Dict[str, Any]] = []
+    invalid: List[Dict[str, Any]] = []
 
     for packet in packets:
         pid = _norm(packet.get("paper_id")).lower()
         paper_text = texts.get(pid, "")
         if pid not in sha_cache:
-            sha_cache[pid] = hashlib.sha256(paper_text.encode("utf-8")).hexdigest()[:16]
+            sha_cache[pid] = hashlib.sha256(paper_text.encode("utf-8")).hexdigest()
             section_cache[pid] = _paper_sections(paper_text)
         result = audit_packet(
             packet, paper_text,
@@ -316,16 +350,40 @@ def build_report(args: argparse.Namespace) -> Dict[str, Any]:
         )
         results.append(result)
 
+        windows = result.get("counterevidence_windows") or []
         out_packet = dict(packet)
         out_packet["self_audit"] = {
             "gate": result["gate"],
             "checks": result["checks"],
             "rubric_note": "windows are retrieval hints for the Judge, not verdicts",
         }
-        if result.get("counterevidence_windows"):
-            out_packet["counterevidence_windows"] = result["counterevidence_windows"]
+        # Merge windows into the EXISTING Judge evidence-id contract so they are
+        # legally citable: counterevidence_candidates carries evidence_id, and
+        # every window section_id is added to searched_section_ids.
+        if windows:
+            merged = list(out_packet.get("counterevidence_candidates") or [])
+            merged.extend(windows)
+            out_packet["counterevidence_candidates"] = merged
+            searched = list(out_packet.get("searched_section_ids") or [])
+            for window in windows:
+                sid = window.get("section_id")
+                if sid and sid not in searched:
+                    searched.append(sid)
+            out_packet["searched_section_ids"] = searched
+            out_packet["counterevidence_windows"] = windows  # mirror for humans
+
+        # Two orthogonal dimensions (GPT cross-audit 2026-07-11):
+        #  * contract_invalid  -> blocked in ALL modes, never reaches the Judge
+        #  * counterevidence_hit -> enrich attaches evidence, never deletes
+        #  * strict_regex_drop -> ablation only (validated to over-block)
+        contract_invalid = result["gate"] == "invalid_missing_self_audit_fields"
+        if contract_invalid:
+            invalid.append({"packet_id": result["packet_id"],
+                            "gate": result["gate"],
+                            "self_audit_fields_missing": result["checks"]["self_audit_fields_missing"]})
+            continue  # blocked in every mode; not emitted to Judge
         enriched.append(out_packet)
-        if result["gate"].startswith(("drop_", "invalid_")):
+        if strict and result["gate"].startswith("drop_"):
             dropped.append({"packet_id": result["packet_id"], "gate": result["gate"]})
         else:
             kept.append(out_packet)
@@ -336,6 +394,8 @@ def build_report(args: argparse.Namespace) -> Dict[str, Any]:
         "require_self_audit_fields": bool(args.require_self_audit_fields),
         "packet_count": len(results),
         "gate_counts": dict(gate_counts),
+        "contract_invalid_count": len(invalid),
+        "emitted_to_judge_count": len(enriched),
         "kept_count": len(kept),
         "dropped_count": len(dropped),
         "roundtrip_note": "every window quote is a raw paper_text slice at [source_span_start:source_span_end]",
@@ -365,6 +425,7 @@ def build_report(args: argparse.Namespace) -> Dict[str, Any]:
         "_enriched": enriched,
         "_kept": kept,
         "_dropped": dropped,
+        "_invalid": invalid,
     }
 
 
@@ -390,12 +451,15 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     enriched = report.pop("_enriched")
     kept = report.pop("_kept")
     dropped = report.pop("_dropped")
+    invalid = report.pop("_invalid")
 
     Path(args.out_json).write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
     if args.out_packets_jsonl:
+        # enrich: emit contract-VALID packets with attached evidence (never invalid).
+        # strict: emit only passing packets. Invalid packets never reach the Judge.
         _write_jsonl(Path(args.out_packets_jsonl), enriched if args.mode == "enrich" else kept)
     if args.out_dropped_jsonl:
-        _write_jsonl(Path(args.out_dropped_jsonl), dropped)
+        _write_jsonl(Path(args.out_dropped_jsonl), dropped + invalid)
     if args.out_md:
         s = report["summary"]
         lines = [f"# {report['label']}", "",
@@ -407,8 +471,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         Path(args.out_md).write_text("\n".join(lines), encoding="utf-8")
 
     s = report["summary"]
-    print(f"[GATE-V2] mode={s['mode']} packets={s['packet_count']} kept={s['kept_count']} "
-          f"dropped={s['dropped_count']} gates={s['gate_counts']}")
+    print(f"[GATE-V2] mode={s['mode']} packets={s['packet_count']} "
+          f"emitted_to_judge={s['emitted_to_judge_count']} contract_invalid={s['contract_invalid_count']} "
+          f"kept={s['kept_count']} dropped={s['dropped_count']} gates={s['gate_counts']}")
     return 0
 
 

@@ -68,6 +68,13 @@ contract v1 的显式 verdict 集，不在本文范围。
 ## 五、生效与追溯
 
 - 本 rubric 为 `p34_label_rubric_v2`；后续标注/裁决/gate refresh 均引用此版本号。
+- **EVR operationalize 前置条件（GPT 交叉审核 2026-07-11）**：本文只完成 rubric 设计。
+  正式重标前必须先建 `p34_label_contract_v2`，落地四处：
+  (a) annotation template 的 allowed_labels 扩为 A/B/C/D/EVR；
+  (b) Judge schema 增 `external_verification_required` 字段；
+  (c) frozen label contract 版本号 v1→v2；
+  (d) gate/readiness/工作台 UI 识别 EVR。
+  在 contract v2 落地前，EVR 仅为设计概念，不得进入正式标注。
 - 已有 377 条诊断标签**不追溯改标**，仅作诊断集；正式金标准从 v2 起重标
   （先 cluster 去重——七步②——再按本程序标注）。
 - 双标一致率、kappa、分歧裁决记录按 annotation 基础设施既有流程产出。

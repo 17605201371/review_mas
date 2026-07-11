@@ -64,6 +64,29 @@ def test_window_quote_roundtrips_exactly():
         assert PAPER[w["source_span_start"]:w["source_span_end"]] == w["quote"]
         assert w["matched_marker"]
         assert w["entity"]
+        assert w["evidence_id"] and w["evidence_id"].startswith("ce-window-")
+        assert w["match_type"] == "exact_span_raw_slice"
+
+
+def test_windows_citable_in_judge_id_contract(tmp_path):
+    """P0 (GPT 2026-07-11): enriched windows must be legally citable by the Judge,
+    i.e. appear in counterevidence_candidates with evidence_id and their
+    section_id merged into searched_section_ids."""
+    emitted, _ = _run_cli(str(tmp_path), "enrich", [_packet()])
+    packet = emitted[0]
+    cand_ids = {c.get("evidence_id") for c in packet.get("counterevidence_candidates", [])}
+    window_ids = {w["evidence_id"] for w in packet.get("counterevidence_windows", [])}
+    assert window_ids and window_ids <= cand_ids, "windows must be in counterevidence_candidates"
+    searched = set(packet.get("searched_section_ids", []))
+    for w in packet["counterevidence_windows"]:
+        if w.get("section_id"):
+            assert w["section_id"] in searched, "window section_id must be in searched_section_ids"
+
+
+def test_full_sha256_not_prefix(tmp_path):
+    emitted, _ = _run_cli(str(tmp_path), "enrich", [_packet()])
+    for w in emitted[0].get("counterevidence_windows", []):
+        assert len(w["paper_text_sha256"]) == 64  # full digest, not a 16-char prefix
 
 
 def test_missing_self_audit_fields_invalid_under_forward_contract():
@@ -111,7 +134,7 @@ def test_low_confidence_flagged():
     assert r["gate"] == "flag_low_confidence"
 
 
-def _run_cli(tmpdir, mode, packets):
+def _run_cli(tmpdir, mode, packets, require_fields=False):
     packets_path = os.path.join(tmpdir, "packets.jsonl")
     rows_path = os.path.join(tmpdir, "rows.jsonl")
     out_json = os.path.join(tmpdir, "out.json")
@@ -123,11 +146,14 @@ def _run_cli(tmpdir, mode, packets):
     with open(rows_path, "w") as fh:
         for row in _rows():
             fh.write(json.dumps(row) + "\n")
-    G.main([
+    argv = [
         "--packets-jsonl", packets_path, "--input-jsonl", rows_path,
         "--out-json", out_json, "--out-packets-jsonl", out_packets,
         "--out-dropped-jsonl", out_dropped, "--mode", mode,
-    ])
+    ]
+    if require_fields:
+        argv.append("--require-self-audit-fields")
+    G.main(argv)
     with open(out_packets) as fh:
         emitted = [json.loads(l) for l in fh if l.strip()]
     with open(out_dropped) as fh:
@@ -174,6 +200,26 @@ def test_label_join_completeness_counted(tmp_path):
     ev = report["summary"]["evaluation"]
     assert ev["label_join_missing"] == 1  # 0009 has no label
     assert "B" in ev["label_gate_matrix"]
+
+
+def test_enrich_with_require_fields_blocks_invalid_not_emit(tmp_path):
+    """P0 (GPT 2026-07-11): enrich + require-self-audit-fields must NOT emit the
+    invalid packet to the Judge; it goes to the dropped/invalid manifest only."""
+    emitted, dropped = _run_cli(str(tmp_path), "enrich", [_packet()], require_fields=True)
+    assert emitted == [], "contract-invalid packets must not reach the Judge"
+    assert len(dropped) == 1
+    assert dropped[0]["gate"] == "invalid_missing_self_audit_fields"
+
+
+def test_enrich_with_require_fields_emits_valid(tmp_path):
+    p = _packet()
+    p["issue_hypothesis"].update({
+        "searched_sections": ["section-0001"],
+        "absence_check_terms": ["gating module ablation"],
+        "confidence": 0.8,
+    })
+    emitted, dropped = _run_cli(str(tmp_path), "enrich", [p], require_fields=True)
+    assert len(emitted) == 1 and not dropped
 
 
 if __name__ == "__main__":
