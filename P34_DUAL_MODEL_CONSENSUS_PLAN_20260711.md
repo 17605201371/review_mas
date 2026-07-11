@@ -1218,3 +1218,50 @@ PaperIndex pilot 以 parquet 原文为 span 信任根：6 个机器 boundary 均
 2.1、2.2、3.1，第一篇 boundary recall=6/9=66.7%；6 个机器 anchor 均 exact-valid，但按
 包含 Tables 2-5 和作者 limitations 的 11-anchor 口径 recall=6/11=54.5%。因此第一篇已同时
 证明 discovery 误报/重复和 PaperIndex recall 是 P34-2 Judge 前的真实风险。
+
+### P34 Hardneg20 双模型独立审核与 Codex 辅助全量复核
+
+已完成 hardneg20 全 20 篇的 MiMo v2.5 / MiMo v2.5-Pro 独立审核，覆盖完整流程中的
+104 条正向 evidence relation、73 条 claim faithfulness、200 条 review issue，以及每篇
+PaperIndex 建议。执行采用可续跑 ledger；最长论文 `a6SntIisgg` 在 4096 completion token
+下发生 JSON 截断，提升到 8192 后补齐。最终 20/20 均有两路完整结构化结果。
+
+全量执行期间修复了三个真实实现问题：
+
+- `build_paper_index` 曾错误接收 `(paper_id, paper_text)`，实际签名只接受 `paper_text`；旧单测
+  没覆盖真实 payload 构建路径。现已修复并增加回归。
+- 初版 payload 丢弃 symmetric discovery packet 已冻结的 top-k retrieval evidence，导致模型
+  再次产生“Table 1 未比较 ORViT/SViT”“只评估 Sth-Else”等可被正文直接反驳的误报。现恢复
+  去重 retrieval bundle，并明确要求先查反证。
+- 失败响应原先既不进入 ledger，也不把 validation error 反馈给重试。现保存 raw/parsed/error，
+  并进行带 schema 错误反馈的修复重试；新增 duplicate packet ID、missing reason、unknown
+  artifact 等严格校验，以及 `--limit`、`--paper-id`、`--independent-only`。
+
+独立模型与第一篇 Codex pilot 的 exact-label calibration 均仅为 `10/18=55.6%`，未达到 80%。
+旧的 Pro adjudication 还出现将多项分歧机械折中为 B 的行为，因此停止将其作为最终仲裁器；
+该结果明确是 P34-2 `No-Go` 证据，而不是能力通过。
+
+为完成质量诊断，生成：
+
+```text
+P34_FULL_AI_PILOT_INDEPENDENT_HARDNEG20_20260711.json
+P34_CODEX_ASSISTED_AUDIT_HARDNEG20_20260711.{json,md}
+```
+
+Codex 辅助复核的边界保持严格：不是独立人类金标准，不写 primary/secondary/adjudicator，
+不进入 P34 gate、Judge target、ReviewState admission 或论文 capability 指标。结果统计为：
+
+```text
+positive evidence: supports=64, partially_supports=2, unrelated=11,
+                   uncertain=19, contradicts=8
+claim faithfulness: faithful=56, overstated=16, unsupported_extraction=1
+review issue raw: B=105, C=36, D=59
+raw issues=200, distinct clusters=165, duplicates=35 (17.5%)
+clusters containing at least one B/A item=84
+```
+
+其中 18 条来自第一篇逐条 Codex pilot，244 条为双模型 exact agreement，剩余 115 条由
+Codex 按局部证据关系、主张范围、正文直接反证与缺陷具体性进行保守复核。84 个可辩护问题簇
+仍只是 AI-assisted concern clusters，不等于 verified negatives。正式下一步不变：完成独立
+primary/secondary human labels 与 adjudication；在此之前 P34-2 保持 No-Go，P34-3B/3C 和
+P34-4+ runtime activation 继续冻结。
