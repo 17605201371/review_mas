@@ -165,6 +165,7 @@ class AnnotationStore:
         issue_provenance_path: Path | None = None,
         assignment_path: Path | None = None,
         translations_path: Path | None = None,
+        pilot_audit_path: Path | None = None,
         paper_texts: Mapping[str, str] | None = None,
         require_annotator_identity: bool = False,
         signing_private_key_path: Path | None = None,
@@ -206,6 +207,17 @@ class AnnotationStore:
                 and str(item.get("source_sha256") or "")
                 and str(item.get("translated_text") or "").strip()
             }
+        self.pilot_audit_path = pilot_audit_path
+        self.pilot_paper_id = ""
+        self._pilot_tasks: Dict[str, Any] = {}
+        if pilot_audit_path is not None and pilot_audit_path.exists():
+            pilot_value = _load_json(pilot_audit_path)
+            if str(pilot_value.get("schema_version") or "") != "p34_ai_pilot_audit_v1":
+                raise ValueError("unsupported P34 pilot audit schema")
+            if str(pilot_value.get("status") or "") != "PASS_PILOT_COMPLETE":
+                raise ValueError("P34 pilot audit is not complete")
+            self.pilot_paper_id = str(pilot_value.get("paper_id") or "")
+            self._pilot_tasks = dict(pilot_value.get("tasks") or {})
         self.paper_texts = {str(key): str(value) for key, value in (paper_texts or {}).items()}
         self.require_annotator_identity = bool(require_annotator_identity)
         self.annotator_registry_path = self.output_dir / "annotator_registry.json"
@@ -251,6 +263,11 @@ class AnnotationStore:
         if isinstance(value, dict):
             return {key: self._display_translate(item) for key, item in value.items()}
         return value
+
+    def _pilot_for(self, task: str, item_id: str) -> Dict[str, Any]:
+        task_rows = self._pilot_tasks.get(task) if isinstance(self._pilot_tasks, dict) else {}
+        value = task_rows.get(item_id) if isinstance(task_rows, dict) else None
+        return dict(value) if isinstance(value, dict) else {}
 
     def _resolution_path(self, task: str) -> Path:
         return self.output_dir / f"{task}_resolution.json"
@@ -708,6 +725,7 @@ class AnnotationStore:
                         if str(row.get("paper_id") or "") == self.translation_paper_id
                         else {}
                     ),
+                    "pilot_audit": self._pilot_for(task, packet_id),
                 })
             completed = sum(bool(str(item["human_label"]).strip()) for item in items)
             return {
@@ -1042,6 +1060,7 @@ class AnnotationStore:
                     "display_translation": self._display_translate(rows[paper_id])
                     if paper_id == self.translation_paper_id
                     else {},
+                    "pilot_audit": self._pilot_for("paper_index", paper_id),
                 }
                 for paper_id in self._anchor_rows
             ]
@@ -1457,6 +1476,7 @@ def main() -> int:
     parser.add_argument("--issue-provenance", default="P34_2_SYMMETRIC_DISCOVERY_ACTIVE_20260711_DISCOVERY_PROVENANCE.json")
     parser.add_argument("--assignment", default="P34_ANNOTATION_ASSIGNMENT_20260711.json")
     parser.add_argument("--translations", default="P34_AUDIT_TRANSLATIONS_ZH_20260711.json")
+    parser.add_argument("--pilot-audit", default="P34_CODEX_PILOT_AUDIT_YE3NRNRYOY_20260711.json")
     parser.add_argument("--paper-dataset", default="hard_negative_20_20260611.parquet")
     parser.add_argument("--allow-role-only-identity", action="store_true")
     parser.add_argument("--anchors", default="P34_1_PAPER_INDEX_HUMAN_ANCHORS_HARDNEG20_TEMPLATE_20260711.json")
@@ -1473,6 +1493,7 @@ def main() -> int:
         issue_provenance_path=Path(args.issue_provenance) if args.issue_provenance else None,
         assignment_path=Path(args.assignment) if args.assignment else None,
         translations_path=Path(args.translations) if args.translations else None,
+        pilot_audit_path=Path(args.pilot_audit) if args.pilot_audit else None,
         paper_texts=_load_paper_texts(Path(args.paper_dataset)) if args.paper_dataset else None,
         require_annotator_identity=not args.allow_role_only_identity,
         anchors_path=Path(args.anchors),

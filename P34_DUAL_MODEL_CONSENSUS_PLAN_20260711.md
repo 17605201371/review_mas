@@ -1190,3 +1190,31 @@ claim 0/73、negative 0/200、PaperIndex 0/20、2x2 missing labels 377。下一�
 所需证据、反证问题、来源摘录与 PaperIndex 机器建议均显示中文。API 对照确认英文原始
 claim 未改变，中文仅出现在 display sidecar；严格 discovery activation 仍为 PASS，M/P
 覆盖保持 20/20。完整聚焦回归 `1059 passed in 7.25s`。
+
+### P34 第一篇 Codex 辅助 Pilot 审核
+
+为在正式人工金标准前检查候选质量，新增独立 artifact：
+
+```text
+P34_CODEX_PILOT_AUDIT_YE3NRNRYOY_20260711.{json,md}
+```
+
+该 artifact 明确标记为 AI-assisted pilot，只读挂载到工作台的 `pilot_audit` 字段；不写入
+primary/secondary/adjudicator 文件，不进入 gate、Judge target、ReviewState 或论文能力
+指标。第一篇结果：
+
+- positive evidence：supports=2、partially_supports=2、unrelated=1。
+- claim faithfulness：faithful=2、overstated=1。
+- review issue：A=0、B=5、C=2、D=3。
+- 10 条 raw review issue 只有 7 个 pilot cluster；至少 3 条为同义重复。
+
+三个 D 包括两类被正文直接反驳的候选：论文并非只评估 Sth-Else，而是还包含
+HMDB-51、UCF-101、SSv2 和 5-way-k-shot；Table 1 也实际包含 ORViT/SViT，后续表包含
+ActionCLIP、XCLIP、XFLORENCE、VideoPrompt、VicTR 等。当前 clustering 报告
+`shared_cross_model_cluster_count=0`，与人工复核不一致，raw candidate=200 不能直接当作
+200 个不同发现。
+
+PaperIndex pilot 以 parquet 原文为 span 信任根：6 个机器 boundary 均 exact-valid，但漏掉
+2.1、2.2、3.1，第一篇 boundary recall=6/9=66.7%；6 个机器 anchor 均 exact-valid，但按
+包含 Tables 2-5 和作者 limitations 的 11-anchor 口径 recall=6/11=54.5%。因此第一篇已同时
+证明 discovery 误报/重复和 PaperIndex recall 是 P34-2 Judge 前的真实风险。

@@ -35,6 +35,10 @@
     .quality-state { margin-top: 7px; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
     .quality-state.blocked { color: var(--warn); }
     .translation-note { margin: 10px 0 14px; color: var(--accent); font-size: 12px; }
+    .pilot-panel { border-left: 3px solid var(--warn); background: #fff8ed; padding: 12px 14px; border-radius: 4px; }
+    .pilot-panel strong { display: block; margin-bottom: 6px; }
+    .pilot-panel p { margin: 5px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .pilot-boundary { color: var(--warn); font-size: 12px; margin-top: 7px; }
     .reviewer-input { width: 128px; }
     select, textarea, input[type="search"], input[type="text"], input[type="number"] { border: 1px solid var(--line); background: #fff; color: var(--ink); border-radius: 4px; }
     select, input[type="search"], input[type="text"], input[type="number"] { height: 34px; padding: 0 9px; }
@@ -534,6 +538,7 @@
       section(root, "反证检索问题", contract.falsification_query || issue.counterevidence_query || "");
       renderSources(root, displayPacket.retrieved_evidence || displayPacket.counterevidence_candidates || [], "论文证据与可能反证");
     }
+    renderPilotAudit(item, root);
     root.append(text("h3", "人工结论"));
     const bar = document.createElement("div");
     bar.className = "label-bar";
@@ -589,6 +594,21 @@
     root.append(list);
   }
 
+  function renderPilotAudit(item, root) {
+    const pilot = item.pilot_audit || {};
+    if (!Object.keys(pilot).length) return;
+    root.append(text("h3", "Codex pilot 审核建议"));
+    const panel = document.createElement("div");
+    panel.className = "pilot-panel";
+    const suggested = pilot.suggested_label || "已完成结构审核";
+    panel.append(text("strong", `建议标签：${suggested}`));
+    panel.append(text("p", pilot.reason_zh || pilot.summary_zh || ""));
+    if (pilot.cluster_id) panel.append(text("p", `问题簇：${pilot.cluster_id}`));
+    if (pilot.duplicate_of) panel.append(text("p", `同义重复：${pilot.duplicate_of}`));
+    panel.append(text("div", "AI 辅助 pilot，仅供你复核；不会自动写入正式人类金标准。", "pilot-boundary"));
+    root.append(panel);
+  }
+
   function selectedByStart(values, suggestion) {
     return (values || []).some((item) => Number(item.source_span_start) === Number(suggestion.source_span_start));
   }
@@ -601,6 +621,7 @@
     renderSuggestionGroup(root, item, "machine_boundary_suggestions", "expected_boundaries", "真实 section boundary", "check", displayItem.machine_boundary_suggestions);
     renderSuggestionGroup(root, item, "machine_anchor_suggestions", "key_anchors", "关键检索 anchor", "check", displayItem.machine_anchor_suggestions);
     renderSuggestionGroup(root, item, "machine_false_boundary_suggestions", "false_boundaries", "疑似错误 boundary", "false", displayItem.machine_false_boundary_suggestions);
+    renderPilotAudit(item, root);
     root.append(text("h3", "审核记录"));
     const notes = document.createElement("textarea");
     notes.id = "anchorNotes";

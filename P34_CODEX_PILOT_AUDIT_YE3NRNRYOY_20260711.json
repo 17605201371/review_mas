@@ -1,0 +1,136 @@
+{
+  "schema_version": "p34_ai_pilot_audit_v1",
+  "status": "PASS_PILOT_COMPLETE",
+  "boundary": "Codex-assisted pilot review for user inspection only; excluded from primary/secondary human gold, gates, Judge targets, and ReviewState admission",
+  "paper_id": "ye3NrNrYOY",
+  "paper_title": "Temporal Causal Mechanism Transfer for Few-shot Action Recognition",
+  "reviewer_type": "AI_ASSISTED_CODEX_PILOT",
+  "source_of_truth": "English paper text from hard_negative_20_20260611.parquet plus frozen P34 packets",
+  "tasks": {
+    "evidence_relation": {
+      "positive-ye3NrNrYOY-001": {
+        "suggested_label": "supports",
+        "reason_zh": "结论原文直接陈述论文提出 TCMT 用于小样本动作识别，并说明其通过变分推断学习时序因果机制，能够直接支持该方法贡献主张。"
+      },
+      "positive-ye3NrNrYOY-002": {
+        "suggested_label": "partially_supports",
+        "reason_zh": "Figure 5 只展示 TCMT_C 与 VL-Prompting 在 Sth-Else 单一数据集上的逐类别比较，能够支持局部性能优势，但不足以单独证明在多个标准基准上达到 SOTA。"
+      },
+      "positive-ye3NrNrYOY-003": {
+        "suggested_label": "supports",
+        "reason_zh": "该摘录进入方法章节并描述基础集、新类别集以及 TCMT 的建模设置，能够支持论文确实提出并实现了 TCMT 框架。"
+      },
+      "positive-ye3NrNrYOY-004": {
+        "suggested_label": "partially_supports",
+        "reason_zh": "消融原文明确比较 N∈{4,8,12,16} 并讨论性能和计算成本，支持 N 的影响；但论文将其定位为超参数选择，没有证明跨数据集或骨干网络的“鲁棒性”。"
+      },
+      "positive-ye3NrNrYOY-005": {
+        "suggested_label": "unrelated",
+        "reason_zh": "Figure 4 比较的是适应阶段更新参数数量与性能，不是潜在因果变量数量 N 的消融，因此不能支持 N 的影响或鲁棒性主张。"
+      }
+    },
+    "claim_faithfulness": {
+      "claim-ye3NrNrYOY-01": {
+        "suggested_label": "faithful",
+        "reason_zh": "标题、摘要、引言和结论均明确提出 Temporal Causal Mechanism Transfer 用于小样本动作识别，该提取忠实于原文。"
+      },
+      "claim-ye3NrNrYOY-02": {
+        "suggested_label": "faithful",
+        "reason_zh": "论文在 HMDB-51、UCF-101、SSv2、Sth-Else 和 5-way 设置中报告广泛领先结果：all-way 11 个实验中 10 个第一、另 1 个第二，5-way 8 个实验中 7 个第一。虽然结论用语更谨慎，但该概括总体有充分结果支撑。"
+      },
+      "claim-ye3NrNrYOY-03": {
+        "suggested_label": "overstated",
+        "reason_zh": "原文确实进行了 N 的消融并选择 N=12，但只在 Sth-Else 与 ViT-B/16 上执行，目的为超参数选择；“demonstrates model robustness”不是原文结论，属于夸大。"
+      }
+    },
+    "review_issue": {
+      "discovery-ye3NrNrYOY-d874a1684f00f9": {
+        "suggested_label": "B",
+        "reason_zh": "论文用较少更新参数和较少适应 epoch 表示效率，但没有报告适应总耗时、FLOPs 或端到端计算成本。问题成立，但应聚焦训练/适应成本，而不是笼统要求推理时间。",
+        "cluster_id": "pilot-efficiency-total-cost"
+      },
+      "discovery-ye3NrNrYOY-6a329686bedd72": {
+        "suggested_label": "C",
+        "reason_zh": "论文已说明数据划分，并对 5-way 设置执行 10,000 次随机 trial、报告均值，因此“未说明 episode/随机处理”被部分反驳；仍缺置信区间、方差和完整随机种子说明，但当前表述过宽。",
+        "cluster_id": "pilot-statistical-reporting"
+      },
+      "discovery-ye3NrNrYOY-9e12ed6b127566": {
+        "suggested_label": "D",
+        "reason_zh": "候选声称 Table 1 未包含 ORViT、SViT 等方法，但正文明确在 Table 1 上半部分比较 ORViT 和 SViT，下半部分比较 ViFi-CLIP 与 VLPrompting；此外 Tables 2-4 还包含 ActionCLIP、XCLIP、XFLORENCE、VideoPrompt、VicTR 等。",
+        "cluster_id": "pilot-baseline-breadth"
+      },
+      "discovery-ye3NrNrYOY-52f249e648c3c1": {
+        "suggested_label": "B",
+        "reason_zh": "Figure 1b/1c 对不变性只给出定性对齐图，缺少直接的距离指标或统计检验；但论文并非只依赖可视化，还在 Table 5 比较 TCMT 与 TCMT-FT、非因果和非时序模型，因此需收窄表述。",
+        "cluster_id": "pilot-invariance-validation"
+      },
+      "discovery-ye3NrNrYOY-fe7d20f5557052": {
+        "suggested_label": "B",
+        "reason_zh": "直接的不变性可视化仅来自 Sth-Else，缺少跨多数据集的定量函数对齐验证。该问题成立，但与上一条是同一核心缺陷，应合并而不是作为独立发现计数。",
+        "cluster_id": "pilot-invariance-validation",
+        "duplicate_of": "discovery-ye3NrNrYOY-52f249e648c3c1"
+      },
+      "discovery-ye3NrNrYOY-6a11c6facf4c4c": {
+        "suggested_label": "C",
+        "reason_zh": "N 的消融确实只在 Sth-Else 与 ViT-B/16 上进行，但论文将其定位为超参数选择，并未声称该消融本身证明跨数据集鲁棒性。问题有启发性，但主要源于提取主张中的“robustness”夸大。",
+        "cluster_id": "pilot-n-ablation-transfer"
+      },
+      "discovery-ye3NrNrYOY-b930c99508f30b": {
+        "suggested_label": "B",
+        "reason_zh": "论文在 Sth-Else 上选择 N=12，随后将该设置用于其他主要基准，却没有展示 N 的选择是否跨数据集稳定。作为超参数迁移风险合理，但不应表述为已证明模型不鲁棒。",
+        "cluster_id": "pilot-n-ablation-transfer",
+        "duplicate_of": "discovery-ye3NrNrYOY-6a11c6facf4c4c"
+      },
+      "discovery-ye3NrNrYOY-c6fa4f333494e9": {
+        "suggested_label": "B",
+        "reason_zh": "论文提供 AdamW、初始学习率 0.002、权重衰减、T、β、τ、骨干网络和硬件信息，因此“缺少详细实现”不能笼统成立；但源代码、完整网络层级、适应 epoch/调度等仍不完整，收窄后是合理复现性问题。",
+        "cluster_id": "pilot-reproducibility-detail"
+      },
+      "discovery-ye3NrNrYOY-b50fe7ea7cd5d3": {
+        "suggested_label": "D",
+        "reason_zh": "该候选声称只在 Sth-Else 上报告结果，正文明确包含 HMDB-51、UCF-101、SSv2 以及 5-way-k-shot 多数据集实验，因此被论文直接反驳。",
+        "cluster_id": "pilot-multidataset-scope"
+      },
+      "discovery-ye3NrNrYOY-01b37204540a86": {
+        "suggested_label": "D",
+        "reason_zh": "该问题使用“如果没有最新方法、如果增益未验证”的条件式泛化措辞，没有指出被遗漏的具体同期方法；论文实际包含多项 2023 年基线并在广泛实验中领先。统计报告不足可单独提出，但当前候选过于泛化且依赖外部知识。",
+        "cluster_id": "pilot-baseline-breadth"
+      }
+    },
+    "paper_index": {
+      "ye3NrNrYOY": {
+        "summary_zh": "6 个机器 boundary 均为真实边界且 span 与 parquet 原文一致，但漏掉 2.1、2.2、3.1 三个真实 subsection；机器 boundary recall 为 6/9=66.7%。6 个机器 anchor 均 exact-span 有效，但未覆盖 Tables 2-5 和作者自述局限，按本 pilot 的 11 个关键 anchor 口径 recall 为 6/11=54.5%。preamble 应确认为 false boundary。",
+        "accept_machine_boundary_count": 6,
+        "recommended_additional_boundaries": [
+          {"heading": "2.1 GENERATIVE MODEL", "section_type": "method", "source_span_start": 8948},
+          {"heading": "2.2 NETWORK", "section_type": "method", "source_span_start": 11071},
+          {"heading": "3.1 EXPERIMENTAL SETUP", "section_type": "setup", "source_span_start": 18472}
+        ],
+        "accept_machine_anchor_count": 6,
+        "recommended_additional_anchors": [
+          {"query": "Table 2", "section_types": ["results"], "source_span_start": 24204, "source_span_end": 24444, "text": "Table 2: Comparing ${\\mathrm{TCMT}}_{C}$ to benchmarks for all-way-k-shot on the HMDB-51 and UCF-101 datasets.   \n\n![](images/161e1e1a369bf24b2af04087c61ac23a0808a5f89767783fb5d8dbc4d7ea60ec.jpg)  \n\nTable 3: Comparing $\\mathrm{TCMT}_{\\mathi"},
+          {"query": "Table 3", "section_types": ["results"], "source_span_start": 24403, "source_span_end": 24643, "text": "Table 3: Comparing $\\mathrm{TCMT}_{\\mathit{C}}$ to benchmarks for all-way- $\\cdot\\mathbf{k}$ -shot on the SSv2 dataset.   \n\n![](images/26538dd19f7cafe096388f7000bd9ba0e562bcc1fcd921dad411366ee0aa452d.jpg)  \n\nWe follow Wang et al. (2021); Ni"},
+          {"query": "Table 4", "section_types": ["results"], "source_span_start": 26140, "source_span_end": 26380, "text": "Table 4: Comparing ${\\mathrm{TCMT}}_{H}$ to benchmarks for 5-way-k-shot learning.   \n\n![](images/e1aea963450ed27831e12aabe7b43bc18948a2cb926f918e6725c46c64cc5de1.jpg)  \n\n\n\n\\section{3.3 ABLATION STUDY  }\n\n\nWe run an ablation study to select "},
+          {"query": "Table 5", "section_types": ["analysis"], "source_span_start": 28858, "source_span_end": 29098, "text": "Table 5: Ablation study for selecting hyperparameters on the Sth-Else dataset.   \n\n![](images/14ee98c3ddcc370e2b6cc112b5c6a99f827de879f3124f9eb06e9cdb8bcc6265.jpg)  \n\n\n\n\\section{4 RELATED WORK  }\n\n\nFew-shot Action Recognition. Few-shot lear"},
+          {"query": "TCMT limitations", "section_types": ["conclusion", "limitations"], "source_span_start": 34070, "source_span_end": 34310, "text": "We note that TCMT has two major limitations. First, the transitions between latent causal variables are assumed to be strictly time-delayed with no instantaneous causal relations. While this corresponds to our intuitive notions of causality"}
+        ],
+        "recommended_false_boundaries": [
+          {"heading": "preamble", "section_type": "preamble", "source_span_start": 0, "reason": "文档前言区域，不是论文显式 section boundary"}
+        ],
+        "machine_boundary_recall": 0.6666666667,
+        "machine_anchor_recall": 0.5454545455
+      }
+    }
+  },
+  "summary": {
+    "positive_labels": {"supports": 2, "partially_supports": 2, "unrelated": 1},
+    "claim_labels": {"faithful": 2, "overstated": 1},
+    "review_issue_labels": {"A": 0, "B": 5, "C": 2, "D": 3},
+    "raw_review_issue_count": 10,
+    "distinct_pilot_cluster_count": 7,
+    "duplicate_review_issue_count": 3,
+    "paper_index_machine_boundary_recall": 0.6666666667,
+    "paper_index_machine_anchor_recall": 0.5454545455,
+    "formal_human_gold_mutated": false
+  }
+}

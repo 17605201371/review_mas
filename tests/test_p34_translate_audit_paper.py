@@ -47,3 +47,14 @@ def test_display_translation_is_hash_addressed_and_does_not_mutate_source():
     assert translated["claim"]["claim_text"] == "原始英文主张。"
     assert translated["packet_id"] == "unchanged-id"
     assert packet["claim"]["claim_text"] == source
+
+
+def test_pilot_lookup_returns_copy_and_never_creates_formal_label():
+    store = AnnotationStore.__new__(AnnotationStore)
+    store._pilot_tasks = {"review_issue": {"packet-1": {"suggested_label": "B", "reason_zh": "理由"}}}
+
+    pilot = store._pilot_for("review_issue", "packet-1")
+    pilot["suggested_label"] = "D"
+
+    assert store._pilot_tasks["review_issue"]["packet-1"]["suggested_label"] == "B"
+    assert "human_label" not in store._pilot_tasks["review_issue"]["packet-1"]
