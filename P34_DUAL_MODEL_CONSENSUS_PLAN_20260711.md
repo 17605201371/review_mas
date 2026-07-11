@@ -1116,4 +1116,4 @@ MiMo `mimo-v2.5` 与 `mimo-v2.5-pro` 均真实请求并返回 HTTP 402 insuffici
 - gate refresh 的 holdout authorization 改为消费 `P34_EXPERIMENT_LOCK_FINALIZE_CHECK_20260711.json`。当 finalize 为 `FROZEN_READY` 时，同一 manifest 可直接授权 holdout；不再把 draft lock 送入一个必然失败的分支。
 - 测试证明：无关未跟踪文件在 `tracked` policy 下不阻断；`full` policy 会阻断；关键代码修改立即产生 `git_tracked_scope_not_clean`；draft/final config hash 保持相同。
 
-修复后当前正式状态：draft/final config hash 一致，draft verify `PASS`；finalize 仍因 27 个关键 P34 文件尚未提交以及真实 readiness 未通过而 `BLOCKED_NOT_FROZEN`。关键文件提交后，Git blocker 应归零，但人工标签、PaperIndex、对称 discovery 和真实 2×2 能力门仍必须独立通过。
+关键 P34 实现、合同、计划和专属测试已提交为 `8167031`。提交后正式 scoped Git audit 为 `tracked_dirty_entry_count=0`、`tracked_clean=true`，同时全仓仍有 890 个无关历史实验/工作区条目；后者不影响冻结。draft/final config hash 一致，draft verify `PASS`。finalize 当前只剩真实 readiness 阻塞：2×2、PaperIndex、positive/claim labels、symmetric discovery 和 annotation assignment；Git blocker 已归零。
