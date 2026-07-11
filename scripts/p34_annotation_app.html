@@ -34,6 +34,7 @@
     .gate-state.pass { color: var(--accent); }
     .quality-state { margin-top: 7px; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
     .quality-state.blocked { color: var(--warn); }
+    .translation-note { margin: 10px 0 14px; color: var(--accent); font-size: 12px; }
     .reviewer-input { width: 128px; }
     select, textarea, input[type="search"], input[type="text"], input[type="number"] { border: 1px solid var(--line); background: #fff; color: var(--ink); border-radius: 4px; }
     select, input[type="search"], input[type="text"], input[type="number"] { height: 34px; padding: 0 9px; }
@@ -192,6 +193,16 @@
     const result = String(value || "").trim();
     return result.length <= limit ? result : result.slice(0, limit) + "…";
   };
+  const sectionName = (value) => ({
+    preamble: "前言", abstract: "摘要", introduction: "引言", related_work: "相关工作",
+    method: "方法", methodology: "方法", setup: "实验设置", results: "结果",
+    analysis: "分析", limitations: "局限性", discussion: "讨论", conclusion: "结论",
+    other: "其他", source: "来源",
+  })[String(value || "").toLowerCase()] || value || "来源";
+  const locatorName = (value) => String(value || "")
+    .replace(/^Claim-matched evidence excerpt/i, "与主张匹配的证据摘录")
+    .replace(/^Evidence excerpt/i, "证据摘录")
+    .replace(/^Paper inventory/i, "论文证据清单");
   const authToken = (role = app.annotator) => localStorage.getItem(`p34-auth-${role}`) || "";
 
   function downloadJson(value, filename) {
@@ -482,7 +493,11 @@
 
   function renderLabel(item, root) {
     const packet = item.packet || {};
-    const claim = packet.claim || {};
+    const displayPacket = (item.display_translation || {}).packet || packet;
+    const claim = displayPacket.claim || {};
+    if ((item.display_translation || {}).packet) {
+      root.append(text("div", "当前显示为中文辅助翻译；英文原始 packet、span 与审核合同保持不变。", "translation-note"));
+    }
     if (app.annotator === "adjudicator") {
       root.append(text("h3", "标注分歧"));
       const comparison = document.createElement("div");
@@ -500,30 +515,47 @@
     }
     section(root, "主张", claim.claim_text || claim.claim || "");
     if (app.task === "evidence_relation") {
-      const evidence = packet.candidate_evidence || {};
+      const evidence = displayPacket.candidate_evidence || {};
       const meta = text("div", "", "meta");
-      meta.append(text("span", evidence.section_type || "unknown section"));
-      meta.append(text("span", evidence.source_locator || "no locator"));
+      meta.append(text("span", sectionName(evidence.section_type || "未知章节")));
+      meta.append(text("span", locatorName(evidence.source_locator || "无定位信息")));
       meta.append(text("span", evidence.evidence_id || ""));
       root.append(text("h3", "候选证据"));
       root.append(meta);
       root.append(text("div", evidence.quote || "", "text-block quote"));
-      renderSources(root, packet.counterevidence_candidates || [], "检索上下文 / 可能反证");
+      renderSources(root, displayPacket.counterevidence_candidates || [], "检索上下文 / 可能反证");
     } else if (app.task === "claim_faithfulness") {
-      renderSources(root, packet.claim_source_spans || [], "论文来源");
+      renderSources(root, displayPacket.claim_source_spans || [], "论文来源");
     } else {
-      const issue = packet.issue_hypothesis || {};
-      const contract = packet.verification_contract || {};
+      const issue = displayPacket.issue_hypothesis || {};
+      const contract = displayPacket.verification_contract || {};
       section(root, "待审核缺陷", issue.hypothesis || contract.alleged_defect || "");
       section(root, "需要什么证据才能解决", contract.required_resolution_evidence || issue.expected_evidence || "");
       section(root, "反证检索问题", contract.falsification_query || issue.counterevidence_query || "");
-      renderSources(root, packet.retrieved_evidence || packet.counterevidence_candidates || [], "论文证据与可能反证");
+      renderSources(root, displayPacket.retrieved_evidence || displayPacket.counterevidence_candidates || [], "论文证据与可能反证");
     }
     root.append(text("h3", "人工结论"));
     const bar = document.createElement("div");
     bar.className = "label-bar";
     item.allowed_labels.forEach((label) => {
-      const button = text("button", label, `label-btn${item.human_label === label ? " selected" : ""}`);
+      const labelNames = {
+        supports: "支持", partially_supports: "部分支持", contradicts: "矛盾",
+        unrelated: "无关", uncertain: "不确定",
+        faithful: "忠实", overstated: "夸大",
+        unsupported_extraction: "不受原文支持",
+        A: "A（明确成立）", B: "B（谨慎成立）",
+        C: "C（证据较弱）", D: "D（不成立）",
+      };
+      const button = text("button", labelNames[label] || label, `label-btn${item.human_label === label ? " selected" : ""}`);
+      button.title = label;
+      if (app.task === "review_issue") {
+        button.title = ({
+          A: "明确、具体、面向论文的问题，足以进入验证实现",
+          B: "问题合理，但需要谨慎表述或适用范围有限",
+          C: "有启发但较弱或描述不足，仅保留为诊断",
+          D: "误报、被论文正文反驳、过于泛化或不具审稿价值",
+        })[label] || label;
+      }
       button.onclick = () => {
         item.human_label = label;
         app.dirty = true;
@@ -549,7 +581,7 @@
     (sources || []).slice(0, 8).forEach((source, index) => {
       const details = document.createElement("details");
       if (index === 0) details.open = true;
-      details.append(text("summary", `${source.section_type || "source"} · ${source.section_id || source.source_id || source.evidence_id || index + 1}`));
+      details.append(text("summary", `${sectionName(source.section_type || "source")} · ${source.section_id || source.source_id || source.evidence_id || index + 1}`));
       details.append(text("p", compact(source.quote || source.text || "")));
       list.append(details);
     });
@@ -562,9 +594,13 @@
   }
 
   function renderAnchor(item, root) {
-    renderSuggestionGroup(root, item, "machine_boundary_suggestions", "expected_boundaries", "真实 section boundary", "check");
-    renderSuggestionGroup(root, item, "machine_anchor_suggestions", "key_anchors", "关键检索 anchor", "check");
-    renderSuggestionGroup(root, item, "machine_false_boundary_suggestions", "false_boundaries", "疑似错误 boundary", "false");
+    const displayItem = item.display_translation || item;
+    if (item.display_translation && Object.keys(item.display_translation).length) {
+      root.append(text("div", "机器建议显示为中文辅助翻译；选中后写入的仍是英文原始 span。", "translation-note"));
+    }
+    renderSuggestionGroup(root, item, "machine_boundary_suggestions", "expected_boundaries", "真实 section boundary", "check", displayItem.machine_boundary_suggestions);
+    renderSuggestionGroup(root, item, "machine_anchor_suggestions", "key_anchors", "关键检索 anchor", "check", displayItem.machine_anchor_suggestions);
+    renderSuggestionGroup(root, item, "machine_false_boundary_suggestions", "false_boundaries", "疑似错误 boundary", "false", displayItem.machine_false_boundary_suggestions);
     root.append(text("h3", "审核记录"));
     const notes = document.createElement("textarea");
     notes.id = "anchorNotes";
@@ -582,11 +618,12 @@
     root.append(row);
   }
 
-  function renderSuggestionGroup(root, item, sourceKey, targetKey, heading, mode) {
+  function renderSuggestionGroup(root, item, sourceKey, targetKey, heading, mode, displaySuggestions) {
     root.append(text("h3", heading));
     const list = document.createElement("div");
     list.className = "suggestion-list";
-    (item[sourceKey] || []).forEach((suggestion) => {
+    (item[sourceKey] || []).forEach((suggestion, suggestionIndex) => {
+      const displaySuggestion = (displaySuggestions || [])[suggestionIndex] || suggestion;
       const box = document.createElement("div");
       box.className = "suggestion";
       const label = document.createElement("label");
@@ -603,8 +640,8 @@
       };
       label.append(checkbox);
       const content = document.createElement("div");
-      content.append(text("div", suggestion.heading || suggestion.query || suggestion.text || "未命名建议", "suggestion-title"));
-      content.append(text("div", suggestion.text_preview || suggestion.text || suggestion.reason || "", "suggestion-preview"));
+      content.append(text("div", displaySuggestion.heading || displaySuggestion.query || displaySuggestion.text || "未命名建议", "suggestion-title"));
+      content.append(text("div", displaySuggestion.text_preview || displaySuggestion.text || displaySuggestion.reason || "", "suggestion-preview"));
       label.append(content);
       box.append(label);
       if (mode === "false") box.title = "勾选表示确认这是错误 section boundary";
@@ -749,6 +786,7 @@
   }
 
   document.querySelectorAll(".tab").forEach((tab) => tab.onclick = async () => {
+    const currentPaperId = app.visible[app.index] ? app.visible[app.index].paper_id : "";
     document.querySelectorAll(".tab").forEach((item) => item.classList.remove("active"));
     tab.classList.add("active");
     app.task = tab.dataset.task;
@@ -757,6 +795,7 @@
       $("annotator").value = "primary";
     }
     app.index = 0;
+    if (currentPaperId) $("search").value = currentPaperId;
     await loadWorkspace();
   });
   $("annotator").onchange = async (event) => { app.annotator = event.target.value; app.index = 0; await loadWorkspace(); };

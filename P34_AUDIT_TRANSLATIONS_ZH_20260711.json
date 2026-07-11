@@ -1,0 +1,669 @@
+{
+  "schema_version": "p34_audit_display_translation_v1",
+  "boundary": "Display-only Simplified Chinese translation; frozen packets, labels, spans, gates, and Judge prompts remain English",
+  "language": "zh-CN",
+  "paper_id": "ye3NrNrYOY",
+  "model": "mimo-v2.5-pro",
+  "source_string_count": 109,
+  "source_char_count": 65135,
+  "source_scope_sha256": "98b61bb6c721fc819a004ae7641d2023bac63c10278603168e9c169c3d7a13e6",
+  "translation_count": 109,
+  "coverage": 1.0,
+  "entries": [
+    {
+      "id": "t0001",
+      "source_sha256": "eb2b3441492f2333772bc1a88c01170da822b8e9d63df0dafa869a17aad934b6",
+      "source_chars": 113,
+      "translated_text": "本文提出了一种新颖的用于小样本动作识别的时序因果机制迁移（TCMT）框架。"
+    },
+    {
+      "id": "t0002",
+      "source_sha256": "9860f2af6195dd786e42446994f6efa1e5015456ae408aa416d747659fe35cd7",
+      "source_chars": 220,
+      "translated_text": "我们提出了用于小样本动作识别的时序因果机制迁移（TCMT），该方法依赖于变分推断从基础数据中学习一个时序因果机制，该机制能够高效且有效地适应"
+    },
+    {
+      "id": "t0003",
+      "source_sha256": "b81ad7f80a359c5365dd17efa5dea114e4aa4228ee6c80a2bbf0cee92cba3a23",
+      "source_chars": 1199,
+      "translated_text": "\\section{4 相关工作 }\n\n\n小样本动作识别。小样本学习已成为计算机视觉中的一个重要研究领域，因为我们常常希望仅使用少量标记样本来识别类别 Chen et al. (2019); Tseng et al. (2020); Luo et al. (2023)。基于度量的技术在许多小样本分类问题中很受欢迎。这些基于度量的方法使用编码器将视觉数据映射到嵌入空间，并学习一个相似性（或距离）函数，例如余弦距离 Vinyals et al. (2016)。例如，ProtoNet (Snell et al., 2017) 学习一个特征提取器，将所有样本转换到一个共同的特征空间，并将支持图像的平均特征作为匹配的原型。这里的关键假设通常是嵌入空间对于基础数据集和新数据集是共同的。梯度优化技术如MAML也很常见 Finn et al. (2017)。\n\n与图像相比，视频数据增加了一个富含时空信息和变化的时间维度 Poppe (2010)。我们的一些基准测试使用基于度量的方法进行视频数据的小样本动作识别。OTAM提供了一种可微分的动态时间规整"
+    },
+    {
+      "id": "t0004",
+      "source_sha256": "ea902b366c1207646d98b79c592ea5cc9c2b7422da81567bf88059bc1f3ebfa5",
+      "source_chars": 1144,
+      "translated_text": "\\title{用于小样本动作识别的时序因果机制迁移}\n\n\\begin{abstract}\n小样本动作识别的目标是识别视频序列中的动作，而这些动作仅有少量训练样本可用。挑战在于当基础数据和新数据存在显著分布差异时，如何有效且高效地适应基础模型。为此，我们通过变分推断从基础数据中学习一个时序因果机制模型。在通过新数据集训练来适应模型时，我们固定因果机制的某些方面，仅更新辅助变量和一个分类器。在这个适应阶段，我们将潜在因果变量之间的时滞因果关系以及将因果变量映射到动作表示的混合函数视为不变的。我们在标准动作识别数据集上的实验评估验证了我们的假设，即我们提出的时序因果机制迁移（TCMT）方法能够在视频序列中实现高效的小样本动作识别，并且相比领先基准测试取得了显著的性能提升。\n\\end{abstract}"
+    },
+    {
+      "id": "t0005",
+      "source_sha256": "f0087f4fff21d0a3f0ff2e8413e186fc05b82f14f594b1b1ff030b3d98f6a468",
+      "source_chars": 1200,
+      "translated_text": "\\section{1 引言 }\n\n\n监督式动作识别仍然是一个活跃且富有成果的研究领域 (Xing et al., 2023b; Ahn et al., 2023; Zhou et al., 2023; Zhang et al., 2023)。然而，鉴于现实世界中可能动作的巨大多样性，使用少量训练数据学习动作表示是一个天然的挑战。克服这种标记数据缺乏的一种有前景的方法是小样本学习 (Cao et al., 2020; Perrett et al., 2021; Thatipelli et al., 2022)。小样本学习涉及在一个大型（基础）数据集上训练模型，然后使用来自另一个（新）数据集的少量样本来更新模型（例如，调整参数）。我们将小样本学习应用于动作识别，其中新数据中的动作标签与基础数据不同，并且这些数据集可能来自显著不同的分布。\n\n小样本动作识别的一种流行方法是调整特征提取器和/或分类器，如ORViT (Herzig et al., 2022)、SViT (Ben Avraham et al., 2022) 和 ActionCLIP (Wang et al., 2021) 所做的那样。通过固定学习模型的部分"
+    },
+    {
+      "id": "t0006",
+      "source_sha256": "68be17c8799c1f34fae6c468587810ab306f7a7fa5f4383975288a695ba57573",
+      "source_chars": 1200,
+      "translated_text": "\\section{5 结论}\n\n我们提出了用于小样本动作识别的时序因果机制迁移（TCMT），该方法依赖变分推断从基础数据中学习时序因果机制，并通过小样本学习高效且有效地适应新数据。我们证明，该方法在适应新数据时仅需较少的参数更新，即可在多种标准视频序列上达到与领先基准相当或更优的准确率。\n\n我们注意到TCMT存在两个主要局限。首先，潜在因果变量之间的转移被假设为严格时间延迟的，不存在瞬时因果关系。虽然这符合我们对因果关系的直觉认知，但当观测时间频率较低时，该假设在时间序列数据中将被违反。其次，从真实世界视频序列中推断辅助上下文变量$\\pmb{\\theta}$较为困难，我们仅提供了粗略的建模方式。对$\\pmb{\\theta}$进行更优建模可能提升TCMT的性能。扩展TCMT以处理瞬时因果关系并提供更优的辅助上下文变量建模是明确的研究方向。"
+    },
+    {
+      "id": "t0007",
+      "source_sha256": "57bf23aa78b14bf018c43a4b7c3d50b54cc05ac2281339501fc67ad03667906a",
+      "source_chars": 129,
+      "translated_text": "所提出的TCMT模型及其变体在标准小样本动作识别基准上达到了最先进的性能。"
+    },
+    {
+      "id": "t0008",
+      "source_sha256": "b2312f88d7528e53de6ed034e9976fa53efbb4ccedcf809e1e5b64b7fda8defd",
+      "source_chars": 128,
+      "translated_text": "图5：在Sth-Else数据集上，${\\mathrm{TCMT}}_{C}$与VL-Prompting在所有动作类别上的性能比较。"
+    },
+    {
+      "id": "t0009",
+      "source_sha256": "155f8905500650a6e5e06e17c0e2c1bfdd72af84eb7acf1abdb5b029877bab21",
+      "source_chars": 1200,
+      "translated_text": "\\section{3.1 实验设置}\n\n我们进行两类小样本学习实验：全路-$\\cdot\\mathbf{k}$-样本和5路-k-样本。在全路-$\\cdot\\mathbf{k}$-样本实验中，我们尝试对新数据集$\\left({\\mathcal{C}}_{n o v e l}\\right)$中的所有动作类别进行分类；而在5路-k-样本学习中，我们仅在一系列试验中每次尝试估计5个标签类别。样本数$(\\mathrm{k})$指每个动作标签在$\\boldsymbol{S}$中可用的训练样本数量。一旦将数据划分为基础集$\\mathcal{D}$和新集${\\mathcal{S}}\\cup{\\mathcal{Q}}$，数量$k$决定了我们为每个动作类别选择多少样本用于$\\boldsymbol{S}$，其余样本则用于查询集$\\mathcal{Q}$。\n\n数据集。对于在Sth-Else数据集上进行训练和测试的实验，我们使用官方数据划分（Materzynska等，2020；Herzig等，2022；Ben Avraham等，2022）。类似地，对于使用其他数据集的实验，我们按照作为基准的先前工作所述，将数据划分为$\\mathcal{D},\\mathcal{S}$和$\\mathcal{Q}$。我们使用的其他数据集包括"
+    },
+    {
+      "id": "t0010",
+      "source_sha256": "24c7dc90dd275c28a9895f5216e0fbf7f579e6dfdf70007dc720827a2204e9b1",
+      "source_chars": 225,
+      "translated_text": "TCMT能够在更少的训练轮次下取得更好的结果。\n\n\\section{2 方法论}\n\n典型的小样本设置包含两个不相交的数据集：基础集和新集。设$\\mathcal{D}=({\\bf v}_{i},{\\bf y}_{i})_{i=1}$"
+    },
+    {
+      "id": "t0011",
+      "source_sha256": "f293ec66de09832f93375e9219f0f4607e92b8fb9d159d181a3a5d045fcda1be",
+      "source_chars": 160,
+      "translated_text": "针对TCMT_C变体中潜在因果变量数量（N）的消融研究展示了该模型的鲁棒性以及此超参数的影响。"
+    },
+    {
+      "id": "t0012",
+      "source_sha256": "d6da3a9a299a94eda5fc96f42f8a0ae13462db8ff27f40b5d2b33ef39663c992",
+      "source_chars": 217,
+      "translated_text": "我们运行消融研究以选择模型的超参数。我们使用ViT-B/16骨干网络，在Sth-Else数据集上比较了具有不同潜在因果变量数量（$^{\\prime}N\\in\\{4,8,12,16\\}$）的${\\mathrm{TCMT}}_{C}$模型在all-way-5-shot和all-way-10-shot学习任务上的表现。"
+    },
+    {
+      "id": "t0013",
+      "source_sha256": "13eeeb88471832cbcc211c37550ea6adbbef3e805a523646df45d80fd1cf7da3",
+      "source_chars": 1200,
+      "translated_text": "\\section{3.3 消融研究}\n\n我们运行消融研究以选择模型的超参数。我们使用ViT-B/16骨干网络，在Sth-Else数据集上比较了具有不同潜在因果变量数量（$^{\\prime}N\\in\\{4,8,12,16\\}$）的${\\mathrm{TCMT}}_{C}$模型在all-way-5-shot和all-way-10-shot学习任务上的表现。我们可以看到性能随着$N$的增加而提升，这验证了潜在因果变量有助于小样本动作识别。根据表5中的结果，我们选择$N=12$，因为超过此点后性能增益变得微乎其微，而计算成本急剧上升。\n\n选定$N=12$后，我们继续将我们的TCMT模型与四个更简单的模型进行比较：一个非因果模型、一个非时间模型、一个没有辅助上下文变量$\\theta$的模型，以及一个在$\\mathcal{D}$和$\\boldsymbol{S}$上均使用固定ConvLSTM的模型，所有模型均使用$N=12$。在非因果模型中，潜在变量之间的时间延迟因果转换（图3中的红色箭头）被移除，使得$\\mathbf{x}$和$\\mathbf{y}$在给定${\\bf z}$的条件下不再独立，并且时间后验通过KL散度与标准正态分布进行正则化，而不使用我们的先验n"
+    },
+    {
+      "id": "t0014",
+      "source_sha256": "6a4f484140e3c44e0ee83c7eec78f184394a50d0d2bd808ba9a92c47cde1f412",
+      "source_chars": 78,
+      "translated_text": "表5：在Sth-Else数据集上选择超参数的消融研究。"
+    },
+    {
+      "id": "t0015",
+      "source_sha256": "ca4247cf64f26abe338359232afa47a46c15f4c9b1964ef14393fd4bcdb4ed48",
+      "source_chars": 770,
+      "translated_text": "图2a展示了我们用于描述时间因果过程的生成模型的一个示例。$N$维潜在因果变量${\\bf\\Psi}({\\bf z})$的时间延迟因果关系由从左到右的箭头表示。从$t=1$到$t=2$的${\\bf z}_{n,t}$（$n\\in[1,N]$）的转换受到辅助上下文变量$\\theta_{t}$的影响。在时间$t$，动作表示$\\mathbf{x}_{t}$由$\\mathbf{z}_{t}$生成，如底部的向下箭头所示。序列级动作类别$\\mathbf{y}$从${\\bf z}$预测。图2b展示了使用因果表示对分布差异进行建模可以更高效、更有效地适应新数据。"
+    },
+    {
+      "id": "t0016",
+      "source_sha256": "3ebd1ae858ab8f98cdd428069a54238e3ab7d29d3dd53894ca5198d8b91b5cc8",
+      "source_chars": 170,
+      "translated_text": "图4：在Sth-Else数据集上，比较所有类别$k$-shot学习（$k\\,=\\,5$）中模型性能与适应期间更新的参数数量。"
+    },
+    {
+      "id": "t0017",
+      "source_sha256": "c1feb2a3c96d99fabdf6a4de975693dd38e87b9b0ebf61dcc87287e72f334775",
+      "source_chars": 1400,
+      "translated_text": "\\section{4 相关工作}\n\n\n小样本动作识别。小样本学习已成为计算机视觉中的一个重要研究领域，因为我们经常希望仅使用少量可用的标记样本来识别类别（Chen et al., 2019; Tseng et al., 2020; Luo et al., 2023）。基于度量的技术在许多小样本分类问题中很受欢迎。这些基于度量的方法使用编码器将视觉数据映射到嵌入空间，并学习相似性（或距离）函数，例如余弦距离（Vinyals et al., 2016）。例如，ProtoNet（Snell et al., 2017）学习一个特征提取器，将所有样本转换到一个共同的特征空间，并将支持图像的平均特征作为匹配的原型。这里的关键假设通常是嵌入空间对于基础数据集和新数据集是共同的。梯度优化技术如MAML也很常见（Finn et al., 2017）。\n\n与图像相比，视频数据增加了一个富含时空信息和变化的时间维度（Poppe, 2010）。我们的一些基准测试使用基于度量的方法进行视频数据的小样本动作识别。OTAM提供了一种可微分的动态时间规整算法（Cao et al., 2020），TRX使用注意力机制（Perrett et al., 2021），STRM引入了一种联合时空建模技术（Thatipelli et al., 2022）。少数研究尝试使用元"
+    },
+    {
+      "id": "t0018",
+      "source_sha256": "090d30ce14aab9fb2a3aa11d056aec5c3de1f0046b45427e71e9a19b9b138900",
+      "source_chars": 1400,
+      "translated_text": "\\section{1 引言}\n\n\n监督动作识别仍然是一个活跃且富有成果的研究领域（Xing et al., 2023b; Ahn et al., 2023; Zhou et al., 2023; Zhang et al., 2023）。然而，鉴于现实世界中可能动作的巨大多样性，使用少量训练数据学习动作表示是一个自然的挑战。克服这种标记数据缺乏的一种有前景的方法是小样本学习（Cao et al., 2020; Perrett et al., 2021; Thatipelli et al., 2022）。小样本学习涉及在大型（基础）数据集上训练模型，然后使用来自另一个（新）数据集的少量样本来更新模型（例如，调整参数）。我们将小样本学习应用于动作识别，其中新数据中的动作标签与基础数据不同，并且这些数据集可能来自显著不同的分布。\n\n小样本动作识别的一种流行方法是调整特征提取器和/或分类器，如ORViT（Herzig et al., 2022）、SViT（Ben Avraham et al., 2022）和ActionCLIP（Wang et al., 2021）所做的那样。通过固定在适应阶段不更新的学习模型部分，可以使小样本动作识别更高效，只要这样做不会牺牲模型性能。例如，VideoPrompt（Ju et al., 2022）仅部分调整特征提取器"
+    },
+    {
+      "id": "t0019",
+      "source_sha256": "c41f8164cce77130a6baef40cbaba65b345d92fc208274665153030ab5139e3d",
+      "source_chars": 1387,
+      "translated_text": "\\section{5 结论}\n\n\n我们提出了用于小样本动作识别的时序因果机制迁移（TCMT），它依赖于变分推断从基础数据中学习时序因果机制，并通过小样本学习高效且有效地适应新数据。我们证明，我们的方法能够在适应新数据期间以更少的参数更新，在各种标准视频序列上实现与领先基准相当或更好的准确性。\n\n我们注意到TCMT有两个主要局限性。首先，潜在因果变量之间的转换被假定为严格时间延迟的，没有瞬时因果关系。虽然这符合我们对因果关系的直觉概念，但如果观测时间频率较低，这一假设在时间序列数据中将被违反。其次，从真实世界的视频序列中推断辅助上下文变量$\\pmb{\\theta}$是困难的，我们仅提供了一种粗略的建模方式。对$\\pmb{\\theta}$进行更好的建模可以提高TCMT的性能。扩展TCMT以处理瞬时因果关系并提供更好的辅助上下文变量模型是未来工作的明确方向。最后，我们提到探索时序因果机制对LLM智能体的优势是一个有趣的方向（Yao et al., 2023; Wang et al., 2023b）。"
+    },
+    {
+      "id": "t0020",
+      "source_sha256": "1c578909760f0f71610729504424855ea2cf3a6884b699c92277219ac0ff2856",
+      "source_chars": 1086,
+      "translated_text": "图1：用于小样本动作识别的时序因果机制迁移（TCMT）示例（本图的原始PDF文件可在补充材料的压缩包中获取，提供更清晰的说明）：(a)展示了在Sth-Else数据集上，通过固定的ViT-B/16骨干网络（Radford等人，2021）获得的基类数据（红色）和新类数据（蓝色）动作特征嵌入的UMap可视化。明显的分布差异表明了小样本动作识别的难度；(b)展示了来自两个训练模型的潜在因果变量值的配对图示例，其中一个模型仅在基类数据上训练（红色），另一个仅在新类数据上训练（蓝色），数据来自Sth-Else。(c)展示了来自两个模型的动作特征嵌入$x$和潜在变量$z$的UMap投影配对图：一个在基类数据上训练（红色），另一个在新类数据上训练（蓝色），数据来自Sth-Else数据集。(b)和(c)中近乎完美的对齐支持了我们的假设，即基类和新类数据之间存在不变的转移和混合函数。"
+    },
+    {
+      "id": "t0021",
+      "source_sha256": "2c25fdfdf358352caa62d035b78047c59c3899a0bada74802cb54345384df752",
+      "source_chars": 1400,
+      "translated_text": "\\section{3.1 实验设置}\n\n我们进行了两类小样本学习实验：全类-$\\cdot\\mathbf{k}$-样本和5类-k-样本。在全类-$\\cdot\\mathbf{k}$-样本中，我们尝试对新数据集$\\left({\\mathcal{C}}_{n o v e l}\\right)$中的所有动作类别进行分类，而在5类-k-样本学习中，我们仅在一系列试验中尝试估计5个标签类别。样本数$(\\mathrm{k})$指的是$\\boldsymbol{S}$中每个动作标签可用的训练样本数量。一旦我们将数据划分为基类集$\\mathcal{D}$和新类集${\\mathcal{S}}\\cup{\\mathcal{Q}}$，数量$k$决定了我们为$\\boldsymbol{S}$选择每个动作类别的样本数，其余用于查询集$\\mathcal{Q}$。\n\n数据集。对于在Sth-Else数据集上进行训练和测试的实验，我们使用官方的数据划分（Materzynska等人，2020；Herzig等人，2022；Ben Avraham等人，2022）。类似地，对于使用其他数据集的实验，我们根据我们用作基准的先前工作（稍后描述）将数据划分为$\\mathcal{D},\\mathcal{S}$和$\\mathcal{Q}$。我们用于新类数据的其他数据集包括SSv2（Goyal等人，2017）、SSv2-small（Zhu & Yang，2018）、HMDB-51（Kuehne等人，2011）和UCF-101（Soomro等人，2012）。\n\n性能指标。在所有实验中，我们比较了"
+    },
+    {
+      "id": "t0022",
+      "source_sha256": "ff3672cc73657331c65b801f3de6c9f400e9e30497414000fa9e3e57714acfbb",
+      "source_chars": 1400,
+      "translated_text": "\\section{3.3 消融研究}\n\n我们进行了消融研究以选择模型的超参数。我们使用ViT-B/16骨干网络，在Sth-Else数据上进行全类-5-样本和全类-10-样本学习，比较了具有不同潜在因果变量数量$^{\\prime}N\\in\\{4,8,12,16\\})$的${\\mathrm{TCMT}}_{C}$。我们可以看到性能随$N$增加而提升，这验证了潜在因果变量有助于小样本动作识别。根据表5的结果，我们选择$N=12$，因为超过这一点后性能增益变得微小，且计算成本急剧上升。\n\n选定$N=12$后，我们继续将我们的TCMT模型与四个更简单的模型进行比较：一个非因果模型、一个非时序模型、一个没有辅助上下文变量$\\theta$的模型，以及一个在$\\mathcal{D}$和$\\boldsymbol{S}$上均使用固定ConvLSTM的模型，所有模型均使用$N=12$。在非因果模型中，移除了潜在变量之间的时序因果转移（图3中的红色箭头），使得$\\mathbf{x}$和$\\mathbf{y}$在给定${\\bf z}$的条件下不再独立，并且时序后验通过KL散度与标准正态分布进行正则化，而不使用我们的先验网络。在非时序模型中，潜在变量不随时间变化$({\\bf z}_{t}~=~{\\bf z}_{t+1}\\forall t)$，但它仍然是一个因果模型，因此$\\mathbf{x}$和$\\mathbf{y}$是独立的"
+    },
+    {
+      "id": "t0023",
+      "source_sha256": "e0043dfd9368167262084c129ab2682d48b2cbf6c348bd7e0ed66bd1b6e89fee",
+      "source_chars": 1400,
+      "translated_text": "\\section{2.2 网络}\n\n\n给定基础数据 $\\mathcal{D}$ 和支持数据 $\\boldsymbol{S}$，其动作表示为 $\\mathbf{x}$，我们可以通过扩展条件变分自编码器（CVAE）框架（Sohn等人，2015年）来学习一个基于时间因果过程的动作识别模型。\n\n通过先验网络进行时间先验估计。首先，观察到我们可以用条件转移先验 $p(\\mathbf{z}_{n,t}|\\mathbf{z}_{n,t-1},\\pmb{\\theta}_{t})$ 来表示 $\\mathbf{z}_{t}$ 的概率分布。然而，我们没有 $p(\\mathbf{z}_{t}|\\mathbf{z}_{t-1},\\pmb{\\theta}_{t})$ 的显式形式，它必须被学习。由于转移函数 $f$ 是可逆的，我们可以估计逆转移函数，使得 $\\hat{f}_{n}^{-1}(\\hat{\\mathbf{z}}_{n,t},\\mathbf{Pa}(\\hat{\\mathbf{z}}_{n,t}),\\pmb{\\theta}_{t})$ 的分布与假设的噪声分布 $p(\\epsilon_{n,t}|\\pmb{\\theta}_{t})$ 相匹配。然后，我们可以使用逆转移函数来估计先验：\n\n$$\np(\\hat{\\mathbf{z}}_{n,t}|\\hat{\\mathbf{z}}_{n,t-1},\\pmb{\\theta}_{t})=p\\big(\\hat{f_{n}}^{-1}(\\hat{\\mathbf{z}}_{n,t},\\mathbf{Pa}(\\hat{\\mathbf{z}}_{n,t}),\\pmb{\\theta}_{t})\\big)|\\frac{\\partial\\hat{f_{n}}^{-1}}{\\partial\\hat{\\mathbf{z}}_{n,t}}|\n$$ \n\n鉴于 ${\\bf z}_{n,t}$ 和 $\\mathbf{z}_{n^{\\prime},t}$ 在给定 $\\mathbf{Z}_"
+    },
+    {
+      "id": "t0024",
+      "source_sha256": "491ae59d8ecb381da7fea31864080d7f57613672b50a1f2cf09790612b6c05ba",
+      "source_chars": 241,
+      "translated_text": "该论文声称通过更新较少参数（图4）来提高效率，但未报告或比较TCMT与基线方法的总推理时间或计算成本（例如FLOPs）。因此，其效率优势并不完整。"
+    },
+    {
+      "id": "t0025",
+      "source_sha256": "2114a7aa25fdb999ceff6c6442d805d06926e77ba4925a35dfc44d432c58bc8c",
+      "source_chars": 143,
+      "translated_text": "报告TCMT及比较基线模型推理时间（例如，每视频毫秒数）或计算成本（例如，GFLOPs）的表格或图表。"
+    },
+    {
+      "id": "t0026",
+      "source_sha256": "45a9fc028b647e09afd2027dc0f35584b0ac6444c61d1493075ee266ae8da81d",
+      "source_chars": 72,
+      "translated_text": "TCMT推理时间计算成本FLOPs少样本动作识别"
+    },
+    {
+      "id": "t0027",
+      "source_sha256": "9e0c045fcc37a25223bc2b0a41bbe675713483fde2eb29728ff0313ae1c93a10",
+      "source_chars": 1400,
+      "translated_text": "学习、ViFi-CLIP和VLPrompting（Rasheed等人，2023）。观察到${\\mathrm{TCMT}}_{C}$和${\\mathrm{TCMT}}_{H}$在两项实验中均具有最高准确率。TCMT在所有四个领先基准上均表现出色，提升幅度从1.4到3.6个百分点不等。对于此数据集，我们在$k\\,=\\,5$时观察到最大改进，从领先基准的34.4提升至37.6，以及从44.9提升至48.5，而在$k\\,=\\,10$时改进较小但仍显著。此外，图4进一步表明TCMT在迁移过程中需要更新的参数数量更少。\n\n![](images/8f472da0e3db814ac679c5dae94c8152a0fa45de60c3b373c484ce6a611f3d47.jpg) \n表1：在Sth-Else数据集上比较TCMT与基准模型在全类别k-shot学习中的表现。\n\n![](images/9c07b3ace5281ce06a0b61d6ef2733adf579e1f519e2d7eaa47a78bc791a2bc0.jpg) \n图4：在Sth-Else数据集上比较全类别$\\mathbf{k}$-shot学习（$k\\,=\\,5$）中模型性能与适配期间更新参数数量的关系。\n\n![](images/19a20463d77b67611238bb1956460cf0d44fffd7291a29431bddd4170140c230.jpg) \n图5：在Sth-Else数据集上比较${\\mathrm{TCMT}}_{C}$与VL-Prompting在所有动作类别上的性能。\n\n![](images/80fcf0e7458a087f829e3d2670de5bd675ff20f18401d856e25d0a6d2276b1d9.jpg) \n图6：TCMT在Sth-Else数据集六个示例视频上的预测结果。\n\n图5显示"
+    },
+    {
+      "id": "t0028",
+      "source_sha256": "5b46e02b9d7dd7791e366c9cf905e8446c3a97460a2903a9e4f0e7ba7f83da57",
+      "source_chars": 1399,
+      "translated_text": "我们的模型。我们使用ViT-B/16骨干网络，在Sth-Else数据集上，针对全类5-shot和全类10-shot学习，比较了具有不同潜在因果变量数量$^{\\prime}N\\in\\{4,8,12,16\\})$的${\\mathrm{TCMT}}_{C}$。我们可以看到性能随$N$增加而提升，这验证了潜在因果变量有助于小样本动作识别。根据表5的结果，我们选择$N=12$，因为超过这一点后性能增益变得微乎其微，而计算成本却急剧上升。\n\n选定$N=12$后，我们继续将我们的TCMT模型与四个更简单的模型进行比较：一个非因果模型、一个非时间模型、一个没有辅助上下文变量$\\theta$的模型，以及一个在$\\mathcal{D}$和$\\boldsymbol{S}$上都使用固定ConvLSTM的模型，所有模型均采用$N=12$。在非因果模型中，移除了潜在变量之间的时间延迟因果转换（图3中的红色箭头），使得$\\mathbf{x}$和$\\mathbf{y}$在给定${\\bf z}$的条件下不再独立，并且时间后验通过KL散度与标准正态分布进行正则化，而不使用我们的先验网络。在非时间模型中，潜在变量不随时间变化$({\\bf z}_{t}~=~{\\bf z}_{t+1}\\forall t)$，但它仍然是一个因果模型，因此$\\mathbf{x}$和$\\mathbf{y}$在给定$\\mathbf{z}$的条件下是独立的。与完整的TCMT模型一样，在非时间模型中"
+    },
+    {
+      "id": "t0029",
+      "source_sha256": "97257ab4247158f3f9c00b52a2d51afd4228a7eccf51e0a476b7b71930010fe8",
+      "source_chars": 1400,
+      "translated_text": "23）。\n\n跨模态视觉-语言学习的近期成功启发了诸如ActionCLIP（Wang et al., 2021）、XCLIP和XFLORENCE（Ni et al., 2022）、VideoPrompt（Ju et al., 2022）、VL Prompting和ViFi-CLIP（Rasheed et al., 2023）等研究工作。所有这些方法都通过采用预训练的CLIP并将其适配到小样本动作识别任务来应用迁移学习。这些方法利用了CLIP丰富的通用表示，并将其与用于时间建模的额外组件融合。然而，如果CLIP模型是在与新数据差异过大的基础数据集上预训练的，那么分布差异带来的问题依然存在。与先前的工作不同，TCMT通过利用因果表示学习来开发时间因果过程的生成模型，从而处理小样本动作识别，我们的实验表明这为处理分布差异提供了优势。\n\n因果表示学习。TCMT基于因果表示学习（Khemakhem et al., 2020）。一些近期的工作已将因果表示学习的理论扩展到不同领域，例如域适应（Teshima et al., 2020; Kong et al., 2022）、域泛化（Xie et al., 2023）和医学图像分析（Wang et al., 2023a）。此外，一些工作尝试为时间序列数据建模时间因果表示。例如，自"
+    },
+    {
+      "id": "t0030",
+      "source_sha256": "8b3eb31b628592cad3606c131e3b4e8c5e10f1c5286f1d337c44be3227d7da4a",
+      "source_chars": 1397,
+      "translated_text": "用于$\\pmb{\\theta}$建模的上下文网络。由于$\\pmb{\\theta}$无法从真实世界的视频中直接观测到，我们使用一个两层ConvLSTM（Shi et al., 2015），以$\\mathbf{x}$作为输入来建模$\\pmb{\\theta}$。在时间$t$，我们将$\\pmb\\theta_{t}$定义为：\n\n图3：TCMT的整体框架。箭头表示信息流。在$\\mathcal{D}$上训练期间，我们首先通过编码器，给定来自视频序列$\\mathbf{v}$的动作表示$\\mathbf{x}$，学习后验$\\hat{\\bf z}$。然后，先验网络输出噪声模型的估计值以估计时间先验。上下文变量序列$\\pmb{\\theta}$与$\\hat{\\bf z}$一起作为先验网络的输入。解码器重构动作表示$\\hat{\\bf x}$，分类器基于潜在变量预测动作类别$\\hat{\\bf y}$。请注意，在$_S$上进行适应时，只有$\\pmb{\\theta}$和分类器网络被更新，而模型的其余部分保持固定。在推理期间，我们从编码器采样$\\hat{\\bf z}$，并使用我们的分类器$e({\\hat{\\mathbf{z}}})$预测动作类别$\\hat{\\bf y}$。\n\n$$\n\\pmb{\\theta}_{t}=\\mathrm{ConvLSTM}(\\mathbf x_{t},\\pmb{\\theta}_{t-1})\n$$\n\n2.3 学习与推理\n\n损失函数。我们用于动作识别的总体损失函数结合了分类损失和证"
+    },
+    {
+      "id": "t0031",
+      "source_sha256": "e9f26040bf6773735e0b07e7617ec2417f0047214249e1c06526a3e0b0f10953",
+      "source_chars": 283,
+      "translated_text": "该论文可能没有明确指定小样本基准测试的确切评估协议（例如，情节数量、置信区间、随机种子处理），这使得报告的准确率可能无法复现，或者与使用不同协议的基线方法不可比较。"
+    },
+    {
+      "id": "t0032",
+      "source_sha256": "633fce3c6d31e99b04af659be49c22282bbd9af895866525ce01a8b066b5b9e4",
+      "source_chars": 177,
+      "translated_text": "评估协议的明确描述：测试集数量、平均方法、置信区间，以及所有比较方法是否使用相同协议。"
+    },
+    {
+      "id": "t0033",
+      "source_sha256": "489b0d933c4bbbce4857a2138a48c26cb9190b59e110814c80e7c513a54b95d7",
+      "source_chars": 105,
+      "translated_text": "小样本动作识别评估协议 集数 置信区间 标准差 报告"
+    },
+    {
+      "id": "t0034",
+      "source_sha256": "2b883266989c2b3b829cf8fd1db6728310d8c668e09180da62a5f68f5b88e64b",
+      "source_chars": 1399,
+      "translated_text": "小样本动作识别基准测试。表现最佳的模型结果以粗体显示，次佳结果以下划线显示。\n\n实现细节。在每个实验中，使用一个骨干网络提取用于训练的动作表示$\\mathbf{x}_{t}$，在所有实验中，骨干网络要么是ResNet-50（He et al., 2016），要么是ViT-B/16（Radford et al., 2021），在基础数据集$\\mathcal{D}$上训练，骨干网络的选择与基准实验中使用的保持一致。我们使用AdamW优化器（Loshchilov & Hutter, 2019）和余弦退火来训练我们的网络，学习率初始化为0.002，权重衰减为$10^{-2}$。对于所有视频序列，我们使用$T=8$个均匀选取的帧，为了计算ELBO损失，我们选择$\\beta=0.02$来平衡重建损失和KL散度。同时，我们为NCE损失设置$\\tau\\,=\\,0.07$。我们的模型使用PyTorch实现，实验在四块Nvidia GeForce 2080Ti显卡上进行，总显存为$44\\:\\mathrm{GB}$。\n\nSth-Else实验。表1展示了使用ViT-B/16骨干网络在Sth-Else数据集上进行全路- $\\cdot\\mathbf{k}$ -样本学习的两个基准实验。在第一个实验（顶部）中，我们将${\\mathrm{TCMT}}_{H}$与Sth-Else上使用交叉熵损失的领先基准ORViT和SViT（Herzig et al., 202"
+    },
+    {
+      "id": "t0035",
+      "source_sha256": "425fb937a93ae175c6259b2ded145499c1a90278254f609643c99deeb37988c4",
+      "source_chars": 89,
+      "translated_text": "表1：在Sth-Else数据集上比较TCMT与基准方法的全路-k样本学习性能。"
+    },
+    {
+      "id": "t0036",
+      "source_sha256": "b41fcc152c75480a2ed0736cff641f6b02819a3202af771a206f9650ce44b8c0",
+      "source_chars": 1400,
+      "translated_text": "我们模型的参数。我们使用ViT-B/16骨干网络，在Sth-Else数据上进行全路-5样本和全路-10样本学习，比较了具有不同潜在因果变量数量$^{\\prime}N\\in\\{4,8,12,16\\})$的${\\mathrm{TCMT}}_{C}$。我们可以看到性能随着$N$的增加而提升，这验证了潜在因果变量有助于小样本动作识别。根据表5的结果，我们选择$N=12$，因为超过这一点后性能提升变得微乎其微，而计算成本急剧上升。\n\n选定$N=12$后，我们继续将我们的TCMT模型与四个更简单的模型进行比较；一个非因果模型，一个非时间模型，一个没有辅助上下文变量$\\theta$的模型，以及一个在$\\mathcal{D}$和$\\boldsymbol{S}$上都使用固定ConvLSTM的模型，所有模型均使用$N=12$。在非因果模型中，移除了潜在变量之间的时间延迟因果转换（图3中的红色箭头），使得$\\mathbf{x}$和$\\mathbf{y}$在给定${\\bf z}$的条件下不再独立，并且时间后验通过与标准正态分布的KL散度进行正则化，而不使用我们的先验网络。在非时间模型中，潜在变量不随时间变化$({\\bf z}_{t}~=~{\\bf z}_{t+1}\\forall t)$，但它仍然是一个因果模型，因此$\\mathbf{x}$和$\\mathbf{y}$在给定$\\mathbf{z}$的条件下是独立的。与完整的TCMT模型一样，在非时间"
+    },
+    {
+      "id": "t0037",
+      "source_sha256": "b6adce6dc6102fbd3a9da63d994c0437a3e5c4c88424dd3e6ed9614f496ebfc7",
+      "source_chars": 1400,
+      "translated_text": "一种时间因果机制迁移（TCMT）方法，其中我们假设基础数据与新数据之间的分布差异源于一个辅助变量，这使得我们能够在适应过程中更新该辅助变量及动作分类器，同时保持转移函数和混合函数固定。\n\n![](images/e1fedfac20aefd041f30c42072f80a8e0e2d34510cd614b1fce665e9964d51e5.jpg) \n图1：用于小样本动作识别的时间因果机制迁移（TCMT）的激励示例（该图的原始PDF文件可在补充材料的zip文件中获取，提供更详细和清晰的说明）：(a) 展示了在Sth-Else数据集上，由固定的ViT-B/16骨干网络（Radford等人，2021）在基础数据（红色）和新数据（蓝色）上获得的动作特征嵌入的UMap可视化。明显的分布差异表明了动作识别中小样本学习的困难；(b) 展示了来自两个训练模型的潜在因果变量值的配对图示例，一个模型仅在基础数据上训练（红色），另一个仅在新数据上训练（蓝色），均来自Sth-Else数据集。(c) 展示了来自两个模型的动作特征嵌入 $x$ 和潜在变量 $z$ 的UMap投影的配对图：一个模型在基础数据上训练（红色），另一个在新数据上训练（蓝色），均来自Sth-Else数据集。(b) 中近乎完美的对齐表明"
+    },
+    {
+      "id": "t0038",
+      "source_sha256": "b019d2d5708fb04b8204a9d0d268495c321c64f287d8da83fe5b7fc8594d4c9c",
+      "source_chars": 110,
+      "translated_text": "表2：在HMDB-51和UCF-101数据集上，将 ${\\mathrm{TCMT}}_{C}$ 与所有way-k-shot基准进行比较。"
+    },
+    {
+      "id": "t0039",
+      "source_sha256": "b3d95ba852e8a9ffccc38c6eed50c92f9d0c8767d50c9466ad1caf02baf96ff9",
+      "source_chars": 248,
+      "translated_text": "表1中的比较仅限于一小部分基线（ViFi-CLIP、VL-Prompting、VideoPrompt）。其最先进的性能声明并未与小样本动作识别领域更广泛的近期竞争方法进行验证。"
+    },
+    {
+      "id": "t0040",
+      "source_sha256": "4604806c975c0f63214539ed6c4f4cd80f03953d02726ed8abdfd453e4b9a443",
+      "source_chars": 205,
+      "translated_text": "一个包含更多近期小样本动作识别最先进方法的比较表，这些方法在Sth-Else数据集上进行了测试，例如引言中提到的ORViT、SViT或ActionCLIP。"
+    },
+    {
+      "id": "t0041",
+      "source_sha256": "16fa642810fec166eae29c604eec47db8e3b1a365a170e685137f7d5044810ea",
+      "source_chars": 79,
+      "translated_text": "小样本动作识别 Sth-Else 基准比较 ORViT SViT ActionCLIP"
+    },
+    {
+      "id": "t0042",
+      "source_sha256": "7ff6bcd02fe472934d95d4269006d26ff3fc6169c0fd905c3f4e11726df947be",
+      "source_chars": 1399,
+      "translated_text": "在第二个实验（底部）中，我们将${\\mathrm{TCMT}}_{C}$与最先进的视觉-语言学习方法ViFi-CLIP和VLPrompting（Rasheed等人，2023年）进行了比较。观察到${\\mathrm{TCMT}}_{C}$和${\\mathrm{TCMT}}_{H}$在两个实验中均取得了最高准确率。TCMT在所有四个领先基准上均表现出色，提升幅度在1.4至3.6个百分点之间。对于此数据集，我们在$k\\,=\\,5$时观察到最大改进，从34.4提升至37.6，从44.9提升至48.5，超越了领先基准；在$k\\,=\\,10$时也有较小但显著的改进。此外，图4进一步表明，TCMT在迁移过程中需要更新的参数数量更少。\n\n![](images/8f472da0e3db814ac679c5dae94c8152a0fa45de60c3b373c484ce6a611f3d47.jpg)\n表1：在Sth-Else数据集上比较TCMT与基准方法在全类别k-shot学习中的表现。\n\n![](images/9c07b3ace5281ce06a0b61d6ef2733adf579e1f519e2d7eaa47a78bc791a2bc0.jpg)\n图4：在Sth-Else数据集上比较全类别$\\mathbf{k}$-shot学习（$k\\,=\\,5$）的模型性能与适配期间更新的参数数量。\n\n![](images/19a20463d77b67611238bb1956460cf0d44fffd7291a29431bddd4170140c230.jpg)\n图5：在Sth-Else数据集上比较${\\mathrm{TCMT}}_{C}$与VL-Prompting在所有动作类别上的性能。\n\n![](images/80fcf0e7458a087f829e3d2670de5bd675ff20f18401d856e25d0a"
+    },
+    {
+      "id": "t0043",
+      "source_sha256": "420ddb2c5450727f82efd213e66dc232d4e485f2fe99841fffa73c2806efa4c2",
+      "source_chars": 1400,
+      "translated_text": "在Sth-Else数据集上的5-shot和全类别10-shot学习。我们可以看到性能随着$N$的增加而提升，这验证了潜在因果变量有助于少样本动作识别。基于表5的结果，我们选择$N=12$，因为超过此点后性能增益变得微小，且计算成本急剧上升。\n\n选定$N=12$后，我们继续将我们的TCMT模型与四个更简单的模型进行比较：一个非因果模型、一个非时间模型、一个没有辅助上下文变量$\\theta$的模型，以及一个在$\\mathcal{D}$和$\\boldsymbol{S}$上使用固定ConvLSTM的模型，所有模型均采用$N=12$。在非因果模型中，移除了潜在变量之间的时间延迟因果转换（图3中的红色箭头），使得$\\mathbf{x}$和$\\mathbf{y}$在给定${\\bf z}$的条件下不再独立，且时间后验通过KL散度与标准正态分布进行正则化，而不使用我们的先验网络。在非时间模型中，潜在变量不随时间变化$({\\bf z}_{t}~=~{\\bf z}_{t+1}\\forall t)$，但它仍然是一个因果模型，因此$\\mathbf{x}$和$\\mathbf{y}$在给定$\\mathbf{z}$的条件下是独立的。与完整的TCMT模型一样，在非时间模型中，后验通过KL散度与先验网络输出的先验进行正则化。表5的倒数第二行给出了与一个没有任何辅助"
+    },
+    {
+      "id": "t0044",
+      "source_sha256": "1839cee4a1f20ad370672c761600160722f698246f25053343cca77909cd1c0b",
+      "source_chars": 1400,
+      "translated_text": "学习给定少样本片段内和跨视频的关系。然而，近期研究表明，当基础数据和新数据存在显著分布差异时，这些方法泛化能力不佳（Wang等人，2023e；Samarasinghe等人，2023）。\n\n跨模态视觉-语言学习的近期成功启发了诸如ActionCLIP（Wang等人，2021）、XCLIP和XFLORENCE（Ni等人，2022）、VideoPrompt（Ju等人，2022）、VL Prompting和ViFi-CLIP（Rasheed等人，2023）等研究。所有这些方法都通过采用预训练的CLIP并将其适配到少样动作识别任务来应用迁移学习。这些方法利用了CLIP丰富的通用表示，并将其与用于时间建模的额外组件融合。然而，如果CLIP模型预训练所用的基础数据集与新数据差异过大，分布差异带来的问题仍然存在。与先前工作不同，TCMT通过利用因果表示学习来开发时间因果过程的生成模型，从而处理少样动作识别，我们的实验表明这为处理分布差异提供了优势。\n\n因果表示学习。TCMT基于因果表示学习（Khemakhem等人，2020）。近期几项研究已将因果表示学习的理论扩展到不同领域，例如do"
+    },
+    {
+      "id": "t0045",
+      "source_sha256": "816d6fb4d275f2a47a52d0cee0e80fa8c9754b44892127f21c0cbe92145d72a4",
+      "source_chars": 81,
+      "translated_text": "表4：比较${\\mathrm{TCMT}}_{H}$与基准方法在5-way-k-shot学习中的表现。"
+    },
+    {
+      "id": "t0046",
+      "source_sha256": "1f272930d06913b492dcb109a34f88fead8f1c5e0d30d3f5bf8d4e7b549bd5f0",
+      "source_chars": 309,
+      "translated_text": "核心假设——转移函数f和混合函数g在基础数据和新数据之间保持不变——仅通过单一数据集上的定性可视化（图1b、1c）得到支持。没有提供任何定量指标或统计检验来验证这一关键的不变性假设。"
+    },
+    {
+      "id": "t0047",
+      "source_sha256": "ebe161e4374699060cc4965f2b1176ee86a90489804713d4e281bd17a5d31bf4",
+      "source_chars": 263,
+      "translated_text": "需要一种定量度量（例如，分布距离指标如MMD或KL散度）来比较从基础数据和新数据学习到的转移/混合函数，或者一个受控实验，展示当这些函数被强制不同时性能的下降。"
+    },
+    {
+      "id": "t0048",
+      "source_sha256": "23013cc479178fed0b892acde7fd25b9dbec9f7f14a7aa525745d42d87375593",
+      "source_chars": 76,
+      "translated_text": "因果机制不变性 基础 新 分布 距离 指标 少样本"
+    },
+    {
+      "id": "t0049",
+      "source_sha256": "9102cea1e8255800573aa6a38437e399528b4f67564b58c2a842290acb052ddf",
+      "source_chars": 775,
+      "translated_text": "图1展示了在Sth-Else数据集（Materzynska等人，2020）上使用TCMT进行少样本动作识别任务的激励示例。Sth-Else数据集的特点是基础数据和新数据之间存在巨大的分布差异，如图1a所示，这使得少样本动作识别任务具有挑战性。我们学习了两个因果机制进行比较——一个来自基础数据，另一个来自新数据。如图1b所示，两个因果机制的$\\mathbf{z}$转移之间发现了近乎完美的对齐，从而验证了我们的假设：转移函数可以保持不变。类似地，图1c验证了我们的假设：混合函数可以保持固定，学习到的混合函数的重叠证明了这一点。"
+    },
+    {
+      "id": "t0050",
+      "source_sha256": "8977b2a23d11aa9e8e96e2e51fafd5c0b2d35d3953c014ac4c2f781d6ad5d5f8",
+      "source_chars": 1399,
+      "translated_text": "$\\mathbf{x}_{t}$由$\\mathbf{z}_{t}$生成，如底部的向下箭头所示。序列级动作类$\\mathbf{y}$从${\\bf z}$预测。图2b表明，使用因果表示对分布差异进行建模可以导致对新数据更高效和有效的适应。\n\n图1展示了在Sth-Else数据集（Materzynska等人，2020）上使用TCMT进行少样本动作识别任务的激励示例。Sth-Else数据集的特点是基础数据和新数据之间存在巨大的分布差异，如图1a所示，这使得少样本动作识别任务具有挑战性。我们学习了两个因果机制进行比较——一个来自基础数据，另一个来自新数据。如图1b所示，两个因果机制的$\\mathbf{z}$转移之间发现了近乎完美的对齐，从而验证了我们的假设：转移函数可以保持不变。类似地，图1c验证了我们的假设：混合函数可以保持固定，学习到的混合函数的重叠证明了这一点。\n\n![](images/75091cdac478dc2df8f27c25df28fd9cc6d099f273ebd2482763bd4b27836603.jpg) \n图2：(a) $t\\in\\{1,2\\}$时数据生成的底层时间因果过程。(b) 我们的提案与基线模型（TCMT-FT）获得的top-1准确率，其中TCMT-FT的所有部分"
+    },
+    {
+      "id": "t0051",
+      "source_sha256": "4d306bb505dc8d52b414d6069989a962522a31d9ace7a0d91f5c748347a69202",
+      "source_chars": 1400,
+      "translated_text": "基于时间因果过程的认知，通过扩展条件变分自编码器（CVAE）框架实现（Sohn等人，2015）。\n\n先验网络的时间先验估计。首先，我们可以用条件转移先验$p(\\mathbf{z}_{n,t}|\\mathbf{z}_{n,t-1},\\pmb{\\theta}_{t})$来表示$\\mathbf{z}_{t}$的概率分布。然而，我们没有$p(\\mathbf{z}_{t}|\\mathbf{z}_{t-1},\\pmb{\\theta}_{t})$的显式形式，必须通过学习获得。由于转移函数$f$是可逆的，我们可以估计逆转移函数，使得$\\hat{f}_{n}^{-1}(\\hat{\\mathbf{z}}_{n,t},\\mathbf{Pa}(\\hat{\\mathbf{z}}_{n,t}),\\pmb{\\theta}_{t})$的分布与假设的噪声分布$p(\\epsilon_{n,t}|\\pmb{\\theta}_{t})$相匹配。然后我们可以使用逆转移函数来估计先验：\n\n$$\np(\\hat{\\mathbf{z}}_{n,t}|\\hat{\\mathbf{z}}_{n,t-1},\\pmb{\\theta}_{t})=p\\big(\\hat{f_{n}}^{-1}(\\hat{\\mathbf{z}}_{n,t},\\mathbf{Pa}(\\hat{\\mathbf{z}}_{n,t}),\\pmb{\\theta}_{t})\\big)|\\frac{\\partial\\hat{f_{n}}^{-1}}{\\partial\\hat{\\mathbf{z}}_{n,t}}|\n$$\n\n鉴于${\\bf z}_{n,t}$和$\\mathbf{z}_{n^{\\prime},t}$在给定$\\mathbf{Z}_{t-1}$的条件下对于所有潜在因果变量$n$和$n^{\\prime}$是条件独立的，我们可以通过以下方式构建$\\mathbf{z}_{t}$的估计：\n\n$$\np(\\hat{\\mathbf{z}}_{t}|\\hat{\\mathbf{z}}_{t-1},"
+    },
+    {
+      "id": "t0052",
+      "source_sha256": "505da2c3fb3c15d8677b2f04334e891e986b325949faa073134c969772e7fdb2",
+      "source_chars": 1400,
+      "translated_text": "使用ViT-B/16骨干网络，在Sth-Else数据集上进行全路5-shot和全路10-shot学习，测试不同数量的潜在因果变量$^{\\prime}N\\in\\{4,8,12,16\\})$。我们可以看到性能随$N$增加而提升，验证了潜在因果变量有助于少样本动作识别。根据表5的结果，我们选择$N=12$，因为超过此点后性能增益变得微乎其微，而计算成本急剧上升。\n\n选定$N=12$后，我们将TCMT模型与四个更简单的模型进行比较：一个非因果模型、一个非时间模型、一个没有辅助上下文变量$\\theta$的模型，以及一个在$\\mathcal{D}$和$\\boldsymbol{S}$上都使用固定ConvLSTM的模型，所有模型均采用$N=12$。在非因果模型中，移除了潜在变量之间的时间延迟因果转移（图3中的红色箭头），使得$\\mathbf{x}$和$\\mathbf{y}$在给定${\\bf z}$的条件下不再独立，并且时间后验通过KL散度与标准正态分布进行正则化，而不使用我们的先验网络。在非时间模型中，潜在变量不随时间变化$({\\bf z}_{t}~=~{\\bf z}_{t+1}\\forall t)$，但它仍然是一个因果模型，因此$\\mathbf{x}$和$\\mathbf{y}$在给定$\\mathbf{z}$的条件下是独立的。与完整的TCMT模型一样，在非时间模型中，后验通过KL散度与先验进行正则化"
+    },
+    {
+      "id": "t0053",
+      "source_sha256": "e74944ce05c6121e0b0ac6e9536cbcd5b688965b2787a839c31484ecaf9e281f",
+      "source_chars": 285,
+      "translated_text": "核心假设——转移函数f和混合函数g在基础数据和新数据之间保持不变——仅通过一个数据集（Sth-Else）上的UMAP可视化得到支持，这不足以验证跨多种分布偏移的因果不变性假设。"
+    },
+    {
+      "id": "t0054",
+      "source_sha256": "d6d7d7430994f7a02ec9184f1f356a9e9eba29938acdafe1b8058bef66cd2e9d",
+      "source_chars": 183,
+      "translated_text": "在多个数据集上，测量学习到的转移函数和混合函数在基础数据与新数据之间对齐程度的定量指标（例如余弦相似度、Procrustes距离）。"
+    },
+    {
+      "id": "t0055",
+      "source_sha256": "e26ad0735bc36126afdd1bf73832eeb3cc625b283f2ba77ebe32e3fe29a0012e",
+      "source_chars": 106,
+      "translated_text": "因果不变性假设 少样本学习 定量验证 转移函数 混合函数"
+    },
+    {
+      "id": "t0056",
+      "source_sha256": "e497d65e1e8ded754456b27115a4e161891fb5798ac12def452c2d3a90770790",
+      "source_chars": 1400,
+      "translated_text": "我们可以证明，可以通过条件转移先验 $p(\\mathbf{z}_{n,t}|\\mathbf{z}_{n,t-1},\\pmb{\\theta}_{t})$ 来表达 $\\mathbf{z}_{t}$ 的概率分布。然而，我们没有 $p(\\mathbf{z}_{t}|\\mathbf{z}_{t-1},\\pmb{\\theta}_{t})$ 的显式形式，它必须被学习。由于转移函数 $f$ 是可逆的，我们可以估计逆转移函数，使得 $\\hat{f}_{n}^{-1}(\\hat{\\mathbf{z}}_{n,t},\\mathbf{Pa}(\\hat{\\mathbf{z}}_{n,t}),\\pmb{\\theta}_{t})$ 的分布与假设的噪声分布 $p(\\epsilon_{n,t}|\\pmb{\\theta}_{t})$ 相匹配。然后我们可以使用逆转移函数来估计先验：\n\n$$\np(\\hat{\\mathbf{z}}_{n,t}|\\hat{\\mathbf{z}}_{n,t-1},\\pmb{\\theta}_{t})=p\\big(\\hat{f_{n}}^{-1}(\\hat{\\mathbf{z}}_{n,t},\\mathbf{Pa}(\\hat{\\mathbf{z}}_{n,t}),\\pmb{\\theta}_{t})\\big)|\\frac{\\partial\\hat{f_{n}}^{-1}}{\\partial\\hat{\\mathbf{z}}_{n,t}}|\n$$ \n\n鉴于对于所有潜在因果变量 $n$ 和 $n^{\\prime}$，${\\bf z}_{n,t}$ 和 $\\mathbf{z}_{n^{\\prime},t}$ 在给定 $\\mathbf{Z}_{t-1}$ 的条件下是条件独立的，我们可以通过以下方式构建 $\\mathbf{z}_{t}$ 的估计：\n\n$$\np(\\hat{\\mathbf{z}}_{t}|\\hat{\\mathbf{z}}_{t-1},\\pmb{\\theta}_{t})=\\prod_{n=1}^{N}p(\\hat{\\epsilon}_{n,t}|\\pmb{\\theta}_{t})|\\frac{\\partial\\hat{f_{n}}^{-1}}{\\partial\\hat{\\mathbf{z}}_{n,t}}|\n$$ \n\n1. \n\n通过编码器进行时间后验估计。我们表达"
+    },
+    {
+      "id": "t0057",
+      "source_sha256": "974044d368450b0b02a821de2a63ea6dfcd169729875e5dc1baf5b3111df9319",
+      "source_chars": 1396,
+      "translated_text": "=e(\\mathbf{z})\n$$ \n\n在我们的模型中有 $N$ 个因果变量。对于 $n\\leq N$，时间 $t$ 时潜在变量 $\\mathbf{z}_{n,t}\\in\\mathbf{z}_{t}$ 的值由其时间延迟父节点 $\\operatorname{Pa}(\\mathbf{z}_{n,t})\\subseteq\\mathbf{z}_{t-1}$ 在前一时间步的值（即直接导致 ${\\bf z}_{n,t}$ 的潜在因子集合）以及辅助变量 $\\pmb{\\theta}_{t}$ 和噪声项 $\\epsilon_{n,t}$ 决定：\n\n$$\n\\begin{array}{r}{{\\bf z}_{n,t}=f_{n}(\\mathrm{Pa}({\\bf z}_{n,t}),\\pmb{\\theta}_{t},\\epsilon_{n,t})}\\end{array}\n$$ \n\n这里 $f$ 被称为转移函数，并假设它是可逆的。注意 $\\mathbf{P}\\mathbf{a}(\\mathbf{z}_{n,t})$、$\\pmb{\\theta}_{t}$ 和 $\\epsilon_{n,t}$ 是相互独立的，并且我们假设对于所有这样的潜在因果变量对，${\\bf z}_{n,t}$ 和 $\\mathbf{z}_{n^{\\prime},t}$ 在给定 $\\mathbf{Z}_{t-1}$ 的条件下是条件独立的。\n\n展望未来，在支持集 $\\boldsymbol{S}$ 上学习的适应阶段，我们学习辅助上下文变量 $\\pmb{\\theta}$ 的新序列以及分类器 $e$ 的更新权重，而混合函数 $g$ 和转移函数 $f$ 将保持固定（不更新）。这反映了我们的假设，即时间因果过程的某些方面在基础数据集和新数据集之间是不变的。"
+    },
+    {
+      "id": "t0058",
+      "source_sha256": "42a9cc760dfeaae7605c550fa3669e850d9bc5d5c3639f2c6c480f3c29ba54af",
+      "source_chars": 262,
+      "translated_text": "关于N的消融研究仅在单个数据集（Sth-Else）和单个骨干网络（ViT-B/16）上评估了TCMT_C变体。声称展示'鲁棒性'的说法没有得到跨不同数据集或骨干网络架构泛化的证据支持。"
+    },
+    {
+      "id": "t0059",
+      "source_sha256": "939cc52ffea190ccda138dca6b5ac3f0f8a16548bdd95491c0fab89470637aca",
+      "source_chars": 181,
+      "translated_text": "在至少一个额外数据集（例如，Something-Something V2）上或使用不同的骨干网络架构（例如，ViT-L/14）对具有不同N的TCMT_C变体进行消融结果。"
+    },
+    {
+      "id": "t0060",
+      "source_sha256": "d082de8b4934a978b317ad6d75b4fb815c2a4c43366bd7723bce3a9dd28d77ae",
+      "source_chars": 82,
+      "translated_text": "TCMT_C消融研究N个潜在因果变量Something-Something V2或Kinetics"
+    },
+    {
+      "id": "t0061",
+      "source_sha256": "5cc6e26eb87ed3d274c99814b0735dc7da5008622f864646b064df5338cf3bf9",
+      "source_chars": 1400,
+      "translated_text": ". 对于所有视频序列，我们使用均匀选取的$T=8$帧，并选择$\\beta=0.02$来计算ELBO损失，以平衡重建损失和KL散度。此外，我们为NCE损失设置了$\\tau\\,=\\,0.07$。我们的模型使用PyTorch实现，实验在四块Nvidia GeForce 2080Ti显卡上进行，总显存为$44\\:\\mathrm{GB}$。\n\nSth-Else实验。表1展示了使用ViT-B/16骨干网络在Sth-Else数据集上进行全路-$\\cdot\\mathbf{k}$-次学习的两个基准实验。在第一个实验（顶部）中，我们将${\\mathrm{TCMT}}_{H}$与Sth-Else上使用交叉熵损失的领先基准ORViT和SViT（Herzig等人，2022；Ben Avraham等人，2022）进行了比较。在第二个实验（底部）中，我们将${\\mathrm{TCMT}}_{C}$与采用视觉-语言学习的最新方法ViFi-CLIP和VLPrompting（Rasheed等人，2023）进行了比较。观察到${\\mathrm{TCMT}}_{C}$和${\\mathrm{TCMT}}_{H}$在两个实验中均取得了最高准确率。TCMT在所有四个领先基准上均表现优异，提升幅度在1.4至3.6个百分点之间。对于此数据集，我们在$k\\,=\\,5$时观察到最大改进，相较于领先基准从34.4提升至37.6，从44.9提升至48.5，而在$k\\,=\\,10$时改进较小但依然显著。此外，图4进一步表明TCMT所需的数量更少。"
+    },
+    {
+      "id": "t0062",
+      "source_sha256": "91c3394341d5e229fe0e804deef173e4f5ada97b2622cd9ad36d0d152a57cc06",
+      "source_chars": 1400,
+      "translated_text": "1fce665e9964d51e5.jpg)\n图1：用于少样本动作识别的时序因果机制迁移（TCMT）的激励示例（该图的原始PDF文件可在补充材料的压缩包中找到，提供额外且更清晰的说明）：(a)展示了在Sth-Else数据集上，通过固定的ViT-B/16骨干网络（Radford等人，2021）在基础数据（红色）和新数据（蓝色）上获得的动作特征嵌入的UMap可视化。明显的分布差异表明了少样本动作识别的困难；(b)展示了来自两个训练模型的潜在因果变量值的配对图示例，其中一个模型仅在基础数据（红色）上训练，另一个仅在Sth-Else的新数据（蓝色）上训练。(c)展示了来自两个模型的动作特征嵌入$x$和潜在变量$z$的UMap投影配对图：一个模型在基础数据（红色）上训练，另一个在Sth-Else数据集的新数据（蓝色）上训练。(b)和(c)中近乎完美的对齐支持了我们关于基础数据和新数据之间不变转移和混合函数的假设。\n\n图2a展示了我们用于描述时序因果过程的生成模型示例。$N$维潜在因果变量${\\bf\\Psi}({\\bf z})$的时延因果关系由从左到右的箭头表示。从${\\bf z}的转移"
+    },
+    {
+      "id": "t0063",
+      "source_sha256": "faf6c6f69eb7b2d90a43d0e1dabface3144dac372ac2ac7e15baedc6994cc365",
+      "source_chars": 1400,
+      "translated_text": "后验通过一个MLP后接leaky ReLU激活函数实现：\n\n$$\n\\widehat{\\mathbf{z}}_{t}\\sim\\mathcal{N}(\\mu_{t},\\sigma_{t})\\mathrm{~其中~}\\mu_{t},\\sigma_{t}=\\mathrm{LReLU}(\\mathrm{MLP}(\\mathbf{x}_{t}))\n$$\n\n$$\n\\hat{\\mathbf{x}}_{t}=\\mathrm{LReLU}(\\mathbf{MLP}(\\hat{\\mathbf{z}}_{t}))\n$$\n\n分类器。我们为每个视频从潜在变量序列训练一个分类器。我们的分类器由一个MLP组成：\n\n$$\n\\hat{\\mathbf{y}}=\\mathrm{MLP}(\\mathrm{Concat}(\\hat{\\mathbf{z}}))\n$$\n\n其中Concat $\\mathbf{\\sigma}(\\hat{\\mathbf{z}})$沿时间维度连接$\\mathbf{z}_{1},\\dots,\\mathbf{z}_{T}$。\n\n![](images/d393bdc17eb710e440b8b789579bfd072c7f4d34dcd61de134bc44c1fa486d36.jpg)\n通过解码器的动作表示重建。我们CVAE的解码器部分建模混合函数$g$，因为它从估计的后验中采样的估计潜在因果变量$\\hat{\\mathbf{z}}_{t}$重建动作表示$\\hat{\\mathbf{x}}_{t}$的估计。我们使用堆叠的MLP后接leaky ReLU激活函数实现解码器。\n\n用于$\\pmb{\\theta}$建模的上下文网络。由于$\\pmb{\\theta}$无法从真实世界视频中直接观察到，我们使用一个两层ConvLSTM（Shi等人，2015），以$\\mathbf{x}$作为输入来建模$\\pmb{\\theta}$。在时间$t$，我们将$\\pmb\\theta_{t}$定义为：\n\n图3：TCMT的整体框架。箭头表示i"
+    },
+    {
+      "id": "t0064",
+      "source_sha256": "fa3604f885f6a10afa949013952a8285be8025cb04d2b961ee6eafb204fcf91f",
+      "source_chars": 1400,
+      "translated_text": "表示由一个作用于潜在变量的非线性、可逆混合函数生成：\n\n$$\n\\mathbf{x}_{t}=g(\\mathbf{z}_{t})\n$$ \n\n动作标签预测通过分类器由潜在变量因果决定：\n\n$$\n\\mathbf{y}=e(\\mathbf{z})\n$$ \n\n在我们的模型中存在 $N$ 个因果变量。对于 $n\\leq N$，时间 $t$ 时潜在变量 $\\mathbf{z}_{n,t}\\in\\mathbf{z}_{t}$ 的值由其在前一时间步的时间延迟父节点 $\\operatorname{Pa}(\\mathbf{z}_{n,t})\\subseteq\\mathbf{z}_{t-1}$（即直接导致 ${\\bf z}_{n,t}$ 的潜在因子集合）的值、辅助变量 $\\pmb{\\theta}_{t}$ 以及噪声项 $\\epsilon_{n,t}$ 决定：\n\n$$\n\\begin{array}{r}{{\\bf z}_{n,t}=f_{n}(\\mathrm{Pa}({\\bf z}_{n,t}),\\pmb{\\theta}_{t},\\epsilon_{n,t})}\\end{array}\n$$ \n\n此处 $f$ 被称为转移函数，并假设其为可逆的。注意 $\\mathbf{P}\\mathbf{a}(\\mathbf{z}_{n,t})$ 、 $\\pmb{\\theta}_{t}$ 和 $\\epsilon_{n,t}$ 是相互独立的，并且我们假设对于所有此类潜在因果变量对，${\\bf z}_{n,t}$ 和 $\\mathbf{z}_{n^{\\prime},t}$ 在给定 $\\mathbf{Z}_{t-1}$ 的条件下是条件独立的。\n\n展望未来，在支持集 $\\boldsymbol{S}$ 上进行学习的适应阶段，我们学习辅助上下文变量 $\\pmb{\\theta}$ 的新序列和更新的"
+    },
+    {
+      "id": "t0065",
+      "source_sha256": "f4f7aab4a25a2911291df7d115cf2da55b15722c15cc3558219ed37fc26065a1",
+      "source_chars": 215,
+      "translated_text": "关于N的消融研究仅在Sth-Else数据集上评估性能，这使得观察到的鲁棒性以及N=12之后的边际增益是否泛化到用于主要结果的其他基准测试尚不清楚。"
+    },
+    {
+      "id": "t0066",
+      "source_sha256": "9e02bc144e4c19014f345888967db24c141ce1532c0706d7f7bee223bb078fc6",
+      "source_chars": 132,
+      "translated_text": "在至少一个其他基准测试（例如，Kinetics、SSv2）上进行N消融的结果，以确认所选的N=12并非特定于数据集。"
+    },
+    {
+      "id": "t0067",
+      "source_sha256": "933658eb0dea4b993d88a85b4100cac9608077080f594007bdf27ee787e15f6c",
+      "source_chars": 68,
+      "translated_text": "TCMT消融潜在因果变量N Kinetics Something-Something"
+    },
+    {
+      "id": "t0068",
+      "source_sha256": "b11ea1fa3cc0f92dd15a6fd1380acc0daf41fae14fbeba6b96cbfbb495d0128b",
+      "source_chars": 284,
+      "translated_text": "该论文似乎未提供源代码或详细的实现细节（例如，适应的学习率、适应周期数、先验网络和编码器/解码器的确切架构），而这些对于重现少样本适应过程至关重要。"
+    },
+    {
+      "id": "t0069",
+      "source_sha256": "2dd8b17ff987bdea3aaac23c3769cc443aeb219de5e9f367e0331947fcb2b1e1",
+      "source_chars": 168,
+      "translated_text": "发布源代码或包含所有超参数、架构细节以及基础训练和适应训练计划的详细补充章节。"
+    },
+    {
+      "id": "t0070",
+      "source_sha256": "1492160dd7b1a9ab9d6983f44d39a689d9ca4edca804624d053dbe0db556024e",
+      "source_chars": 74,
+      "translated_text": "TCMT时间因果机制迁移代码GitHub实现细节"
+    },
+    {
+      "id": "t0071",
+      "source_sha256": "402026eea90fe3e0f262379ff2b13e34cee2c6e4e35bd4e31e7db448e2044503",
+      "source_chars": 1399,
+      "translated_text": "在适应过程中仅更新我们模型的该部分。为此，我们的方法建立在因果表示学习的最新进展之上（Scho¨lkopf等人，2021；Huang等人，2022；Feng等人，2022；Kong等人，2022；Xie等人，2023）。我们学习一个生成模型，该模型由一个建模潜在因果变量转移的转移函数和一个建模潜在变量如何随时间决定可观察动作表示的混合函数组成。在每个时间瞬间，因果变量根据转移函数演化，混合函数相应地生成动作表示。然而，若无进一步假设，无法对导致差异的因素进行形式化描述。我们的核心假设是基础数据和新颖数据共享时间因果机制的某些方面——即转移函数和混合函数——并且一个辅助变量捕获了两个数据分布的不同方面。因此，我们提出了一种时间因果机制迁移（TCMT）方法，其中我们假设基础数据和新颖数据之间的分布差异源于一个辅助变量，这使得我们能够在适应过程中更新该辅助变量以及动作分类器，同时保持转移函数和混合函数固定。\n\n![](images/e1fedfac20aefd04"
+    },
+    {
+      "id": "t0072",
+      "source_sha256": "279b4bd59139d67533ee0d13c2c9fc79cd2a9053cf44c85f2ec5fd267084a360",
+      "source_chars": 1400,
+      "translated_text": "解码器部分。我们CVAE的解码器部分将混合函数$g$建模为从估计的后验中采样的估计潜在因果变量$\\hat{\\mathbf{z}}_{t}$重建动作表示$\\hat{\\mathbf{x}}_{t}$的估计。我们使用堆叠的MLP后接leaky ReLU激活来实现解码器。\n\n用于$\\pmb{\\theta}$建模的上下文网络。由于$\\pmb{\\theta}$无法从真实世界视频中直接观察到，我们使用一个两层ConvLSTM（Shi等人，2015），以$\\mathbf{x}$作为输入来建模$\\pmb{\\theta}$。在时间$t$，我们将$\\pmb\\theta_{t}$定义为：\n\n图3：TCMT的整体框架。箭头表示信息流。在$\\mathcal{D}$上的训练期间，我们首先通过编码器学习后验$\\hat{\\bf z}$，给定来自视频序列$\\mathbf{v}$的动作表示$\\mathbf{x}$。然后，先验网络输出噪声模型的估计以估计时间先验。上下文变量序列$\\pmb{\\theta}$与$\\hat{\\bf z}$一起作为先验网络的输入。解码器重建动作表示$\\hat{\\bf x}$，分类器基于潜在变量预测动作类别$\\hat{\\bf y}$。请注意，在$_S$上的适应期间，仅$\\pmb{\\theta}$和分类器网络被更新，而模型的其余部分保持固定。在推理期间，"
+    },
+    {
+      "id": "t0073",
+      "source_sha256": "050ec3b52345ce1529dcc5ffd013013a3391efc53280568d6f268db6212fe0ed",
+      "source_chars": 909,
+      "translated_text": "图3：TCMT的整体框架。箭头表示信息流。在$\\mathcal{D}$上的训练期间，我们首先通过编码器学习后验$\\hat{\\bf z}$，给定来自视频序列$\\mathbf{v}$的动作表示$\\mathbf{x}$。然后，先验网络输出噪声模型的估计以估计时间先验。上下文变量序列$\\pmb{\\theta}$与$\\hat{\\bf z}$一起作为先验网络的输入。解码器重建动作表示$\\hat{\\bf x}$，分类器基于潜在变量预测动作类别$\\hat{\\bf y}$。请注意，在$_S$上的适应期间，仅$\\pmb{\\theta}$和分类器网络被更新，而模型的其余部分保持固定。在推理期间，我们从编码器采样$\\hat{\\bf z}$，并使用我们的分类器$e({\\hat{\\mathbf{z}}})$预测动作类别$\\hat{\\bf y}$。"
+    },
+    {
+      "id": "t0074",
+      "source_sha256": "1a2811851a603937f99484eaf91e4823bc9a6fbef45f644982e7dd460b3d464a",
+      "source_chars": 1400,
+      "translated_text": "将${\\mathrm{TCMT}}_{C}$与采用视觉-语言学习的最先进方法ViFi-CLIP和VLPrompting（Rasheed等人，2023年）进行比较。观察到${\\mathrm{TCMT}}_{C}$和${\\mathrm{TCMT}}_{H}$在两项实验中均取得了最高准确率。TCMT在所有四个领先基准测试中均表现优异，提升幅度在1.4至3.6个百分点之间。对于此数据集，我们在$k\\,=\\,5$时观察到最大改进，相较于领先基准测试，准确率从34.4提升至37.6，从44.9提升至48.5，而在$k\\,=\\,10$时改进较小但仍显著。此外，图4进一步表明，TCMT在迁移过程中需要更新的参数数量更少。\n\n![](images/8f472da0e3db814ac679c5dae94c8152a0fa45de60c3b373c484ce6a611f3d47.jpg) \n表1：在Sth-Else数据集上，将TCMT与全类别k-shot学习的基准方法进行比较。\n\n![](images/9c07b3ace5281ce06a0b61d6ef2733adf579e1f519e2d7eaa47a78bc791a2bc0.jpg) \n图4：在Sth-Else数据集上，比较全类别$\\mathbf{k}$ -shot学习（$k\\,=\\,5$）的模型性能与适配期间更新的参数数量。\n\n![](images/19a20463d77b67611238bb1956460cf0d44fffd7291a29431bddd4170140c230.jpg) \n图5：在Sth-Else数据集上，比较${\\mathrm{TCMT}}_{C}$与VL-Prompting在所有动作类别上的性能。\n\n![](images/80fcf0e7458a087f829e3d2670de5bd675ff20f18401d856e25d0a6d2276b1d9.jpg) \n图6：TCMT预测结果"
+    },
+    {
+      "id": "t0075",
+      "source_sha256": "b5f3d22ded025c82d9d04ac3fb3a3db1e9fab684f79f17f0ae54936dea925ff2",
+      "source_chars": 320,
+      "translated_text": "论文的主要结果（表1）仅报告了在Sth-Else数据集上的性能。声称在“标准少样本动作识别基准测试”（复数）上达到最先进水平的说法并未得到所提供证据的支持，因为其他标准基准测试如Something-Something V2或Kinetics并未被评估。"
+    },
+    {
+      "id": "t0076",
+      "source_sha256": "2cbab47df0bad95e699ef940c6b7d305805d06fe58a5b50d010c63fd54fe8783",
+      "source_chars": 140,
+      "translated_text": "TCMT及其变体在除Sth-Else之外的至少一个其他标准少样本动作识别基准数据集上的性能结果。"
+    },
+    {
+      "id": "t0077",
+      "source_sha256": "67a09bfcd7ff4f57b32f87b6cc2e01f3f50c1fdea8c5921bde992b59c4561f66",
+      "source_chars": 63,
+      "translated_text": "TCMT少样本动作识别在Something-Something V2上的结果"
+    },
+    {
+      "id": "t0078",
+      "source_sha256": "aeb7410bd86c288ab171460c67d42f0019de6ada4dd37c9495620d40eeef8b73",
+      "source_chars": 1400,
+      "translated_text": "CLIP的表示并将其与用于时间建模的附加组件融合。然而，如果CLIP模型在与新数据差异过大的基础数据集上进行预训练，分布差异带来的问题仍然存在。与先前工作不同，TCMT通过利用因果表示学习来开发时间因果过程的生成模型，从而处理少样本动作识别问题，我们的实验表明这为处理分布差异提供了优势。\n\n因果表示学习。TCMT基于因果表示学习（Khemakhem等人，2020年）。近期一些工作已将因果表示学习的理论扩展到不同领域，如领域自适应（Teshima等人，2020年；Kong等人，2022年）、领域泛化（Xie等人，2023年）和医学图像分析（Wang等人，2023a）。此外，一些工作尝试为时间序列数据建模时间因果表示。例如，（Huang等人，2022年；Feng等人，2022年）的作者将因果表示引入马尔可夫决策过程（MDP）。（Yao等人，2022b;a）提供了从时间序列数据中识别因果表示的理论证明。基于这些可识别性结果，TCMT将因果表示学习应用于少样本动作识别背景下的时间序列数据。\n\n我们还提到一条"
+    },
+    {
+      "id": "t0079",
+      "source_sha256": "1ffaab2a54d596f11dc8e5c594905816c954a32101ce223104c5e319816eb8c9",
+      "source_chars": 224,
+      "translated_text": "如果比较基线未包含当时发表的最新或最强方法，或者增益微小且未经统计验证，则关于最先进性能的声明可能被夸大。"
+    },
+    {
+      "id": "t0080",
+      "source_sha256": "2eef70a1b3e1eb11341e48db22dcc7472333c1d4c56c13f634e2721f42faf3c0",
+      "source_chars": 155,
+      "translated_text": "一个包含所有相关最新最先进方法的全面比较表，并清晰报告置信区间或统计显著性检验。"
+    },
+    {
+      "id": "t0081",
+      "source_sha256": "abd4a0ef820ab1bb0d86ea623ba3ebb2a895578bd9959eea16efb032f3794c34",
+      "source_chars": 80,
+      "translated_text": "少样本动作识别 最先进 2023 2024 基准比较 TCMT"
+    },
+    {
+      "id": "t0082",
+      "source_sha256": "15da491cdc427f1eebfc1f325fd719354ab681890e66857be0b43551e48d0302",
+      "source_chars": 1399,
+      "translated_text": "re SSv2 (Goyal et al., 2017), SSv2-small (Zhu & Yang, 2018), HMDB-51 (Kuehne et al., 2011), and UCF-101 (Soomro et al., 2012). \n\n性能指标。在所有实验中，我们将TCMT的Top-1准确率（即任何动作类别的最高准确率）与少样本动作识别的领先基准进行比较。表现最佳的模型结果以粗体显示，次佳结果以下划线标出。 \n\n实现细节。在每个实验中，使用一个骨干网络来提取用于训练的动作表示 $\\mathbf{x}_{t}$，在所有实验中，骨干网络要么是ResNet-50 (He et al., 2016)，要么是ViT-B/16 (Radford et al., 2021)，它们在基础数据集 $\\mathcal{D}$ 上训练，骨干网络的选择与基准实验中使用的相匹配。我们使用AdamW优化器 Loshchilov & Hutter (2019) 和余弦退火来训练我们的网络，学习率初始化为0.002，权重衰减为 $10^{-2}$。对于所有视频序列，我们使用 $T=8$ 均匀选择的帧，为了计算ELBO损失，我们选择 $\\beta=0.02$ 来平衡重建损失和KL散度。同时，我们将NCE损失的 $\\tau$ 设置为 $0.07$。我们的模型使用PyTorch实现，实验在四块Nvidia GeForce 2080Ti显卡上进行，总显存为 $44\\:\\mathrm{GB}$。 \n\nSth-Else实验。表1显示了针对"
+    },
+    {
+      "id": "t0083",
+      "source_sha256": "1e9f3f8833d38baa8cde90590a9239124d19e804da89b9a1aae7dd99409538fd",
+      "source_chars": 1399,
+      "translated_text": "克服这种缺乏标注数据问题的一种方法是少样本学习 (Cao et al., 2020; Perrett et al., 2021; Thatipelli et al., 2022)。少样本学习涉及在一个大型（基础）数据集上训练模型，然后使用来自另一个（新）数据集的少量样本来更新模型（例如，调整参数）。我们将少样本学习应用于动作识别，其中新数据中的动作标签与基础数据不同，并且这些数据集可能来自显著不同的分布。 \n\n一种流行的少样本动作识别方法是调整特征提取器和/或分类器，如ORViT (Herzig et al., 2022)、SViT (Ben Avraham et al., 2022) 和 ActionCLIP (Wang et al., 2021) 所做的那样。通过固定在适应阶段不更新的学习模型的某些部分，可以使少样本动作识别更加高效，只要这样做不会牺牲模型性能。例如，VideoPrompt (Ju et al., 2022) 仅部分调整特征提取器，而VL Prompting (Rasheed et al., 2023) 仅在新数据上调整一个辅助模块。已经提出了几种基于度量的方法，其中从基础数据学习一个度量空间，并假设该空间无需调整即可转移到新数据 (Wang et al., 2023c; Xing et al., 2023a)。通常，一个主要挑战是确定学习模型的哪些方面应该"
+    },
+    {
+      "id": "t0084",
+      "source_sha256": "896f70bc101800cb23434b1cd397918f39613c48ac572c0324051a3f02c2d149",
+      "source_chars": 119,
+      "translated_text": "表3：在SSv2数据集上，针对全路-$\\cdot\\mathbf{k}$-shot设置，将$\\mathrm{TCMT}_{\\mathit{C}}$与基准方法进行比较。"
+    },
+    {
+      "id": "t0085",
+      "source_sha256": "b0b80a119bf3be46bf12f9b6bfe3c4d7ef7e6c152c3f6036ff715e952589be9c",
+      "source_chars": 1399,
+      "translated_text": "g 以处理动作识别的时间特性（Finn et al., 2017）。例如，STRM（Thatipelli et al., 2022）引入了一个时空增强模块，以在补丁和帧级别观察视觉和时间上下文。HyRSM（Wang et al., 2022b）使用混合关系模型来学习给定少样本事件内和跨视频的关系。然而，最近的研究表明，当基础数据和新数据存在显著分布差异时，这些方法的泛化能力不佳（Wang et al., 2023e; Samarasinghe et al., 2023）。\n\n跨模态视觉-语言学习的近期成功启发了诸如ActionCLIP（Wang et al., 2021）、XCLIP和XFLORENCE（Ni et al., 2022）、VideoPrompt（Ju et al., 2022）、VL Prompting和ViFi-CLIP（Rasheed et al., 2023）等研究。所有这些方法都通过采用预训练的CLIP并将其适配到少样动作识别任务来应用迁移学习。这些方法利用了CLIP丰富的通用表示，并将其与用于时间建模的额外组件融合。然而，如果CLIP模型是在与新数据差异过大的基础数据集上预训练的，那么分布差异带来的问题仍然存在。与先前工作不同，TCMT通过利用因果表示学习来开发时间因果过程的生成模型，从而处理少样动作识别，我们的方法"
+    },
+    {
+      "id": "t0086",
+      "source_sha256": "4cc3c3176f106b51fc572482a6ecf5b7e93d39f6bd6d1bc5ef0d1bf18e757d08",
+      "source_chars": 14,
+      "translated_text": "1 引言"
+    },
+    {
+      "id": "t0087",
+      "source_sha256": "cae8ed64649eb25ce136c0ea966671536a0b2b762f6cd0892a4de8e8f5f799c7",
+      "source_chars": 240,
+      "translated_text": "\\section{1 引言}\n\n\n监督式动作识别仍然是一个活跃且富有成果的研究领域（Xing et al., 2023b; Ahn et al., 2023; Zhou et al., 2023; Zhang et al., 2023）。然而，鉴于可能的"
+    },
+    {
+      "id": "t0088",
+      "source_sha256": "05b8424ffcc901237f2cb102a1d17b27ba70168ac411fa65b2f356be8694a9d6",
+      "source_chars": 13,
+      "translated_text": "2 方法论"
+    },
+    {
+      "id": "t0089",
+      "source_sha256": "915c31fb1b1412f04a5a2d91a77983966bfdb38a0d04ce1a56c5402bfa741b3f",
+      "source_chars": 240,
+      "translated_text": "\\section{2 方法论  }\n\n\n典型的少样本学习设置包含两个互不相交的数据集：基础集和新类别集。令 $\\mathcal{D}=({\\bf v}_{i},{\\bf y}_{i})_{i=1}^{I}$ 表示用于初始训练的基础数据，其中 $\\mathbf{v}_{i}$ 是第 $i$ 个样本的特征向量，${\\bf y}_{i}$ 是其对应的标签。"
+    },
+    {
+      "id": "t0090",
+      "source_sha256": "85c8cc156a58e430adc31f5f1ec9e1a01d5bc15302a075077e4f3dbccfe0b274",
+      "source_chars": 13,
+      "translated_text": "3 实验"
+    },
+    {
+      "id": "t0091",
+      "source_sha256": "ba5396a3935f46fbb24e1f56875f6c53e7dfd4d1bc10b6ed0976887cefc5e905",
+      "source_chars": 25,
+      "translated_text": "\\section{3 实验  }"
+    },
+    {
+      "id": "t0092",
+      "source_sha256": "bcc6de10b36a8bb9ac9e959a0997531a2ca598378664b85a4887ad0603d22edf",
+      "source_chars": 18,
+      "translated_text": "3.3 消融研究"
+    },
+    {
+      "id": "t0093",
+      "source_sha256": "59588b6ccf4d710e45aa9cb58ab4bdcc3345b6f527481f9320d8311a531c68c5",
+      "source_chars": 240,
+      "translated_text": "\\section{3.3 消融研究  }\n\n\n我们进行消融研究以选择模型的超参数。我们比较了具有不同潜在因果变量数量 $^{\\prime}N\\in\\{4,8,12,16\\})$ 的 ${\\mathrm{TCMT}}_{C}$ 模型，使用 ViT-B/16 作为基础架构。"
+    },
+    {
+      "id": "t0094",
+      "source_sha256": "fd33a2cb74e79a6c8b97ec2faa6ca7369175bf6cd8068ba50ed493ab4a9a80f3",
+      "source_chars": 14,
+      "translated_text": "4 相关工作"
+    },
+    {
+      "id": "t0095",
+      "source_sha256": "8c5e92900800480ab9ab78c1d3d36867294206169a9c4f3c7994c1f6229c443e",
+      "source_chars": 240,
+      "translated_text": "\\section{4 相关工作}\n\n\n小样本动作识别。小样本学习已成为计算机视觉中的一个重要研究领域，因为我们常常需要在仅有少量标注样本可用的情况下识别类别，Chen等人。"
+    },
+    {
+      "id": "t0096",
+      "source_sha256": "ea96249b7d70bb30292a9876e35697485a6e37729c923d286ec180e212c22e5e",
+      "source_chars": 12,
+      "translated_text": "5 结论"
+    },
+    {
+      "id": "t0097",
+      "source_sha256": "03282ca66ce76072baaae2fe5c07aa7f8aa652521d24f3b9e0003df55633a7fe",
+      "source_chars": 240,
+      "translated_text": "\\section{5 结论}\n\n\n我们提出了用于小样本动作识别的时序因果机制迁移（TCMT），该方法依赖于变分推断从基础数据中学习时序因果机制，该机制能够高效且有效地"
+    },
+    {
+      "id": "t0098",
+      "source_sha256": "0565fceba715022c0e85824b201086ecd54eb9eb38df8778c3686ed57b2148e0",
+      "source_chars": 8,
+      "translated_text": "图1"
+    },
+    {
+      "id": "t0099",
+      "source_sha256": "135156f91578d67862e1b8a6cc9c9e1537cdec5d7c077f70531692c8b7cec953",
+      "source_chars": 240,
+      "translated_text": "图1：用于小样本动作识别的时序因果机制迁移（TCMT）的激励示例（该图的原始PDF文件可在补充材料的压缩包中找到，提供更详细清晰的说明）：(a) sh"
+    },
+    {
+      "id": "t0100",
+      "source_sha256": "27c1689d7b0239753247ce936e6d3b14284d3dec0e7eb29e5499673c4d3e4ec3",
+      "source_chars": 9,
+      "translated_text": "图2a"
+    },
+    {
+      "id": "t0101",
+      "source_sha256": "5fbf7a25546e969dc5cb3d2a277384450d479a2d3bdabf955a9197af26f28b60",
+      "source_chars": 240,
+      "translated_text": "图2a展示了我们用于描述时序因果过程的生成模型示例。$N$维潜在因果变量${\\bf\\Psi}({\\bf z})$的时滞因果关系由箭头表示，这些箭头从"
+    },
+    {
+      "id": "t0102",
+      "source_sha256": "54ef852d0b06519e0827cf09cc34316c1b32b622069208ce5cb5c3559c6ebf0f",
+      "source_chars": 240,
+      "translated_text": "图1展示了在Sth-Else数据集（Materzynska et al., 2020）上使用TCMT进行小样本动作识别任务的激励示例。Sth-Else数据集的特点是基础数据与新数据之间存在显著的分布差异，因为"
+    },
+    {
+      "id": "t0103",
+      "source_sha256": "720f29c31ca2031cbbb8d1fa3e7fd762e3777ec9a66ab16d097dc73194d716a1",
+      "source_chars": 8,
+      "translated_text": "图2"
+    },
+    {
+      "id": "t0104",
+      "source_sha256": "0076fcee6d9a66d1020617b43dccd855751ccf0b6cfb95d3e6b9fabe02e3977f",
+      "source_chars": 240,
+      "translated_text": "图2：(a) 数据生成的时间因果过程，针对 $t\\in\\{1,2\\}$ 。(b) 我们提出的方法与基线模型（TCMT-FT）在新数据上更新模型所有部分时获得的Top-1准确率对比，其中基线模型（TCMT-FT）在新数据上更新模型的所有部分，而我们的方法仅更新部分参数。"
+    },
+    {
+      "id": "t0105",
+      "source_sha256": "f060cf72e5ca515f84c27407332b65b86165d098527b71b18e1e94e1a87dc92c",
+      "source_chars": 8,
+      "translated_text": "图3"
+    },
+    {
+      "id": "t0106",
+      "source_sha256": "510ed81b3558fb33fc611bc70b36ab47b8e8a80e823a704fa890f9b5087d8272",
+      "source_chars": 240,
+      "translated_text": "图3：TCMT的整体框架。箭头表示信息流。在 $\\mathcal{D}$ 上训练期间，我们首先通过编码器学习后验 $\\hat{\\bf z}$ ，给定来自视频序列的动作表示 $\\mathbf{x}$ 。"
+    },
+    {
+      "id": "t0107",
+      "source_sha256": "ec9ba494b1c224c79726a1001cfd35d0e06041db4cff5061dd59f91a8dbc7522",
+      "source_chars": 7,
+      "translated_text": "表1"
+    },
+    {
+      "id": "t0108",
+      "source_sha256": "9a9b9a1c3f54a244a0f9fe66967769d25f166dcd6209e2c205ef50915e683bdc",
+      "source_chars": 8,
+      "translated_text": "前言"
+    },
+    {
+      "id": "t0109",
+      "source_sha256": "eda10849d4c2a2b4038ab2758aadccd65be865a10377836112b69eb9186312e4",
+      "source_chars": 61,
+      "translated_text": "置信度较低的普通标题；确认其是否为真实边界"
+    }
+  ],
+  "status": "PASS"
+}

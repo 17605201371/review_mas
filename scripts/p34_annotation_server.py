@@ -164,6 +164,7 @@ class AnnotationStore:
         issue_packets_path: Path | None = None,
         issue_provenance_path: Path | None = None,
         assignment_path: Path | None = None,
+        translations_path: Path | None = None,
         paper_texts: Mapping[str, str] | None = None,
         require_annotator_identity: bool = False,
         signing_private_key_path: Path | None = None,
@@ -188,6 +189,23 @@ class AnnotationStore:
         self.issue_provenance_path = issue_provenance_path
         self.assignment_path = assignment_path
         self.assignment = _load_json(assignment_path) if assignment_path is not None and assignment_path.exists() else {}
+        self.translations_path = translations_path
+        self.translation_paper_id = ""
+        self._translations_by_hash: Dict[str, str] = {}
+        if translations_path is not None and translations_path.exists():
+            translation_value = _load_json(translations_path)
+            if str(translation_value.get("schema_version") or "") != "p34_audit_display_translation_v1":
+                raise ValueError("unsupported audit display translation schema")
+            if str(translation_value.get("status") or "") != "PASS":
+                raise ValueError("audit display translation is not PASS")
+            self.translation_paper_id = str(translation_value.get("paper_id") or "")
+            self._translations_by_hash = {
+                str(item.get("source_sha256") or ""): str(item.get("translated_text") or "")
+                for item in translation_value.get("entries", [])
+                if isinstance(item, dict)
+                and str(item.get("source_sha256") or "")
+                and str(item.get("translated_text") or "").strip()
+            }
         self.paper_texts = {str(key): str(value) for key, value in (paper_texts or {}).items()}
         self.require_annotator_identity = bool(require_annotator_identity)
         self.annotator_registry_path = self.output_dir / "annotator_registry.json"
@@ -223,6 +241,16 @@ class AnnotationStore:
 
     def _label_path(self, task: str, annotator: str) -> Path:
         return self.output_dir / f"{task}_{annotator}.json"
+
+    def _display_translate(self, value: Any) -> Any:
+        if isinstance(value, str):
+            translated = self._translations_by_hash.get(hashlib.sha256(value.strip().encode("utf-8")).hexdigest())
+            return translated if translated else value
+        if isinstance(value, list):
+            return [self._display_translate(item) for item in value]
+        if isinstance(value, dict):
+            return {key: self._display_translate(item) for key, item in value.items()}
+        return value
 
     def _resolution_path(self, task: str) -> Path:
         return self.output_dir / f"{task}_resolution.json"
@@ -675,6 +703,11 @@ class AnnotationStore:
                     "human_reason": row.get("human_reason", ""),
                     "allowed_labels": row.get("allowed_labels", []),
                     "packet": self.packets.get(packet_id, {}),
+                    "display_translation": (
+                        {"packet": self._display_translate(self.packets.get(packet_id, {}))}
+                        if str(row.get("paper_id") or "") == self.translation_paper_id
+                        else {}
+                    ),
                 })
             completed = sum(bool(str(item["human_label"]).strip()) for item in items)
             return {
@@ -1003,7 +1036,15 @@ class AnnotationStore:
             raise ValueError("unsupported annotator")
         with self._lock:
             rows = self._load_anchor_rows(annotator)
-            items = [rows[paper_id] for paper_id in self._anchor_rows]
+            items = [
+                {
+                    **rows[paper_id],
+                    "display_translation": self._display_translate(rows[paper_id])
+                    if paper_id == self.translation_paper_id
+                    else {},
+                }
+                for paper_id in self._anchor_rows
+            ]
             completed = sum(bool(item.get("human_review_complete")) for item in items)
             return {
                 "task": "paper_index",
@@ -1415,6 +1456,7 @@ def main() -> int:
     parser.add_argument("--issue-packets", default="P34_2_SYMMETRIC_DISCOVERY_ACTIVE_20260711_PACKETS.jsonl")
     parser.add_argument("--issue-provenance", default="P34_2_SYMMETRIC_DISCOVERY_ACTIVE_20260711_DISCOVERY_PROVENANCE.json")
     parser.add_argument("--assignment", default="P34_ANNOTATION_ASSIGNMENT_20260711.json")
+    parser.add_argument("--translations", default="P34_AUDIT_TRANSLATIONS_ZH_20260711.json")
     parser.add_argument("--paper-dataset", default="hard_negative_20_20260611.parquet")
     parser.add_argument("--allow-role-only-identity", action="store_true")
     parser.add_argument("--anchors", default="P34_1_PAPER_INDEX_HUMAN_ANCHORS_HARDNEG20_TEMPLATE_20260711.json")
@@ -1430,6 +1472,7 @@ def main() -> int:
         issue_packets_path=Path(args.issue_packets) if args.issue_packets else None,
         issue_provenance_path=Path(args.issue_provenance) if args.issue_provenance else None,
         assignment_path=Path(args.assignment) if args.assignment else None,
+        translations_path=Path(args.translations) if args.translations else None,
         paper_texts=_load_paper_texts(Path(args.paper_dataset)) if args.paper_dataset else None,
         require_annotator_identity=not args.allow_role_only_identity,
         anchors_path=Path(args.anchors),

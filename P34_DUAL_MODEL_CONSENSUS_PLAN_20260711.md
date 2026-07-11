@@ -1167,3 +1167,26 @@ claim 0/73、negative 0/200、PaperIndex 0/20、2x2 missing labels 377。下一�
 
 验证：新增严格 coverage、reload 顺序、陈旧 gate 和 packet-count 回归共 `11 passed`；
 完整 P34 + ReviewState/Recovery/final-view hygiene 聚焦回归 `1055 passed in 7.12s`。
+
+### P34 人工审核中文展示 Sidecar
+
+为支持中文审核者复核，新增 `scripts/p34_translate_audit_paper.py` 与
+`P34_AUDIT_TRANSLATIONS_ZH_20260711.json`。第一篇 hardneg20 论文 `ye3NrNrYOY`
+的显示范围包括 5 条 evidence relation、3 条 claim faithfulness、10 条 review issue
+和完整 PaperIndex 机器建议；去重后共 109 段、65,135 字符。MiMo-Pro 分批翻译后
+109/109 有效，coverage=1.0，source scope SHA-256 为
+`98b61bb6c721fc819a004ae7641d2023bac63c10278603168e9c169c3d7a13e6`。
+
+翻译层只按英文字符串 SHA-256 注入 `display_translation`：
+
+- 原始 packet、exact span、template、assignment、label contract、Judge prompt 和 gate
+  输入保持英文且不变。
+- label/anchor 保存仍写原始英文结构；中文只用于在线工作台阅读。
+- 正向和 claim 标签显示中文名称，但提交值仍是冻结英文 code；A/B/C/D 显示中文简述，
+  提交值仍是 A/B/C/D。
+- 切换 evidence、claim、review issue 和 PaperIndex 时保留当前 paper 筛选，便于逐篇完整审核。
+
+浏览器验收：第一篇论文四类页面分别显示 5、3、10、1 个筛选项；所有正文、审稿缺陷、
+所需证据、反证问题、来源摘录与 PaperIndex 机器建议均显示中文。API 对照确认英文原始
+claim 未改变，中文仅出现在 display sidecar；严格 discovery activation 仍为 PASS，M/P
+覆盖保持 20/20。完整聚焦回归 `1059 passed in 7.25s`。
