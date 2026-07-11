@@ -1,0 +1,817 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>P34 人工审核工作台</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4f5f3;
+      --panel: #ffffff;
+      --ink: #18201d;
+      --muted: #67716c;
+      --line: #d7dcd8;
+      --accent: #146b52;
+      --accent-soft: #e3f1eb;
+      --warn: #9a5a10;
+      --danger: #a33a34;
+      --selected: #edf4f0;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; letter-spacing: 0; }
+    button, select, textarea, input { font: inherit; }
+    button { cursor: pointer; }
+    .shell { min-height: 100vh; display: grid; grid-template-rows: auto 1fr; }
+    header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 12px 18px; border-bottom: 1px solid var(--line); background: var(--panel); }
+    h1 { margin: 0; font-size: 18px; font-weight: 680; white-space: nowrap; }
+    .tabs { display: flex; gap: 3px; min-width: 0; overflow-x: auto; }
+    .tab { border: 0; background: transparent; padding: 7px 10px; color: var(--muted); border-bottom: 2px solid transparent; white-space: nowrap; }
+    .tab.active { color: var(--accent); border-color: var(--accent); font-weight: 650; }
+    .header-controls { width: 100%; display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; }
+    .gate-state { color: var(--muted); font-size: 12px; white-space: nowrap; }
+    .gate-state.blocked { color: var(--warn); }
+    .gate-state.pass { color: var(--accent); }
+    .quality-state { margin-top: 7px; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+    .quality-state.blocked { color: var(--warn); }
+    .reviewer-input { width: 128px; }
+    select, textarea, input[type="search"], input[type="text"], input[type="number"] { border: 1px solid var(--line); background: #fff; color: var(--ink); border-radius: 4px; }
+    select, input[type="search"], input[type="text"], input[type="number"] { height: 34px; padding: 0 9px; }
+    .layout { min-height: 0; display: grid; grid-template-columns: 280px minmax(0, 1fr); }
+    aside { min-height: 0; border-right: 1px solid var(--line); background: var(--panel); display: grid; grid-template-rows: auto auto 1fr; }
+    .progress { padding: 14px; border-bottom: 1px solid var(--line); }
+    .progress-line { height: 6px; background: #e5e8e5; margin-top: 8px; overflow: hidden; border-radius: 3px; }
+    .progress-line span { display: block; height: 100%; background: var(--accent); }
+    .filters { padding: 10px 12px; display: grid; gap: 8px; border-bottom: 1px solid var(--line); }
+    .filters label { display: flex; align-items: center; gap: 7px; color: var(--muted); }
+    .item-list { min-height: 0; overflow: auto; }
+    .item-row { width: 100%; border: 0; border-bottom: 1px solid #eceeec; background: transparent; text-align: left; padding: 10px 12px; display: grid; gap: 3px; }
+    .item-row:hover { background: #f7f9f7; }
+    .item-row.active { background: var(--selected); box-shadow: inset 3px 0 var(--accent); }
+    .item-id { overflow-wrap: anywhere; font-size: 12px; color: var(--muted); }
+    .item-paper { font-weight: 620; }
+    .status { font-size: 12px; color: var(--warn); }
+    .status.done { color: var(--accent); }
+    main { min-width: 0; min-height: 0; overflow: auto; padding: 22px clamp(18px, 4vw, 54px) 80px; }
+    .toolbar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 8px; padding: 8px 0 14px; background: var(--bg); }
+    .icon-btn, .command { border: 1px solid var(--line); background: var(--panel); color: var(--ink); min-height: 34px; border-radius: 4px; }
+    .icon-btn { width: 36px; font-size: 19px; }
+    .command { padding: 0 12px; white-space: nowrap; }
+    .command.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .save-state { color: var(--muted); margin-left: auto; }
+    .document { max-width: 1040px; }
+    .eyebrow { color: var(--muted); font-size: 12px; text-transform: uppercase; }
+    h2 { font-size: 22px; margin: 5px 0 20px; overflow-wrap: anywhere; }
+    h3 { font-size: 15px; margin: 26px 0 8px; }
+    .text-block { white-space: pre-wrap; overflow-wrap: anywhere; background: var(--panel); border: 1px solid var(--line); padding: 12px 14px; border-radius: 5px; }
+    .quote { border-left: 3px solid #b7c2bc; }
+    .meta { display: flex; flex-wrap: wrap; gap: 8px 14px; color: var(--muted); font-size: 12px; margin-bottom: 10px; }
+    .context-list { display: grid; gap: 9px; }
+    details { border-bottom: 1px solid var(--line); padding: 8px 0; }
+    summary { cursor: pointer; font-weight: 620; }
+    details p { white-space: pre-wrap; overflow-wrap: anywhere; color: #303936; }
+    .label-bar { display: flex; flex-wrap: wrap; gap: 7px; margin: 10px 0 14px; }
+    .comparison { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 18px; }
+    .comparison section { border: 1px solid var(--line); background: var(--panel); padding: 11px 12px; border-radius: 5px; }
+    .comparison strong { display: block; color: var(--accent); margin-bottom: 5px; }
+    .comparison p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--muted); }
+    .label-btn { border: 1px solid var(--line); background: var(--panel); padding: 8px 11px; border-radius: 4px; }
+    .label-btn.selected { border-color: var(--accent); background: var(--accent-soft); color: #0d513e; font-weight: 650; }
+    textarea { width: 100%; min-height: 92px; padding: 10px; resize: vertical; }
+    .suggestion-list { display: grid; gap: 8px; }
+    .suggestion { border: 1px solid var(--line); background: var(--panel); padding: 10px 12px; border-radius: 5px; }
+    .suggestion label { display: grid; grid-template-columns: 20px 1fr; gap: 8px; align-items: start; }
+    .suggestion-title { font-weight: 650; overflow-wrap: anywhere; }
+    .suggestion-preview { margin-top: 5px; color: var(--muted); white-space: pre-wrap; overflow-wrap: anywhere; }
+    .human-editor-list { display: grid; gap: 9px; margin-top: 10px; }
+    .human-editor { border: 1px solid var(--line); background: var(--panel); padding: 10px; border-radius: 5px; }
+    .human-editor-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; font-weight: 650; }
+    .human-editor-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+    .human-editor-grid label { display: grid; gap: 4px; min-width: 0; color: var(--muted); font-size: 12px; }
+    .human-editor-grid input, .human-editor-grid textarea { width: 100%; color: var(--ink); }
+    .human-editor-grid textarea { min-height: 66px; }
+    .human-editor-grid .wide { grid-column: 1 / -1; }
+    .remove-editor { border: 0; background: transparent; color: var(--danger); width: 30px; height: 30px; font-size: 20px; }
+    .add-editor { margin-top: 9px; }
+    .false-choice { display: flex; gap: 14px; margin-top: 8px; color: var(--muted); }
+    .false-choice label { display: flex; grid-template-columns: none; align-items: center; }
+    .complete-row { display: flex; align-items: center; gap: 8px; padding: 13px 0; font-weight: 650; }
+    .empty { color: var(--muted); padding: 40px 0; }
+    .error { color: var(--danger); white-space: pre-wrap; }
+    @media (max-width: 760px) {
+      header { gap: 8px; }
+      .header-controls { justify-content: flex-start; }
+      .gate-state { flex-basis: 100%; white-space: normal; }
+      .layout { grid-template-columns: 1fr; grid-template-rows: 210px minmax(0, 1fr); }
+      .comparison { grid-template-columns: 1fr; }
+      .human-editor-grid { grid-template-columns: 1fr; }
+      .human-editor-grid .wide { grid-column: auto; }
+      aside { border-right: 0; border-bottom: 1px solid var(--line); grid-template-columns: 150px 1fr; grid-template-rows: auto 1fr; }
+      .progress { grid-row: 1 / 3; border-right: 1px solid var(--line); }
+      .filters { padding: 8px; }
+      .item-list { grid-column: 2; }
+      main { padding: 12px 14px 60px; }
+      h2 { font-size: 19px; }
+    }
+  </style>
+</head>
+<body>
+<div class="shell">
+  <header>
+    <h1>P34 人工审核工作台</h1>
+    <nav class="tabs" aria-label="审核任务">
+      <button class="tab active" data-task="evidence_relation">正向证据</button>
+      <button class="tab" data-task="claim_faithfulness">主张忠实度</button>
+      <button class="tab" data-task="review_issue">负向缺陷</button>
+      <button class="tab" data-task="paper_index">PaperIndex</button>
+    </nav>
+    <div class="header-controls">
+      <label for="annotator">标注角色</label>
+      <select id="annotator">
+        <option value="primary">主标</option>
+        <option value="secondary">双标</option>
+        <option value="adjudicator">裁决</option>
+      </select>
+      <label for="reviewerId">审核者 ID</label>
+      <input id="reviewerId" class="reviewer-input" type="text" autocomplete="off">
+      <button id="registerReviewer" class="command">绑定</button>
+      <button id="exportCredential" class="command">导出凭据</button>
+      <button id="importCredential" class="command">导入凭据</button>
+      <input id="credentialFile" type="file" accept="application/json,.json" hidden>
+      <button id="exportBundle" class="command">导出</button>
+      <button id="exportAll" class="command">导出全部</button>
+      <button id="importBundle" class="command">导入</button>
+      <input id="bundleFile" type="file" accept="application/json,.json" multiple hidden>
+      <button id="refreshGates" class="command">刷新总闸</button>
+      <span id="gateState" class="gate-state">总闸未读取</span>
+    </div>
+  </header>
+  <div class="layout">
+    <aside>
+      <section class="progress">
+        <strong id="progressText">0 / 0</strong>
+        <div class="progress-line"><span id="progressBar" style="width:0"></span></div>
+        <div id="outputPath" class="item-id" style="margin-top:9px"></div>
+        <div id="qualityState" class="quality-state">质量总览未读取</div>
+      </section>
+      <section class="filters">
+        <input id="search" type="search" placeholder="搜索 paper / packet">
+        <label><input id="onlyOpen" type="checkbox"> 只看未完成</label>
+      </section>
+      <div id="itemList" class="item-list"></div>
+    </aside>
+    <main>
+      <div class="toolbar">
+        <button id="prev" class="icon-btn" title="上一条" aria-label="上一条">‹</button>
+        <button id="next" class="icon-btn" title="下一条" aria-label="下一条">›</button>
+        <button id="save" class="command primary">保存</button>
+        <span id="saveState" class="save-state"></span>
+      </div>
+      <article id="document" class="document"></article>
+    </main>
+  </div>
+</div>
+<script>
+  const app = {
+    task: "evidence_relation",
+    annotator: "primary",
+    workspace: null,
+    visible: [],
+    index: 0,
+    dirty: false,
+  };
+
+  const $ = (id) => document.getElementById(id);
+  const text = (tag, value, className) => {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    node.textContent = value == null ? "" : String(value);
+    return node;
+  };
+  const compact = (value, limit = 1800) => {
+    const result = String(value || "").trim();
+    return result.length <= limit ? result : result.slice(0, limit) + "…";
+  };
+  const authToken = (role = app.annotator) => localStorage.getItem(`p34-auth-${role}`) || "";
+
+  function downloadJson(value, filename) {
+    const blob = new Blob([JSON.stringify(value, null, 2) + "\n"], {type: "application/json"});
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(link.href);
+  }
+
+  function storeCredential(value) {
+    localStorage.setItem(`p34-reviewer-${value.role}`, value.reviewer_id);
+    localStorage.setItem(`p34-auth-${value.role}`, value.auth_token);
+    localStorage.setItem(`p34-generation-${value.role}`, String(value.credential_generation || 0));
+  }
+
+  function downloadCredential(value) {
+    const credential = {
+      schema_version: "p34_annotator_credential_v1",
+      role: value.role,
+      reviewer_id: value.reviewer_id,
+      auth_token: value.auth_token,
+      recovery_code: value.recovery_code,
+      credential_generation: value.credential_generation,
+    };
+    downloadJson(credential, `p34_${value.role}_${value.reviewer_id}_credential_g${value.credential_generation}.json`);
+  }
+
+  async function api(url, options = {}) {
+    const response = await fetch(url, options);
+    const value = await response.json();
+    if (!response.ok) throw new Error(value.error || `HTTP ${response.status}`);
+    return value;
+  }
+
+  async function loadWorkspace(preferredId = "") {
+    $("saveState").textContent = "加载中";
+    app.workspace = await api(`/api/workspace?task=${encodeURIComponent(app.task)}&annotator=${encodeURIComponent(app.annotator)}`);
+    app.workspace.items.forEach((item) => {
+      item._persisted_done = app.task === "paper_index"
+        ? Boolean(item.human_review_complete)
+        : Boolean(String(item.human_label || "").trim());
+    });
+    $("reviewerId").value = app.workspace.reviewer_id || localStorage.getItem(`p34-reviewer-${app.annotator}`) || "";
+    app.dirty = false;
+    applyFilters(preferredId);
+    $("saveState").textContent = "";
+  }
+
+  async function registerReviewer() {
+    const reviewerId = $("reviewerId").value.trim();
+    const result = await api("/api/register-annotator", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({role: app.annotator, reviewer_id: reviewerId}),
+    });
+    if (result.auth_token) {
+      storeCredential(result);
+      downloadCredential(result);
+    }
+    if (!result.auth_token && !authToken()) throw new Error("该角色已绑定，请使用最初完成绑定的浏览器");
+    $("reviewerId").value = result.reviewer_id;
+    await loadWorkspace();
+    $("saveState").textContent = result.auth_token ? "身份已绑定，凭据文件已下载" : "身份已验证";
+  }
+
+  async function exportCredential() {
+    const reviewerId = $("reviewerId").value.trim();
+    const result = await api("/api/rotate-annotator", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({role: app.annotator, reviewer_id: reviewerId, auth_token: authToken()}),
+    });
+    storeCredential(result);
+    downloadCredential(result);
+    $("saveState").className = "save-state";
+    $("saveState").textContent = "凭据已轮换并下载，旧凭据已失效";
+  }
+
+  async function importCredentialFile(file) {
+    const credential = JSON.parse(await file.text());
+    if (credential.schema_version !== "p34_annotator_credential_v1") throw new Error("不支持的凭据文件");
+    if (!credential.role || !credential.reviewer_id || !credential.auth_token) throw new Error("凭据文件字段不完整");
+    let result;
+    try {
+      result = await api("/api/verify-annotator", {
+        method: "POST", headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          role: credential.role,
+          reviewer_id: credential.reviewer_id,
+          auth_token: credential.auth_token,
+        }),
+      });
+      storeCredential({...credential, credential_generation: result.credential_generation});
+    } catch (verifyError) {
+      if (!credential.recovery_code) throw verifyError;
+      result = await api("/api/recover-annotator", {
+        method: "POST", headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          role: credential.role,
+          reviewer_id: credential.reviewer_id,
+          recovery_code: credential.recovery_code,
+        }),
+      });
+      storeCredential(result);
+      downloadCredential(result);
+    }
+    app.annotator = credential.role;
+    $("annotator").value = app.annotator;
+    $("reviewerId").value = credential.reviewer_id;
+    await loadWorkspace();
+    $("saveState").className = "save-state";
+    $("saveState").textContent = result.status === "RECOVERED" ? "凭据已恢复并下载替代文件" : "凭据已验证并导入";
+  }
+
+  async function exportBundle() {
+    const portable = await api("/api/export-portable", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({task: app.task, annotator: app.annotator, auth_token: authToken()}),
+    });
+    const blob = new Blob([portable.html], {type: "text/html"});
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = portable.filename;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(link.href);
+    $("saveState").className = "save-state";
+    $("saveState").textContent = "审核包已导出";
+  }
+
+  async function importBundleFile(file) {
+    const bundle = JSON.parse(await file.text());
+    const payload = {
+      schema_version: bundle.schema_version,
+      task_type: bundle.task_type,
+      annotator_role: bundle.annotator_role,
+      reviewer_id: bundle.reviewer_id,
+      auth_token: authToken(bundle.annotator_role),
+      bundle_sha256: bundle.bundle_sha256,
+    };
+    if (bundle.schema_version === "p34_paper_index_exchange_v1") payload.cases = bundle.cases;
+    else payload.labels = bundle.labels;
+    const result = await api("/api/import-bundle", {
+      method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(payload),
+    });
+    app.task = bundle.task_type;
+    app.annotator = bundle.annotator_role;
+    $("annotator").value = app.annotator;
+    document.querySelectorAll(".tab").forEach((tab) => tab.classList.toggle("active", tab.dataset.task === app.task));
+    await loadWorkspace();
+    $("saveState").className = "save-state";
+    $("saveState").textContent = `已导入 ${result.imported_count} 条`;
+    return result;
+  }
+
+  async function exportRolePackage() {
+    const response = await fetch("/api/export-role-package", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({annotator: app.annotator, auth_token: authToken()}),
+    });
+    if (!response.ok) {
+      const value = await response.json();
+      throw new Error(value.error || `HTTP ${response.status}`);
+    }
+    const disposition = response.headers.get("Content-Disposition") || "";
+    const match = disposition.match(/filename="([^"]+)"/);
+    const blob = await response.blob();
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = match ? match[1] : `p34_${app.annotator}_offline.zip`;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(link.href);
+    $("saveState").className = "save-state";
+    $("saveState").textContent = "角色审核包已导出";
+  }
+
+  function renderGateStatus(status) {
+    const counts = status.counts || {};
+    const summary = [
+      `${counts.positive_primary_complete || 0}/${counts.positive_total || 0}`,
+      `${counts.claim_primary_complete || 0}/${counts.claim_total || 0}`,
+      `${counts.paper_index_complete || 0}/${counts.paper_index_total || 0}`,
+    ].join(" · ");
+    const node = $("gateState");
+    node.textContent = `总闸 ${status.status || "UNKNOWN"} · ${summary}`;
+    node.className = `gate-state ${status.status === "PASS" ? "pass" : "blocked"}`;
+    node.title = status.report_path || "";
+  }
+
+  async function loadGateStatus() {
+    renderGateStatus(await api("/api/gates"));
+  }
+
+  function renderQualityStatus(status) {
+    const tasks = status.tasks || {};
+    const issue = tasks.review_issue || {};
+    const paper = status.paper_index || {};
+    const node = $("qualityState");
+    node.textContent = `质量 ${status.status || "UNKNOWN"} · 负向 ${issue.primary_complete || 0}/${issue.primary_total || 0} · Anchor ${paper.complete || 0}/${paper.total || 0}`;
+    node.className = `quality-state ${String(status.status || "").startsWith("READY") ? "" : "blocked"}`;
+    node.title = (status.blocking_issues || []).join("\n") || status.report_path || "";
+  }
+
+  async function loadQualityStatus() {
+    renderQualityStatus(await api("/api/quality"));
+  }
+
+  async function refreshGates() {
+    const button = $("refreshGates");
+    button.disabled = true;
+    $("gateState").textContent = "总闸刷新中";
+    try {
+      const status = await api("/api/refresh-gates", {
+        method: "POST", headers: {"Content-Type": "application/json"}, body: "{}",
+      });
+      renderGateStatus(status);
+      await loadQualityStatus();
+    } catch (error) {
+      $("gateState").textContent = error.message;
+      $("gateState").className = "gate-state blocked";
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  function isDone(item) {
+    return Boolean(item._persisted_done);
+  }
+
+  function applyFilters(preferredId = "") {
+    const query = $("search").value.trim().toLowerCase();
+    const onlyOpen = $("onlyOpen").checked;
+    app.visible = app.workspace.items.filter((item) => {
+      const identity = `${item.packet_id || ""} ${item.paper_id || ""}`.toLowerCase();
+      return (!query || identity.includes(query)) && (!onlyOpen || !isDone(item));
+    });
+    const found = preferredId ? app.visible.findIndex((item) => (item.packet_id || item.paper_id) === preferredId) : -1;
+    app.index = found >= 0 ? found : Math.min(app.index, Math.max(0, app.visible.length - 1));
+    renderAll();
+  }
+
+  function renderAll() {
+    const progress = app.workspace.progress;
+    $("progressText").textContent = `${progress.completed} / ${progress.total}`;
+    $("progressBar").style.width = `${progress.total ? (100 * progress.completed / progress.total) : 0}%`;
+    $("outputPath").textContent = app.workspace.output_path;
+    renderList();
+    renderCurrent();
+  }
+
+  function renderList() {
+    const list = $("itemList");
+    list.replaceChildren();
+    app.visible.forEach((item, index) => {
+      const button = document.createElement("button");
+      button.className = `item-row${index === app.index ? " active" : ""}`;
+      button.append(text("span", item.paper_id, "item-paper"));
+      button.append(text("span", item.packet_id || "PaperIndex anchor", "item-id"));
+      button.append(text("span", isDone(item) ? "已完成" : "待审核", `status${isDone(item) ? " done" : ""}`));
+      button.onclick = () => { app.index = index; renderAll(); };
+      list.append(button);
+    });
+  }
+
+  function section(parent, heading, content, className = "text-block") {
+    parent.append(text("h3", heading));
+    parent.append(text("div", content || "无内容", className));
+  }
+
+  function renderCurrent() {
+    const root = $("document");
+    root.replaceChildren();
+    if (!app.visible.length) {
+      root.append(text("div", "当前筛选条件下没有条目。", "empty"));
+      return;
+    }
+    const item = app.visible[app.index];
+    root.append(text("div", `${app.index + 1} / ${app.visible.length} · ${item.paper_id}`, "eyebrow"));
+    root.append(text("h2", item.packet_id || `PaperIndex · ${item.paper_id}`));
+    if (app.task === "paper_index") renderAnchor(item, root);
+    else renderLabel(item, root);
+  }
+
+  function renderLabel(item, root) {
+    const packet = item.packet || {};
+    const claim = packet.claim || {};
+    if (app.annotator === "adjudicator") {
+      root.append(text("h3", "标注分歧"));
+      const comparison = document.createElement("div");
+      comparison.className = "comparison";
+      [
+        ["主标", item.primary_label, item.primary_reason],
+        ["双标", item.secondary_label, item.secondary_reason],
+      ].forEach(([role, label, reason]) => {
+        const panel = document.createElement("section");
+        panel.append(text("strong", `${role} · ${label}`));
+        panel.append(text("p", reason || "未填写理由"));
+        comparison.append(panel);
+      });
+      root.append(comparison);
+    }
+    section(root, "主张", claim.claim_text || claim.claim || "");
+    if (app.task === "evidence_relation") {
+      const evidence = packet.candidate_evidence || {};
+      const meta = text("div", "", "meta");
+      meta.append(text("span", evidence.section_type || "unknown section"));
+      meta.append(text("span", evidence.source_locator || "no locator"));
+      meta.append(text("span", evidence.evidence_id || ""));
+      root.append(text("h3", "候选证据"));
+      root.append(meta);
+      root.append(text("div", evidence.quote || "", "text-block quote"));
+      renderSources(root, packet.counterevidence_candidates || [], "检索上下文 / 可能反证");
+    } else if (app.task === "claim_faithfulness") {
+      renderSources(root, packet.claim_source_spans || [], "论文来源");
+    } else {
+      const issue = packet.issue_hypothesis || {};
+      const contract = packet.verification_contract || {};
+      section(root, "待审核缺陷", issue.hypothesis || contract.alleged_defect || "");
+      section(root, "需要什么证据才能解决", contract.required_resolution_evidence || issue.expected_evidence || "");
+      section(root, "反证检索问题", contract.falsification_query || issue.counterevidence_query || "");
+      renderSources(root, packet.retrieved_evidence || packet.counterevidence_candidates || [], "论文证据与可能反证");
+    }
+    root.append(text("h3", "人工结论"));
+    const bar = document.createElement("div");
+    bar.className = "label-bar";
+    item.allowed_labels.forEach((label) => {
+      const button = text("button", label, `label-btn${item.human_label === label ? " selected" : ""}`);
+      button.onclick = () => {
+        item.human_label = label;
+        app.dirty = true;
+        renderAll();
+        saveCurrent();
+      };
+      bar.append(button);
+    });
+    root.append(bar);
+    const reason = document.createElement("textarea");
+    reason.id = "reason";
+    reason.placeholder = "写明判断依据；Ctrl/⌘ + Enter 保存";
+    reason.value = item.human_reason || "";
+    reason.oninput = () => { item.human_reason = reason.value; app.dirty = true; $("saveState").textContent = "未保存"; };
+    reason.onkeydown = (event) => { if ((event.ctrlKey || event.metaKey) && event.key === "Enter") saveCurrent(); };
+    root.append(reason);
+  }
+
+  function renderSources(root, sources, heading) {
+    root.append(text("h3", heading));
+    const list = document.createElement("div");
+    list.className = "context-list";
+    (sources || []).slice(0, 8).forEach((source, index) => {
+      const details = document.createElement("details");
+      if (index === 0) details.open = true;
+      details.append(text("summary", `${source.section_type || "source"} · ${source.section_id || source.source_id || source.evidence_id || index + 1}`));
+      details.append(text("p", compact(source.quote || source.text || "")));
+      list.append(details);
+    });
+    if (!sources || !sources.length) list.append(text("div", "没有附加来源。", "empty"));
+    root.append(list);
+  }
+
+  function selectedByStart(values, suggestion) {
+    return (values || []).some((item) => Number(item.source_span_start) === Number(suggestion.source_span_start));
+  }
+
+  function renderAnchor(item, root) {
+    renderSuggestionGroup(root, item, "machine_boundary_suggestions", "expected_boundaries", "真实 section boundary", "check");
+    renderSuggestionGroup(root, item, "machine_anchor_suggestions", "key_anchors", "关键检索 anchor", "check");
+    renderSuggestionGroup(root, item, "machine_false_boundary_suggestions", "false_boundaries", "疑似错误 boundary", "false");
+    root.append(text("h3", "审核记录"));
+    const notes = document.createElement("textarea");
+    notes.id = "anchorNotes";
+    notes.placeholder = "记录编辑、拒绝建议或特殊 parser 情况";
+    notes.value = item.human_review_notes || "";
+    notes.oninput = () => { item.human_review_notes = notes.value; app.dirty = true; $("saveState").textContent = "未保存"; };
+    root.append(notes);
+    const row = document.createElement("label");
+    row.className = "complete-row";
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = Boolean(item.human_review_complete);
+    checkbox.onchange = () => { item.human_review_complete = checkbox.checked; app.dirty = true; };
+    row.append(checkbox, text("span", "我已逐项核对本篇 boundary、anchor 与 false boundary"));
+    root.append(row);
+  }
+
+  function renderSuggestionGroup(root, item, sourceKey, targetKey, heading, mode) {
+    root.append(text("h3", heading));
+    const list = document.createElement("div");
+    list.className = "suggestion-list";
+    (item[sourceKey] || []).forEach((suggestion) => {
+      const box = document.createElement("div");
+      box.className = "suggestion";
+      const label = document.createElement("label");
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = selectedByStart(item[targetKey], suggestion);
+      checkbox.onchange = () => {
+        const current = (item[targetKey] || []).filter((value) => Number(value.source_span_start) !== Number(suggestion.source_span_start));
+        if (checkbox.checked) current.push({...suggestion});
+        item[targetKey] = current;
+        app.dirty = true;
+        $("saveState").textContent = "未保存";
+        renderCurrent();
+      };
+      label.append(checkbox);
+      const content = document.createElement("div");
+      content.append(text("div", suggestion.heading || suggestion.query || suggestion.text || "未命名建议", "suggestion-title"));
+      content.append(text("div", suggestion.text_preview || suggestion.text || suggestion.reason || "", "suggestion-preview"));
+      label.append(content);
+      box.append(label);
+      if (mode === "false") box.title = "勾选表示确认这是错误 section boundary";
+      list.append(box);
+    });
+    if (!item[sourceKey] || !item[sourceKey].length) list.append(text("div", "没有机器建议。", "empty"));
+    root.append(list);
+    renderHumanEditors(root, item, targetKey);
+  }
+
+  const humanEditorSchemas = {
+    expected_boundaries: [
+      ["heading", "Heading", "text"],
+      ["section_type", "Section type", "text"],
+      ["source_span_start", "Start", "number"],
+    ],
+    key_anchors: [
+      ["query", "Query", "text", "wide"],
+      ["text", "Exact text", "textarea", "wide"],
+      ["section_types", "Section types", "text"],
+      ["source_span_start", "Start", "number"],
+      ["source_span_end", "End", "number"],
+    ],
+    false_boundaries: [
+      ["heading", "Heading", "text"],
+      ["section_type", "Section type", "text"],
+      ["source_span_start", "Start", "number"],
+      ["reason", "Reason", "textarea", "wide"],
+    ],
+  };
+
+  function newHumanItem(targetKey) {
+    if (targetKey === "expected_boundaries") return {heading: "", section_type: "other", source_span_start: 0};
+    if (targetKey === "key_anchors") return {query: "", text: "", section_types: [], source_span_start: 0, source_span_end: 0};
+    return {heading: "", section_type: "other", source_span_start: 0, reason: ""};
+  }
+
+  function renderHumanEditors(root, item, targetKey) {
+    const values = item[targetKey] || [];
+    const list = document.createElement("div");
+    list.className = "human-editor-list";
+    values.forEach((value, index) => {
+      const editor = document.createElement("section");
+      editor.className = "human-editor";
+      editor.dataset.targetKey = targetKey;
+      const head = document.createElement("div");
+      head.className = "human-editor-head";
+      head.append(text("span", `人工项 ${index + 1}`));
+      const remove = text("button", "×", "remove-editor");
+      remove.type = "button";
+      remove.title = "删除人工项";
+      remove.setAttribute("aria-label", "删除人工项");
+      remove.onclick = () => {
+        item[targetKey] = values.filter((_, itemIndex) => itemIndex !== index);
+        app.dirty = true;
+        $("saveState").textContent = "未保存";
+        renderCurrent();
+      };
+      head.append(remove);
+      editor.append(head);
+      const grid = document.createElement("div");
+      grid.className = "human-editor-grid";
+      humanEditorSchemas[targetKey].forEach(([field, labelText, kind, className]) => {
+        const label = document.createElement("label");
+        if (className) label.className = className;
+        label.append(text("span", labelText));
+        const control = kind === "textarea" ? document.createElement("textarea") : document.createElement("input");
+        if (kind !== "textarea") control.type = kind;
+        control.value = field === "section_types" && Array.isArray(value[field]) ? value[field].join(", ") : (value[field] ?? "");
+        control.oninput = () => {
+          if (field === "section_types") value[field] = control.value.split(",").map((part) => part.trim()).filter(Boolean);
+          else if (kind === "number") value[field] = Number(control.value);
+          else value[field] = control.value;
+          app.dirty = true;
+          $("saveState").textContent = "未保存";
+        };
+        label.append(control);
+        grid.append(label);
+      });
+      editor.append(grid);
+      list.append(editor);
+    });
+    root.append(list);
+    const add = text("button", "+ 添加人工项", "command add-editor");
+    add.type = "button";
+    add.dataset.targetKey = targetKey;
+    add.onclick = () => {
+      item[targetKey] = [...values, newHumanItem(targetKey)];
+      app.dirty = true;
+      $("saveState").textContent = "未保存";
+      renderCurrent();
+    };
+    root.append(add);
+  }
+
+  async function saveCurrent() {
+    if (!app.visible.length) return;
+    const item = app.visible[app.index];
+    $("saveState").textContent = "保存中";
+    try {
+      let result;
+      if (app.task === "paper_index") {
+        result = await api("/api/anchor-case", {
+          method: "POST", headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({
+            annotator: app.annotator, paper_id: item.paper_id,
+            reviewer_id: $("reviewerId").value.trim(),
+            auth_token: authToken(),
+            expected_boundaries: item.expected_boundaries || [], key_anchors: item.key_anchors || [],
+            false_boundaries: item.false_boundaries || [], human_review_complete: Boolean(item.human_review_complete),
+            human_review_notes: item.human_review_notes || "",
+          }),
+        });
+      } else {
+        result = await api("/api/label", {
+          method: "POST", headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({
+            task: app.task, annotator: app.annotator, packet_id: item.packet_id,
+            reviewer_id: $("reviewerId").value.trim(),
+            auth_token: authToken(),
+            human_label: item.human_label || "", human_reason: item.human_reason || "",
+          }),
+        });
+      }
+      app.workspace.progress.completed = result.completed;
+      item._persisted_done = app.task === "paper_index"
+        ? Boolean(item.human_review_complete)
+        : Boolean(String(item.human_label || "").trim());
+      app.dirty = false;
+      $("saveState").textContent = "已保存";
+      renderAll();
+    } catch (error) {
+      $("saveState").textContent = error.message;
+      $("saveState").className = "save-state error";
+    }
+  }
+
+  function move(delta) {
+    if (!app.visible.length) return;
+    app.index = Math.max(0, Math.min(app.visible.length - 1, app.index + delta));
+    renderAll();
+  }
+
+  document.querySelectorAll(".tab").forEach((tab) => tab.onclick = async () => {
+    document.querySelectorAll(".tab").forEach((item) => item.classList.remove("active"));
+    tab.classList.add("active");
+    app.task = tab.dataset.task;
+    if (app.task === "paper_index" && app.annotator === "adjudicator") {
+      app.annotator = "primary";
+      $("annotator").value = "primary";
+    }
+    app.index = 0;
+    await loadWorkspace();
+  });
+  $("annotator").onchange = async (event) => { app.annotator = event.target.value; app.index = 0; await loadWorkspace(); };
+  $("search").oninput = () => applyFilters();
+  $("onlyOpen").onchange = () => applyFilters();
+  $("prev").onclick = () => move(-1);
+  $("next").onclick = () => move(1);
+  $("save").onclick = saveCurrent;
+  $("refreshGates").onclick = refreshGates;
+  $("exportBundle").onclick = () => exportBundle().catch((error) => {
+    $("saveState").textContent = error.message;
+    $("saveState").className = "save-state error";
+  });
+  $("exportAll").onclick = () => exportRolePackage().catch((error) => {
+    $("saveState").textContent = error.message;
+    $("saveState").className = "save-state error";
+  });
+  $("importBundle").onclick = () => $("bundleFile").click();
+  $("bundleFile").onchange = async (event) => {
+    const files = Array.from(event.target.files || []);
+    event.target.value = "";
+    if (!files.length) return;
+    try {
+      let imported = 0;
+      for (const file of files) imported += Number((await importBundleFile(file)).imported_count || 0);
+      $("saveState").textContent = `已导入 ${files.length} 个结果 · ${imported} 条`;
+    } catch (error) {
+      $("saveState").textContent = error.message;
+      $("saveState").className = "save-state error";
+    }
+  };
+  $("registerReviewer").onclick = () => registerReviewer().catch((error) => {
+    $("saveState").textContent = error.message;
+    $("saveState").className = "save-state error";
+  });
+  $("exportCredential").onclick = () => exportCredential().catch((error) => {
+    $("saveState").textContent = error.message;
+    $("saveState").className = "save-state error";
+  });
+  $("importCredential").onclick = () => $("credentialFile").click();
+  $("credentialFile").onchange = async (event) => {
+    const file = (event.target.files || [])[0];
+    event.target.value = "";
+    if (!file) return;
+    try {
+      await importCredentialFile(file);
+    } catch (error) {
+      $("saveState").textContent = error.message;
+      $("saveState").className = "save-state error";
+    }
+  };
+  window.addEventListener("beforeunload", (event) => { if (app.dirty) { event.preventDefault(); event.returnValue = ""; } });
+  loadWorkspace().catch((error) => { $("document").replaceChildren(text("div", error.message, "error")); });
+  loadGateStatus().catch((error) => { $("gateState").textContent = error.message; });
+  loadQualityStatus().catch((error) => { $("qualityState").textContent = error.message; });
+</script>
+</body>
+</html>

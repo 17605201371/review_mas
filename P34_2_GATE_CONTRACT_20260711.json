@@ -1,0 +1,24 @@
+{
+  "schema_version": "p34_2_gate_contract_v1",
+  "boundary": "Frozen development-set P34-2 capability thresholds; changes require a new experiment lock",
+  "thresholds": {
+    "minimum_cardinality": {
+      "evidence_relation": 80,
+      "review_issue_ab": 37,
+      "review_issue_d": 9,
+      "review_issue_c": 1
+    },
+    "schema_success_rate": 0.99,
+    "test_retest_agreement": 0.85,
+    "m_p_review_issue_verified_precision": 0.8,
+    "m_p_review_issue_ab_verified_recall": 0.8108108108108109,
+    "m_p_review_issue_ab_verified_absolute_count": 30,
+    "m_p_review_issue_d_verified_leakage_count": 0,
+    "m_p_review_issue_abd_adjudication_coverage": 0.8,
+    "m_p_positive_evidence_accuracy": 0.85,
+    "m_p_positive_accepted_quote_span_locatability": 1.0,
+    "m_p_macro_f1_gain": 0.08,
+    "m_p_paired_bootstrap_minimum_packets": 30,
+    "m_p_paired_bootstrap_required_classes": ["rejected", "uncertain", "verified"]
+  }
+}

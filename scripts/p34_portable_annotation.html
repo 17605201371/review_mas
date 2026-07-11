@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>P34 离线审核</title>
+  <style>
+    * { box-sizing: border-box; }
+    :root {
+      color-scheme: light;
+      --ink: #17202a;
+      --muted: #66727e;
+      --line: #d8dde3;
+      --paper: #ffffff;
+      --panel: #f4f6f8;
+      --accent: #176b55;
+      --accent-soft: #dff1eb;
+      --warn: #9b4b22;
+    }
+    body { margin: 0; color: var(--ink); background: var(--panel); font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    button, input, textarea { font: inherit; }
+    button { min-height: 34px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); color: var(--ink); cursor: pointer; }
+    button:hover { border-color: #87939f; }
+    button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid #3d8b76; outline-offset: 2px; }
+    header { position: sticky; top: 0; z-index: 3; display: flex; align-items: center; gap: 12px; min-height: 62px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--paper); }
+    h1 { margin: 0; font-size: 18px; white-space: nowrap; }
+    .identity { min-width: 0; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .header-actions { margin-left: auto; display: flex; gap: 8px; }
+    .primary { border-color: var(--accent); background: var(--accent); color: white; padding: 0 14px; }
+    .layout { display: grid; grid-template-columns: minmax(250px, 320px) minmax(0, 1fr); min-height: calc(100vh - 62px); }
+    aside { border-right: 1px solid var(--line); background: var(--paper); min-width: 0; }
+    .progress { padding: 14px; border-bottom: 1px solid var(--line); }
+    .progress strong { font-size: 16px; }
+    .bar { height: 6px; margin-top: 8px; overflow: hidden; background: #e4e8ec; border-radius: 3px; }
+    .bar span { display: block; height: 100%; width: 0; background: var(--accent); }
+    .filters { display: grid; gap: 8px; padding: 12px; border-bottom: 1px solid var(--line); }
+    input[type="search"] { width: 100%; height: 36px; border: 1px solid var(--line); border-radius: 6px; padding: 0 10px; }
+    .item-list { max-height: calc(100vh - 174px); overflow: auto; }
+    .item { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 8px; padding: 10px 12px; text-align: left; border: 0; border-bottom: 1px solid #edf0f2; border-radius: 0; }
+    .item.active { background: var(--accent-soft); }
+    .item-id { overflow: hidden; color: var(--muted); text-overflow: ellipsis; white-space: nowrap; }
+    .done { color: var(--accent); font-weight: 600; }
+    main { min-width: 0; background: var(--paper); }
+    .toolbar { position: sticky; top: 62px; z-index: 2; display: flex; gap: 8px; align-items: center; min-height: 50px; padding: 8px 18px; border-bottom: 1px solid var(--line); background: var(--paper); }
+    .toolbar button { width: 38px; }
+    .state { margin-left: auto; color: var(--muted); }
+    article { max-width: 980px; padding: 24px clamp(18px, 4vw, 52px) 72px; }
+    h2 { margin: 4px 0 22px; font-size: 22px; }
+    h3 { margin: 24px 0 8px; font-size: 14px; }
+    .eyebrow, .meta { color: var(--muted); }
+    .text { white-space: pre-wrap; overflow-wrap: anywhere; }
+    .quote { padding-left: 14px; border-left: 3px solid #91a3b5; }
+    details { padding: 8px 0; border-bottom: 1px solid #edf0f2; }
+    summary { cursor: pointer; color: #34495e; }
+    .labels { display: flex; flex-wrap: wrap; gap: 8px; }
+    .labels button { padding: 0 12px; }
+    .labels button.selected { border-color: var(--accent); background: var(--accent-soft); color: #0d5945; font-weight: 600; }
+    textarea { width: 100%; min-height: 110px; margin-top: 12px; padding: 10px; resize: vertical; border: 1px solid var(--line); border-radius: 6px; }
+    .error { color: var(--warn); }
+    @media (max-width: 720px) {
+      header { position: static; flex-wrap: wrap; }
+      .identity { order: 3; flex-basis: 100%; }
+      .layout { display: block; }
+      aside { border-right: 0; border-bottom: 1px solid var(--line); }
+      .item-list { max-height: 220px; }
+      .toolbar { top: 0; }
+      article { padding: 20px 16px 60px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>P34 离线审核</h1>
+    <div id="identity" class="identity"></div>
+    <div class="header-actions"><button id="download" class="primary">导出结果</button></div>
+  </header>
+  <div class="layout">
+    <aside>
+      <section class="progress">
+        <strong id="progress">0 / 0</strong>
+        <div class="bar"><span id="bar"></span></div>
+      </section>
+      <section class="filters">
+        <input id="search" type="search" placeholder="搜索 paper / packet">
+        <label><input id="openOnly" type="checkbox"> 只看未完成</label>
+      </section>
+      <div id="items" class="item-list"></div>
+    </aside>
+    <main>
+      <div class="toolbar">
+        <button id="previous" aria-label="上一条" title="上一条">‹</button>
+        <button id="next" aria-label="下一条" title="下一条">›</button>
+        <span id="state" class="state"></span>
+      </div>
+      <article id="document"></article>
+    </main>
+  </div>
+  <script>
+    const bundleBase64 = "__P34_BUNDLE_BASE64__";
+    const decodeBundle = () => {
+      const binary = atob(bundleBase64);
+      const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+      return JSON.parse(new TextDecoder().decode(bytes));
+    };
+    const bundle = decodeBundle();
+    if (bundle.schema_version !== "p34_annotation_exchange_v1") throw new Error("Unsupported bundle schema");
+    const immutable = new Map(bundle.items.map((item) => [item.packet_id, item]));
+    const labels = new Map(bundle.labels.map((item) => [item.packet_id, item]));
+    if (immutable.size !== bundle.items.length || labels.size !== bundle.labels.length || immutable.size !== labels.size) {
+      throw new Error("Bundle item mismatch");
+    }
+    const app = { visible: [], index: 0, dirty: false };
+    const $ = (id) => document.getElementById(id);
+    const node = (tag, value, className = "") => {
+      const element = document.createElement(tag);
+      if (className) element.className = className;
+      element.textContent = value == null ? "" : String(value);
+      return element;
+    };
+    const compact = (value, limit = 2400) => {
+      const text = String(value || "").trim();
+      return text.length <= limit ? text : text.slice(0, limit) + "…";
+    };
+    const isDone = (packetId) => Boolean(String(labels.get(packetId)?.human_label || "").trim());
+    const section = (root, title, value, className = "text") => {
+      root.append(node("h3", title), node("div", value || "无内容", className));
+    };
+    const renderSources = (root, sources, title) => {
+      root.append(node("h3", title));
+      const list = document.createElement("div");
+      (sources || []).slice(0, 8).forEach((source, index) => {
+        const details = document.createElement("details");
+        if (index === 0) details.open = true;
+        details.append(node("summary", `${source.section_type || "source"} · ${source.section_id || source.source_id || source.evidence_id || index + 1}`));
+        details.append(node("div", compact(source.quote || source.text || ""), "text"));
+        list.append(details);
+      });
+      if (!sources || !sources.length) list.append(node("div", "没有附加来源。", "meta"));
+      root.append(list);
+    };
+    const applyFilters = (preferred = "") => {
+      const query = $("search").value.trim().toLowerCase();
+      app.visible = bundle.items.filter((item) => {
+        const key = `${item.paper_id} ${item.packet_id}`.toLowerCase();
+        return (!query || key.includes(query)) && (!$("openOnly").checked || !isDone(item.packet_id));
+      });
+      const preferredIndex = preferred ? app.visible.findIndex((item) => item.packet_id === preferred) : -1;
+      app.index = preferredIndex >= 0 ? preferredIndex : Math.min(app.index, Math.max(0, app.visible.length - 1));
+      render();
+    };
+    const render = () => {
+      const completed = bundle.items.filter((item) => isDone(item.packet_id)).length;
+      $("progress").textContent = `${completed} / ${bundle.items.length}`;
+      $("bar").style.width = `${bundle.items.length ? 100 * completed / bundle.items.length : 0}%`;
+      const list = $("items");
+      list.replaceChildren();
+      app.visible.forEach((item, index) => {
+        const button = node("button", "", `item${index === app.index ? " active" : ""}`);
+        button.append(node("span", item.paper_id), node("span", isDone(item.packet_id) ? "已完成" : "待审核", isDone(item.packet_id) ? "done" : ""));
+        button.append(node("span", item.packet_id, "item-id"));
+        button.onclick = () => { app.index = index; render(); };
+        list.append(button);
+      });
+      renderCurrent();
+    };
+    const renderCurrent = () => {
+      const root = $("document");
+      root.replaceChildren();
+      if (!app.visible.length) { root.append(node("div", "当前筛选条件下没有条目。", "meta")); return; }
+      const item = app.visible[app.index];
+      const packet = item.packet || {};
+      const label = labels.get(item.packet_id);
+      root.append(node("div", `${app.index + 1} / ${app.visible.length} · ${item.paper_id}`, "eyebrow"));
+      root.append(node("h2", item.packet_id));
+      if (bundle.annotator_role === "adjudicator") {
+        section(root, "主标结论", `${item.primary_label}\n${item.primary_reason || ""}`);
+        section(root, "双标结论", `${item.secondary_label}\n${item.secondary_reason || ""}`);
+      }
+      section(root, "主张", packet.claim?.claim_text || packet.claim?.claim || "");
+      if (bundle.task_type === "evidence_relation") {
+        const evidence = packet.candidate_evidence || {};
+        section(root, "候选证据", evidence.quote || "", "text quote");
+        renderSources(root, packet.counterevidence_candidates || [], "检索上下文 / 可能反证");
+      } else if (bundle.task_type === "claim_faithfulness") {
+        renderSources(root, packet.claim_source_spans || [], "论文来源");
+      } else {
+        const issue = packet.issue_hypothesis || {};
+        const contract = packet.verification_contract || {};
+        section(root, "待审核缺陷", issue.hypothesis || contract.alleged_defect || "");
+        section(root, "需要什么证据才能解决", contract.required_resolution_evidence || issue.expected_evidence || "");
+        section(root, "反证检索问题", contract.falsification_query || issue.counterevidence_query || "");
+        renderSources(root, packet.retrieved_evidence || packet.counterevidence_candidates || [], "论文证据与可能反证");
+      }
+      root.append(node("h3", "人工结论"));
+      const labelBar = document.createElement("div");
+      labelBar.className = "labels";
+      item.allowed_labels.forEach((value) => {
+        const button = node("button", value, label.human_label === value ? "selected" : "");
+        button.onclick = () => { label.human_label = value; app.dirty = true; $("state").textContent = "未导出"; render(); };
+        labelBar.append(button);
+      });
+      root.append(labelBar);
+      const reason = document.createElement("textarea");
+      reason.placeholder = "判断依据";
+      reason.value = label.human_reason || "";
+      reason.oninput = () => { label.human_reason = reason.value; app.dirty = true; $("state").textContent = "未导出"; };
+      root.append(reason);
+    };
+    const download = () => {
+      bundle.labels = bundle.items.map((item) => labels.get(item.packet_id));
+      const blob = new Blob([JSON.stringify(bundle, null, 2) + "\n"], {type: "application/json"});
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `p34_${bundle.task_type}_${bundle.annotator_role}_${bundle.bundle_sha256.slice(0, 12)}_labeled.json`;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(link.href);
+      app.dirty = false;
+      $("state").textContent = "已导出";
+    };
+    $("identity").textContent = `${bundle.task_type} · ${bundle.annotator_role} · ${bundle.reviewer_id}`;
+    $("search").oninput = () => applyFilters();
+    $("openOnly").onchange = () => applyFilters();
+    $("previous").onclick = () => { app.index = Math.max(0, app.index - 1); render(); };
+    $("next").onclick = () => { app.index = Math.min(Math.max(0, app.visible.length - 1), app.index + 1); render(); };
+    $("download").onclick = download;
+    window.addEventListener("beforeunload", (event) => { if (app.dirty) { event.preventDefault(); event.returnValue = ""; } });
+    applyFilters();
+  </script>
+</body>
+</html>

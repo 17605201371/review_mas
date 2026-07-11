@@ -6,10 +6,11 @@ import copy
 import json
 import os
 import re
+import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
 from agent_system.review_prompts import (
     CLAIM_PROMPT,
@@ -50,8 +51,16 @@ from agent_system.environments.env_package.review.state import (
     render_review_observation,
     render_evidence_observation,
 )
+from agent_system.environments.env_package.review.field_authority import (
+    audit_update_authority,
+    filter_unauthorized_update,
+)
 from agent_system.environments.env_package.review.reward import _extract_decision
 from agent_system.environments.env_package.review.support_quality import derive_sample_support_summary
+from agent_system.inference.p33_guarded_admission import (
+    apply_guarded_admission_cases,
+    load_admission_cases_by_paper,
+)
 
 
 PromptFn = Callable[[str, str], str]
@@ -2646,9 +2655,81 @@ def normalize_agent_payload(
     available_workers: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:
     spec = AGENT_SPECS[agent_id]
+    authority_mode = str(os.getenv("DRMAS_FIELD_AUTHORITY_MODE", "off") or "off").strip().lower()
+    if authority_mode not in {"off", "shadow", "enforce"}:
+        authority_mode = "off"
+    authority_violations = []
+    raw_payload = dict(payload or {})
+    pending_claim_proposals: List[Dict[str, Any]] = []
+    pending_evidence_proposals: List[Dict[str, Any]] = []
+    if authority_mode != "off":
+        if authority_mode == "enforce":
+            raw_payload, authority_violations = filter_unauthorized_update(agent_id, raw_payload)
+        else:
+            authority_violations = audit_update_authority(agent_id, raw_payload)
+    if authority_mode == "enforce" and agent_id == "Claim Agent":
+        pending_claim_proposals = [
+            copy.deepcopy(item)
+            for item in raw_payload.get("claims", [])
+            if isinstance(item, dict)
+        ][:8]
+    if authority_mode == "enforce" and agent_id == "Evidence Agent":
+        pending_evidence_proposals = [
+            copy.deepcopy(item)
+            for item in raw_payload.get("evidence_map", [])
+            if isinstance(item, dict)
+        ][:12]
     if spec.is_manager:
-        return normalize_manager_payload(payload, available_agents=available_workers)
-    return normalize_review_update_payload(payload, required_fields=spec.required_fields)
+        normalized = normalize_manager_payload(raw_payload, available_agents=available_workers)
+    else:
+        normalized = normalize_review_update_payload(raw_payload, required_fields=spec.required_fields)
+    if authority_mode == "enforce" and agent_id == "Claim Agent":
+        normalized["_authority_pending_claim_proposals"] = pending_claim_proposals
+        normalized["claims"] = []
+    if authority_mode == "enforce" and agent_id == "Evidence Agent":
+        normalized["_authority_pending_evidence_proposals"] = pending_evidence_proposals
+        normalized["evidence_map"] = []
+    if authority_mode != "off":
+        normalized["_authority_pre_normalized"] = True
+        normalized["_authority_mode"] = authority_mode
+        normalized["_authority_violations"] = [
+            {"actor": item.actor, "path": item.path, "reason": item.reason}
+            for item in authority_violations
+        ]
+    return normalized
+
+
+def _authority_prompt_contract(agent_id: str) -> str:
+    mode = str(os.getenv("DRMAS_FIELD_AUTHORITY_MODE", "off") or "off").strip().lower()
+    if mode not in {"shadow", "enforce"}:
+        return ""
+    contracts = {
+        "Review Manager Agent": (
+            "Return routing/finalization proposal fields only: decision, action_type, selected_agents, focus, rationale, target ids, "
+            "clarification fields, summary_update, and dialogue_summary. Omit claims, evidence_map, flaw_candidates, recommendation, final_decision, and final_report."
+        ),
+        "Claim Agent": (
+            "Return claim extraction proposals only: claim_id, claim, importance, claim_type, source/locator/span, evidence_need, coverage_tags, "
+            "claim_obligations, and unresolved_questions. Omit claim status, supporting_evidence_ids, dialogue_summary, and recommendation."
+        ),
+        "Evidence Agent": (
+            "Return evidence quote proposals only: evidence_id, claim_id, raw_quote/evidence, source, source_locator, source spans, quote_id, "
+            "required_evidence_type, and unresolved_questions. Omit stance, strength, binding verdict/confidence, semantic or grounding verdicts, dialogue_summary, and recommendation."
+        ),
+        "Critique Agent": (
+            "Return issue hypotheses only through reviewer_negative_candidates, selected_menu_items, rejected_menu_items, or unresolved_questions. "
+            "Omit flaw_candidates, evidence_map, claim status changes, dialogue_summary, recommendation, and final decisions."
+        ),
+    }
+    rule = contracts.get(agent_id)
+    if not rule:
+        return ""
+    return (
+        "\n\n# P34 Field Authority Contract\n"
+        "This contract overrides any broader legacy output schema above. "
+        + rule
+        + " Non-owner fields are rejected and recorded.\n"
+    )
 
 
 def _review_issue_inventory_type_matches_requirement(item: Dict[str, Any], requirement: str, issue_type: str) -> bool:
@@ -4314,11 +4395,17 @@ def _resolve_prompt_template(agent_id: str, manager_payload: Optional[Dict[str, 
 
 def build_prompt(agent_id: str, env_prompt: str, team_context: str, step: int, manager_payload: Optional[Dict[str, Any]] = None) -> str:
     prompt_template = _resolve_prompt_template(agent_id, manager_payload=manager_payload)
-    return (
+    rendered = (
         prompt_template.replace("{env_prompt}", env_prompt)
         .replace("{team_context}", team_context)
         .replace("{step}", str(step))
     )
+    if not (
+        isinstance(manager_payload, dict)
+        and _normalize_turn_mode(manager_payload.get("turn_mode")) == "recovery_patch"
+    ):
+        rendered += _authority_prompt_contract(agent_id)
+    return rendered
 
 
 def build_manager_observation(task: Dict[str, Any], worker_ids: Sequence[str]) -> str:
@@ -8182,6 +8269,106 @@ def _maybe_zero_real_targeted_retry(
     return _apply_turn_mode(normalized)
 
 
+def _p33_guarded_admission_hygiene_summary(state: Mapping[str, Any]) -> Dict[str, Any]:
+    try:
+        view_state = copy.deepcopy(dict(state or {}))
+        view_state.pop("decision_hygiene", None)
+        hygiene = build_decision_hygiene_view(view_state).get("decision_hygiene", {}) or {}
+    except Exception as exc:
+        return {
+            "hygiene_recompute_failed": True,
+            "hygiene_recompute_error": str(exc),
+            "blocking_issues": ["hygiene_recompute_failed"],
+        }
+    state_contamination = int(hygiene.get("state_contamination_count", 0) or 0)
+    harmful_contamination = int(hygiene.get("harmful_state_contamination_count", 0) or 0)
+    grounding_conflict = int(hygiene.get("negative_grounding_conflict_count", 0) or 0)
+    blocking: List[str] = []
+    if state_contamination:
+        blocking.append(f"state_contamination_count {state_contamination} > 0")
+    if harmful_contamination:
+        blocking.append(f"harmful_state_contamination_count {harmful_contamination} > 0")
+    if grounding_conflict:
+        blocking.append(f"negative_grounding_conflict_count {grounding_conflict} > 0")
+    return {
+        "hygiene_recompute_failed": False,
+        "state_contamination_count": state_contamination,
+        "harmful_state_contamination_count": harmful_contamination,
+        "negative_grounding_conflict_count": grounding_conflict,
+        "verified_review_issue_count": int(hygiene.get("verified_review_issue_count", 0) or 0),
+        "verified_review_issue_cluster_count": int(hygiene.get("verified_review_issue_cluster_count", 0) or 0),
+        "mark_contested_commit_count": int(hygiene.get("mark_contested_commit_count", 0) or 0),
+        "blocking_issues": blocking,
+    }
+
+
+def _p33_guarded_admission_summary_blocking(summary: Mapping[str, Any]) -> List[str]:
+    blocking: List[str] = []
+    added_evidence = int(summary.get("added_evidence_count", 0) or 0)
+    added_relations = int(summary.get("added_contested_relation_count", 0) or 0)
+    if added_evidence != added_relations:
+        blocking.append(f"added_evidence_count {added_evidence} != added_contested_relation_count {added_relations}")
+    critical_skip_reasons = {
+        "missing_state_record_or_relation",
+        "missing_evidence_id",
+        "unbound_contested_relation",
+        "relation_claim_mismatch",
+        "relation_missing_record_evidence",
+    }
+    critical_skips = [
+        item for item in summary.get("skipped_cases", []) or []
+        if isinstance(item, Mapping) and item.get("reason") in critical_skip_reasons
+    ]
+    if critical_skips:
+        blocking.append(f"p33_guarded_admission_invalid_case_count {len(critical_skips)} > 0")
+    return blocking
+
+
+def _maybe_apply_p33_guarded_admission(
+    review_state: Dict[str, Any],
+    *,
+    paper_id: str,
+    cases_by_paper: Optional[Mapping[str, Sequence[Mapping[str, Any]]]],
+    admission_source: str = "",
+) -> Dict[str, Any]:
+    if not isinstance(review_state, dict) or not cases_by_paper:
+        return review_state
+    resolved_paper_id = str(paper_id or review_state.get("paper_id") or "").strip()
+    cases = list(cases_by_paper.get(resolved_paper_id, []) or [])
+    if not cases:
+        return review_state
+
+    applied_state, summary = apply_guarded_admission_cases(
+        review_state,
+        cases,
+        admission_source=admission_source,
+    )
+    hygiene_summary = _p33_guarded_admission_hygiene_summary(applied_state)
+    blocking = [
+        *_p33_guarded_admission_summary_blocking(summary),
+        *list(hygiene_summary.get("blocking_issues") or []),
+    ]
+    if blocking:
+        blocked_state = copy.deepcopy(review_state)
+        blocked_state["_p33_guarded_admission"] = {
+            **summary,
+            **hygiene_summary,
+            "status": "BLOCKED",
+            "applied_to_output_state": False,
+            "blocking_issues": blocking,
+        }
+        return blocked_state
+    status = "PASS" if int(summary.get("added_evidence_count", 0) or 0) else "NOOP"
+    applied_state["_p33_guarded_admission"] = {
+        **summary,
+        **hygiene_summary,
+        "status": status,
+        "applied_to_output_state": True,
+        "blocking_issues": [],
+    }
+    return applied_state
+
+
 def run_review_episode(
     extras: Dict[str, Any],
     mode: str,
@@ -8190,6 +8377,8 @@ def run_review_episode(
     max_workers_per_turn: Optional[int] = None,
     log_dir: Optional[str] = None,
     model_adapter_mode: str = "auto",
+    p33_guarded_admission_cases_by_paper: Optional[Mapping[str, Sequence[Mapping[str, Any]]]] = None,
+    p33_guarded_admission_source: str = "",
 ) -> Dict[str, Any]:
     plan = get_agent_plan(mode)
     turn_cap = int(max_turns or plan["max_turns_default"])
@@ -8552,6 +8741,12 @@ def run_review_episode(
             if review_state.get("simulated_user_reply"):
                 review_state["pending_user_question"] = ""
                 review_state["clarification_needed"] = False
+            review_state = _maybe_apply_p33_guarded_admission(
+                review_state,
+                paper_id=str(obs.get("paper_id") or review_state.get("paper_id") or ""),
+                cases_by_paper=p33_guarded_admission_cases_by_paper,
+                admission_source=p33_guarded_admission_source,
+            )
 
         # Extract diagnosis_pending_concern statistics from hygiene view
         diagnosis_pending_concerns = []
@@ -8589,6 +8784,8 @@ def run_review_batch(
     max_workers_per_turn: Optional[int] = None,
     log_dir: Optional[str] = None,
     model_adapter_mode: str = "auto",
+    p33_guarded_admission_cases_by_paper: Optional[Mapping[str, Sequence[Mapping[str, Any]]]] = None,
+    p33_guarded_admission_source: str = "",
 ) -> List[Dict[str, Any]]:
     plan = get_agent_plan(mode)
     turn_cap = int(max_turns or plan["max_turns_default"])
@@ -9010,6 +9207,12 @@ def run_review_batch(
                 if review_state.get("simulated_user_reply"):
                     review_state["pending_user_question"] = ""
                     review_state["clarification_needed"] = False
+                review_state = _maybe_apply_p33_guarded_admission(
+                    review_state,
+                    paper_id=str(obs.get("paper_id") or review_state.get("paper_id") or ""),
+                    cases_by_paper=p33_guarded_admission_cases_by_paper,
+                    admission_source=p33_guarded_admission_source,
+                )
 
             # Extract diagnosis_pending_concern statistics
             diagnosis_pending_concerns = []
@@ -9192,6 +9395,7 @@ class ApiReviewGenerator:
         retry_delay: float = 2.0,
         provider: str = "auto",
         system_prompt: Optional[str] = None,
+        backup_api_key: Optional[str] = None,
     ):
         try:
             from openai import OpenAI
@@ -9245,17 +9449,30 @@ class ApiReviewGenerator:
                 "do not use markdown fences, and do not include prose outside the tags."
             )
         self.system_prompt = str(system_prompt or "").strip()
+        self._openai_client_class = OpenAI
+        self._resolved_url = resolved_url
+        self._primary_api_key = resolved_key
+        self._backup_api_key = str(
+            backup_api_key
+            if backup_api_key is not None
+            else (os.environ.get("MIMO_API_KEY_BACKUP", "") if api_key is None and self.provider == "mimo" else "")
+        ).strip()
+        if self._backup_api_key == self._primary_api_key:
+            self._backup_api_key = ""
+        self._using_backup_key = False
+        self._key_switch_lock = threading.Lock()
+        self.client = self._build_api_client(self._primary_api_key)
+        print(f"[API] Initialized: model={model}, provider={self.provider}, base_url={resolved_url}, max_tokens={max_tokens}")
 
-        default_headers = {"api-key": resolved_key} if self.provider == "mimo" and resolved_key else None
-
-        self.client = OpenAI(
-            api_key=resolved_key,
-            base_url=resolved_url,
-            timeout=float(timeout),
-            max_retries=0,  # we handle retries ourselves
+    def _build_api_client(self, api_key: str):
+        default_headers = {"api-key": api_key} if self.provider == "mimo" and api_key else None
+        return self._openai_client_class(
+            api_key=api_key,
+            base_url=self._resolved_url,
+            timeout=float(self.timeout),
+            max_retries=0,
             default_headers=default_headers,
         )
-        print(f"[API] Initialized: model={model}, provider={self.provider}, base_url={resolved_url}, max_tokens={max_tokens}")
 
     def _messages(self, prompt: str) -> List[Dict[str, str]]:
         if self.system_prompt:
@@ -9327,6 +9544,33 @@ class ApiReviewGenerator:
         return ""
 
     @staticmethod
+    def _is_balance_api_error(exc: Exception) -> bool:
+        text = str(exc or "").lower()
+        status_code = getattr(exc, "status_code", None) or getattr(exc, "status", None)
+        if status_code == 402:
+            return True
+        return bool(
+            re.search(
+                r"\b(?:insufficient[_ -]?balance|quota[_ -]?exceeded|billing|payment[_ -]?required)\b",
+                text,
+            )
+        )
+
+    def _activate_backup_api_key(self) -> bool:
+        if self.provider != "mimo" or not self._backup_api_key or self._using_backup_key:
+            return False
+        with self._key_switch_lock:
+            if self._using_backup_key:
+                return False
+            self.client = self._build_api_client(self._backup_api_key)
+            self._using_backup_key = True
+            print(
+                f"[{_timestamp()}] [API] primary MiMo balance unavailable; switched to configured backup key",
+                flush=True,
+            )
+            return True
+
+    @staticmethod
     def _looks_like_response_format_rejection(exc: Exception) -> bool:
         text = str(exc or "").lower()
         status_code = getattr(exc, "status_code", None) or getattr(exc, "status", None)
@@ -9356,10 +9600,9 @@ class ApiReviewGenerator:
             )
         )
 
-    def _call_api_once(self, prompt: str) -> str:
-        kwargs = self._completion_kwargs(prompt)
+    def _create_completion(self, kwargs: Dict[str, Any]):
         try:
-            response = self.client.chat.completions.create(**kwargs)
+            return self.client.chat.completions.create(**kwargs)
         except Exception as exc:
             # Probe-and-fallback: if the provider rejects response_format, disable it for the
             # rest of the session and retry once without it. Other (transient) errors are
@@ -9376,7 +9619,17 @@ class ApiReviewGenerator:
                     f"disabling for session ({str(exc)[:120]})",
                     flush=True,
                 )
-                response = self.client.chat.completions.create(**kwargs)
+                return self.client.chat.completions.create(**kwargs)
+            else:
+                raise
+
+    def _call_api_once(self, prompt: str) -> str:
+        kwargs = self._completion_kwargs(prompt)
+        try:
+            response = self._create_completion(kwargs)
+        except Exception as exc:
+            if self._is_balance_api_error(exc) and self._activate_backup_api_key():
+                response = self._create_completion(kwargs)
             else:
                 raise
         message = response.choices[0].message
@@ -9385,11 +9638,12 @@ class ApiReviewGenerator:
     def _call_api(self, agent_id: str, prompt: str) -> str:
         """Call the API with retry logic."""
         last_error = None
-        for attempt in range(self.max_retries):
+        max_attempts = max(1, self.max_retries)
+        for attempt in range(max_attempts):
             started = time.monotonic()
             print(
                 f"[{_timestamp()}] [API] request start agent={agent_id} "
-                f"attempt={attempt + 1}/{self.max_retries} prompt_chars={len(str(prompt or ''))}",
+                f"attempt={attempt + 1}/{max_attempts} prompt_chars={len(str(prompt or ''))}",
                 flush=True,
             )
             try:
@@ -9422,19 +9676,19 @@ class ApiReviewGenerator:
                 if self._is_non_retryable_api_error(e):
                     print(
                         f"[{_timestamp()}] [API] non-retryable error agent={agent_id}; "
-                        f"aborting retries after attempt={attempt + 1}/{self.max_retries}",
+                        f"aborting retries after attempt={attempt + 1}/{max_attempts}",
                         flush=True,
                     )
                     raise RuntimeError(f"Non-retryable API error for {agent_id}: {e}") from e
-            if attempt < self.max_retries - 1:
+            if attempt < max_attempts - 1:
                 wait = min(self.retry_delay * (2 ** attempt), 30.0)
                 print(
                     f"[{_timestamp()}] [API] retry wait agent={agent_id} "
-                    f"next_attempt={attempt + 2}/{self.max_retries} wait={wait:.1f}s",
+                    f"next_attempt={attempt + 2}/{max_attempts} wait={wait:.1f}s",
                     flush=True,
                 )
                 time.sleep(wait)
-        raise RuntimeError(f"API call failed after {self.max_retries} retries for {agent_id}: {last_error}")
+        raise RuntimeError(f"API call failed after {max_attempts} attempts for {agent_id}: {last_error}")
 
     def __call__(self, agent_id: str, prompt: str) -> str:
         return self._call_api(agent_id, prompt)
@@ -9469,6 +9723,54 @@ def _infer_model_adapter_mode(requested: str, model_name: Optional[str]) -> str:
     return "auto"
 
 
+def _first_nonempty(*values: Any) -> Any:
+    for value in values:
+        if value is None:
+            continue
+        if isinstance(value, str) and not value.strip():
+            continue
+        return value
+    return ""
+
+
+def _paper_text_from_messages(value: Any) -> str:
+    messages = value
+    if isinstance(messages, str):
+        stripped = messages.strip()
+        if not stripped.startswith("["):
+            return ""
+        try:
+            messages = json.loads(stripped)
+        except json.JSONDecodeError:
+            return ""
+    if not isinstance(messages, list):
+        return ""
+    user_contents = [
+        str(item.get("content") or "")
+        for item in messages
+        if isinstance(item, dict) and str(item.get("role") or "").strip().lower() == "user"
+    ]
+    return max(user_contents, key=len, default="")
+
+
+def _paper_text_from_row(row: Mapping[str, Any], env_kwargs: Mapping[str, Any], prompt: Any) -> str:
+    explicit = _first_nonempty(env_kwargs.get("paper_text"), row.get("paper_text"))
+    if explicit:
+        return str(explicit)
+
+    inputs_val = row.get("inputs")
+    if isinstance(inputs_val, str) and not inputs_val.strip().startswith("["):
+        return inputs_val
+
+    message_text = _first_nonempty(
+        _paper_text_from_messages(inputs_val),
+        _paper_text_from_messages(prompt),
+    )
+    if message_text:
+        return str(message_text)
+    return str(row.get("question") or "")
+
+
 def _row_to_env_kwargs(row: Dict[str, Any]) -> Dict[str, Any]:
     env_kwargs = _parse_jsonish_field(row.get("env_kwargs"))
     if not isinstance(env_kwargs, dict):
@@ -9478,43 +9780,45 @@ def _row_to_env_kwargs(row: Dict[str, Any]) -> Dict[str, Any]:
     reward_model = _parse_jsonish_field(row.get("reward_model"))
     prompt = _parse_jsonish_field(row.get("prompt"))
 
-    # Priority: env_kwargs.paper_text > row.paper_text > row.inputs > row.question
-    # Note: 'inputs' usually contains a JSON list of messages in this dataset.
-    inputs_val = row.get("inputs")
-    paper_text = env_kwargs.get("paper_text") or row.get("paper_text") or (inputs_val if isinstance(inputs_val, str) and not inputs_val.strip().startswith("[") else "") or row.get("question") or ""
+    # Canonical datasets store the paper as the user message inside ``inputs``.
+    # Prefer explicit paper fields, then extract the longest user message, then
+    # fall back to the legacy question field.
+    paper_text = _paper_text_from_row(row, env_kwargs, prompt)
 
-    if not paper_text:
-        # Try to extract from 'prompt' list or 'inputs' if we can JSON parse it
-        msg_list = prompt
-        if not isinstance(msg_list, list) and isinstance(inputs_val, str) and inputs_val.strip().startswith("["):
-            try:
-                msg_list = json.loads(inputs_val)
-            except:
-                msg_list = None
-
-        if isinstance(msg_list, list):
-            for item in msg_list:
-                if isinstance(item, dict) and item.get("role") == "user":
-                    paper_text = item.get("content", "")
-                    # If it's very long, it's likely the paper
-                    if len(paper_text) > 1000:
-                        break
-
-    print(f"[DEBUG] paper_id: {env_kwargs.get('paper_id') or row.get('id')}, paper_text length: {len(paper_text)}")
-    if paper_text:
-        snippet = paper_text[:100].replace('\n', ' ')
-        print(f"[DEBUG] paper_text snippet: {snippet}...")
+    if os.environ.get("DRMAS_DEBUG_DATASET_MAPPING", "").strip().lower() in {"1", "true", "on", "yes"}:
+        print(f"[DEBUG] paper_id: {env_kwargs.get('paper_id') or row.get('id')}, paper_text length: {len(paper_text)}")
+        if paper_text:
+            snippet = paper_text[:100].replace('\n', ' ')
+            print(f"[DEBUG] paper_text snippet: {snippet}...")
 
     return {
         "paper_id": env_kwargs.get("paper_id") or row.get("paper_id") or row.get("id") or (extra_info or {}).get("id") or "unknown-paper",
         "paper_text": paper_text,
         "question": paper_text,
         "user_goal": row.get("user_goal")
-        or "Review the paper, track claims and supporting evidence, surface major flaws, and end with an accept or reject recommendation.",
+        or (
+            "Review the paper, track its claims and supporting evidence, identify significant weaknesses "
+            "and unresolved uncertainties, and produce an evidence-grounded diagnostic review."
+        ),
         "data_source": row.get("data_source") or "unknown",
-        "ground_truth_decision": row.get("ground_truth_decision") or (reward_model or {}).get("decision") or "",
-        "reference_review": row.get("reference_review") or (extra_info or {}).get("reference_review") or "",
-        "reference_ratings": row.get("reference_ratings") or (reward_model or {}).get("rating"),
+        "ground_truth_decision": _first_nonempty(
+            env_kwargs.get("ground_truth_decision"),
+            row.get("ground_truth_decision"),
+            row.get("decision"),
+            (reward_model or {}).get("decision"),
+        ),
+        "reference_review": _first_nonempty(
+            env_kwargs.get("reference_review"),
+            row.get("reference_review"),
+            row.get("outputs"),
+            (extra_info or {}).get("reference_review"),
+        ),
+        "reference_ratings": _first_nonempty(
+            env_kwargs.get("reference_ratings"),
+            row.get("reference_ratings"),
+            row.get("rating"),
+            (reward_model or {}).get("rating"),
+        ),
         "reviewer_comments": row.get("reviewer_comments") or "",
         "model_adapter_mode": env_kwargs.get("model_adapter_mode") or row.get("model_adapter_mode") or "auto",
     }
@@ -9626,6 +9930,15 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--api-max-workers", type=int, default=8, help="Max concurrent API calls for batch generation.")
     parser.add_argument("--api-timeout", type=int, default=120, help="API request timeout in seconds.")
     parser.add_argument("--api-max-retries", type=int, default=6, help="Max retries per API request.")
+    parser.add_argument(
+        "--p33-guarded-admission-json",
+        default=os.environ.get("DRMAS_P33_GUARDED_ADMISSION_JSON", ""),
+        help=(
+            "Optional P33 guarded admission dry-run JSON. When set, admission-ready "
+            "previews are applied to matching output ReviewStates after finalization, "
+            "with paper/claim-anchor checks and hygiene fail-closed behavior."
+        ),
+    )
     return parser
 
 
@@ -9678,6 +9991,19 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         print(f"[MAIN] Using vLLM backend: model={args.model_path}")
     print(f"[MAIN] model_adapter_mode={effective_model_adapter_mode} (requested={args.model_adapter_mode})")
 
+    p33_guarded_admission_cases_by_paper: Dict[str, List[Dict[str, Any]]] = {}
+    p33_guarded_admission_source = ""
+    if str(args.p33_guarded_admission_json or "").strip():
+        p33_guarded_admission_source = str(args.p33_guarded_admission_json).strip()
+        p33_guarded_admission_cases_by_paper = load_admission_cases_by_paper(p33_guarded_admission_source)
+        print(
+            "[MAIN] P33 guarded admission enabled: "
+            f"source={p33_guarded_admission_source} "
+            f"papers={len(p33_guarded_admission_cases_by_paper)} "
+            f"cases={sum(len(items) for items in p33_guarded_admission_cases_by_paper.values())}",
+            flush=True,
+        )
+
     results: List[Dict[str, Any]] = []
     batch_size = max(1, int(args.manager_batch_size or 1))
     extras_rows = [_row_to_env_kwargs(row) for row in rows]
@@ -9695,6 +10021,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 max_workers_per_turn=args.max_workers_per_turn,
                 log_dir=args.log_dir,
                 model_adapter_mode=effective_model_adapter_mode,
+                p33_guarded_admission_cases_by_paper=p33_guarded_admission_cases_by_paper,
+                p33_guarded_admission_source=p33_guarded_admission_source,
             )
             results.append(result)
             _append_result(args.output_path, result)
@@ -9721,6 +10049,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 max_workers_per_turn=args.max_workers_per_turn,
                 log_dir=args.log_dir,
                 model_adapter_mode=effective_model_adapter_mode,
+                p33_guarded_admission_cases_by_paper=p33_guarded_admission_cases_by_paper,
+                p33_guarded_admission_source=p33_guarded_admission_source,
             )
             for result in batch_results:
                 results.append(result)
